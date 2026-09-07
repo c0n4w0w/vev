@@ -126,6 +126,8 @@ export interface Post {
   title?: string;
   body: string;
   createdAt: string;
+  /** Stamped by the database when the text is changed, never by the client. */
+  editedAt?: string;
   /** Pinned announcements surface on the overview and announcements page. */
   kind: "post" | "announcement";
   pinned?: boolean;

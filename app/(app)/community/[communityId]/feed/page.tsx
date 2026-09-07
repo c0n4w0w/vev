@@ -50,6 +50,8 @@ export default async function CommunityFeedPage({
             post={post}
             author={authors.get(post.authorId)!}
             community={community}
+            viewerId={user.id}
+            viewerRole={membership?.role}
           />
         ))}
       </div>

@@ -138,6 +138,7 @@ function toPost(row: PostRow): Post {
     title: row.title ?? undefined,
     body: row.body,
     createdAt: row.created_at,
+    editedAt: row.edited_at ?? undefined,
     kind: row.kind,
     pinned: row.pinned || undefined,
     commentCount: row.comment_count,
@@ -481,6 +482,93 @@ export async function getHomeFeed(_userId: string, limit = 8): Promise<Post[]> {
     .order("created_at", { ascending: false })
     .limit(limit);
   return rows(data).map(toPost);
+}
+
+// ── Post writes ─────────────────────────────────────────────────────────
+//
+// These go through the ordinary table API rather than an RPC, because row
+// level security can express every rule on its own: `posts_insert` pins the
+// author to auth.uid() and requires membership, `posts_update` limits edits to
+// the author, `posts_delete` allows the author or a moderator, and a trigger
+// freezes the columns that must not move. There is nothing left for a
+// SECURITY DEFINER function to check, and adding one would only move the rules
+// somewhere they are easier to get wrong.
+//
+// Note what is *not* passed in: author_id. The database takes it from the
+// authenticated session, so a caller cannot supply one.
+
+export type PostWriteResult = { ok: true; id: string } | { ok: false; error: string };
+
+export async function createPost(input: {
+  communityId: string;
+  body: string;
+  title?: string;
+  announcement?: boolean;
+}): Promise<PostWriteResult> {
+  const body = input.body.trim();
+  if (!body) return { ok: false, error: "Innlegget kan ikke være tomt." };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("posts")
+    .insert({
+      community_id: input.communityId,
+      body,
+      title: input.title?.trim() || null,
+      kind: input.announcement ? "announcement" : "post",
+      // author_id is deliberately absent: the column defaults to auth.uid(),
+      // and posts_insert additionally requires it to equal auth.uid(). There is
+      // no code path here that could carry a client-supplied author.
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: postWriteError(error.message) };
+  return { ok: true, id: data.id };
+}
+
+export async function updatePost(
+  postId: string,
+  input: { body: string; title?: string },
+): Promise<PostWriteResult> {
+  const body = input.body.trim();
+  if (!body) return { ok: false, error: "Innlegget kan ikke være tomt." };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("posts")
+    .update({ body, title: input.title?.trim() || null })
+    .eq("id", postId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return { ok: false, error: postWriteError(error.message) };
+  // No error and no row means row level security matched nothing — the caller
+  // is not the author, or cannot see the post at all.
+  if (!data) return { ok: false, error: "Du kan bare endre dine egne innlegg." };
+  return { ok: true, id: data.id };
+}
+
+export async function deletePost(postId: string): Promise<PostWriteResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("posts")
+    .delete()
+    .eq("id", postId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return { ok: false, error: postWriteError(error.message) };
+  if (!data) return { ok: false, error: "Du har ikke tilgang til å slette dette innlegget." };
+  return { ok: true, id: data.id };
+}
+
+/** Turns a Postgres message into something worth showing a person. */
+function postWriteError(message: string): string {
+  if (message.includes("row-level security")) {
+    return "Du har ikke tilgang til å publisere dette her.";
+  }
+  return "Innlegget kunne ikke lagres. Prøv igjen.";
 }
 
 // ── Events ──────────────────────────────────────────────────────────────

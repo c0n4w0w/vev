@@ -403,6 +403,7 @@ export type Database = {
           comment_count: number
           community_id: string
           created_at: string
+          edited_at: string | null
           id: string
           kind: Database["public"]["Enums"]["post_kind"]
           pinned: boolean
@@ -410,11 +411,12 @@ export type Database = {
           title: string | null
         }
         Insert: {
-          author_id: string
+          author_id?: string
           body: string
           comment_count?: number
           community_id: string
           created_at?: string
+          edited_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["post_kind"]
           pinned?: boolean
@@ -427,6 +429,7 @@ export type Database = {
           comment_count?: number
           community_id?: string
           created_at?: string
+          edited_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["post_kind"]
           pinned?: boolean
@@ -704,6 +707,7 @@ export const Constants = {
     },
   },
 } as const
+
 
 
 /**

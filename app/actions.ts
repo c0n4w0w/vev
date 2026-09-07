@@ -2,14 +2,19 @@
 
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 import {
   acceptInvitation as acceptCommunityInvitation,
   approveMembership,
+  createPost as persistPost,
   declineInvitation as declineCommunityInvitation,
+  deletePost as removePost,
   getMembership,
   rejectMembership,
   requestAccess as createAccessRequest,
+  updatePost as editPost,
 } from "@/lib/data";
+import type { PostFormState } from "@/lib/post-form";
 import { getSessionUser } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { demoLoginEnabled } from "@/lib/supabase/env";
@@ -131,4 +136,75 @@ export async function rejectMember(formData: FormData) {
 
   await rejectMembership(communityId, userId);
   redirect(`/community/${communityId}/members`);
+}
+
+// ── Posts ───────────────────────────────────────────────────────────────
+//
+// Authorisation lives in row level security, not here. These actions read the
+// session, hand the data layer what the person typed, and report back what the
+// database decided. They deliberately do not pre-check the caller's role: a
+// check here could only ever disagree with the policy, and the policy is the
+// one that actually runs.
+
+/** Clears the router cache for every screen that renders posts. */
+function revalidatePosts(communityId: string) {
+  revalidatePath(`/community/${communityId}/feed`);
+  revalidatePath(`/community/${communityId}/announcements`);
+  revalidatePath(`/community/${communityId}`);
+  revalidatePath("/home");
+}
+
+export async function createPostAction(
+  _prev: PostFormState,
+  formData: FormData,
+): Promise<PostFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const result = await persistPost({
+    communityId,
+    body: String(formData.get("body") ?? ""),
+    title: String(formData.get("title") ?? ""),
+    // A tampered checkbox only reaches a policy that refuses it: publishing an
+    // announcement requires can_moderate() in the database.
+    announcement: formData.get("announcement") === "on",
+  });
+
+  if (!result.ok) return { status: "error", message: result.error };
+  revalidatePosts(communityId);
+  return { status: "ok" };
+}
+
+export async function updatePostAction(
+  _prev: PostFormState,
+  formData: FormData,
+): Promise<PostFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const result = await editPost(String(formData.get("postId") ?? ""), {
+    body: String(formData.get("body") ?? ""),
+    title: String(formData.get("title") ?? ""),
+  });
+
+  if (!result.ok) return { status: "error", message: result.error };
+  revalidatePosts(communityId);
+  return { status: "ok" };
+}
+
+export async function deletePostAction(
+  _prev: PostFormState,
+  formData: FormData,
+): Promise<PostFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const result = await removePost(String(formData.get("postId") ?? ""));
+
+  if (!result.ok) return { status: "error", message: result.error };
+  revalidatePosts(communityId);
+  return { status: "ok" };
 }

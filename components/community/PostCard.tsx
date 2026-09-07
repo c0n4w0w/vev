@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Avatar, Badge, CommunityMark, Panel, RichText, cn } from "@/components/ui/primitives";
 import { IconMegaphone, IconPin } from "@/components/ui/icons";
+import { PostActions } from "@/components/community/PostActions";
 import { timeAgo } from "@/lib/format";
-import type { Community, Post, User } from "@/lib/types";
+import type { Community, Post, RoleId, User } from "@/lib/types";
 
 function Reactions({ reactions }: { reactions: Post["reactions"] }) {
   if (reactions.length === 0) return null;
@@ -26,13 +27,20 @@ export function PostCard({
   author,
   community,
   showCommunity = false,
+  viewerId,
+  viewerRole,
 }: {
   post: Post;
   author: User;
   community: Community;
   showCommunity?: boolean;
+  /** Who is looking. Omitted on screens that only read, such as the home feed. */
+  viewerId?: string;
+  viewerRole?: RoleId;
 }) {
   const isAnnouncement = post.kind === "announcement";
+  const isAuthor = viewerId !== undefined && viewerId === post.authorId;
+  const canModerate = viewerRole === "admin" || viewerRole === "moderator";
 
   return (
     <Panel
@@ -58,6 +66,11 @@ export function PostCard({
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-sm font-medium text-ink">{author.name}</span>
             <span className="text-xs text-ink-3">{timeAgo(post.createdAt)}</span>
+            {post.editedAt ? (
+              <span className="text-xs text-ink-3" title={`Endret ${timeAgo(post.editedAt)}`}>
+                · endret
+              </span>
+            ) : null}
             {isAnnouncement ? (
               <Badge tone="rust">
                 <IconMegaphone size={11} />
@@ -84,6 +97,15 @@ export function PostCard({
               {post.commentCount} {post.commentCount === 1 ? "kommentar" : "kommentarer"}
             </span>
           </div>
+
+          {viewerId ? (
+            <PostActions
+              post={post}
+              canEdit={isAuthor}
+              canDelete={isAuthor || canModerate}
+              accent={community.branding.accent}
+            />
+          ) : null}
         </div>
       </div>
     </Panel>
