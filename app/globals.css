@@ -1,26 +1,97 @@
 @import "tailwindcss";
 
+@theme {
+  /* Surfaces — warm, paper-like rather than cold grey */
+  --color-paper: #f6f4ef;
+  --color-paper-2: #efebe3;
+  --color-surface: #ffffff;
+
+  /* Ink */
+  --color-ink: #17191a;
+  --color-ink-2: #4c5153;
+  --color-ink-3: #797e81;
+
+  /* Hairlines */
+  --color-line: #e4e0d7;
+  --color-line-2: #d2ccc0;
+
+  /* Skog — primary. Deep Norwegian spruce. */
+  --color-skog: #1f4a3d;
+  --color-skog-2: #2d6553;
+  --color-skog-soft: #e8efea;
+
+  /* Fjord — secondary, informational */
+  --color-fjord: #2f5a73;
+  --color-fjord-soft: #e7eef2;
+
+  /* Rust — Falu red, used sparingly for attention */
+  --color-rust: #99442a;
+  --color-rust-soft: #f5e9e4;
+
+  --color-sand: #d9cfc0;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif-display), ui-serif, Georgia, serif;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  /* Overridden per community to tint the shell */
+  --community-accent: var(--color-skog);
+  --community-accent-soft: var(--color-skog-soft);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv05" 1, "ss01" 1;
+}
+
+/* Headings lean on the serif for an editorial, civic tone */
+.font-display {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.012em;
+}
+
+/* Small uppercase section labels used throughout the shell */
+.label {
+  font-size: 0.6875rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+
+::selection {
+  background: #cfe0d6;
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-skog);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Restrained scrollbars so long channel lists stay calm */
+.scroll-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-2) transparent;
+}
+.scroll-quiet::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-quiet::-webkit-scrollbar-thumb {
+  background: var(--color-line-2);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }

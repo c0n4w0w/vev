@@ -1,0 +1,261 @@
+/**
+ * Validates the prototype's content before it is ever seeded into Supabase.
+ *
+ * Two jobs:
+ *
+ * 1. **Referential integrity.** Every id the mock data points at must exist,
+ *    so the seed cannot insert a dangling row and the UI cannot render a blank
+ *    name. The database has foreign keys, but failing here is a much shorter
+ *    feedback loop than failing mid-seed.
+ *
+ * 2. **Organisational independence.** Tryggere Ruspolitikk and Tryggere Ungdom
+ *    are related organisations. Under The Rug is not connected to either, and
+ *    no piece of its content may suggest that it is. That is an editorial rule
+ *    a reviewer would have to remember on every content change, so it is
+ *    enforced here instead.
+ *
+ * Run with `npm run check:content`. No network, no database.
+ */
+import { channels, communities, memberships } from "@/lib/mock/communities";
+import { events } from "@/lib/mock/events";
+import { messages } from "@/lib/mock/messages";
+import { notifications } from "@/lib/mock/notifications";
+import { posts } from "@/lib/mock/posts";
+import { demoUserIds, users } from "@/lib/mock/users";
+
+const failures: string[] = [];
+let checks = 0;
+
+function check(label: string, condition: boolean, detail?: string) {
+  checks += 1;
+  if (!condition) failures.push(detail ? `${label} — ${detail}` : label);
+}
+
+const userIds = new Set(users.map((user) => user.id));
+const communityIds = new Set(communities.map((community) => community.id));
+const channelIds = new Set(channels.map((channel) => channel.id));
+
+const activeMembers = (communityId: string) =>
+  new Set(
+    memberships
+      .filter((m) => m.communityId === communityId && m.status === "active")
+      .map((m) => m.userId),
+  );
+
+// ── 1. Referential integrity ────────────────────────────────────────────
+
+for (const membership of memberships) {
+  const where = `${membership.userId}/${membership.communityId}`;
+  check("membership.userId finnes", userIds.has(membership.userId), where);
+  check("membership.communityId finnes", communityIds.has(membership.communityId), where);
+  if (membership.invitedBy) {
+    check("membership.invitedBy finnes", userIds.has(membership.invitedBy), where);
+  }
+}
+
+for (const channel of channels) {
+  check("channel.communityId finnes", communityIds.has(channel.communityId), channel.id);
+}
+
+for (const message of messages) {
+  check("message.channelId finnes", channelIds.has(message.channelId), message.id);
+  check("message.authorId finnes", userIds.has(message.authorId), message.id);
+
+  const community = message.channelId.split("--")[0];
+  check(
+    "melding er skrevet av et aktivt medlem",
+    activeMembers(community).has(message.authorId),
+    `${message.id}: ${message.authorId} er ikke aktivt medlem i ${community}`,
+  );
+
+  for (const reaction of message.reactions ?? []) {
+    for (const userId of reaction.userIds) {
+      check("reaksjon peker på en ekte bruker", userIds.has(userId), `${message.id}: ${userId}`);
+    }
+  }
+}
+
+for (const post of posts) {
+  check("post.communityId finnes", communityIds.has(post.communityId), post.id);
+  check("post.authorId finnes", userIds.has(post.authorId), post.id);
+  check(
+    "innlegg er skrevet av et aktivt medlem",
+    activeMembers(post.communityId).has(post.authorId),
+    `${post.id}: ${post.authorId}`,
+  );
+  for (const reaction of post.reactions) {
+    for (const userId of reaction.userIds) {
+      check("reaksjon peker på en ekte bruker", userIds.has(userId), `${post.id}: ${userId}`);
+    }
+  }
+}
+
+for (const event of events) {
+  check("event.communityId finnes", communityIds.has(event.communityId), event.id);
+  const members = activeMembers(event.communityId);
+  check("arrangementets vert er aktivt medlem", members.has(event.hostId), `${event.id}: ${event.hostId}`);
+  for (const attendeeId of event.attendeeIds) {
+    check("påmeldt er aktivt medlem", members.has(attendeeId), `${event.id}: ${attendeeId}`);
+  }
+  check("arrangementet slutter etter at det starter", Date.parse(event.endsAt) > Date.parse(event.startsAt), event.id);
+  if (event.capacity !== undefined) {
+    check("påmeldte overstiger ikke kapasiteten", event.attendeeIds.length <= event.capacity, event.id);
+  }
+}
+
+for (const notification of notifications) {
+  check("notification.userId finnes", userIds.has(notification.userId), notification.id);
+  if (notification.communityId) {
+    check("notification.communityId finnes", communityIds.has(notification.communityId), notification.id);
+  }
+  const href = notification.href;
+  const target =
+    href.startsWith("/community/")
+      ? href.split("/")[2]
+      : href.startsWith("/") && !href.includes("/", 1)
+        ? href.slice(1)
+        : null;
+  if (target) {
+    check(
+      "varselets lenke peker på et fellesskap som finnes",
+      communityIds.has(target) || communities.some((c) => c.slug === target),
+      `${notification.id}: ${href}`,
+    );
+  }
+  if (href.includes("/channel/")) {
+    check("varselets kanallenke finnes", channelIds.has(href.split("/channel/")[1]), notification.id);
+  }
+}
+
+// ── 2. Slugs and demo states ────────────────────────────────────────────
+
+check("alle slugs er unike", new Set(communities.map((c) => c.slug)).size === communities.length);
+check("alle bruker-handles er unike", new Set(users.map((u) => u.handle)).size === users.length);
+
+for (const community of communities) {
+  check(
+    `${community.id}: slug er URL-trygg`,
+    /^[a-z0-9]+(-[a-z0-9]+)*$/.test(community.slug),
+    community.slug,
+  );
+  check(`${community.id}: har kanaler`, channels.some((c) => c.communityId === community.id));
+  check(
+    `${community.id}: har minst én administrator`,
+    memberships.some((m) => m.communityId === community.id && m.status === "active" && m.role === "admin"),
+  );
+  check(
+    `${community.id}: har minst ett offentlig arrangement til portalen`,
+    events.some((e) => e.communityId === community.id && e.isPublic),
+  );
+}
+
+// The three demo accounts exist to show the many / one / none cases.
+const [manyId, oneId, noneId] = demoUserIds;
+const activeCount = (userId: string) =>
+  memberships.filter((m) => m.userId === userId && m.status === "active").length;
+
+check(`${manyId} er med i alle tre fellesskapene`, activeCount(manyId) === communities.length);
+check(`${oneId} er med i nøyaktig ett fellesskap`, activeCount(oneId) === 1);
+check(`${noneId} er ikke med i noe fellesskap`, activeCount(noneId) === 0);
+check(
+  `${noneId} har nøyaktig én ubesvart invitasjon`,
+  memberships.filter((m) => m.userId === noneId && m.status === "invited").length === 1,
+);
+check(
+  `${manyId} har tre ulike roller`,
+  new Set(
+    memberships.filter((m) => m.userId === manyId && m.status === "active").map((m) => m.role),
+  ).size === 3,
+);
+check(
+  "minst én søknad venter på en administrator",
+  memberships.some((m) => m.status === "requested"),
+);
+
+// ── 3. Organisational independence ──────────────────────────────────────
+
+const TRYGGERE = ["tryggere-ruspolitikk", "tryggere-ungdom"];
+const INDEPENDENT = "under-the-rug";
+
+/** Every string a reader can see for one community. */
+function contentFor(communityId: string): { where: string; text: string }[] {
+  const community = communities.find((c) => c.id === communityId)!;
+  return [
+    { where: "tagline", text: community.tagline },
+    { where: "publicDescription", text: community.publicDescription },
+    { where: "about", text: community.about },
+    ...community.links.map((l) => ({ where: `link ${l.label}`, text: `${l.label} ${l.href}` })),
+    ...channels
+      .filter((c) => c.communityId === communityId)
+      .map((c) => ({ where: `#${c.name}`, text: c.purpose })),
+    ...posts
+      .filter((p) => p.communityId === communityId)
+      .map((p) => ({ where: p.id, text: `${p.title ?? ""} ${p.body}` })),
+    ...messages
+      .filter((m) => m.channelId.startsWith(`${communityId}--`))
+      .map((m) => ({ where: m.id, text: m.body })),
+    ...events
+      .filter((e) => e.communityId === communityId)
+      .map((e) => ({ where: e.id, text: `${e.title} ${e.description} ${e.location}` })),
+  ];
+}
+
+// Under The Rug must not name either Tryggere organisation anywhere.
+for (const { where, text } of contentFor(INDEPENDENT)) {
+  check(
+    "Under The Rug nevner ikke Tryggere-organisasjonene",
+    !/tryggere/i.test(text),
+    `${where}: «${text.slice(0, 80)}…»`,
+  );
+}
+
+// And neither Tryggere organisation may claim a tie to Under The Rug.
+for (const communityId of TRYGGERE) {
+  for (const { where, text } of contentFor(communityId)) {
+    check(
+      `${communityId} nevner ikke Under The Rug`,
+      !/under the rug/i.test(text),
+      `${where}: «${text.slice(0, 80)}…»`,
+    );
+  }
+}
+
+// Nobody holds a role in both Under The Rug and a Tryggere organisation in a
+// way the content narrates — shared people are fine (accounts are personal),
+// but their titles must not describe a link between the organisations.
+for (const membership of memberships.filter((m) => m.communityId === INDEPENDENT)) {
+  check(
+    "verv i Under The Rug viser ikke til en annen organisasjon",
+    !/tryggere|moderorganisasjon/i.test(membership.title ?? ""),
+    `${membership.userId}: ${membership.title}`,
+  );
+}
+
+// The relationship that *is* real should be stated, so the sibling framing
+// does not rest on the reader guessing it.
+check(
+  "Tryggere Ungdom oppgir at den hører til Tryggere Ruspolitikk",
+  /tryggere ruspolitikk/i.test(
+    communities.find((c) => c.id === "tryggere-ungdom")!.publicDescription,
+  ),
+);
+
+// No stale references to communities that have been removed.
+const everyString = JSON.stringify([communities, channels, memberships, posts, messages, events, notifications, users]);
+check("ingen referanser til fjernede fellesskap", !/mnmt/i.test(everyString));
+
+// ── Report ──────────────────────────────────────────────────────────────
+
+if (failures.length > 0) {
+  console.error(`\n✗ ${failures.length} av ${checks} kontroller feilet:\n`);
+  for (const failure of failures) console.error(`  · ${failure}`);
+  process.exit(1);
+}
+
+console.log(`✓ ${checks} kontroller passerte`);
+console.log(
+  `  ${communities.length} fellesskap · ${users.length} personer · ${memberships.length} medlemskap`,
+);
+console.log(
+  `  ${posts.length} innlegg · ${messages.length} meldinger · ${events.length} arrangementer · ${notifications.length} varsler`,
+);

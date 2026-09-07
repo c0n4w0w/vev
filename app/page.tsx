@@ -1,69 +1,150 @@
-import Image from "next/image";
+import Link from "next/link";
+import { getSessionUser } from "@/lib/session";
+import { Wordmark } from "@/components/shell/Wordmark";
+import { buttonClass } from "@/components/ui/primitives";
+import { IconArrowRight, IconLock, IconMail, IconUsers } from "@/components/ui/icons";
+import { demoLoginEnabled } from "@/lib/supabase/env";
 
-export default function Home() {
+/**
+ * Prototype scaffolding. These are written out rather than queried on purpose:
+ * a page that can list the communities on the platform is precisely what this
+ * product does not have.
+ */
+const demoPortals = [
+  { slug: "tryggere-ruspolitikk", accent: "#2f5a73" },
+  { slug: "tryggere-ungdom", accent: "#3f7f77" },
+  { slug: "under-the-rug", accent: "#9a5a3c" },
+];
+
+/**
+ * Public front page.
+ *
+ * It explains what the platform is, and deliberately does not list a single
+ * community. The only way onwards is a portal link you were given, or signing
+ * in to an account that already has access.
+ */
+const principles = [
+  {
+    icon: IconLock,
+    title: "Ingen katalog",
+    body: "Det finnes ingen side der du kan bla gjennom organisasjonene på Vev. Et slikt register ville i praksis vært en oversikt over hvem som er engasjert i hva.",
+  },
+  {
+    icon: IconMail,
+    title: "Tre veier inn",
+    body: "Du er allerede medlem, du er invitert av noen som er det, eller du kommer inn gjennom organisasjonens egen offentlige side.",
+  },
+  {
+    icon: IconUsers,
+    title: "Én konto, mange rom",
+    body: "Du logger inn ett sted og bytter mellom fellesskapene du er med i. Medlemmer i ett rom ser ikke hvilke andre rom du er med i.",
+  },
+];
+
+export default async function LandingPage() {
+  const user = await getSessionUser();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="flex min-h-dvh flex-col">
+      <header className="border-b border-line bg-surface">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4 lg:px-8">
+          <Wordmark />
+          {user ? (
+            <Link href="/home" className={buttonClass({ size: "sm" })}>
+              Fortsett til Vev
+            </Link>
+          ) : (
+            <Link href="/login" className={buttonClass({ variant: "secondary", size: "sm" })}>
+              Logg inn
+            </Link>
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </header>
+
+      <div className="mx-auto w-full max-w-5xl flex-1 px-5 lg:px-8">
+        <section className="grid gap-10 border-b border-line py-16 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-16 lg:py-24">
+          <div>
+            <p className="label">Plattform for private fellesskap</p>
+            <h1 className="mt-4 max-w-2xl font-display text-[2.5rem] leading-[1.1] text-ink sm:text-[3.25rem]">
+              Et rolig sted for organisasjoner som trenger å snakke sammen.
+            </h1>
+            <p className="mt-6 max-w-xl text-[1.0625rem] leading-relaxed text-ink-2">
+              Vev gir foreninger, kollektiver og frivillige organisasjoner et eget rom med
+              medlemmer, kanaler, arrangementer og kunngjøringer. Organisasjonen beholder sitt eget
+              navn og uttrykk. Plattformen holder seg i bakgrunnen.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href={user ? "/home" : "/login"} className={buttonClass()}>
+                {user ? "Gå til fellesskapene dine" : "Logg inn"}
+                <IconArrowRight size={16} />
+              </Link>
+            </div>
+          </div>
+
+          <aside className="lg:pt-14">
+            <div className="rounded-[6px] border border-line bg-surface p-5">
+              <p className="label">Slik finner du fram</p>
+              <p className="mt-3 text-sm leading-relaxed text-ink-2">
+                Har du fått en lenke fra en organisasjon, skriver du den rett inn i adressefeltet:
+              </p>
+              <p className="mt-3 rounded-[5px] border border-line bg-paper px-3 py-2 font-mono text-[13px] text-ink-2">
+                vev.no/<span className="text-ink">navnet-deres</span>
+              </p>
+              <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
+                Vi har ingen søkefunksjon som kan finne den for deg. Det er hele poenget.
+              </p>
+            </div>
+          </aside>
+        </section>
+
+        <section className="grid gap-8 border-b border-line py-14 sm:grid-cols-3 sm:gap-10">
+          {principles.map((principle) => (
+            <div key={principle.title}>
+              <principle.icon size={20} className="text-skog" />
+              <h2 className="mt-4 font-display text-lg text-ink">{principle.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-ink-2">{principle.body}</p>
+            </div>
+          ))}
+        </section>
+
+        {/* Prototype affordance — hidden unless demo mode is explicitly on. */}
+        {demoLoginEnabled() ? (
+        <section className="py-14">
+          <div className="rounded-[6px] border border-dashed border-line-2 p-6">
+            <p className="label">Kun i denne prototypen</p>
+            <h2 className="mt-3 font-display text-xl text-ink">Portallenker for demonstrasjon</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">
+              I et ekte oppsett ville disse lenkene kommet fra organisasjonene selv, i en e-post
+              eller på plakaten deres — de ville aldri stått samlet på en side som denne. De ligger
+              her bare for at du skal komme deg videre i prototypen.
+            </p>
+            <ul className="mt-5 flex flex-wrap gap-2.5">
+              {demoPortals.map((portal) => (
+                <li key={portal.slug}>
+                  <Link
+                    href={`/${portal.slug}`}
+                    className="inline-flex items-center gap-2 rounded-[5px] border border-line bg-surface px-3 py-2 text-[13px] text-ink-2 transition-colors hover:border-line-2 hover:text-ink"
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: portal.accent }}
+                    />
+                    vev.no/{portal.slug}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+        ) : null}
+      </div>
+
+      <footer className="border-t border-line bg-surface">
+        <div className="mx-auto flex max-w-5xl flex-col gap-2 px-5 py-6 text-xs text-ink-3 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+          <p>Vev · prototype</p>
+          <p>Ingen data lagres. Ende-til-ende-kryptering er planlagt, men ikke implementert.</p>
         </div>
-      </main>
-    </div>
+      </footer>
+    </main>
   );
 }
