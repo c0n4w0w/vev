@@ -222,6 +222,22 @@ export async function getCommunityById(communityId: string): Promise<Community |
 }
 
 /**
+ * The public portal slug for a community id, regardless of whether the caller
+ * can see the community itself. Used only by the access guard, so that someone
+ * without a membership row is sent to the public portal instead of a dead end.
+ * Returns nothing for an id that does not exist.
+ */
+export async function getPortalSlugForCommunity(
+  communityId: string,
+): Promise<string | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("portal_slug_by_id", {
+    p_community_id: communityId,
+  });
+  return (data as string | null) ?? undefined;
+}
+
+/**
  * The public portal record, by exact slug.
  *
  * This goes through a database function rather than a table read, because the

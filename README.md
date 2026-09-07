@@ -34,15 +34,42 @@ Fyll inn fra Supabase (Project settings → API), eller fra utskriften til
 
 ### 2. Skjema
 
+**Lokalt** (anbefalt under utvikling). Krever en container-runtime. Docker
+Desktop fungerer; `colima` er lettere og trenger ikke administratorpassord:
+
+```bash
+brew install colima docker
+colima start --cpu 2 --memory 4 --disk 20
+npx supabase start
+```
+
+`npx supabase start` skriver ut URL-en og nøklene du trenger i `.env.local`.
+`analytics` og `edge_runtime` er slått av i `supabase/config.toml` — de brukes
+ikke, og de er de tyngste containerne å laste ned.
+
+**Mot et hostet prosjekt** i stedet:
+
 ```bash
 npx supabase link --project-ref <ref>
 npx supabase db push
 ```
 
-Lokalt i stedet: `npx supabase start && npx supabase db reset` (krever Docker).
+Fem migrasjoner kjøres: tabellene og radsikkerheten, portal- og
+medlemskapsfunksjonene, og deretter tre rettelser (se `supabase/migrations`).
+`npx supabase db reset` spiller av hele kjeden fra bunnen.
 
-To migrasjoner kjøres: tabellene og radsikkerheten, deretter portal- og
-medlemskapsfunksjonene.
+### 2b. Typer
+
+`lib/supabase/database.types.ts` er generert fra skjemaet. Kjør dette etter
+hver migrasjon, ellers oppdager ikke TypeScript at en kolonne er endret:
+
+```bash
+npx supabase gen types typescript --local > lib/supabase/database.types.ts
+```
+
+Radaliasene nederst i fila (`CommunityRow`, `PortalEventRow`, …) er avledet av
+den genererte `Database`-typen, så en kolonne som forsvinner gir en typefeil i
+`lib/data.ts` i stedet for `undefined` på skjermen.
 
 ### 3. Testdata
 
@@ -224,7 +251,4 @@ reset role;
 - **Sanntid.** `ChannelView` rendrer fra en enkel meldingsliste. Et Supabase
   realtime-abonnement kobles på der uten å røre presentasjonen.
 - **Ende-til-ende-kryptering.** `messages.body` er eneste sted klartekst vises.
-- **Genererte typer.** `lib/supabase/database.types.ts` er skrevet for hånd.
-  Erstatt den med `npx supabase gen types typescript --linked` når prosjektet
-  finnes.
 - **Kommentartråder.** Innlegg viser `comment_count`, men det finnes ingen tråd.

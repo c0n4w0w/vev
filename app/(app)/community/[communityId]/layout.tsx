@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { getCommunityById, hasAccess } from "@/lib/data";
+import { getCommunityById, getPortalSlugForCommunity, hasAccess } from "@/lib/data";
 import { getSessionUser } from "@/lib/session";
 
 /**
@@ -22,7 +22,17 @@ export default async function CommunityLayout({
   if (!user) redirect("/login");
 
   const community = await getCommunityById(communityId);
-  if (!community) notFound();
+
+  // Row level security hides communities the user has no relationship with, so
+  // an unknown id and a community they simply are not in look identical here.
+  // Both should land on the public portal when one exists — a bare 404 would
+  // treat a stranger differently from an invited user for no good reason.
+  if (!community) {
+    const slug = await getPortalSlugForCommunity(communityId);
+    if (!slug) notFound();
+    redirect(`/${slug}`);
+  }
+
   if (!(await hasAccess(user.id, community.id))) redirect(`/${community.slug}`);
 
   return <>{children}</>;

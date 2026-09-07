@@ -1,196 +1,734 @@
 /**
- * Database types.
+ * Database types, generated from the local Supabase schema.
  *
- * Hand-written to match `supabase/migrations`. Once a project exists, replace
- * this file with the generated version and delete the note:
+ * Regenerate after every migration:
  *
- *   npx supabase gen types typescript --linked > lib/supabase/database.types.ts
+ *   npx supabase gen types typescript --local > lib/supabase/database.types.ts
  *
- * Only the columns the application reads are described; that is enough for the
- * client to type every query in `lib/data.ts`.
+ * Do not edit by hand — `lib/data.ts` types every query against this file, so
+ * drift here shows up as a type error rather than a runtime surprise.
  */
-export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
-
-export type CommunityRole = "member" | "moderator" | "admin";
-export type MembershipStatus = "active" | "invited" | "requested";
-export type AccessPolicy = "invite-only" | "request-to-join";
-export type PostKind = "post" | "announcement";
-export type NotificationKind =
-  | "mention"
-  | "announcement"
-  | "event"
-  | "invitation"
-  | "membership";
-
-export type ProfileRow = {
-  id: string;
-  name: string;
-  handle: string;
-  initials: string;
-  email: string;
-  pronoun: string;
-  location: string;
-  bio: string;
-  joined_at: string;
-};
-
-export type CommunityRow = {
-  id: string;
-  slug: string;
-  name: string;
-  tagline: string;
-  public_description: string;
-  about: string;
-  location: string;
-  founded_year: number;
-  accent: string;
-  accent_soft: string;
-  monogram: string;
-  mark_style: string;
-  access_policy: AccessPolicy;
-  member_count: number;
-  links: Json;
-};
-
-/** What `portal_by_slug` returns — the internal `about` column is absent. */
-export type PortalCommunityRow = Omit<CommunityRow, "about">;
-
-export type MembershipRow = {
-  id: string;
-  user_id: string;
-  community_id: string;
-  role: CommunityRole;
-  status: MembershipStatus;
-  joined_at: string;
-  title: string | null;
-  invited_by: string | null;
-};
-
-export type ChannelGroupRow = {
-  id: string;
-  label: string;
-  position: number;
-};
-
-export type ChannelRow = {
-  id: string;
-  community_id: string;
-  group_id: string;
-  name: string;
-  purpose: string;
-  read_only: boolean;
-  position: number;
-};
-
-export type MessageRow = {
-  id: string;
-  channel_id: string;
-  author_id: string;
-  body: string;
-  created_at: string;
-  attachment: Json;
-  reactions: Json;
-};
-
-export type PostRow = {
-  id: string;
-  community_id: string;
-  author_id: string;
-  title: string | null;
-  body: string;
-  created_at: string;
-  kind: PostKind;
-  pinned: boolean;
-  comment_count: number;
-  reactions: Json;
-};
-
-export type EventRow = {
-  id: string;
-  community_id: string;
-  title: string;
-  description: string;
-  starts_at: string;
-  ends_at: string;
-  location: string;
-  is_public: boolean;
-  host_id: string | null;
-  capacity: number | null;
-};
-
-/** `portal_events` deliberately omits `host_id` and `is_public`. */
-export type PortalEventRow = Pick<
-  EventRow,
-  "id" | "title" | "description" | "starts_at" | "ends_at" | "location"
->;
-
-export type EventAttendeeRow = {
-  event_id: string;
-  user_id: string;
-};
-
-export type NotificationRow = {
-  id: string;
-  user_id: string;
-  kind: NotificationKind;
-  community_id: string | null;
-  title: string;
-  body: string;
-  created_at: string;
-  read: boolean;
-  href: string;
-};
-
-type Table<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
-  Row: Row;
-  Insert: Insert;
-  Update: Update;
-  Relationships: [];
-};
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
-      profiles: Table<ProfileRow>;
-      communities: Table<CommunityRow>;
-      memberships: Table<MembershipRow>;
-      channel_groups: Table<ChannelGroupRow>;
-      channels: Table<ChannelRow>;
-      messages: Table<MessageRow>;
-      posts: Table<PostRow>;
-      events: Table<EventRow>;
-      event_attendees: Table<EventAttendeeRow>;
-      notifications: Table<NotificationRow>;
-    };
-    // No views yet; the empty map keeps the shape the client expects.
-    Views: { [key: string]: { Row: Record<string, unknown>; Relationships: [] } };
+      channel_groups: {
+        Row: {
+          id: string
+          label: string
+          position: number
+        }
+        Insert: {
+          id: string
+          label: string
+          position?: number
+        }
+        Update: {
+          id?: string
+          label?: string
+          position?: number
+        }
+        Relationships: []
+      }
+      channels: {
+        Row: {
+          community_id: string
+          group_id: string
+          id: string
+          name: string
+          position: number
+          purpose: string
+          read_only: boolean
+        }
+        Insert: {
+          community_id: string
+          group_id: string
+          id: string
+          name: string
+          position?: number
+          purpose: string
+          read_only?: boolean
+        }
+        Update: {
+          community_id?: string
+          group_id?: string
+          id?: string
+          name?: string
+          position?: number
+          purpose?: string
+          read_only?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channels_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channels_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "channel_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communities: {
+        Row: {
+          about: string
+          accent: string
+          accent_soft: string
+          access_policy: Database["public"]["Enums"]["access_policy"]
+          founded_year: number
+          id: string
+          links: Json
+          location: string
+          mark_style: string
+          member_count: number
+          monogram: string
+          name: string
+          public_description: string
+          slug: string
+          tagline: string
+        }
+        Insert: {
+          about: string
+          accent: string
+          accent_soft: string
+          access_policy?: Database["public"]["Enums"]["access_policy"]
+          founded_year: number
+          id: string
+          links?: Json
+          location: string
+          mark_style?: string
+          member_count?: number
+          monogram: string
+          name: string
+          public_description: string
+          slug: string
+          tagline: string
+        }
+        Update: {
+          about?: string
+          accent?: string
+          accent_soft?: string
+          access_policy?: Database["public"]["Enums"]["access_policy"]
+          founded_year?: number
+          id?: string
+          links?: Json
+          location?: string
+          mark_style?: string
+          member_count?: number
+          monogram?: string
+          name?: string
+          public_description?: string
+          slug?: string
+          tagline?: string
+        }
+        Relationships: []
+      }
+      event_attendees: {
+        Row: {
+          event_id: string
+          user_id: string
+        }
+        Insert: {
+          event_id: string
+          user_id: string
+        }
+        Update: {
+          event_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_attendees_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_attendees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          capacity: number | null
+          community_id: string
+          description: string
+          ends_at: string
+          host_id: string | null
+          id: string
+          is_public: boolean
+          location: string
+          starts_at: string
+          title: string
+        }
+        Insert: {
+          capacity?: number | null
+          community_id: string
+          description: string
+          ends_at: string
+          host_id?: string | null
+          id?: string
+          is_public?: boolean
+          location: string
+          starts_at: string
+          title: string
+        }
+        Update: {
+          capacity?: number | null
+          community_id?: string
+          description?: string
+          ends_at?: string
+          host_id?: string | null
+          id?: string
+          is_public?: boolean
+          location?: string
+          starts_at?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memberships: {
+        Row: {
+          community_id: string
+          id: string
+          invited_by: string | null
+          joined_at: string
+          role: Database["public"]["Enums"]["community_role"]
+          status: Database["public"]["Enums"]["membership_status"]
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          id?: string
+          invited_by?: string | null
+          joined_at?: string
+          role?: Database["public"]["Enums"]["community_role"]
+          status?: Database["public"]["Enums"]["membership_status"]
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          id?: string
+          invited_by?: string | null
+          joined_at?: string
+          role?: Database["public"]["Enums"]["community_role"]
+          status?: Database["public"]["Enums"]["membership_status"]
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memberships_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          attachment: Json | null
+          author_id: string
+          body: string
+          channel_id: string
+          created_at: string
+          id: string
+          reactions: Json
+        }
+        Insert: {
+          attachment?: Json | null
+          author_id: string
+          body: string
+          channel_id: string
+          created_at?: string
+          id?: string
+          reactions?: Json
+        }
+        Update: {
+          attachment?: Json | null
+          author_id?: string
+          body?: string
+          channel_id?: string
+          created_at?: string
+          id?: string
+          reactions?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string
+          community_id: string | null
+          created_at: string
+          href: string
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          read: boolean
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          community_id?: string | null
+          created_at?: string
+          href: string
+          id?: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          read?: boolean
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          community_id?: string | null
+          created_at?: string
+          href?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          read?: boolean
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          author_id: string
+          body: string
+          comment_count: number
+          community_id: string
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["post_kind"]
+          pinned: boolean
+          reactions: Json
+          title: string | null
+        }
+        Insert: {
+          author_id: string
+          body: string
+          comment_count?: number
+          community_id: string
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["post_kind"]
+          pinned?: boolean
+          reactions?: Json
+          title?: string | null
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          comment_count?: number
+          community_id?: string
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["post_kind"]
+          pinned?: boolean
+          reactions?: Json
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          bio: string
+          email: string
+          handle: string
+          id: string
+          initials: string
+          joined_at: string
+          location: string
+          name: string
+          pronoun: string
+        }
+        Insert: {
+          bio?: string
+          email: string
+          handle: string
+          id: string
+          initials: string
+          joined_at?: string
+          location?: string
+          name: string
+          pronoun?: string
+        }
+        Update: {
+          bio?: string
+          email?: string
+          handle?: string
+          id?: string
+          initials?: string
+          joined_at?: string
+          location?: string
+          name?: string
+          pronoun?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
     Functions: {
-      portal_by_slug: { Args: { p_slug: string }; Returns: PortalCommunityRow[] };
-      portal_events: { Args: { p_slug: string }; Returns: PortalEventRow[] };
-      request_access: { Args: { p_community_id: string }; Returns: boolean };
-      accept_invitation: { Args: { p_community_id: string }; Returns: boolean };
-      decline_invitation: { Args: { p_community_id: string }; Returns: boolean };
+      accept_invitation: { Args: { p_community_id: string }; Returns: boolean }
+      administers_pending_membership: {
+        Args: { other: string }
+        Returns: boolean
+      }
       approve_membership: {
-        Args: { p_community_id: string; p_user_id: string };
-        Returns: boolean;
-      };
+        Args: { p_community_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      can_moderate: { Args: { cid: string }; Returns: boolean }
+      can_read_channel: { Args: { chid: string }; Returns: boolean }
+      decline_invitation: { Args: { p_community_id: string }; Returns: boolean }
+      has_membership_row: { Args: { cid: string }; Returns: boolean }
+      is_admin: { Args: { cid: string }; Returns: boolean }
+      is_member: { Args: { cid: string }; Returns: boolean }
+      mark_notifications_read: { Args: never; Returns: undefined }
+      portal_by_slug: {
+        Args: { p_slug: string }
+        Returns: {
+          accent: string
+          accent_soft: string
+          access_policy: Database["public"]["Enums"]["access_policy"]
+          founded_year: number
+          id: string
+          links: Json
+          location: string
+          mark_style: string
+          member_count: number
+          monogram: string
+          name: string
+          public_description: string
+          slug: string
+          tagline: string
+        }[]
+      }
+      portal_events: {
+        Args: { p_slug: string }
+        Returns: {
+          description: string
+          ends_at: string
+          id: string
+          location: string
+          starts_at: string
+          title: string
+        }[]
+      }
+      portal_slug_by_id: { Args: { p_community_id: string }; Returns: string }
       reject_membership: {
-        Args: { p_community_id: string; p_user_id: string };
-        Returns: boolean;
-      };
-      mark_notifications_read: { Args: Record<string, never>; Returns: undefined };
+        Args: { p_community_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      request_access: { Args: { p_community_id: string }; Returns: boolean }
       resolve_invitation_notice: {
-        Args: { p_user: string; p_community: string };
-        Returns: undefined;
-      };
-    };
+        Args: { p_community: string; p_user: string }
+        Returns: undefined
+      }
+      shares_community: { Args: { other: string }; Returns: boolean }
+    }
     Enums: {
-      community_role: CommunityRole;
-      membership_status: MembershipStatus;
-      access_policy: AccessPolicy;
-      post_kind: PostKind;
-      notification_kind: NotificationKind;
-    };
-    CompositeTypes: { [key: string]: Record<string, unknown> };
-  };
-};
+      access_policy: "invite-only" | "request-to-join"
+      community_role: "member" | "moderator" | "admin"
+      membership_status: "active" | "invited" | "requested"
+      notification_kind:
+        | "mention"
+        | "announcement"
+        | "event"
+        | "invitation"
+        | "membership"
+      post_kind: "post" | "announcement"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {
+      access_policy: ["invite-only", "request-to-join"],
+      community_role: ["member", "moderator", "admin"],
+      membership_status: ["active", "invited", "requested"],
+      notification_kind: [
+        "mention",
+        "announcement",
+        "event",
+        "invitation",
+        "membership",
+      ],
+      post_kind: ["post", "announcement"],
+    },
+  },
+} as const
+
+
+/**
+ * Row aliases used across `lib/data.ts`.
+ *
+ * These are derived from the generated `Database` type rather than restated,
+ * so a column added or removed in a migration reaches the application code as
+ * a type error the moment the types are regenerated.
+ */
+type PublicSchema = Database["public"];
+type TableRow<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Row"];
+type FunctionReturns<F extends keyof PublicSchema["Functions"]> =
+  PublicSchema["Functions"][F]["Returns"];
+
+export type ProfileRow = TableRow<"profiles">;
+export type CommunityRow = TableRow<"communities">;
+export type MembershipRow = TableRow<"memberships">;
+export type ChannelGroupRow = TableRow<"channel_groups">;
+export type ChannelRow = TableRow<"channels">;
+export type MessageRow = TableRow<"messages">;
+export type PostRow = TableRow<"posts">;
+export type EventRow = TableRow<"events">;
+export type EventAttendeeRow = TableRow<"event_attendees">;
+export type NotificationRow = TableRow<"notifications">;
+
+/** What an anonymous portal visitor receives — strictly less than a full row. */
+export type PortalCommunityRow = FunctionReturns<"portal_by_slug">[number];
+export type PortalEventRow = FunctionReturns<"portal_events">[number];
