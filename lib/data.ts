@@ -11,17 +11,22 @@ import type {
   NotificationRow,
   PortalCommunityRow,
   PortalEventRow,
+  CommentRow,
+  CommunityEmojiRow,
   PostRow,
   ProfileRow,
 } from "@/lib/supabase/database.types";
 import type {
   Channel,
   ChannelGroup,
+  Comment,
   Community,
+  CommunityEmoji,
   CommunityEvent,
   CommunityPublic,
   Membership,
   Message,
+  Reaction,
   Notification,
   Post,
   RoleId,
@@ -125,7 +130,7 @@ function toMessage(row: MessageRow): Message {
     authorId: row.author_id,
     body: row.body,
     createdAt: row.created_at,
-    reactions: (row.reactions as Message["reactions"]) ?? [],
+    reactions: (row.reactions as unknown as Message["reactions"]) ?? [],
     attachment: (row.attachment as Message["attachment"]) ?? undefined,
   };
 }
@@ -142,7 +147,7 @@ function toPost(row: PostRow): Post {
     kind: row.kind,
     pinned: row.pinned || undefined,
     commentCount: row.comment_count,
-    reactions: (row.reactions as Post["reactions"]) ?? [],
+    reactions: (row.reactions as unknown as Reaction[]) ?? [],
   };
 }
 
@@ -569,6 +574,359 @@ function postWriteError(message: string): string {
     return "Du har ikke tilgang til å publisere dette her.";
   }
   return "Innlegget kunne ikke lagres. Prøv igjen.";
+}
+
+// ── Comments ────────────────────────────────────────────────────────────
+//
+// A comment carries no community. Authorisation is derived from the post it
+// hangs off, through `can_access_post()` inside the policies, so there is no
+// community id for a caller to supply — or to forge.
+
+function toComment(row: CommentRow): Comment {
+  return {
+    id: row.id,
+    postId: row.post_id,
+    parentId: row.parent_id ?? undefined,
+    authorId: row.author_id,
+    body: row.body,
+    createdAt: row.created_at,
+    editedAt: row.edited_at ?? undefined,
+  };
+}
+
+/** Every comment on one post, oldest first, replies included. */
+export async function getComments(postId: string): Promise<Comment[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("comments")
+    .select("*")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true });
+  return rows(data).map(toComment);
+}
+
+/** Comments for several posts at once, so a feed does not issue one query each. */
+export async function getCommentsForPosts(
+  postIds: string[],
+): Promise<Map<string, Comment[]>> {
+  const grouped = new Map<string, Comment[]>();
+  if (postIds.length === 0) return grouped;
+
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("comments")
+    .select("*")
+    .in("post_id", postIds)
+    .order("created_at", { ascending: true });
+
+  for (const comment of rows(data).map(toComment)) {
+    const list = grouped.get(comment.postId);
+    if (list) list.push(comment);
+    else grouped.set(comment.postId, [comment]);
+  }
+  return grouped;
+}
+
+export type CommentWriteResult = { ok: true; id: string } | { ok: false; error: string };
+
+export async function createComment(input: {
+  postId: string;
+  body: string;
+  parentId?: string;
+}): Promise<CommentWriteResult> {
+  const body = input.body.trim();
+  if (!body) return { ok: false, error: "Kommentaren kan ikke være tom." };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("comments")
+    .insert({
+      post_id: input.postId,
+      parent_id: input.parentId ?? null,
+      body,
+      // author_id is absent on purpose: it defaults to auth.uid(), and the
+      // insert policy requires it to match.
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: commentWriteError(error.message) };
+  return { ok: true, id: data.id };
+}
+
+export async function updateComment(
+  commentId: string,
+  body: string,
+): Promise<CommentWriteResult> {
+  const trimmed = body.trim();
+  if (!trimmed) return { ok: false, error: "Kommentaren kan ikke være tom." };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("comments")
+    .update({ body: trimmed })
+    .eq("id", commentId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return { ok: false, error: commentWriteError(error.message) };
+  if (!data) return { ok: false, error: "Du kan bare endre dine egne kommentarer." };
+  return { ok: true, id: data.id };
+}
+
+export async function deleteComment(commentId: string): Promise<CommentWriteResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("comments")
+    .delete()
+    .eq("id", commentId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return { ok: false, error: commentWriteError(error.message) };
+  if (!data) return { ok: false, error: "Du har ikke tilgang til å slette denne kommentaren." };
+  return { ok: true, id: data.id };
+}
+
+function commentWriteError(message: string): string {
+  if (message.includes("row-level security")) {
+    return "Du har ikke tilgang til å kommentere her.";
+  }
+  if (message.includes("svare på et svar")) {
+    return "Det går ikke an å svare på et svar.";
+  }
+  return "Kommentaren kunne ikke lagres. Prøv igjen.";
+}
+
+// ── Reactions ───────────────────────────────────────────────────────────
+//
+// One row per person per emoji per post; the primary key is what makes a
+// double reaction impossible. The count on a post is recomputed by a trigger,
+// so nothing here ever writes an aggregate.
+
+export type ReactionResult = { ok: true; reacted: boolean } | { ok: false; error: string };
+
+/**
+ * Adds the caller's reaction, or withdraws it if it is already there.
+ *
+ * Tries the insert first and treats a unique-violation as "already reacted",
+ * which is both one round trip in the common case and correct if two clicks
+ * race each other.
+ */
+export async function toggleReaction(
+  postId: string,
+  choice: { emoji?: string; emojiId?: string },
+): Promise<ReactionResult> {
+  const emoji = choice.emoji?.trim() || undefined;
+  const emojiId = choice.emojiId?.trim() || undefined;
+
+  // Exactly one kind, matching the database's own check constraint.
+  if ((emoji === undefined) === (emojiId === undefined)) {
+    return { ok: false, error: "Ugyldig reaksjon." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("post_reactions").insert({
+    post_id: postId,
+    emoji: emoji ?? null,
+    emoji_id: emojiId ?? null,
+  });
+
+  if (!error) return { ok: true, reacted: true };
+
+  // 23505 = unique violation: the reaction exists, so this click removes it.
+  if (error.code === "23505") {
+    const query = supabase.from("post_reactions").delete().eq("post_id", postId);
+    const { data: removed, error: deleteError } = await (emojiId
+      ? query.eq("emoji_id", emojiId)
+      : query.eq("emoji", emoji!)
+    )
+      .select("id")
+      .maybeSingle();
+
+    if (deleteError) return { ok: false, error: "Reaksjonen kunne ikke fjernes." };
+    return { ok: true, reacted: !removed };
+  }
+
+  if (error.message.includes("row-level security")) {
+    return { ok: false, error: "Du har ikke tilgang til å reagere her." };
+  }
+  // Raised by post_reactions_guard when the emoji belongs elsewhere.
+  if (error.message.includes("annet fellesskap")) {
+    return { ok: false, error: "Denne emojien hører til et annet fellesskap." };
+  }
+  return { ok: false, error: "Reaksjonen kunne ikke lagres." };
+}
+
+// ── Custom emojis ───────────────────────────────────────────────────────
+//
+// A custom emoji belongs to exactly one community, and both its metadata and
+// its image are members-only. The bucket is private, so images are handed out
+// as short-lived signed URLs created with the caller's own session — a
+// non-member cannot obtain one, and a URL that leaks stops working.
+
+const EMOJI_BUCKET = "community-emoji";
+const EMOJI_URL_TTL_SECONDS = 60 * 60;
+
+function toEmoji(row: CommunityEmojiRow, url?: string): CommunityEmoji {
+  return {
+    id: row.id,
+    communityId: row.community_id,
+    name: row.name,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    url,
+  };
+}
+
+/**
+ * Every custom emoji in one community, with a signed image URL each.
+ *
+ * Row level security already limits this to communities the caller belongs to,
+ * so passing another community's id returns nothing rather than anything.
+ */
+export async function getCommunityEmojis(communityId: string): Promise<CommunityEmoji[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("community_emojis")
+    .select("*")
+    .eq("community_id", communityId)
+    .order("name", { ascending: true });
+
+  const emojiRows = rows(data) as CommunityEmojiRow[];
+  if (emojiRows.length === 0) return [];
+
+  const { data: signed } = await supabase.storage
+    .from(EMOJI_BUCKET)
+    .createSignedUrls(emojiRows.map((row) => row.storage_path), EMOJI_URL_TTL_SECONDS);
+
+  const urlByPath = new Map((signed ?? []).map((entry) => [entry.path, entry.signedUrl]));
+  return emojiRows.map((row) => toEmoji(row, urlByPath.get(row.storage_path) ?? undefined));
+}
+
+/** Emojis for every community the caller belongs to, keyed by community. */
+export async function getEmojisForCommunities(
+  communityIds: string[],
+): Promise<Map<string, CommunityEmoji[]>> {
+  const grouped = new Map<string, CommunityEmoji[]>();
+  for (const communityId of communityIds) {
+    grouped.set(communityId, await getCommunityEmojis(communityId));
+  }
+  return grouped;
+}
+
+export type EmojiWriteResult = { ok: true; id: string } | { ok: false; error: string };
+
+/**
+ * Uploads the image, then records the metadata.
+ *
+ * Both steps are policed independently: the storage policies require
+ * can_moderate() on the community named by the path prefix, and the table
+ * policy requires it again for the row. If the row insert fails the object is
+ * removed, so a rejected emoji does not leave a file behind.
+ */
+export async function createCommunityEmoji(input: {
+  communityId: string;
+  name: string;
+  bytes: Uint8Array;
+  contentType: string;
+  extension: string;
+}): Promise<EmojiWriteResult> {
+  const supabase = await createSupabaseServerClient();
+  const id = crypto.randomUUID();
+  const storagePath = `${input.communityId}/${id}.${input.extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(EMOJI_BUCKET)
+    .upload(storagePath, input.bytes, { contentType: input.contentType, upsert: false });
+
+  if (uploadError) {
+    return {
+      ok: false,
+      error: uploadError.message.toLowerCase().includes("row-level security")
+        ? "Du har ikke tilgang til å legge til emojier her."
+        : "Bildet kunne ikke lastes opp.",
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("community_emojis")
+    .insert({
+      id,
+      community_id: input.communityId,
+      name: input.name,
+      storage_path: storagePath,
+      content_type: input.contentType,
+      byte_size: input.bytes.byteLength,
+      // created_by is absent on purpose: it defaults to auth.uid() and the
+      // policy requires it to match.
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    await supabase.storage.from(EMOJI_BUCKET).remove([storagePath]);
+    if (error.code === "23505") {
+      return { ok: false, error: `:${input.name}: finnes allerede i dette fellesskapet.` };
+    }
+    if (error.message.includes("row-level security")) {
+      return { ok: false, error: "Du har ikke tilgang til å legge til emojier her." };
+    }
+    return { ok: false, error: "Emojien kunne ikke lagres." };
+  }
+  return { ok: true, id: data.id };
+}
+
+export async function deleteCommunityEmoji(emojiId: string): Promise<EmojiWriteResult> {
+  const supabase = await createSupabaseServerClient();
+
+  // The path has to be read before anything is removed: once the row is gone
+  // there is nothing left that knows which file belonged to it.
+  const { data: existing } = await supabase
+    .from("community_emojis")
+    .select("id, storage_path")
+    .eq("id", emojiId)
+    .maybeSingle();
+
+  // Nothing readable under this id — it does not exist, or it belongs to a
+  // community the caller is not in. Both get the same answer, which is also
+  // what stops an id from another community being probed for existence.
+  if (!existing) {
+    return { ok: false, error: "Du har ikke tilgang til å slette denne emojien." };
+  }
+
+  // The file goes first, deliberately.
+  //
+  // Both steps require can_moderate() on the same community, so a caller who
+  // may not delete the row cannot delete the file either — they are stopped
+  // here, with the row untouched. Doing it in this order means the failure
+  // that remains possible is a row whose image is gone, which renders as the
+  // emoji's name and can be cleared by deleting it again. The other order
+  // risks a file nothing references, which is invisible and accumulates.
+  const { error: storageError } = await supabase.storage
+    .from(EMOJI_BUCKET)
+    .remove([existing.storage_path]);
+
+  if (storageError) {
+    return {
+      ok: false,
+      error: storageError.message.toLowerCase().includes("unauthorized")
+        ? "Du har ikke tilgang til å slette denne emojien."
+        : "Emojibildet kunne ikke fjernes. Prøv igjen.",
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("community_emojis")
+    .delete()
+    .eq("id", emojiId)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) {
+    return { ok: false, error: "Emojien kunne ikke slettes." };
+  }
+  return { ok: true, id: data.id };
 }
 
 // ── Events ──────────────────────────────────────────────────────────────

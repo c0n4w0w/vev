@@ -132,8 +132,10 @@ export interface Post {
   kind: "post" | "announcement";
   pinned?: boolean;
   channelId?: string;
+  /** Derived by the database from the comment rows. Never written directly. */
   commentCount: number;
-  reactions: { emoji: string; userIds: string[] }[];
+  /** Derived by the database from `post_reactions`. Never written directly. */
+  reactions: Reaction[];
 }
 
 export interface CommunityEvent {
@@ -150,6 +152,45 @@ export interface CommunityEvent {
   hostId: string;
   attendeeIds: string[];
   capacity?: number;
+}
+
+export interface Comment {
+  id: string;
+  postId: string;
+  /** Set on a reply. A reply always sits on the same post as its parent. */
+  parentId?: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  /** Stamped by the database when the text changes, never by the client. */
+  editedAt?: string;
+}
+
+/**
+ * One aggregated reaction on a post, derived by the database from the
+ * individual reaction rows.
+ *
+ * Exactly one of `emoji` (a built-in Unicode character) and `emojiId` (a
+ * custom emoji belonging to this post's community) is set.
+ */
+export interface Reaction {
+  emoji: string | null;
+  emojiId: string | null;
+  /** The custom emoji's name, without colons. Null for built-ins. */
+  name: string | null;
+  userIds: string[];
+}
+
+/** A custom emoji. Belongs to exactly one community and is never shared. */
+export interface CommunityEmoji {
+  id: string;
+  communityId: string;
+  /** Normalised, without colons. Unique within its community only. */
+  name: string;
+  createdBy: string;
+  createdAt: string;
+  /** Short-lived signed URL. Absent when the file could not be signed. */
+  url?: string;
 }
 
 export type NotificationKind =

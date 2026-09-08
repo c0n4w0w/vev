@@ -2,7 +2,14 @@ import { notFound, redirect } from "next/navigation";
 import { PostCard } from "@/components/community/PostCard";
 import { EmptyState, PageContainer, PageHeader, Panel } from "@/components/ui/primitives";
 import { IconMegaphone } from "@/components/ui/icons";
-import { getAnnouncements, getCommunityById, getMembership, getUsers } from "@/lib/data";
+import {
+  getAnnouncements,
+  getCommentsForPosts,
+  getCommunityEmojis,
+  getCommunityById,
+  getMembership,
+  getUsers,
+} from "@/lib/data";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -27,8 +34,14 @@ export default async function AnnouncementsPage({
     getMembership(user.id, community.id),
     getAnnouncements(community.id),
   ]);
+  const customEmojis = await getCommunityEmojis(community.id);
+  const commentsByPost = await getCommentsForPosts(announcements.map((post) => post.id));
+  const participantIds = new Set([
+    ...announcements.map((post) => post.authorId),
+    ...[...commentsByPost.values()].flat().map((comment) => comment.authorId),
+  ]);
   const authors = new Map(
-    (await getUsers([...new Set(announcements.map((post) => post.authorId))])).map((u) => [
+    (await getUsers([...participantIds])).map((u) => [
       u.id,
       u,
     ]),
@@ -65,7 +78,10 @@ export default async function AnnouncementsPage({
               post={post}
               author={authors.get(post.authorId)!}
               community={community}
-              viewerId={user.id}
+              viewer={user}
+              comments={commentsByPost.get(post.id) ?? []}
+              commentAuthors={Object.fromEntries(authors)}
+              customEmojis={customEmojis}
               viewerRole={membership?.role}
             />
           ))}

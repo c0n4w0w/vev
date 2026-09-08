@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { Avatar, Badge, CommunityMark, Panel, RichText, cn } from "@/components/ui/primitives";
 import { IconMegaphone, IconPin } from "@/components/ui/icons";
+import { CommentThread } from "@/components/community/CommentThread";
 import { PostActions } from "@/components/community/PostActions";
+import { ReactionBar } from "@/components/community/ReactionBar";
 import { timeAgo } from "@/lib/format";
-import type { Community, Post, RoleId, User } from "@/lib/types";
+import type { Comment, Community, CommunityEmoji, Post, RoleId, User } from "@/lib/types";
 
 function Reactions({ reactions }: { reactions: Post["reactions"] }) {
   if (reactions.length === 0) return null;
@@ -27,19 +29,29 @@ export function PostCard({
   author,
   community,
   showCommunity = false,
-  viewerId,
+  viewer,
   viewerRole,
+  comments = [],
+  commentAuthors = {},
+  customEmojis = [],
 }: {
   post: Post;
   author: User;
   community: Community;
   showCommunity?: boolean;
-  /** Who is looking. Omitted on screens that only read, such as the home feed. */
-  viewerId?: string;
+  /**
+   * Who is looking. Omitted on screens that only read, such as the home feed,
+   * where the card renders reactions and counts without controls.
+   */
+  viewer?: User;
   viewerRole?: RoleId;
+  comments?: Comment[];
+  commentAuthors?: Record<string, User>;
+  /** This community's own custom emojis. Never another community's. */
+  customEmojis?: CommunityEmoji[];
 }) {
   const isAnnouncement = post.kind === "announcement";
-  const isAuthor = viewerId !== undefined && viewerId === post.authorId;
+  const isAuthor = viewer !== undefined && viewer.id === post.authorId;
   const canModerate = viewerRole === "admin" || viewerRole === "moderator";
 
   return (
@@ -92,19 +104,44 @@ export function PostCard({
           <RichText body={post.body} className={post.title ? "mt-2" : "mt-2.5"} />
 
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Reactions reactions={post.reactions} />
-            <span className="text-xs text-ink-3">
-              {post.commentCount} {post.commentCount === 1 ? "kommentar" : "kommentarer"}
-            </span>
+            {viewer ? (
+              <ReactionBar
+                postId={post.id}
+                communityId={post.communityId}
+                reactions={post.reactions}
+                customEmojis={customEmojis}
+                viewerId={viewer.id}
+                accent={community.branding.accent}
+              />
+            ) : (
+              <>
+                <Reactions reactions={post.reactions} />
+                <span className="text-xs text-ink-3">
+                  {post.commentCount} {post.commentCount === 1 ? "kommentar" : "kommentarer"}
+                </span>
+              </>
+            )}
           </div>
 
-          {viewerId ? (
-            <PostActions
-              post={post}
-              canEdit={isAuthor}
-              canDelete={isAuthor || canModerate}
-              accent={community.branding.accent}
-            />
+          {viewer ? (
+            <>
+              <CommentThread
+                postId={post.id}
+                communityId={post.communityId}
+                commentCount={post.commentCount}
+                comments={comments}
+                authors={commentAuthors}
+                viewer={viewer}
+                canModerate={canModerate}
+                accent={community.branding.accent}
+              />
+              <PostActions
+                post={post}
+                canEdit={isAuthor}
+                canDelete={isAuthor || canModerate}
+                accent={community.branding.accent}
+              />
+            </>
           ) : null}
         </div>
       </div>

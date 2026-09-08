@@ -16,6 +16,7 @@ import {
   IconMegaphone,
   IconMenu,
   IconOverview,
+  IconSmile,
   IconUser,
   IconUsers,
 } from "@/components/ui/icons";
@@ -84,6 +85,7 @@ function communityNav(id: string) {
     { href: `/community/${id}/announcements`, label: "Kunngjøringer", icon: IconMegaphone },
     { href: `/community/${id}/events`, label: "Arrangementer", icon: IconCalendar },
     { href: `/community/${id}/members`, label: "Medlemmer", icon: IconUsers },
+    { href: `/community/${id}/emojis`, label: "Emojier", icon: IconSmile },
   ];
 }
 

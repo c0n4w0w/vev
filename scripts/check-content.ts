@@ -16,7 +16,10 @@
  *
  * Run with `npm run check:content`. No network, no database.
  */
+import { existsSync } from "node:fs";
 import { channels, communities, memberships } from "@/lib/mock/communities";
+import { comments } from "@/lib/mock/comments";
+import { customEmojis } from "@/lib/mock/emojis";
 import { events } from "@/lib/mock/events";
 import { messages } from "@/lib/mock/messages";
 import { notifications } from "@/lib/mock/notifications";
@@ -127,6 +130,95 @@ for (const notification of notifications) {
   }
 }
 
+// Comments: every one must hang off a real post, be written by someone who is
+// actually a member of that post's community, and — if it is a reply — answer a
+// top-level comment on the same post. The database enforces all three; failing
+// here means the seed would not even load.
+const postById = new Map(posts.map((post) => [post.id, post]));
+const commentById = new Map(comments.map((comment) => [comment.id, comment]));
+
+check("alle kommentar-ider er unike", commentById.size === comments.length);
+
+for (const comment of comments) {
+  const post = postById.get(comment.postId);
+  check("comment.postId finnes", Boolean(post), `${comment.id} -> ${comment.postId}`);
+  check("comment.authorId finnes", userIds.has(comment.authorId), comment.id);
+  if (post) {
+    check(
+      "kommentaren er skrevet av et aktivt medlem",
+      activeMembers(post.communityId).has(comment.authorId),
+      `${comment.id}: ${comment.authorId} er ikke medlem i ${post.communityId}`,
+    );
+  }
+  if (comment.parentId) {
+    const parent = commentById.get(comment.parentId);
+    check("svaret peker på en kommentar som finnes", Boolean(parent), comment.id);
+    if (parent) {
+      check(
+        "svaret ligger på samme innlegg som forelderen",
+        parent.postId === comment.postId,
+        comment.id,
+      );
+      check("det svares ikke på et svar", !parent.parentId, comment.id);
+      check(
+        "svaret kommer etter kommentaren det svarer på",
+        Date.parse(comment.createdAt) >= Date.parse(parent.createdAt),
+        comment.id,
+      );
+    }
+  }
+}
+
+// Custom emojis: scoped to one community, created by someone who may actually
+// manage that community, and pointing at an image file that exists.
+const emojiArtDir = new URL("../lib/mock/emoji-art/", import.meta.url);
+
+const managers = (communityId: string) =>
+  new Set(
+    memberships
+      .filter(
+        (m) =>
+          m.communityId === communityId &&
+          m.status === "active" &&
+          (m.role === "admin" || m.role === "moderator"),
+      )
+      .map((m) => m.userId),
+  );
+
+for (const emoji of customEmojis) {
+  const where = `${emoji.communityId}/:${emoji.name}:`;
+  check("emoji.communityId finnes", communityIds.has(emoji.communityId), where);
+  check("emoji.createdBy finnes", userIds.has(emoji.createdBy), where);
+  check(
+    "emojien er laget av en som kan administrere fellesskapet",
+    managers(emoji.communityId).has(emoji.createdBy),
+    `${where}: ${emoji.createdBy} er verken moderator eller administrator`,
+  );
+  check(
+    "emojinavnet er gyldig",
+    /^[a-z0-9][a-z0-9_-]{1,31}$/.test(emoji.name),
+    where,
+  );
+  check("emojibildet finnes", existsSync(new URL(emoji.file, emojiArtDir)), `${where} -> ${emoji.file}`);
+}
+
+// Unique per community, never globally.
+const emojiKeys = customEmojis.map((emoji) => `${emoji.communityId}/${emoji.name}`);
+check("emojinavn er unike innenfor hvert fellesskap", new Set(emojiKeys).size === emojiKeys.length);
+
+// The scoping is only demonstrated if a shared name actually exists.
+const namesPerCommunity = new Map<string, Set<string>>();
+for (const emoji of customEmojis) {
+  const set = namesPerCommunity.get(emoji.name) ?? new Set<string>();
+  set.add(emoji.communityId);
+  namesPerCommunity.set(emoji.name, set);
+}
+check(
+  "minst ett emojinavn finnes i to fellesskap samtidig",
+  [...namesPerCommunity.values()].some((set) => set.size > 1),
+  "uten dette demonstrerer ikke datasettet at navn er per fellesskap",
+);
+
 // ── 2. Slugs and demo states ────────────────────────────────────────────
 
 check("alle slugs er unike", new Set(communities.map((c) => c.slug)).size === communities.length);
@@ -197,6 +289,9 @@ function contentFor(communityId: string): { where: string; text: string }[] {
     ...events
       .filter((e) => e.communityId === communityId)
       .map((e) => ({ where: e.id, text: `${e.title} ${e.description} ${e.location}` })),
+    ...comments
+      .filter((c) => postById.get(c.postId)?.communityId === communityId)
+      .map((c) => ({ where: c.id, text: c.body })),
   ];
 }
 
@@ -241,7 +336,7 @@ check(
 );
 
 // No stale references to communities that have been removed.
-const everyString = JSON.stringify([communities, channels, memberships, posts, messages, events, notifications, users]);
+const everyString = JSON.stringify([communities, channels, memberships, posts, comments, customEmojis, messages, events, notifications, users]);
 check("ingen referanser til fjernede fellesskap", !/mnmt/i.test(everyString));
 
 // ── Report ──────────────────────────────────────────────────────────────
@@ -257,5 +352,5 @@ console.log(
   `  ${communities.length} fellesskap · ${users.length} personer · ${memberships.length} medlemskap`,
 );
 console.log(
-  `  ${posts.length} innlegg · ${messages.length} meldinger · ${events.length} arrangementer · ${notifications.length} varsler`,
+  `  ${posts.length} innlegg · ${comments.length} kommentarer · ${customEmojis.length} egne emojier · ${messages.length} meldinger · ${events.length} arrangementer · ${notifications.length} varsler`,
 );

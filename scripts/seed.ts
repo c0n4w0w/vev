@@ -8,9 +8,12 @@
  * Uses the service-role key and therefore bypasses row level security. That is
  * appropriate here and nowhere else.
  */
+import { readFile } from "node:fs/promises";
 import { config } from "dotenv";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { channelGroups, channels, communities, memberships } from "@/lib/mock/communities";
+import { comments } from "@/lib/mock/comments";
+import { customEmojis } from "@/lib/mock/emojis";
 import { events } from "@/lib/mock/events";
 import { messages } from "@/lib/mock/messages";
 import { notifications } from "@/lib/mock/notifications";
@@ -109,12 +112,28 @@ async function clearContent() {
   }
 }
 
+/** Empties the emoji bucket, one community prefix at a time. */
+async function clearEmojiFiles() {
+  for (const community of communities) {
+    const { data } = await supabase.storage.from("community-emoji").list(community.id);
+    const paths = (data ?? []).map((entry) => `${community.id}/${entry.name}`);
+    if (paths.length > 0) {
+      await supabase.storage.from("community-emoji").remove(paths);
+    }
+  }
+}
+
 async function main() {
   console.log("Fyller databasen med testdata …\n");
 
   // event_attendees has a composite key, so it is cleared on its own first.
   await supabase.from("event_attendees").delete().not("event_id", "is", null);
   await clearContent();
+
+  // Deleting the communities cascades to community_emojis, but nothing
+  // cascades into Storage: without this, every re-seed would leave the
+  // previous run's emoji images orphaned in the bucket.
+  await clearEmojiFiles();
 
   const uid = await seedAccounts();
   console.log(`  ${users.length} kontoer`);
@@ -196,11 +215,18 @@ async function main() {
   );
   console.log(`  ${memberships.length} medlemskap`);
 
+  // Real uuids for the mock string ids, so comments and reactions can point at
+  // the right post. Note what is *not* written here: comment_count and
+  // reactions. Those are aggregates the database derives from the rows below,
+  // and the seed has no business asserting them.
+  const postId = new Map(posts.map((post) => [post.id, crypto.randomUUID()]));
+
   fail(
     "innlegg",
     (
       await supabase.from("posts").insert(
         posts.map((post) => ({
+          id: postId.get(post.id)!,
           community_id: post.communityId,
           author_id: uid.get(post.authorId)!,
           title: post.title ?? null,
@@ -208,16 +234,91 @@ async function main() {
           created_at: post.createdAt,
           kind: post.kind,
           pinned: Boolean(post.pinned),
-          comment_count: post.commentCount,
-          reactions: post.reactions.map((reaction) => ({
-            emoji: reaction.emoji,
-            userIds: reaction.userIds.map((id) => uid.get(id) ?? id),
-          })),
         })),
       )
     ).error,
   );
   console.log(`  ${posts.length} innlegg`);
+
+  // Parents must exist before their replies, and the guard trigger checks that
+  // a reply sits on the same post as its parent.
+  const commentId = new Map(comments.map((comment) => [comment.id, crypto.randomUUID()]));
+  const ordered = [...comments].sort(
+    (a, b) => Number(Boolean(a.parentId)) - Number(Boolean(b.parentId)),
+  );
+
+  fail(
+    "kommentarer",
+    (
+      await supabase.from("comments").insert(
+        ordered.map((comment) => ({
+          id: commentId.get(comment.id)!,
+          post_id: postId.get(comment.postId)!,
+          parent_id: comment.parentId ? commentId.get(comment.parentId)! : null,
+          author_id: uid.get(comment.authorId)!,
+          body: comment.body,
+          created_at: comment.createdAt,
+        })),
+      )
+    ).error,
+  );
+  console.log(`  ${comments.length} kommentarer`);
+
+  // The mock keeps reactions in the aggregate shape for readability; the seed
+  // expands them into the one-row-per-person form the database actually holds.
+  const reactionRows = posts.flatMap((post) =>
+    post.reactions.flatMap((reaction) =>
+      reaction.userIds.map((userId) => ({
+        post_id: postId.get(post.id)!,
+        user_id: uid.get(userId)!,
+        emoji: reaction.emoji,
+        created_at: post.createdAt,
+      })),
+    ),
+  );
+
+  // Custom emojis: the image goes into the private bucket under the owning
+  // community's path prefix, then the metadata row points at it. Uploading as
+  // service_role bypasses the storage policies, which is right for a seed and
+  // nowhere else — a real upload goes through createEmojiAction, where the
+  // policies apply.
+  let uploaded = 0;
+  for (const emoji of customEmojis) {
+    const id = crypto.randomUUID();
+    const storagePath = `${emoji.communityId}/${id}.png`;
+    const bytes = await readFile(
+      new URL(`../lib/mock/emoji-art/${emoji.file}`, import.meta.url),
+    );
+
+    fail(
+      `emoji ${emoji.name}`,
+      (
+        await supabase.storage
+          .from("community-emoji")
+          .upload(storagePath, bytes, { contentType: "image/png", upsert: true })
+      ).error,
+    );
+
+    fail(
+      `emoji ${emoji.name}`,
+      (
+        await supabase.from("community_emojis").insert({
+          id,
+          community_id: emoji.communityId,
+          name: emoji.name,
+          storage_path: storagePath,
+          content_type: "image/png",
+          byte_size: bytes.byteLength,
+          created_by: uid.get(emoji.createdBy)!,
+        })
+      ).error,
+    );
+    uploaded += 1;
+  }
+  console.log(`  ${uploaded} egne emojier`);
+
+  fail("reaksjoner", (await supabase.from("post_reactions").insert(reactionRows)).error);
+  console.log(`  ${reactionRows.length} reaksjoner`);
 
   fail(
     "meldinger",

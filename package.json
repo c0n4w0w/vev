@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
     "typecheck": "tsc --noEmit",
-    "check:content": "tsx scripts/check-content.ts"
+    "check:content": "tsx scripts/check-content.ts",
+    "check:storage": "tsx scripts/check-storage.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",

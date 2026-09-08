@@ -107,6 +107,58 @@ export type Database = {
           },
         ]
       }
+      comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          edited_at: string | null
+          id: string
+          parent_id: string | null
+          post_id: string
+        }
+        Insert: {
+          author_id?: string
+          body: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          parent_id?: string | null
+          post_id: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          parent_id?: string | null
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       communities: {
         Row: {
           about: string
@@ -160,6 +212,54 @@ export type Database = {
           tagline?: string
         }
         Relationships: []
+      }
+      community_emojis: {
+        Row: {
+          byte_size: number
+          community_id: string
+          content_type: string
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          storage_path: string
+        }
+        Insert: {
+          byte_size: number
+          community_id: string
+          content_type: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          name: string
+          storage_path: string
+        }
+        Update: {
+          byte_size?: number
+          community_id?: string
+          content_type?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_emojis_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_emojis_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_attendees: {
         Row: {
@@ -396,6 +496,55 @@ export type Database = {
           },
         ]
       }
+      post_reactions: {
+        Row: {
+          created_at: string
+          emoji: string | null
+          emoji_id: string | null
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string | null
+          emoji_id?: string | null
+          id?: string
+          post_id: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string | null
+          emoji_id?: string | null
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_reactions_emoji_id_fkey"
+            columns: ["emoji_id"]
+            isOneToOne: false
+            referencedRelation: "community_emojis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           author_id: string
@@ -503,9 +652,15 @@ export type Database = {
         Args: { p_community_id: string; p_user_id: string }
         Returns: boolean
       }
+      can_access_post: { Args: { pid: string }; Returns: boolean }
       can_moderate: { Args: { cid: string }; Returns: boolean }
+      can_moderate_post: { Args: { pid: string }; Returns: boolean }
       can_read_channel: { Args: { chid: string }; Returns: boolean }
       decline_invitation: { Args: { p_community_id: string }; Returns: boolean }
+      emoji_matches_post: {
+        Args: { eid: string; pid: string }
+        Returns: boolean
+      }
       has_membership_row: { Args: { cid: string }; Returns: boolean }
       is_admin: { Args: { cid: string }; Returns: boolean }
       is_member: { Args: { cid: string }; Returns: boolean }
@@ -709,7 +864,6 @@ export const Constants = {
 } as const
 
 
-
 /**
  * Row aliases used across `lib/data.ts`.
  *
@@ -732,6 +886,9 @@ export type PostRow = TableRow<"posts">;
 export type EventRow = TableRow<"events">;
 export type EventAttendeeRow = TableRow<"event_attendees">;
 export type NotificationRow = TableRow<"notifications">;
+export type CommentRow = TableRow<"comments">;
+export type PostReactionRow = TableRow<"post_reactions">;
+export type CommunityEmojiRow = TableRow<"community_emojis">;
 
 /** What an anonymous portal visitor receives — strictly less than a full row. */
 export type PortalCommunityRow = FunctionReturns<"portal_by_slug">[number];

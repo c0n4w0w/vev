@@ -1,10 +1,27 @@
 import type { Post } from "@/lib/types";
 
 /**
+ * Seed shape for a post.
+ *
+ * `commentCount` is absent on purpose: it is derived by the database from the
+ * comment rows in `lib/mock/comments.ts`. `reactions` stays, but as the source
+ * for individual `post_reactions` rows — the seed no longer writes the
+ * aggregate, it writes the rows the aggregate is computed from.
+ */
+export type SeedPost = Omit<Post, "commentCount" | "reactions"> & {
+  /**
+   * Seed source for built-in reaction rows. The database stores one row per
+   * person per emoji and derives the aggregate; this aggregate-looking shape
+   * is only a compact way to write the fixtures.
+   */
+  reactions: { emoji: string; userIds: string[] }[];
+};
+
+/**
  * Feed content. `announcement` entries also surface on the community overview
  * and the announcements page; ordinary posts only appear in the feed.
  */
-export const posts: Post[] = [
+export const posts: SeedPost[] = [
   // ── Tryggere Ruspolitikk ──────────────────────────────────────────────
   {
     id: "p-tr-1",
@@ -16,7 +33,6 @@ export const posts: Post[] = [
     body:
       "Vi leverte høringssvaret til Helse- og omsorgsdepartementet i går kveld, tre timer før fristen. Takk til alle som leste korrektur i helgen — særlig Elise, som gikk gjennom hele kapittel fire på en søndag.\n\nHovedpunktene våre er uendret fra styremøtet i august: avkriminalisering av bruk og besittelse til eget forbruk, rettighetsfestet lavterskeltilbud i alle kommuner, og en forpliktende opptrappingsplan for skadereduksjon. Hele svaret ligger i #pagaende-prosjekter.",
     createdAt: "2026-09-05T08:20:00+02:00",
-    commentCount: 14,
     reactions: [
       { emoji: "👏", userIds: ["ingrid", "nadia", "kristoffer", "linn", "petter", "elise"] },
       { emoji: "❤️", userIds: ["nadia", "linn"] },
@@ -30,7 +46,6 @@ export const posts: Post[] = [
     body:
       "Var på Stortinget i formiddag sammen med to fra brukerorganisasjonene. Kort oppsummert: helsekomiteen kjenner tallene nå, men de spør fortsatt om hva som skjer med ungdommene. Vi trenger et bedre svar på det spørsmålet enn det vi har i dag.\n\nJeg skriver et notat i løpet av uka. Si fra hvis du vil lese det før det går videre.",
     createdAt: "2026-09-04T15:42:00+02:00",
-    commentCount: 9,
     reactions: [{ emoji: "🙏", userIds: ["amina", "ingrid", "elise"] }],
   },
   {
@@ -42,7 +57,6 @@ export const posts: Post[] = [
     body:
       "Alle standvakter fram til oktober ligger nå i #arrangementer. Vi mangler fortsatt fire personer på lørdagsvakten i Bergen den 19. september, og to i Trondheim uka etter.\n\nDu trenger ingen forkunnskaper for å stå i standen. Vi har en halvtimes gjennomgang før hver vakt, og du står alltid sammen med noen som har gjort det før.",
     createdAt: "2026-09-02T11:05:00+02:00",
-    commentCount: 6,
     reactions: [{ emoji: "✋", userIds: ["petter", "kristoffer", "linn"] }],
   },
   {
@@ -53,7 +67,6 @@ export const posts: Post[] = [
     body:
       "Fra Tromsø: kommunen har sagt ja til å møte oss om lavterskeltilbudet i november. Det tok halvannet år og elleve e-poster, men nå står det i kalenderen.",
     createdAt: "2026-08-29T09:15:00+02:00",
-    commentCount: 11,
     reactions: [
       { emoji: "🎉", userIds: ["amina", "ingrid", "nadia", "petter"] },
       { emoji: "👏", userIds: ["kristoffer"] },
@@ -68,7 +81,6 @@ export const posts: Post[] = [
     body:
       "Datoen er endelig satt. Årsmøtet holdes lørdag 14. november på Litteraturhuset, med digital deltakelse for dem som ikke kan møte fysisk.\n\nSaker som skal behandles må være styret i hende senest 17. oktober. Innkalling med fullstendig saksliste kommer i midten av oktober.",
     createdAt: "2026-08-26T13:00:00+02:00",
-    commentCount: 4,
     reactions: [{ emoji: "📅", userIds: ["ingrid", "elise", "linn"] }],
   },
 
@@ -83,7 +95,6 @@ export const posts: Post[] = [
     body:
       "Fire kvelder i Oslo, to i Bergen og to i Trondheim. Vi går gjennom skadereduksjon i praksis, hvordan du snakker med noen som har det vanskelig, og hva du gjør hvis det skjærer seg på en fest.\n\nAlt er gratis, og du trenger ingen forkunnskaper. Ta med en venn hvis du synes det er skummelt å komme alene — det er helt greit, og flere gjør det enn du tror.",
     createdAt: "2026-09-05T14:10:00+02:00",
-    commentCount: 11,
     reactions: [
       { emoji: "🙌", userIds: ["mathea", "adrian", "petter", "ingrid", "nadia"] },
       { emoji: "❤️", userIds: ["mathea", "adrian"] },
@@ -98,7 +109,6 @@ export const posts: Post[] = [
     body:
       "Tre klasser på vg2 i dag. De var stille de første ti minuttene og stilte så spørsmål helt til det ringte ut.\n\nDet som gikk igjen: de vet ikke hva de skal gjøre hvis en venn blir dårlig, og de er redde for å ringe etter hjelp. Det siste er verdt å ta på alvor. Jeg foreslår at vi lager en kort ting om nettopp det til neste besøk.",
     createdAt: "2026-09-04T16:30:00+02:00",
-    commentCount: 13,
     reactions: [
       { emoji: "👏", userIds: ["hanne", "ingrid", "adrian", "nadia"] },
       { emoji: "💡", userIds: ["petter"] },
@@ -112,7 +122,6 @@ export const posts: Post[] = [
     body:
       "Filmkvelden i Bergen ble fullere enn vi trodde — sytten stykker i et rom med plass til tolv. Vi fikk låne stoler fra naboen i gangen.\n\nNeste gang booker vi det store rommet. Takk til alle som kom, og til han som tok med hjemmebakt.",
     createdAt: "2026-09-02T21:15:00+02:00",
-    commentCount: 7,
     reactions: [{ emoji: "🍿", userIds: ["hanne", "mathea", "petter"] }],
   },
   {
@@ -124,7 +133,6 @@ export const posts: Post[] = [
     body:
       "Vi har mye materiell som fungerer for russ og studenter, men lite som treffer 15–16-åringer. Språket vårt blir enten for teknisk eller for belærende.\n\nEr det noen som har lyst til å sitte en kveld og skrive om et par av tekstene sammen med meg? Jeg tror vi kommer langt på to timer.",
     createdAt: "2026-08-30T18:45:00+02:00",
-    commentCount: 9,
     reactions: [{ emoji: "🙋", userIds: ["mathea", "adrian"] }],
   },
   {
@@ -136,7 +144,6 @@ export const posts: Post[] = [
     body:
       "Helgen 17.–18. oktober samler vi lokallagene på Sundvolden. Vi trenger seks personer til praktisk gjennomføring: rigg, mat, registrering og en som holder styr på programmet.\n\nDu får dekket reise og overnatting. Meld deg i #arrangementer innen 1. oktober.",
     createdAt: "2026-08-27T09:30:00+02:00",
-    commentCount: 5,
     reactions: [{ emoji: "✋", userIds: ["mathea", "adrian", "petter"] }],
   },
 
@@ -151,7 +158,6 @@ export const posts: Post[] = [
     body:
       "Fire netter mellom september og desember. Vi åpner i lokalet på Kabelgata den 26. september, og avslutter med nyttårsraven i desember.\n\nBillettene legges ut på fredag. Som vanlig holder vi av tjue plasser per kveld til folk som ikke har råd — send en melding til meg, du trenger ikke forklare noe.",
     createdAt: "2026-09-05T17:30:00+02:00",
-    commentCount: 12,
     reactions: [
       { emoji: "🔥", userIds: ["vilde", "eirik", "oskar", "ingrid", "tobias", "sindre"] },
       { emoji: "❤️", userIds: ["vilde", "oskar"] },
@@ -165,7 +171,6 @@ export const posts: Post[] = [
     body:
       "Riggelisten for Kabelgata er oppdatert. Vi låner to Martin-hoder fra Eirik på Blå, så vi slipper å leie inn i år. Trenger fortsatt to personer til rigg fra klokka 14 på fredagen.",
     createdAt: "2026-09-04T20:11:00+02:00",
-    commentCount: 5,
     reactions: [{ emoji: "🙋", userIds: ["ingrid", "oskar"] }],
   },
   {
@@ -177,7 +182,6 @@ export const posts: Post[] = [
     body:
       "La tre utkast i mappa. Jeg lener mot det andre — mindre tekst, større flate, og det fungerer bedre i A3 enn på skjerm. Si fra hvis noe skurrer med lesbarheten, jeg har stirret på det for lenge.",
     createdAt: "2026-09-01T22:47:00+02:00",
-    commentCount: 8,
     reactions: [{ emoji: "👀", userIds: ["marte", "vilde"] }],
   },
   {
@@ -188,7 +192,6 @@ export const posts: Post[] = [
     body:
       "Regnskapet for vårsesongen er ferdig. Vi gikk 18 400 kroner i pluss, som i sin helhet er fordelt til de tolv artistene som spilte. Detaljene ligger i #pagaende-prosjekter for dem som liker regneark.",
     createdAt: "2026-08-27T10:20:00+02:00",
-    commentCount: 3,
     reactions: [{ emoji: "👏", userIds: ["marte", "eirik", "oskar", "ingrid"] }],
   },
   {
@@ -200,7 +203,6 @@ export const posts: Post[] = [
     body:
       "Vi har bygget om de to bunnkassene og byttet delefilteret. Forskjellen er tydelig under 40 Hz, og vi slipper klippingen vi hadde i mai.\n\nJeg vil gjerne teste det med publikum i rommet før 26. Er det noen som kan stille en kveld i uke 38?",
     createdAt: "2026-08-31T19:05:00+02:00",
-    commentCount: 6,
     reactions: [{ emoji: "🔊", userIds: ["eirik", "jonas", "tobias"] }],
   },
   {
@@ -211,7 +213,6 @@ export const posts: Post[] = [
     body:
       "Sitter i studio i Bergen denne uka og jobber med noe som begynner å likne et live-sett. Hvis noen har lyst til å høre på en halvferdig skisse og være ærlig, si fra.",
     createdAt: "2026-08-28T21:03:00+02:00",
-    commentCount: 5,
     reactions: [{ emoji: "👂", userIds: ["sindre", "tobias", "marte"] }],
   },
 ];

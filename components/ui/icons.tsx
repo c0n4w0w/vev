@@ -224,3 +224,11 @@ export const IconSwitch = (p: IconProps) => (
     <path d="M4.4 8.4h13.2l-3.4-3.6M19.6 15.6H6.4l3.4 3.6" />
   </Svg>
 );
+
+export const IconSmile = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.4" />
+    <path d="M8.6 14.2a4 4 0 0 0 6.8 0" />
+    <path d="M9.2 9.6h.01M14.8 9.6h.01" strokeWidth={2} />
+  </Svg>
+);
