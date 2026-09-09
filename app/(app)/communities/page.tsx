@@ -3,25 +3,20 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   Badge,
-  ButtonLink,
   CommunityMark,
   EmptyState,
   Panel,
   PageContainer,
   PageHeader,
   RoleBadge,
-  SectionHeading,
 } from "@/components/ui/primitives";
-import { IconArrowRight, IconLock, IconMail, IconUsers } from "@/components/ui/icons";
+import { IconArrowRight, IconLock, IconUsers } from "@/components/ui/icons";
 import {
   getCommunitiesForUser,
   getCommunityEvents,
-  getInvitationsForUser,
-  getPendingRequestsForUser,
   getUpcomingCommunityEvents,
-  getUsers,
 } from "@/lib/data";
-import { formatFullDate, plural } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Mine fellesskap" };
@@ -30,23 +25,8 @@ export default async function CommunitiesPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const [communities, invitations, requests] = await Promise.all([
-    getCommunitiesForUser(user.id),
-    getInvitationsForUser(user.id),
-    getPendingRequestsForUser(user.id),
-  ]);
+  const communities = await getCommunitiesForUser(user.id);
 
-  const inviters = new Map(
-    (
-      await getUsers([
-        ...new Set(
-          invitations
-            .map((entry) => entry.membership.invitedBy)
-            .filter((id): id is string => Boolean(id)),
-        ),
-      ])
-    ).map((u) => [u.id, u]),
-  );
 
   // Event counts per community, resolved before rendering the cards.
   const eventCounts = new Map(
@@ -68,62 +48,6 @@ export default async function CommunitiesPage() {
         title="Fellesskapene dine"
         lead="Én konto, flere organisasjoner. Denne listen inneholder kun det du selv har tilgang til — Vev har ingen katalog over andre fellesskap."
       />
-
-      {invitations.length > 0 || requests.length > 0 ? (
-        <section className="mb-10">
-          <SectionHeading>Under behandling</SectionHeading>
-          <div className="space-y-3">
-            {invitations.map(({ community, membership }) => {
-              const inviter = membership.invitedBy
-                ? inviters.get(membership.invitedBy)
-                : undefined;
-              return (
-                <Panel
-                  key={community.id}
-                  className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"
-                >
-                  <CommunityMark community={community} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-medium text-ink">
-                      {community.name}
-                      <Badge tone="rust">
-                        <IconMail size={11} />
-                        Invitasjon
-                      </Badge>
-                    </p>
-                    <p className="mt-1 text-sm text-ink-2">
-                      {inviter ? `Invitert av ${inviter.name}, ` : ""}
-                      {formatFullDate(membership.joinedAt)}
-                    </p>
-                  </div>
-                  <ButtonLink href={`/${community.slug}`} size="sm" className="shrink-0">
-                    Se invitasjonen
-                  </ButtonLink>
-                </Panel>
-              );
-            })}
-
-            {requests.map(({ community, membership }) => (
-              <Panel
-                key={community.id}
-                className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"
-              >
-                <CommunityMark community={community} size="md" />
-                <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-medium text-ink">
-                    {community.name}
-                    <Badge tone="neutral">Venter på svar</Badge>
-                  </p>
-                  <p className="mt-1 text-sm text-ink-2">
-                    Du ba om tilgang {formatFullDate(membership.joinedAt)}. En administrator ser
-                    på forespørselen.
-                  </p>
-                </div>
-              </Panel>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {communities.length === 0 ? (
         <EmptyState

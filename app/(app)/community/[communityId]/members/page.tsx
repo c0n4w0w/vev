@@ -1,9 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import { approveMember, rejectMember } from "@/app/actions";
 import {
   Avatar,
   Badge,
-  Button,
+  ButtonLink,
   Panel,
   PageContainer,
   PageHeader,
@@ -14,9 +13,7 @@ import {
   getCommunityById,
   getCommunityMembers,
   getMembership,
-  getPendingMembers,
   getRole,
-  getUsers,
 } from "@/lib/data";
 import { formatFullDate, plural } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
@@ -40,25 +37,11 @@ export default async function MembersPage({
   const community = await getCommunityById(communityId);
   if (!community) notFound();
 
-  const [membership, members, pending] = await Promise.all([
+  const [membership, members] = await Promise.all([
     getMembership(user.id, community.id),
     getCommunityMembers(community.id),
-    getPendingMembers(community.id),
   ]);
   const isAdmin = membership?.role === "admin";
-
-  // Who sent each invitation, resolved before rendering.
-  const inviters = new Map(
-    (
-      await getUsers([
-        ...new Set(
-          pending
-            .map((entry) => entry.membership.invitedBy)
-            .filter((id): id is string => Boolean(id)),
-        ),
-      ])
-    ).map((u) => [u.id, u]),
-  );
 
   return (
     <PageContainer>
@@ -68,63 +51,12 @@ export default async function MembersPage({
         lead={`${plural(members.length, "aktiv profil", "aktive profiler")} i dette rommet, av totalt ${community.memberCount} registrerte medlemmer i organisasjonen.`}
         action={
           isAdmin ? (
-            <Button size="sm" disabled title="Invitasjon på e-post er ikke bygget i prototypen">
-              Inviter noen
-            </Button>
+            <ButtonLink href={`/community/${community.id}/requests`} size="sm" variant="secondary">
+              Medlemsforespørsler
+            </ButtonLink>
           ) : undefined
         }
       />
-
-      {isAdmin && pending.length > 0 ? (
-        <section className="mb-10">
-          <SectionHeading>Venter på behandling</SectionHeading>
-          <Panel className="divide-y divide-line">
-            {pending.map(({ user: person, membership: pendingMembership }) => (
-              <div
-                key={person.id}
-                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center"
-              >
-                <Avatar user={person} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-medium text-ink">
-                    {person.name}
-                    <Badge tone={pendingMembership.status === "invited" ? "rust" : "neutral"}>
-                      {pendingMembership.status === "invited"
-                        ? "Invitert"
-                        : "Ber om tilgang"}
-                    </Badge>
-                  </p>
-                  <p className="mt-0.5 text-[13px] text-ink-3">
-                    {pendingMembership.status === "invited"
-                      ? `Invitert ${formatFullDate(pendingMembership.joinedAt)}${
-                          pendingMembership.invitedBy
-                            ? ` av ${inviters.get(pendingMembership.invitedBy)?.name}`
-                            : ""
-                        }`
-                      : `Sendte forespørsel ${formatFullDate(pendingMembership.joinedAt)}`}
-                  </p>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <form action={rejectMember}>
-                    <input type="hidden" name="communityId" value={community.id} />
-                    <input type="hidden" name="userId" value={person.id} />
-                    <Button type="submit" size="sm" variant="secondary">
-                      Avslå
-                    </Button>
-                  </form>
-                  <form action={approveMember}>
-                    <input type="hidden" name="communityId" value={community.id} />
-                    <input type="hidden" name="userId" value={person.id} />
-                    <Button type="submit" size="sm">
-                      Godkjenn
-                    </Button>
-                  </form>
-                </div>
-              </div>
-            ))}
-          </Panel>
-        </section>
-      ) : null}
 
       <div className="space-y-10">
         {roleOrder.map((roleId) => {

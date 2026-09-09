@@ -11,8 +11,13 @@ import type {
   NotificationRow,
   PortalCommunityRow,
   PortalEventRow,
+  AcceptInvitationRow,
+  AccessRequestRow,
   CommentRow,
   CommunityEmojiRow,
+  InvitationPreviewRow,
+  InvitationRow,
+  MintedInvitationRow,
   PostRow,
   ProfileRow,
 } from "@/lib/supabase/database.types";
@@ -319,14 +324,6 @@ export function getCommunitiesForUser(userId: string) {
   return communitiesByStatus(userId, "active");
 }
 
-export function getInvitationsForUser(userId: string) {
-  return communitiesByStatus(userId, "invited");
-}
-
-export function getPendingRequestsForUser(userId: string) {
-  return communitiesByStatus(userId, "requested");
-}
-
 export interface CommunityMember {
   user: User;
   membership: Membership;
@@ -357,18 +354,6 @@ export async function getCommunityMembers(communityId: string): Promise<Communit
         roleWeight[a.membership.role] - roleWeight[b.membership.role] ||
         a.user.name.localeCompare(b.user.name, "nb"),
     );
-}
-
-/** Requests and unanswered invitations, shown to admins on the members screen. */
-export async function getPendingMembers(communityId: string): Promise<CommunityMember[]> {
-  const [memberships, profiles] = await Promise.all([
-    loadCommunityMemberships(communityId),
-    loadProfiles(),
-  ]);
-  return memberships
-    .filter((membership) => membership.status !== "active")
-    .map((membership) => ({ user: profiles.get(membership.userId)!, membership }))
-    .filter((entry) => Boolean(entry.user));
 }
 
 // ── Channels ────────────────────────────────────────────────────────────
@@ -929,6 +914,199 @@ export async function deleteCommunityEmoji(emojiId: string): Promise<EmojiWriteR
   return { ok: true, id: data.id };
 }
 
+// ── Access requests and invitations ─────────────────────────────────────
+//
+// Asking for access is anonymous and says nothing back. Approving it mints an
+// invitation. Only redeeming that invitation creates a membership. Each step
+// is a database function that checks its own preconditions, so none of the
+// rules depend on this file being called correctly.
+
+export interface AccessRequest {
+  id: string;
+  communityId: string;
+  email: string;
+  displayName?: string;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  createdAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
+export interface CommunityInvitation {
+  id: string;
+  communityId: string;
+  email: string;
+  createdAt: string;
+  expiresAt: string;
+  /** Decided against the server's clock, not the browser's. */
+  expired: boolean;
+  acceptedAt?: string;
+  revokedAt?: string;
+}
+
+function toAccessRequest(row: AccessRequestRow): AccessRequest {
+  return {
+    id: row.id,
+    communityId: row.community_id,
+    email: row.email,
+    displayName: row.display_name ?? undefined,
+    status: row.status,
+    createdAt: row.created_at,
+    reviewedAt: row.reviewed_at ?? undefined,
+    reviewedBy: row.reviewed_by ?? undefined,
+  };
+}
+
+/**
+ * Submits a request. Always resolves the same way.
+ *
+ * The database returns true for an accepted request, an already-pending one,
+ * an address that already belongs to a member, a rate-limited caller and an
+ * unknown community alike — so there is nothing here to translate into a
+ * message that would distinguish them. Only a malformed address differs.
+ */
+export async function requestCommunityAccess(input: {
+  slug: string;
+  email: string;
+  displayName?: string;
+}): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("request_community_access", {
+    p_slug: input.slug,
+    p_email: input.email,
+    p_display_name: input.displayName ?? undefined,
+  });
+  return !error && data === true;
+}
+
+/** The pending queue for one community. Empty unless the caller administers it. */
+export async function getAccessRequests(communityId: string): Promise<AccessRequest[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("access_requests")
+    .select("*")
+    .eq("community_id", communityId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+  return (rows(data) as AccessRequestRow[]).map(toAccessRequest);
+}
+
+/** Live invitations for one community, so an admin can see what is outstanding. */
+export async function getInvitations(communityId: string): Promise<CommunityInvitation[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("invitations")
+    .select("*")
+    .eq("community_id", communityId)
+    .is("accepted_at", null)
+    .is("revoked_at", null)
+    .order("created_at", { ascending: false });
+  return (rows(data) as InvitationRow[]).map((row) => ({
+    id: row.id,
+    communityId: row.community_id,
+    email: row.email,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    expired: Date.parse(row.expires_at) <= now().getTime(),
+    acceptedAt: row.accepted_at ?? undefined,
+    revokedAt: row.revoked_at ?? undefined,
+  }));
+}
+
+export interface MintedInvitation {
+  token: string | null;
+  email: string;
+  communityId: string;
+  expiresAt: string;
+}
+
+/**
+ * Approves a request and returns the invitation to send.
+ *
+ * `token` is null when the request was already approved and a live invitation
+ * exists — the caller should not send a second email, and there is no second
+ * token to send. That is what makes a double-click harmless.
+ */
+export async function approveAccessRequest(requestId: string): Promise<MintedInvitation | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("approve_access_request", {
+    p_request_id: requestId,
+  });
+  const row = (data as MintedInvitationRow[] | null)?.[0];
+  if (error || !row) return null;
+  return {
+    token: row.token,
+    email: row.email,
+    communityId: row.community_id,
+    expiresAt: row.expires_at,
+  };
+}
+
+export async function rejectAccessRequest(requestId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("reject_access_request", {
+    p_request_id: requestId,
+  });
+  return !error && data === true;
+}
+
+/** Issues a fresh token and revokes the previous one. */
+export async function resendInvitation(invitationId: string): Promise<MintedInvitation | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("resend_invitation", {
+    p_invitation_id: invitationId,
+  });
+  const row = (data as MintedInvitationRow[] | null)?.[0];
+  if (error || !row) return null;
+  return {
+    token: row.token,
+    email: row.email,
+    communityId: row.community_id,
+    expiresAt: row.expires_at,
+  };
+}
+
+export interface InvitationPreview {
+  communityId: string;
+  communityName: string;
+  communitySlug: string;
+  email: string;
+  expiresAt: string;
+}
+
+/**
+ * What the acceptance page may show before anyone has signed in: the community
+ * and the invited address. A spent, revoked, expired or invented token returns
+ * nothing, so the page cannot be used to test tokens.
+ */
+export async function getInvitationPreview(token: string): Promise<InvitationPreview | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("invitation_preview", { p_token: token });
+  const row = (data as InvitationPreviewRow[] | null)?.[0];
+  if (!row) return undefined;
+  return {
+    communityId: row.community_id,
+    communityName: row.community_name,
+    communitySlug: row.community_slug,
+    email: row.email,
+    expiresAt: row.expires_at,
+  };
+}
+
+export type AcceptInvitationResult =
+  | { ok: true; communityId: string; alreadyMember: boolean }
+  | { ok: false; reason: string };
+
+/** The only path from an invitation to a membership. */
+export async function acceptInvitationToken(token: string): Promise<AcceptInvitationResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("accept_invitation_token", { p_token: token });
+  const row = (data as AcceptInvitationRow[] | null)?.[0];
+  if (error || !row) return { ok: false, reason: "invalid" };
+  if (!row.ok || !row.community_id) return { ok: false, reason: row.reason };
+  return { ok: true, communityId: row.community_id, alreadyMember: row.reason === "already-member" };
+}
+
 // ── Events ──────────────────────────────────────────────────────────────
 
 /**
@@ -1014,50 +1192,4 @@ export async function getUnreadCount(userId: string): Promise<number> {
     .eq("user_id", userId)
     .eq("read", false);
   return count ?? 0;
-}
-
-// ── Membership transitions ──────────────────────────────────────────────
-//
-// Each of these is a database function that checks its own preconditions —
-// that the invitation is still open, that the caller really administers this
-// community — so the rules hold no matter what calls them.
-
-async function rpcBoolean(
-  fn: "request_access" | "accept_invitation" | "decline_invitation",
-  communityId: string,
-): Promise<boolean> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc(fn, { p_community_id: communityId });
-  if (error) return false;
-  return data === true;
-}
-
-export function acceptInvitation(communityId: string) {
-  return rpcBoolean("accept_invitation", communityId);
-}
-
-export function declineInvitation(communityId: string) {
-  return rpcBoolean("decline_invitation", communityId);
-}
-
-export function requestAccess(communityId: string) {
-  return rpcBoolean("request_access", communityId);
-}
-
-export async function approveMembership(communityId: string, userId: string): Promise<boolean> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("approve_membership", {
-    p_community_id: communityId,
-    p_user_id: userId,
-  });
-  return !error && data === true;
-}
-
-export async function rejectMembership(communityId: string, userId: string): Promise<boolean> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("reject_membership", {
-    p_community_id: communityId,
-    p_user_id: userId,
-  });
-  return !error && data === true;
 }

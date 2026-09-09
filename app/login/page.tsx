@@ -16,6 +16,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const nextPath = typeof params.neste === "string" ? params.neste : "/home";
   const sentTo = typeof params.sendt === "string" ? params.sendt : undefined;
   const error = typeof params.feil === "string" ? params.feil : undefined;
+  // Prefilled when arriving from an invitation, so the address the invitation
+  // was sent to is the one that gets used. It is a convenience only: the
+  // invitation is bound to that address in the database regardless of what is
+  // typed here.
+  const prefill = typeof params.e === "string" ? params.e : undefined;
 
   return (
     <main className="flex min-h-dvh flex-col">
@@ -67,6 +72,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
                   type="email"
                   required
                   autoComplete="email"
+                  defaultValue={prefill}
                   placeholder="navn@organisasjon.no"
                   className="mt-2 h-11 w-full rounded-[5px] border border-line-2 bg-surface px-3 text-[0.9375rem] text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-ink-3"
                 />

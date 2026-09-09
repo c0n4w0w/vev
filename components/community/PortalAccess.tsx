@@ -1,18 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import { requestAccess } from "@/app/actions";
+import { useActionState, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { requestAccessAction } from "@/app/actions";
+import { emptyAccessFormState } from "@/lib/access-form";
 import { Badge, Panel } from "@/components/ui/primitives";
-import { IconLock, IconMail } from "@/components/ui/icons";
+import { IconCheck, IconLock, IconMail } from "@/components/ui/icons";
 import type { CommunityPublic } from "@/lib/types";
 
+function SubmitButton({ accent, disabled }: { accent: string; disabled: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={disabled || pending}
+      className="mt-3 h-10 w-full rounded-[5px] text-sm font-medium text-white transition-opacity disabled:opacity-30"
+      style={{ backgroundColor: accent }}
+    >
+      {pending ? "Sender …" : "Be om tilgang"}
+    </button>
+  );
+}
+
 /**
- * The access panel on a public portal. This is the only door into a community
- * for someone who is not already a member.
+ * The public request form.
  *
- * Submitting records a membership with status `requested`; the portal then
- * renders the waiting state, and the request appears for the community's
- * admins under Medlemmer.
+ * An address is all it asks for. The person filling this in is usually already
+ * a member of the organisation and has never heard of VEV, so the copy says
+ * plainly that this does not create a membership and that VEV is a separate
+ * service from the organisation itself.
+ *
+ * The confirmation is the same sentence for every outcome. Whether the address
+ * is new, already a member, already pending or being rate-limited is decided
+ * in the database and never reaches this component, so there is nothing here
+ * that could tell the two apart even by accident.
  */
 export function PortalAccess({
   community,
@@ -21,7 +42,8 @@ export function PortalAccess({
   community: CommunityPublic;
   signedIn: boolean;
 }) {
-  const [reason, setReason] = useState("");
+  const [state, formAction] = useActionState(requestAccessAction, emptyAccessFormState);
+  const [email, setEmail] = useState("");
 
   if (community.accessPolicy === "invite-only") {
     return (
@@ -33,54 +55,86 @@ export function PortalAccess({
         <h2 className="mt-3 font-display text-lg text-ink">Dette rommet er lukket</h2>
         <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
           {community.name} tar ikke imot åpne søknader. Nye medlemmer blir invitert av noen som
-          allerede er her. Kjenner du noen i kollektivet, er det dem du skal snakke med.
+          allerede er her.
         </p>
-        <a
-          href={`mailto:hei@${community.slug}.no`}
-          className="mt-4 inline-flex items-center gap-2 text-sm font-medium transition-opacity hover:opacity-70"
-          style={{ color: community.branding.accent }}
-        >
-          <IconMail size={15} />
-          Ta kontakt på e-post
-        </a>
+      </Panel>
+    );
+  }
+
+  if (state.status === "ok") {
+    return (
+      <Panel className="p-5">
+        <p className="flex items-start gap-2 text-[0.9375rem] font-medium text-ink">
+          <IconCheck size={17} className="mt-0.5 shrink-0" style={{ color: community.branding.accent }} />
+          {state.message}
+        </p>
+        <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
+          Blir den godkjent, får du en e-post med en lenke for å bli med. Får du ingen e-post, kan
+          du spørre organisasjonen direkte.
+        </p>
       </Panel>
     );
   }
 
   return (
     <Panel className="p-5">
-      <h2 className="font-display text-lg text-ink">Be om tilgang</h2>
+      <h2 className="font-display text-lg text-ink">Er du medlem?</h2>
       <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-        {signedIn
-          ? `Fortell kort hvem du er, så tar en administrator i ${community.name} stilling til forespørselen.`
-          : `Du må være innlogget på Vev for å sende en forespørsel. Kontoen din er den samme uansett hvor mange fellesskap du er med i.`}
+        Er du medlem av {community.name} og ønsker tilgang til det digitale fellesskapet? Be om
+        tilgang, så tar en administrator stilling til forespørselen.
       </p>
 
-      <form action={requestAccess} className="mt-4">
-        <input type="hidden" name="communityId" value={community.id} />
+      <form action={formAction} className="mt-4">
         <input type="hidden" name="slug" value={community.slug} />
-        <label htmlFor="reason" className="label">
-          Om deg
+
+        <label htmlFor="email" className="label">
+          E-postadresse
         </label>
-        <textarea
-          id="reason"
-          name="reason"
-          rows={3}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          disabled={!signedIn}
-          placeholder="For eksempel: hvordan du kjenner organisasjonen, og hva du vil bidra med."
-          className="mt-2 w-full resize-none rounded-[5px] border border-line-2 bg-surface px-3 py-2.5 text-sm leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-ink-3 disabled:bg-paper-2/60 disabled:text-ink-3"
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="navn@example.no"
+          className="mt-2 w-full rounded-[5px] border border-line-2 bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-ink-3"
         />
-        <button
-          type="submit"
-          disabled={!signedIn || !reason.trim()}
-          className="mt-3 h-10 w-full rounded-[5px] text-sm font-medium text-white transition-opacity disabled:opacity-30"
-          style={{ backgroundColor: community.branding.accent }}
-        >
-          Send forespørsel
-        </button>
+
+        <label htmlFor="displayName" className="label mt-3 block">
+          Navn <span className="font-normal normal-case tracking-normal">(valgfritt)</span>
+        </label>
+        <input
+          id="displayName"
+          name="displayName"
+          autoComplete="name"
+          maxLength={80}
+          placeholder="Så administratoren vet hvem du er"
+          className="mt-2 w-full rounded-[5px] border border-line-2 bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-ink-3"
+        />
+
+        {state.status === "error" ? (
+          <p role="alert" className="mt-3 text-[13px] text-rust">
+            {state.message}
+          </p>
+        ) : null}
+
+        <SubmitButton accent={community.branding.accent} disabled={!email.trim()} />
       </form>
+
+      <p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-ink-3">
+        <IconMail size={13} className="mt-px shrink-0" />
+        Å be om tilgang oppretter ikke medlemskap. En administrator i fellesskapet må godkjenne
+        forespørselen. VEV er et separat digitalt fellesskap og påvirker ikke det formelle
+        medlemskapet ditt i {community.name}.
+      </p>
+
+      {signedIn ? null : (
+        <p className="mt-2 text-[11px] leading-relaxed text-ink-3">
+          Du trenger ingen VEV-konto for å spørre. Får du en invitasjon, oppretter du kontoen da.
+        </p>
+      )}
     </Panel>
   );
 }

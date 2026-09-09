@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Badge, CommunityMark, RoleBadge, cn } from "@/components/ui/primitives";
+import { CommunityMark, RoleBadge, cn } from "@/components/ui/primitives";
 import { IconCheck, IconChevronDown, IconPlus, IconSwitch } from "@/components/ui/icons";
 import { Wordmark } from "@/components/shell/Wordmark";
 import type { ShellCommunity, ShellData } from "@/components/shell/shell-data";
@@ -130,24 +130,6 @@ export function CommunitySwitcher({
               })}
             </ul>
           )}
-
-          {data.invitations.length > 0 ? (
-            <div className="border-t border-line px-3 py-2.5">
-              <p className="label mb-2">Invitasjon</p>
-              {data.invitations.map(({ community }) => (
-                <Link
-                  key={community.id}
-                  href={`/${community.slug}`}
-                  onClick={close}
-                  className="flex items-center gap-3 rounded-[5px] py-1.5 transition-colors hover:bg-paper-2"
-                >
-                  <CommunityMark community={community} size="xs" />
-                  <span className="min-w-0 flex-1 truncate text-sm text-ink">{community.name}</span>
-                  <Badge tone="rust">Venter</Badge>
-                </Link>
-              ))}
-            </div>
-          ) : null}
 
           <Link
             href="/communities"

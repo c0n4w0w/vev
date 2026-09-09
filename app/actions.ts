@@ -4,22 +4,24 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import {
-  acceptInvitation as acceptCommunityInvitation,
-  approveMembership,
+  acceptInvitationToken,
+  approveAccessRequest,
   createComment as persistComment,
   createCommunityEmoji as persistEmoji,
   createPost as persistPost,
-  declineInvitation as declineCommunityInvitation,
   deleteComment as removeComment,
+  getCommunityById,
   deleteCommunityEmoji as removeEmoji,
   deletePost as removePost,
-  getMembership,
-  rejectMembership,
-  requestAccess as createAccessRequest,
+  rejectAccessRequest,
+  requestCommunityAccess,
+  resendInvitation,
   toggleReaction as togglePostReaction,
   updateComment as editComment,
   updatePost as editPost,
 } from "@/lib/data";
+import type { AccessFormState } from "@/lib/access-form";
+import { REQUEST_SENT_MESSAGE } from "@/lib/access-form";
 import type { CommentFormState } from "@/lib/comment-form";
 import {
   inspectEmojiImage,
@@ -27,6 +29,7 @@ import {
   validateEmojiName,
 } from "@/lib/emoji-image";
 import type { PostFormState } from "@/lib/post-form";
+import { sendInvitationEmail } from "@/lib/email/invitation";
 import { getSessionUser } from "@/lib/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { demoLoginEnabled } from "@/lib/supabase/env";
@@ -83,72 +86,6 @@ export async function signOut() {
 }
 
 // ── Membership ──────────────────────────────────────────────────────────
-
-/** Accepts an open invitation and drops the user straight into the community. */
-export async function acceptInvitation(formData: FormData) {
-  const communityId = String(formData.get("communityId") ?? "");
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-
-  if (await acceptCommunityInvitation(communityId)) {
-    redirect(`/community/${communityId}`);
-  }
-  redirect("/home");
-}
-
-/** Turns down an invitation. The community is then simply gone from view. */
-export async function declineInvitation(formData: FormData) {
-  const communityId = String(formData.get("communityId") ?? "");
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-
-  await declineCommunityInvitation(communityId);
-  redirect("/home");
-}
-
-/** Sends an access request from a community's public portal. */
-export async function requestAccess(formData: FormData) {
-  const communityId = String(formData.get("communityId") ?? "");
-  const slug = String(formData.get("slug") ?? "");
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-
-  await createAccessRequest(communityId);
-  redirect(`/${slug}`);
-}
-
-/**
- * Admin decisions on the members screen.
- *
- * The database function checks administrator rights itself; this check only
- * keeps a non-admin from reaching a page state that implies they can act.
- */
-async function requireAdmin(communityId: string) {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-  const membership = await getMembership(user.id, communityId);
-  if (membership?.status !== "active" || membership.role !== "admin") {
-    redirect(`/community/${communityId}`);
-  }
-}
-
-export async function approveMember(formData: FormData) {
-  const communityId = String(formData.get("communityId") ?? "");
-  const userId = String(formData.get("userId") ?? "");
-  await requireAdmin(communityId);
-
-  await approveMembership(communityId, userId);
-  redirect(`/community/${communityId}/members`);
-}
-
-export async function rejectMember(formData: FormData) {
-  const communityId = String(formData.get("communityId") ?? "");
-  const userId = String(formData.get("userId") ?? "");
-  await requireAdmin(communityId);
-
-  await rejectMembership(communityId, userId);
-  redirect(`/community/${communityId}/members`);
-}
 
 // ── Posts ───────────────────────────────────────────────────────────────
 //
@@ -362,4 +299,169 @@ export async function deleteEmojiAction(
   revalidatePath(`/community/${communityId}/emojis`);
   revalidatePosts(communityId);
   return { status: "ok" };
+}
+
+
+// ── Access requests and invitations ─────────────────────────────────────
+
+/**
+ * The public request form.
+ *
+ * Answers the same way no matter what the database found. The only distinction
+ * it draws is a malformed address, which describes the input rather than any
+ * person or community.
+ */
+export async function requestAccessAction(
+  _prev: AccessFormState,
+  formData: FormData,
+): Promise<AccessFormState> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 254) {
+    return { status: "error", message: "Skriv inn en gyldig e-postadresse." };
+  }
+
+  await requestCommunityAccess({
+    slug: String(formData.get("slug") ?? ""),
+    email,
+    displayName: String(formData.get("displayName") ?? "") || undefined,
+  });
+
+  // Note what is *not* branched on: the result. A community that does not take
+  // applications, an address that already belongs to a member and a brand new
+  // request all end here.
+  return { status: "ok", message: REQUEST_SENT_MESSAGE };
+}
+
+/**
+ * Approves a request, then sends the invitation.
+ *
+ * The email is sent only when the database actually minted a token. A second
+ * click finds the request already approved, gets no token back, and therefore
+ * sends nothing — which is what keeps approval idempotent all the way through
+ * to the recipient's inbox.
+ */
+export async function approveRequestAction(
+  _prev: AccessFormState,
+  formData: FormData,
+): Promise<AccessFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const minted = await approveAccessRequest(String(formData.get("requestId") ?? ""));
+
+  if (!minted) {
+    return { status: "error", message: "Forespørselen kunne ikke godkjennes." };
+  }
+
+  revalidatePath(`/community/${communityId}/requests`);
+
+  if (!minted.token) {
+    return { status: "ok", message: "Forespørselen var allerede godkjent. Invitasjonen står ved lag." };
+  }
+
+  const sent = await deliverInvitation(minted);
+  return sent.ok
+    ? { status: "ok", message: `Invitasjon sendt til ${minted.email}.` }
+    : { status: "error", message: sent.message };
+}
+
+export async function rejectRequestAction(
+  _prev: AccessFormState,
+  formData: FormData,
+): Promise<AccessFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const ok = await rejectAccessRequest(String(formData.get("requestId") ?? ""));
+  revalidatePath(`/community/${communityId}/requests`);
+
+  return ok
+    ? { status: "ok", message: "Forespørselen er avslått." }
+    : { status: "error", message: "Forespørselen kunne ikke avslås." };
+}
+
+export async function resendInvitationAction(
+  _prev: AccessFormState,
+  formData: FormData,
+): Promise<AccessFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const minted = await resendInvitation(String(formData.get("invitationId") ?? ""));
+  revalidatePath(`/community/${communityId}/requests`);
+
+  if (!minted?.token) {
+    return { status: "error", message: "Invitasjonen kunne ikke sendes på nytt." };
+  }
+
+  const sent = await deliverInvitation(minted);
+  return sent.ok
+    ? { status: "ok", message: `Ny invitasjon sendt til ${minted.email}.` }
+    : { status: "error", message: sent.message };
+}
+
+/** Builds the absolute accept URL and hands the message to the provider. */
+async function deliverInvitation(minted: {
+  token: string | null;
+  email: string;
+  communityId: string;
+  expiresAt: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!minted.token) return { ok: false, message: "Ingen invitasjon å sende." };
+
+  const community = await getCommunityById(minted.communityId);
+  const header = await headers();
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    `${header.get("x-forwarded-proto") ?? "http"}://${header.get("host") ?? "localhost:3000"}`;
+
+  const result = await sendInvitationEmail({
+    to: minted.email,
+    communityName: community?.name ?? "fellesskapet",
+    acceptUrl: `${origin}/invitasjon/${minted.token}`,
+    expiresAt: minted.expiresAt,
+    accent: community?.branding.accent ?? "#1f4a3d",
+  });
+
+  // The invitation exists either way; only the delivery failed. Saying so lets
+  // an admin resend rather than wonder whether the approval took.
+  return result.ok
+    ? { ok: true }
+    : { ok: false, message: `Invitasjonen er opprettet, men e-posten kunne ikke sendes: ${result.error}` };
+}
+
+/** Redeems a token for the signed-in account. */
+export async function acceptInvitationAction(
+  _prev: AccessFormState,
+  formData: FormData,
+): Promise<AccessFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const result = await acceptInvitationToken(String(formData.get("token") ?? ""));
+  if (!result.ok) {
+    return { status: "error", message: invitationFailure(result.reason) };
+  }
+
+  revalidatePath("/home");
+  revalidatePath("/communities");
+  redirect(`/community/${result.communityId}`);
+}
+
+function invitationFailure(reason: string): string {
+  switch (reason) {
+    case "email-mismatch":
+      return "Invitasjonen er sendt til en annen e-postadresse enn den du er logget inn med. Logg inn med adressen invitasjonen ble sendt til.";
+    case "already-used":
+      return "Denne invitasjonen er allerede brukt.";
+    case "expired":
+      return "Invitasjonen er utløpt. Be en administrator om å sende en ny.";
+    case "revoked":
+      return "Invitasjonen er erstattet av en nyere. Bruk den siste lenken du fikk.";
+    default:
+      return "Invitasjonen er ikke gyldig.";
+  }
 }

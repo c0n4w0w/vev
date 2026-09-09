@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { acceptInvitation, declineInvitation } from "@/app/actions";
 import { PortalAccess } from "@/components/community/PortalAccess";
 import { Wordmark } from "@/components/shell/Wordmark";
 import {
@@ -20,7 +19,7 @@ import {
   IconMapPin,
   IconUsers,
 } from "@/components/ui/icons";
-import { getMembership, getPortalCommunity, getPortalEvents, getUser } from "@/lib/data";
+import { getMembership, getPortalCommunity, getPortalEvents } from "@/lib/data";
 import { formatEventRange, plural } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 
@@ -50,10 +49,6 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
 
   const user = await getSessionUser();
   const membership = user ? await getMembership(user.id, community.id) : undefined;
-  const inviter =
-    membership?.status === "invited" && membership.invitedBy
-      ? await getUser(membership.invitedBy)
-      : undefined;
   const accent = community.branding.accent;
 
   return (
@@ -197,47 +192,6 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
                   Åpne fellesskapet
                   <IconArrowRight size={16} />
                 </Link>
-              </Panel>
-            ) : membership?.status === "invited" ? (
-              <Panel className="border-l-2 p-5" style={{ borderLeftColor: accent }}>
-                <Badge tone="rust">Invitasjon</Badge>
-                <h2 className="mt-3 font-display text-lg text-ink">Du er invitert</h2>
-                <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-                  {inviter
-                    ? `${inviter.name} har invitert deg inn i ${community.name}.`
-                    : `Du har fått en invitasjon til ${community.name}.`}{" "}
-                  Tar du imot, blir profilen din synlig for de andre medlemmene.
-                </p>
-                <form action={acceptInvitation} className="mt-4">
-                  <input type="hidden" name="communityId" value={community.id} />
-                  <button
-                    type="submit"
-                    className="h-10 w-full rounded-[5px] text-sm font-medium text-white"
-                    style={{ backgroundColor: accent }}
-                  >
-                    Ta imot invitasjonen
-                  </button>
-                </form>
-                <form action={declineInvitation} className="mt-2">
-                  <input type="hidden" name="communityId" value={community.id} />
-                  <button
-                    type="submit"
-                    className="h-10 w-full rounded-[5px] border border-line-2 bg-surface text-sm font-medium text-ink-2 transition-colors hover:bg-paper-2"
-                  >
-                    Nei takk
-                  </button>
-                </form>
-                <p className="mt-3 text-[11px] leading-relaxed text-ink-3">
-                  Takker du nei, forsvinner invitasjonen. Du kan alltid be om tilgang senere.
-                </p>
-              </Panel>
-            ) : membership?.status === "requested" ? (
-              <Panel className="p-5">
-                <Badge tone="neutral">Venter på svar</Badge>
-                <h2 className="mt-3 font-display text-lg text-ink">Forespørselen er sendt</h2>
-                <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-                  En administrator i {community.name} ser på forespørselen din.
-                </p>
               </Panel>
             ) : (
               <PortalAccess community={community} signedIn={Boolean(user)} />

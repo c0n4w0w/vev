@@ -46,3 +46,6 @@ next-env.d.ts
 # local env files
 .env*.local
 .env
+
+# Development mail capture — never commit captured invitations.
+.vev-dev-mail/

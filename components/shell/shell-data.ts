@@ -1,7 +1,6 @@
 import {
   getCommunitiesForUser,
   getGroupedChannels,
-  getInvitationsForUser,
   getUnreadCount,
 } from "@/lib/data";
 import type { Channel, ChannelGroup, Community, Membership, User } from "@/lib/types";
@@ -24,14 +23,12 @@ export interface ShellCommunity {
 export interface ShellData {
   user: User;
   communities: ShellCommunity[];
-  invitations: { community: Community; membership: Membership }[];
   unreadCount: number;
 }
 
 export async function buildShellData(user: User): Promise<ShellData> {
-  const [memberships, invitations, unreadCount] = await Promise.all([
+  const [memberships, unreadCount] = await Promise.all([
     getCommunitiesForUser(user.id),
-    getInvitationsForUser(user.id),
     getUnreadCount(user.id),
   ]);
 
@@ -43,5 +40,5 @@ export async function buildShellData(user: User): Promise<ShellData> {
     })),
   );
 
-  return { user, communities, invitations, unreadCount };
+  return { user, communities, unreadCount };
 }

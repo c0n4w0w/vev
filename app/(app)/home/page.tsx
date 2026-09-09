@@ -13,12 +13,11 @@ import {
   RoleBadge,
   SectionHeading,
 } from "@/components/ui/primitives";
-import { IconArrowRight, IconLock, IconMail } from "@/components/ui/icons";
+import { IconArrowRight, IconLock } from "@/components/ui/icons";
 import {
   getCommunitiesForUser,
   getEventsForUser,
   getHomeFeed,
-  getInvitationsForUser,
   getLatestMessage,
   getGroupedChannels,
   getCommunityById,
@@ -38,9 +37,8 @@ export default async function HomePage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const [communities, invitations, feed, allEvents] = await Promise.all([
+  const [communities, feed, allEvents] = await Promise.all([
     getCommunitiesForUser(user.id),
-    getInvitationsForUser(user.id),
     getHomeFeed(user.id, 6),
     getEventsForUser(user.id),
   ]);
@@ -48,7 +46,6 @@ export default async function HomePage() {
 
   // Everything the JSX needs is resolved here — a component tree cannot await.
   const communityById = new Map(communities.map(({ community }) => [community.id, community]));
-  for (const { community } of invitations) communityById.set(community.id, community);
   for (const id of [...feed.map((p) => p.communityId), ...events.map((e) => e.communityId)]) {
     if (!communityById.has(id)) {
       const community = await getCommunityById(id);
@@ -62,9 +59,6 @@ export default async function HomePage() {
         ...new Set([
           ...feed.map((post) => post.authorId),
           ...events.map((event) => event.hostId),
-          ...invitations
-            .map((entry) => entry.membership.invitedBy)
-            .filter((id): id is string => Boolean(id)),
         ]),
       ])
     ).map((person) => [person.id, person]),
@@ -103,37 +97,6 @@ export default async function HomePage() {
               }. Her er det som har skjedd siden sist.`
         }
       />
-
-      {invitations.length > 0 ? (
-        <section className="mb-10">
-          <SectionHeading>Venter på deg</SectionHeading>
-          <div className="space-y-3">
-            {invitations.map(({ community, membership }) => {
-              const inviter = membership.invitedBy
-                ? people.get(membership.invitedBy)
-                : undefined;
-              return (
-                <Panel key={community.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-                  <CommunityMark community={community} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 text-[0.9375rem] font-medium text-ink">
-                      <IconMail size={15} className="text-ink-3" />
-                      Invitasjon til {community.name}
-                    </p>
-                    <p className="mt-1 text-sm leading-relaxed text-ink-2">
-                      {inviter ? `${inviter.name} har invitert deg. ` : ""}
-                      {community.tagline}.
-                    </p>
-                  </div>
-                  <ButtonLink href={`/${community.slug}`} size="sm" className="shrink-0">
-                    Se invitasjonen
-                  </ButtonLink>
-                </Panel>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
 
       {communities.length === 0 ? (
         <EmptyState

@@ -12,6 +12,7 @@ import { readFile } from "node:fs/promises";
 import { config } from "dotenv";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { channelGroups, channels, communities, memberships } from "@/lib/mock/communities";
+import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
 import { customEmojis } from "@/lib/mock/emojis";
 import { events } from "@/lib/mock/events";
@@ -96,6 +97,7 @@ async function clearContent() {
   // Order matters: children before parents. `event_attendees` is cleared by
   // the caller because it has a composite key rather than an `id`.
   const tables = [
+    "access_requests",
     "notifications",
     "events",
     "messages",
@@ -392,6 +394,22 @@ async function main() {
       )
     ).error,
   );
+  fail(
+    "tilgangsforespørsler",
+    (
+      await supabase.from("access_requests").insert(
+        accessRequests.map((request) => ({
+          community_id: request.communityId,
+          email: request.email,
+          display_name: request.displayName ?? null,
+          status: "pending" as const,
+          created_at: new Date(Date.now() - request.daysAgo * 86400000).toISOString(),
+        })),
+      )
+    ).error,
+  );
+  console.log(`  ${accessRequests.length} tilgangsforespørsler`);
+
   console.log(`  ${notifications.length} varsler`);
 
   console.log("\n✓ Ferdig. Logg inn med en av demokontoene på /login.");

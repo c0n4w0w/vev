@@ -18,6 +18,7 @@
  */
 import { existsSync } from "node:fs";
 import { channels, communities, memberships } from "@/lib/mock/communities";
+import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
 import { customEmojis } from "@/lib/mock/emojis";
 import { events } from "@/lib/mock/events";
@@ -249,9 +250,21 @@ const activeCount = (userId: string) =>
 check(`${manyId} er med i alle tre fellesskapene`, activeCount(manyId) === communities.length);
 check(`${oneId} er med i nøyaktig ett fellesskap`, activeCount(oneId) === 1);
 check(`${noneId} er ikke med i noe fellesskap`, activeCount(noneId) === 0);
+// The cold-start account has no membership row of any kind, not even a
+// pending one. Whatever access she gains has to come through the request and
+// invitation lifecycle, which is the point of seeding her empty.
 check(
-  `${noneId} har nøyaktig én ubesvart invitasjon`,
-  memberships.filter((m) => m.userId === noneId && m.status === "invited").length === 1,
+  `${noneId} har ingen medlemskapsrad i det hele tatt`,
+  memberships.filter((m) => m.userId === noneId).length === 0,
+);
+
+// Nothing should seed the legacy 'invited' or 'requested' states any more:
+// they are unreachable now that approval issues an invitation instead of
+// flipping a membership row.
+check(
+  "ingen medlemskap er seedet i en utdatert tilstand",
+  memberships.every((m) => m.status === "active"),
+  memberships.filter((m) => m.status !== "active").map((m) => `${m.userId}/${m.communityId}=${m.status}`).join(", "),
 );
 check(
   `${manyId} har tre ulike roller`,
@@ -259,9 +272,43 @@ check(
     memberships.filter((m) => m.userId === manyId && m.status === "active").map((m) => m.role),
   ).size === 3,
 );
+// A request is now a row in `access_requests`, keyed by email, not a
+// membership in a pending state.
 check(
-  "minst én søknad venter på en administrator",
-  memberships.some((m) => m.status === "requested"),
+  "minst én tilgangsforespørsel venter på en administrator",
+  accessRequests.length > 0,
+);
+
+for (const request of accessRequests) {
+  const where = `${request.communityId}/${request.email}`;
+  check("forespørselens fellesskap finnes", communityIds.has(request.communityId), where);
+  check(
+    "forespørselen går til et fellesskap som tar imot søknader",
+    communities.find((c) => c.id === request.communityId)?.accessPolicy === "request-to-join",
+    where,
+  );
+  check(
+    "e-postadressen er normalisert",
+    request.email === request.email.trim().toLowerCase(),
+    where,
+  );
+  // A seeded request must not name someone who is already a member — the
+  // database suppresses that case, so it would never appear in a real queue.
+  check(
+    "forespørselen er ikke fra et eksisterende medlem",
+    !memberships.some(
+      (m) =>
+        m.communityId === request.communityId &&
+        m.status === "active" &&
+        users.find((u) => u.id === m.userId)?.email.toLowerCase() === request.email,
+    ),
+    where,
+  );
+}
+
+check(
+  "ingen to forespørsler er duplikater",
+  new Set(accessRequests.map((r) => `${r.communityId}/${r.email}`)).size === accessRequests.length,
 );
 
 // ── 3. Organisational independence ──────────────────────────────────────

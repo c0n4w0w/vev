@@ -15,6 +15,7 @@ import {
   IconLock,
   IconMegaphone,
   IconMenu,
+  IconMail,
   IconOverview,
   IconSmile,
   IconUser,
@@ -85,6 +86,7 @@ function communityNav(id: string) {
     { href: `/community/${id}/announcements`, label: "Kunngjøringer", icon: IconMegaphone },
     { href: `/community/${id}/events`, label: "Arrangementer", icon: IconCalendar },
     { href: `/community/${id}/members`, label: "Medlemmer", icon: IconUsers },
+    { href: `/community/${id}/requests`, label: "Forespørsler", icon: IconMail, adminOnly: true },
     { href: `/community/${id}/emojis`, label: "Emojier", icon: IconSmile },
   ];
 }
@@ -125,7 +127,11 @@ function SidebarContent({
             </div>
 
             <ul className="space-y-px">
-              {communityNav(current.community.id).map((item) => (
+              {communityNav(current.community.id)
+                // The queue is an administrator's tool. Hiding it is only
+                // tidiness — the page and the database both refuse anyone else.
+                .filter((item) => !item.adminOnly || current.membership.role === "admin")
+                .map((item) => (
                 <li key={item.href}>
                   <NavLink
                     href={item.href}
@@ -203,26 +209,6 @@ function SidebarContent({
               )}
             </div>
 
-            {data.invitations.length > 0 ? (
-              <div className="mt-7">
-                <p className="label mb-2 px-2.5">Invitasjoner</p>
-                <ul className="space-y-px">
-                  {data.invitations.map(({ community }) => (
-                    <li key={community.id}>
-                      <Link
-                        href={`/${community.slug}`}
-                        onClick={onNavigate}
-                        className="flex items-center gap-2.5 rounded-[5px] px-2.5 py-[7px] text-sm text-ink-2 transition-colors hover:bg-paper-2/70 hover:text-ink"
-                      >
-                        <CommunityMark community={community} size="xs" />
-                        <span className="min-w-0 flex-1 truncate">{community.name}</span>
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rust" />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
           </>
         )}
       </nav>

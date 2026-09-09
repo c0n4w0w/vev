@@ -173,15 +173,8 @@ export const memberships: Membership[] = [
     title: "Artist",
   },
 
-  // Sofie — no memberships, one open invitation.
-  {
-    userId: "sofie",
-    communityId: "tryggere-ungdom",
-    role: "member",
-    status: "invited",
-    joinedAt: "2026-09-03",
-    invitedBy: "hanne",
-  },
+  // Sofie — no memberships at all. She is the cold-start case: her way in is
+  // the access-request and invitation lifecycle, not a row seeded ahead of her.
 
   // Tryggere Ruspolitikk
   { userId: "amina", communityId: "tryggere-ruspolitikk", role: "admin", status: "active", joinedAt: "2023-09-04", title: "Fagansvarlig" },
@@ -190,7 +183,6 @@ export const memberships: Membership[] = [
   { userId: "linn", communityId: "tryggere-ruspolitikk", role: "member", status: "active", joinedAt: "2024-08-27", title: "Lokallag Tromsø" },
   { userId: "petter", communityId: "tryggere-ruspolitikk", role: "member", status: "active", joinedAt: "2025-02-14", title: "Frivillig, Trondheim" },
   { userId: "elise", communityId: "tryggere-ruspolitikk", role: "member", status: "active", joinedAt: "2025-01-20", title: "Juridisk bidragsyter" },
-  { userId: "oskar", communityId: "tryggere-ruspolitikk", role: "member", status: "requested", joinedAt: "2026-09-04" },
 
   // Tryggere Ungdom
   { userId: "hanne", communityId: "tryggere-ungdom", role: "admin", status: "active", joinedAt: "2023-01-16", title: "Ungdomskoordinator" },

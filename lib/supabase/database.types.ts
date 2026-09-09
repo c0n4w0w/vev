@@ -44,6 +44,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_requests: {
+        Row: {
+          community_id: string
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["access_request_status"]
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["access_request_status"]
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["access_request_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_requests_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_groups: {
         Row: {
           id: string
@@ -341,6 +389,77 @@ export type Database = {
             columns: ["host_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          community_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          request_id: string | null
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          community_id: string
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invited_by?: string | null
+          request_id?: string | null
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          community_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          request_id?: string | null
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "access_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -643,28 +762,53 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_invitation: { Args: { p_community_id: string }; Returns: boolean }
+      accept_invitation_token: {
+        Args: { p_token: string }
+        Returns: {
+          community_id: string
+          ok: boolean
+          reason: string
+        }[]
+      }
       administers_pending_membership: {
         Args: { other: string }
         Returns: boolean
       }
-      approve_membership: {
-        Args: { p_community_id: string; p_user_id: string }
-        Returns: boolean
+      approve_access_request: {
+        Args: { p_request_id: string }
+        Returns: {
+          community_id: string
+          email: string
+          expires_at: string
+          token: string
+        }[]
       }
       can_access_post: { Args: { pid: string }; Returns: boolean }
       can_moderate: { Args: { cid: string }; Returns: boolean }
       can_moderate_post: { Args: { pid: string }; Returns: boolean }
       can_read_channel: { Args: { chid: string }; Returns: boolean }
-      decline_invitation: { Args: { p_community_id: string }; Returns: boolean }
       emoji_matches_post: {
         Args: { eid: string; pid: string }
         Returns: boolean
       }
       has_membership_row: { Args: { cid: string }; Returns: boolean }
+      hash_invitation_token: { Args: { p_token: string }; Returns: string }
+      invitation_lifetime: { Args: never; Returns: string }
+      invitation_preview: {
+        Args: { p_token: string }
+        Returns: {
+          community_id: string
+          community_name: string
+          community_slug: string
+          email: string
+          expires_at: string
+        }[]
+      }
       is_admin: { Args: { cid: string }; Returns: boolean }
       is_member: { Args: { cid: string }; Returns: boolean }
+      looks_like_email: { Args: { p_email: string }; Returns: boolean }
       mark_notifications_read: { Args: never; Returns: undefined }
+      normalize_email: { Args: { p_email: string }; Returns: string }
       portal_by_slug: {
         Args: { p_slug: string }
         Returns: {
@@ -696,19 +840,28 @@ export type Database = {
         }[]
       }
       portal_slug_by_id: { Args: { p_community_id: string }; Returns: string }
-      reject_membership: {
-        Args: { p_community_id: string; p_user_id: string }
+      reject_access_request: {
+        Args: { p_request_id: string }
         Returns: boolean
       }
-      request_access: { Args: { p_community_id: string }; Returns: boolean }
-      resolve_invitation_notice: {
-        Args: { p_community: string; p_user: string }
-        Returns: undefined
+      request_community_access: {
+        Args: { p_display_name?: string; p_email: string; p_slug: string }
+        Returns: boolean
+      }
+      resend_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: {
+          community_id: string
+          email: string
+          expires_at: string
+          token: string
+        }[]
       }
       shares_community: { Args: { other: string }; Returns: boolean }
     }
     Enums: {
       access_policy: "invite-only" | "request-to-join"
+      access_request_status: "pending" | "approved" | "rejected" | "cancelled"
       community_role: "member" | "moderator" | "admin"
       membership_status: "active" | "invited" | "requested"
       notification_kind:
@@ -849,6 +1002,7 @@ export const Constants = {
   public: {
     Enums: {
       access_policy: ["invite-only", "request-to-join"],
+      access_request_status: ["pending", "approved", "rejected", "cancelled"],
       community_role: ["member", "moderator", "admin"],
       membership_status: ["active", "invited", "requested"],
       notification_kind: [
@@ -862,7 +1016,6 @@ export const Constants = {
     },
   },
 } as const
-
 
 /**
  * Row aliases used across `lib/data.ts`.
@@ -889,7 +1042,14 @@ export type NotificationRow = TableRow<"notifications">;
 export type CommentRow = TableRow<"comments">;
 export type PostReactionRow = TableRow<"post_reactions">;
 export type CommunityEmojiRow = TableRow<"community_emojis">;
+export type AccessRequestRow = TableRow<"access_requests">;
+export type InvitationRow = TableRow<"invitations">;
 
 /** What an anonymous portal visitor receives — strictly less than a full row. */
 export type PortalCommunityRow = FunctionReturns<"portal_by_slug">[number];
 export type PortalEventRow = FunctionReturns<"portal_events">[number];
+
+/** Row shapes returned by the access-request and invitation RPCs. */
+export type MintedInvitationRow = FunctionReturns<"approve_access_request">[number];
+export type InvitationPreviewRow = FunctionReturns<"invitation_preview">[number];
+export type AcceptInvitationRow = FunctionReturns<"accept_invitation_token">[number];
