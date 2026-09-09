@@ -50,7 +50,7 @@ export default async function ProfilePage() {
               </div>
               <div>
                 <dt className="sr-only">Medlem siden</dt>
-                <dd>Konto på Vev siden {formatFullDate(user.joinedAt)}</dd>
+                <dd>Konto på TING siden {formatFullDate(user.joinedAt)}</dd>
               </div>
             </dl>
           </div>
@@ -131,7 +131,7 @@ export default async function ProfilePage() {
             </li>
             <li className="flex gap-2.5">
               <IconShield size={15} className="mt-0.5 shrink-0 text-skog" />
-              Vev har ingen offentlig søkefunksjon for personer eller organisasjoner.
+              TING har ingen offentlig søkefunksjon for personer eller organisasjoner.
             </li>
           </ul>
           <p className="mt-4 text-[11px] leading-relaxed text-ink-3">

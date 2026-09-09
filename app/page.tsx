@@ -4,6 +4,7 @@ import { Wordmark } from "@/components/shell/Wordmark";
 import { buttonClass } from "@/components/ui/primitives";
 import { IconArrowRight, IconLock, IconMail, IconUsers } from "@/components/ui/icons";
 import { demoLoginEnabled } from "@/lib/supabase/env";
+import { PUBLIC_HOST } from "@/lib/brand";
 
 /**
  * Prototype scaffolding. These are written out rather than queried on purpose:
@@ -27,7 +28,7 @@ const principles = [
   {
     icon: IconLock,
     title: "Ingen katalog",
-    body: "Det finnes ingen side der du kan bla gjennom organisasjonene på Vev. Et slikt register ville i praksis vært en oversikt over hvem som er engasjert i hva.",
+    body: "Det finnes ingen side der du kan bla gjennom organisasjonene på TING. Et slikt register ville i praksis vært en oversikt over hvem som er engasjert i hva.",
   },
   {
     icon: IconMail,
@@ -51,7 +52,7 @@ export default async function LandingPage() {
           <Wordmark />
           {user ? (
             <Link href="/home" className={buttonClass({ size: "sm" })}>
-              Fortsett til Vev
+              Fortsett til TING
             </Link>
           ) : (
             <Link href="/login" className={buttonClass({ variant: "secondary", size: "sm" })}>
@@ -69,7 +70,7 @@ export default async function LandingPage() {
               Et rolig sted for organisasjoner som trenger å snakke sammen.
             </h1>
             <p className="mt-6 max-w-xl text-[1.0625rem] leading-relaxed text-ink-2">
-              Vev gir foreninger, kollektiver og frivillige organisasjoner et eget rom med
+              TING gir foreninger, kollektiver og frivillige organisasjoner et eget rom med
               medlemmer, kanaler, arrangementer og kunngjøringer. Organisasjonen beholder sitt eget
               navn og uttrykk. Plattformen holder seg i bakgrunnen.
             </p>
@@ -88,7 +89,7 @@ export default async function LandingPage() {
                 Har du fått en lenke fra en organisasjon, skriver du den rett inn i adressefeltet:
               </p>
               <p className="mt-3 rounded-[5px] border border-line bg-paper px-3 py-2 font-mono text-[13px] text-ink-2">
-                vev.no/<span className="text-ink">navnet-deres</span>
+                {PUBLIC_HOST}/<span className="text-ink">navnet-deres</span>
               </p>
               <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
                 Vi har ingen søkefunksjon som kan finne den for deg. Det er hele poenget.
@@ -129,7 +130,7 @@ export default async function LandingPage() {
                       className="h-2 w-2 rounded-full"
                       style={{ backgroundColor: portal.accent }}
                     />
-                    vev.no/{portal.slug}
+                    {PUBLIC_HOST}/{portal.slug}
                   </Link>
                 </li>
               ))}
@@ -141,7 +142,7 @@ export default async function LandingPage() {
 
       <footer className="border-t border-line bg-surface">
         <div className="mx-auto flex max-w-5xl flex-col gap-2 px-5 py-6 text-xs text-ink-3 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-          <p>Vev · prototype</p>
+          <p>TING · prototype</p>
           <p>Ingen data lagres. Ende-til-ende-kryptering er planlagt, men ikke implementert.</p>
         </div>
       </footer>

@@ -26,8 +26,8 @@ function SubmitButton({ accent, disabled }: { accent: string; disabled: boolean 
  * The public request form.
  *
  * An address is all it asks for. The person filling this in is usually already
- * a member of the organisation and has never heard of VEV, so the copy says
- * plainly that this does not create a membership and that VEV is a separate
+ * a member of the organisation and has never heard of TING, so the copy says
+ * plainly that this does not create a membership and that TING is a separate
  * service from the organisation itself.
  *
  * The confirmation is the same sentence for every outcome. Whether the address
@@ -126,13 +126,13 @@ export function PortalAccess({
       <p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-ink-3">
         <IconMail size={13} className="mt-px shrink-0" />
         Å be om tilgang oppretter ikke medlemskap. En administrator i fellesskapet må godkjenne
-        forespørselen. VEV er et separat digitalt fellesskap og påvirker ikke det formelle
+        forespørselen. TING er et separat digitalt fellesskap og påvirker ikke det formelle
         medlemskapet ditt i {community.name}.
       </p>
 
       {signedIn ? null : (
         <p className="mt-2 text-[11px] leading-relaxed text-ink-3">
-          Du trenger ingen VEV-konto for å spørre. Får du en invitasjon, oppretter du kontoen da.
+          Du trenger ingen TING-konto for å spørre. Får du en invitasjon, oppretter du kontoen da.
         </p>
       )}
     </Panel>

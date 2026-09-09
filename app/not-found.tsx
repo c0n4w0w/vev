@@ -19,7 +19,7 @@ export default function NotFound() {
         </h1>
         <p className="mt-3 max-w-lg text-[0.9375rem] leading-relaxed text-ink-2">
           Adressen kan være feilskrevet, eller så peker den til et fellesskap du ikke har tilgang
-          til. Vev viser ikke hvilke fellesskap som finnes, så vi kan dessverre ikke foreslå noe
+          til. TING viser ikke hvilke fellesskap som finnes, så vi kan dessverre ikke foreslå noe
           liknende.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">

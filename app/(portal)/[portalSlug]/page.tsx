@@ -22,6 +22,7 @@ import {
 import { getMembership, getPortalCommunity, getPortalEvents } from "@/lib/data";
 import { formatEventRange, plural } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
+import { PUBLIC_HOST } from "@/lib/brand";
 
 export async function generateMetadata({ params }: PageProps<"/[portalSlug]">) {
   const { portalSlug } = await params;
@@ -53,7 +54,7 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
 
   return (
     <main className="flex min-h-dvh flex-col bg-paper">
-      {/* The community's own bar. Vev is credited quietly, on the right. */}
+      {/* The community's own bar. TING is credited quietly, on the right. */}
       <header className="border-b border-line" style={{ backgroundColor: `${accent}12` }}>
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-4 lg:px-8">
           <span className="flex min-w-0 items-center gap-3">
@@ -199,7 +200,7 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
 
             {!user ? (
               <Panel className="p-5">
-                <h2 className="text-[0.9375rem] font-medium text-ink">Har du konto på Vev?</h2>
+                <h2 className="text-[0.9375rem] font-medium text-ink">Har du konto på TING?</h2>
                 <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">
                   Samme konto fungerer for alle fellesskap du er med i.
                 </p>
@@ -224,7 +225,7 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
       <footer className="border-t border-line bg-surface">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 px-5 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <p className="text-xs text-ink-3">
-            {community.name} · vev.no/{community.slug}
+            {community.name} · {PUBLIC_HOST}/{community.slug}
           </p>
           <Link
             href="/"

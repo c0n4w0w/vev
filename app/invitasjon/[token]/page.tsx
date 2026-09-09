@@ -15,7 +15,7 @@ export const metadata = { title: "Invitasjon" };
  * The page can be opened by anyone holding the link, so it shows the least it
  * can: which community, and which address the invitation was sent to. No
  * member list, no counts, no mention of any other community — a visitor with
- * no account should not learn from this page that VEV hosts anything else.
+ * no account should not learn from this page that TING hosts anything else.
  *
  * Holding the link is not enough to join. Accepting requires a session whose
  * email matches the invited address, which the database checks.
@@ -60,7 +60,7 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
           {preview.communityName}
         </h1>
       </div>
-      <p className="mt-2 text-[0.9375rem] text-ink-2">på VEV.</p>
+      <p className="mt-2 text-[0.9375rem] text-ink-2">på TING.</p>
 
       <Panel className="mt-8 p-5">
         <p className="flex items-start gap-2 text-[13px] leading-relaxed text-ink-2">
@@ -74,7 +74,7 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
         {!user ? (
           <>
             <p className="mb-4 text-[0.9375rem] leading-relaxed text-ink-2">
-              Logg inn med den adressen for å bli med. Har du ingen VEV-konto, blir den opprettet
+              Logg inn med den adressen for å bli med. Har du ingen TING-konto, blir den opprettet
               når du bruker innloggingslenken.
             </p>
             <Link
@@ -101,8 +101,8 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
 
       <p className="mt-8 flex items-start gap-2 border-t border-line pt-5 text-[11px] leading-relaxed text-ink-3">
         <IconLock size={13} className="mt-px shrink-0" />
-        VEV er en egen digital plattform som organisasjoner bruker til å drive fellesskapet sitt.
-        VEV styrer ikke det formelle medlemskapet ditt i {preview.communityName}.
+        TING er en egen digital plattform som organisasjoner bruker til å drive fellesskapet sitt.
+        TING styrer ikke det formelle medlemskapet ditt i {preview.communityName}.
       </p>
     </Shell>
   );

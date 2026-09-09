@@ -92,7 +92,7 @@ export function CommunitySwitcher({
               className="flex items-center gap-2.5 border-b border-line px-3 py-2.5 text-sm text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink"
             >
               <IconSwitch size={16} className="text-ink-3" />
-              Tilbake til Vev
+              Tilbake til TING
             </Link>
           ) : null}
 

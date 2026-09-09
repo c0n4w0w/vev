@@ -46,13 +46,13 @@ export default async function CommunitiesPage() {
       <PageHeader
         eyebrow="Mine fellesskap"
         title="Fellesskapene dine"
-        lead="Én konto, flere organisasjoner. Denne listen inneholder kun det du selv har tilgang til — Vev har ingen katalog over andre fellesskap."
+        lead="Én konto, flere organisasjoner. Denne listen inneholder kun det du selv har tilgang til — TING har ingen katalog over andre fellesskap."
       />
 
       {communities.length === 0 ? (
         <EmptyState
           title="Du er ikke medlem av noe fellesskap"
-          body="Slik er Vev bygget: det finnes ingen oversikt over hvilke organisasjoner som bruker plattformen. Du kommer inn på tre måter — du blir invitert av noen som allerede er medlem, du får en direktelenke til organisasjonens egen portal, eller du ber om tilgang der."
+          body="Slik er TING bygget: det finnes ingen oversikt over hvilke organisasjoner som bruker plattformen. Du kommer inn på tre måter — du blir invitert av noen som allerede er medlem, du får en direktelenke til organisasjonens egen portal, eller du ber om tilgang der."
         />
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">

@@ -26,6 +26,7 @@ import {
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
+import { PUBLIC_HOST } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "Hjem" };
 
@@ -91,7 +92,7 @@ export default async function HomePage() {
         title={greeting(user.name)}
         lead={
           communities.length === 0
-            ? "Kontoen din er klar. Fellesskap på Vev er lukkede — du kommer inn gjennom en invitasjon eller en direktelenke fra organisasjonen selv."
+            ? "Kontoen din er klar. Fellesskap på TING er lukkede — du kommer inn gjennom en invitasjon eller en direktelenke fra organisasjonen selv."
             : `Du er med i ${communities.length} ${
                 communities.length === 1 ? "fellesskap" : "fellesskap"
               }. Her er det som har skjedd siden sist.`
@@ -101,7 +102,7 @@ export default async function HomePage() {
       {communities.length === 0 ? (
         <EmptyState
           title="Ingen fellesskap ennå"
-          body="Vev har ingen katalog du kan bla i, og det er med vilje. Organisasjoner deler sin egen portal-lenke med dem de vil ha inn — for eksempel vev.no/tryggere-ruspolitikk. Har du fått en lenke eller en invitasjon på e-post, er det der du starter."
+          body={`TING har ingen katalog du kan bla i, og det er med vilje. Organisasjoner deler sin egen portal-lenke med dem de vil ha inn — for eksempel ${PUBLIC_HOST}/tryggere-ruspolitikk. Har du fått en lenke eller en invitasjon på e-post, er det der du starter.`}
           action={
             <ButtonLink href="/communities" variant="secondary">
               Les mer om hvordan tilgang fungerer
@@ -219,7 +220,7 @@ export default async function HomePage() {
               </Panel>
               <p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-ink-3">
                 <IconLock size={13} className="mt-px shrink-0" />
-                Fellesskapene dine er ikke synlige for andre, og de kan ikke søkes opp på Vev.
+                Fellesskapene dine er ikke synlige for andre, og de kan ikke søkes opp på TING.
               </p>
             </section>
           </aside>

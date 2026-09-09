@@ -1,5 +1,5 @@
 /**
- * The seam between VEV and however mail actually gets sent.
+ * The seam between TING and however mail actually gets sent.
  *
  * Nothing in the application knows whether a message went to a real provider
  * or to a file on disk. That matters for two reasons: local development must

@@ -3,13 +3,13 @@ import { getEmailProvider, type EmailResult } from "@/lib/email/provider";
 /**
  * The invitation email.
  *
- * Two things it is careful about. It names VEV as a separate service, because
+ * Two things it is careful about. It names TING as a separate service, because
  * the recipient asked an organisation for access and is about to receive mail
- * from something they have never heard of — and because VEV does not manage
+ * from something they have never heard of — and because TING does not manage
  * anyone's formal membership of that organisation and must not imply it does.
  *
  * And it mentions exactly one community: the one being invited to. A person
- * with no VEV account should not learn from an email that other communities
+ * with no TING account should not learn from an email that other communities
  * exist here.
  */
 export interface InvitationEmailInput {
@@ -38,10 +38,10 @@ export function buildInvitationEmail(input: InvitationEmailInput) {
     timeZone: "Europe/Oslo",
   }).format(new Date(input.expiresAt));
 
-  const subject = `Du er invitert til ${input.communityName} på VEV`;
+  const subject = `Du er invitert til ${input.communityName} på TING`;
 
   const text = [
-    `Du er invitert til ${input.communityName} på VEV.`,
+    `Du er invitert til ${input.communityName} på TING.`,
     "",
     `En administrator i ${input.communityName} har godkjent forespørselen din om tilgang.`,
     "",
@@ -52,8 +52,8 @@ export function buildInvitationEmail(input: InvitationEmailInput) {
     "",
     "— — —",
     "",
-    "VEV er en egen digital plattform som organisasjoner bruker til å drive",
-    `fellesskapet sitt. VEV er ikke det samme som ${input.communityName}, og`,
+    "TING er en egen digital plattform som organisasjoner bruker til å drive",
+    `fellesskapet sitt. TING er ikke det samme som ${input.communityName}, og`,
     "styrer ikke det formelle medlemskapet ditt i organisasjonen.",
     "",
     "Har du ikke bedt om dette, kan du se bort fra e-posten. Da skjer det",
@@ -68,7 +68,7 @@ export function buildInvitationEmail(input: InvitationEmailInput) {
     <tr><td style="padding:32px;">
       <p style="margin:0 0 4px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#797e81;">Invitasjon</p>
       <h1 style="margin:0 0 16px;font-size:22px;line-height:1.25;font-weight:600;">
-        Du er invitert til ${escapeHtml(input.communityName)} på VEV
+        Du er invitert til ${escapeHtml(input.communityName)} på TING
       </h1>
       <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#4c5153;">
         En administrator i ${escapeHtml(input.communityName)} har godkjent forespørselen din om tilgang.
@@ -76,7 +76,7 @@ export function buildInvitationEmail(input: InvitationEmailInput) {
       <p style="margin:0 0 24px;">
         <a href="${escapeHtml(input.acceptUrl)}"
            style="display:inline-block;background:${escapeHtml(input.accent)};color:#fff;text-decoration:none;padding:11px 20px;border-radius:5px;font-size:15px;font-weight:500;">
-          Bli med på VEV
+          Bli med på TING
         </a>
       </p>
       <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:#797e81;">
@@ -84,8 +84,8 @@ export function buildInvitationEmail(input: InvitationEmailInput) {
       </p>
       <hr style="border:0;border-top:1px solid #e4e0d7;margin:0 0 20px;">
       <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#797e81;">
-        VEV er en egen digital plattform som organisasjoner bruker til å drive fellesskapet sitt.
-        VEV er ikke det samme som ${escapeHtml(input.communityName)}, og styrer ikke det formelle
+        TING er en egen digital plattform som organisasjoner bruker til å drive fellesskapet sitt.
+        TING er ikke det samme som ${escapeHtml(input.communityName)}, og styrer ikke det formelle
         medlemskapet ditt i organisasjonen.
       </p>
       <p style="margin:0;font-size:13px;line-height:1.6;color:#797e81;">

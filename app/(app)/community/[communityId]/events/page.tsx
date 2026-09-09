@@ -14,6 +14,7 @@ import {
 } from "@/lib/data";
 import { plural } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
+import { PUBLIC_HOST } from "@/lib/brand";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/events">) {
   const { communityId } = await params;
@@ -48,7 +49,7 @@ export default async function CommunityEventsPage({
       <PageHeader
         eyebrow={community.name}
         title="Arrangementer"
-        lead={`${plural(upcoming.length, "kommende arrangement", "kommende arrangementer")}. ${publicCount} av dem vises også på den offentlige siden vev.no/${community.slug}.`}
+        lead={`${plural(upcoming.length, "kommende arrangement", "kommende arrangementer")}. ${publicCount} av dem vises også på den offentlige siden ${PUBLIC_HOST}/${community.slug}.`}
       />
 
       {upcoming.length === 0 ? (

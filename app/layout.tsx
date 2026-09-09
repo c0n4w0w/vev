@@ -16,11 +16,11 @@ const serif = Source_Serif_4({
 
 export const metadata: Metadata = {
   title: {
-    default: "Vev",
-    template: "%s · Vev",
+    default: "TING",
+    template: "%s · TING",
   },
   description:
-    "Vev er en plattform for private fellesskap. Én konto, flere organisasjoner — uten et offentlig register over hvem som finnes her.",
+    "TING er en plattform for private fellesskap. Én konto, flere organisasjoner — uten et offentlig register over hvem som finnes her.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

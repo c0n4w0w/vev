@@ -188,7 +188,7 @@ function SidebarContent({
               <p className="label mb-2 px-2.5">Mine fellesskap</p>
               {data.communities.length === 0 ? (
                 <p className="px-2.5 text-[13px] leading-relaxed text-ink-3">
-                  Ingen ennå. Fellesskap på Vev finner du gjennom en invitasjon eller en
+                  Ingen ennå. Fellesskap på TING finner du gjennom en invitasjon eller en
                   direktelenke.
                 </p>
               ) : (
@@ -332,7 +332,7 @@ export function AppShell({ data, children }: { data: ShellData; children: ReactN
             </span>
           </span>
         ) : (
-          <span className="font-display text-base text-ink">Vev</span>
+          <span className="font-display text-base text-ink">TING</span>
         )}
       </header>
 

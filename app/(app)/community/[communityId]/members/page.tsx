@@ -131,7 +131,7 @@ export default async function MembersPage({
         <p className="max-w-2xl text-[13px] leading-relaxed text-ink-2">
           {isAdmin
             ? `Som administrator i ${community.name} kan du invitere nye medlemmer, behandle forespørsler og endre roller. Medlemslisten deles aldri utenfor fellesskapet.`
-            : `Medlemslisten er kun synlig for medlemmer av ${community.name}, og vises verken på den offentlige siden eller andre steder på Vev.`}
+            : `Medlemslisten er kun synlig for medlemmer av ${community.name}, og vises verken på den offentlige siden eller andre steder på TING.`}
         </p>
       </Panel>
     </PageContainer>

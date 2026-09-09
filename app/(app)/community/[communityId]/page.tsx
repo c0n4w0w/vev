@@ -32,6 +32,7 @@ import {
   getUpcomingCommunityEvents,
   getUsers,
 } from "@/lib/data";
+import { PUBLIC_HOST } from "@/lib/brand";
 import { plural, timeAgo } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 
@@ -134,7 +135,7 @@ export default async function CommunityOverviewPage({
                       href={`/${community.slug}`}
                       className="underline decoration-line-2 underline-offset-4 transition-colors hover:text-ink"
                     >
-                      vev.no/{community.slug}
+                      {PUBLIC_HOST}/{community.slug}
                     </Link>
                   </dd>
                 </div>
@@ -317,7 +318,7 @@ export default async function CommunityOverviewPage({
               )}
             >
               <IconLock size={13} className="mt-px shrink-0" />
-              Innholdet her er kun synlig for medlemmer. Den offentlige siden på vev.no/
+              Innholdet her er kun synlig for medlemmer. Den offentlige siden på {PUBLIC_HOST}/
               {community.slug} viser bare det {community.name} selv velger å dele.
             </p>
           </aside>

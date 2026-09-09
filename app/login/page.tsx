@@ -7,6 +7,7 @@ import { IconArrowRight, IconLock, IconMail } from "@/components/ui/icons";
 import { demoAccounts } from "@/lib/demo-accounts";
 import { getSessionUser } from "@/lib/session";
 import { demoLoginEnabled } from "@/lib/supabase/env";
+import { PUBLIC_HOST } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "Logg inn" };
 
@@ -140,8 +141,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           <div>
             <h2 className="text-[0.9375rem] font-medium text-ink">Har du fått en invitasjon?</h2>
             <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">
-              Invitasjoner peker rett til organisasjonens egen side, for eksempel
-              vev.no/tryggere-ruspolitikk. Logg inn først, så tar lenken deg videre dit.
+              Invitasjoner peker rett til organisasjonens egen side, for eksempel{" "}
+              {PUBLIC_HOST}/tryggere-ruspolitikk. Logg inn først, så tar lenken deg videre dit.
             </p>
             <Link href="/" className={`${buttonClass({ variant: "secondary", size: "sm" })} mt-4`}>
               Tilbake til forsiden

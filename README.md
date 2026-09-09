@@ -1,4 +1,4 @@
-# Vev
+# TING
 
 En plattform for private fellesskap: **én konto, flere organisasjoner**.
 
@@ -114,7 +114,7 @@ ingenting annet: egne medlemmer, roller, kanaler, arrangementer og profil.
 ungdomsorganisasjonen til den andre, og innholdet deres sier det.
 
 **Under The Rug er en helt uavhengig organisasjon** uten noen tilknytning til
-noen av dem. Den er med fordi den tok i bruk Vev tidlig. Ingenting i innholdet
+noen av dem. Den er med fordi den tok i bruk TING tidlig. Ingenting i innholdet
 skal antyde noe annet, og `scripts/check-content.ts` håndhever det.
 
 En konto tilhører personen, ikke organisasjonen. Ingrid er administrator i den

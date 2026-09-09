@@ -180,7 +180,7 @@ export function RequestQueue({
         {requests.length === 0 ? (
           <EmptyState
             title="Ingen ventende forespørsler"
-            body="Når noen ber om tilgang fra den offentlige siden, havner de her. Godkjenner du, sender VEV en invitasjon på e-post — medlemskapet opprettes først når invitasjonen tas i bruk."
+            body="Når noen ber om tilgang fra den offentlige siden, havner de her. Godkjenner du, sender TING en invitasjon på e-post — medlemskapet opprettes først når invitasjonen tas i bruk."
           />
         ) : (
           <Panel className="divide-y divide-line">

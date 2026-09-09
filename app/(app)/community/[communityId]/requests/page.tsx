@@ -55,7 +55,7 @@ export default async function AccessRequestsPage({
       <PageHeader
         eyebrow={community.name}
         title="Medlemsforespørsler"
-        lead={`Folk som har bedt om tilgang til ${community.name} fra den offentlige siden. Godkjenner du, sender VEV en invitasjon på e-post — først når den tas i bruk, blir personen medlem.`}
+        lead={`Folk som har bedt om tilgang til ${community.name} fra den offentlige siden. Godkjenner du, sender TING en invitasjon på e-post — først når den tas i bruk, blir personen medlem.`}
       />
       <RequestQueue
         communityId={community.id}
