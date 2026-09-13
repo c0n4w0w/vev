@@ -273,7 +273,13 @@ export default async function CommunityOverviewPage({
               </Panel>
             </section>
 
-            <section>
+            {/*
+              Only shown when the membership is readable. Where the registry is
+              admin-only this comes back empty from the database, and an empty
+              "Kontaktpersoner" panel reads as a fault rather than a setting.
+            */}
+            {leaders.length > 0 ? (
+              <section>
               <SectionHeading
                 action={
                   <Link
@@ -302,7 +308,8 @@ export default async function CommunityOverviewPage({
                   </div>
                 ))}
               </Panel>
-            </section>
+              </section>
+            ) : null}
 
             <p
               className={cn(

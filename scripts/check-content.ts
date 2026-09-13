@@ -20,6 +20,7 @@ import { existsSync } from "node:fs";
 import { channels, communities, memberships } from "@/lib/mock/communities";
 import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
+import { communityPolicies } from "@/lib/mock/community-policies";
 import { customEmojis } from "@/lib/mock/emojis";
 import { events } from "@/lib/mock/events";
 import { messages } from "@/lib/mock/messages";
@@ -310,6 +311,45 @@ check(
   "ingen to forespørsler er duplikater",
   new Set(accessRequests.map((r) => `${r.communityId}/${r.email}`)).size === accessRequests.length,
 );
+
+// Privacy policy: every community must declare one, exactly once, and the
+// values must be ones the database enum accepts. A community added without a
+// setting would silently inherit the permissive default.
+const policyById = new Map(communityPolicies.map((p) => [p.communityId, p]));
+
+check(
+  "hvert fellesskap har personverninnstillinger",
+  policyById.size === communities.length,
+  `${policyById.size} innstillinger for ${communities.length} fellesskap`,
+);
+
+for (const community of communities) {
+  const policy = policyById.get(community.id);
+  check(`${community.id}: har personverninnstilling`, Boolean(policy));
+  if (!policy) continue;
+  check(
+    `${community.id}: gyldig medlemsliste-innstilling`,
+    ["admin_only", "members"].includes(policy.memberDirectoryVisibility),
+    policy.memberDirectoryVisibility,
+  );
+  check(
+    `${community.id}: gyldig DM-innstilling`,
+    ["staff_only", "members"].includes(policy.dmPolicy),
+    policy.dmPolicy,
+  );
+  check(
+    `${community.id}: innstillingen er begrunnet`,
+    policy.rationale.trim().length > 40,
+  );
+}
+
+for (const policy of communityPolicies) {
+  check(
+    "innstillingen peker på et fellesskap som finnes",
+    communityIds.has(policy.communityId),
+    policy.communityId,
+  );
+}
 
 // ── 3. Organisational independence ──────────────────────────────────────
 

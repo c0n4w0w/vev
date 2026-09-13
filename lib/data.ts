@@ -340,6 +340,22 @@ const loadCommunityMemberships = cache(async (communityId: string): Promise<Memb
   return rows(data).map(toMembership);
 });
 
+/**
+ * Whether the caller may list this community's membership.
+ *
+ * Asks the database rather than reasoning about roles here: the rule depends on
+ * the community's own `member_directory_visibility` setting, and the same
+ * function backs the row level security on `memberships`. The UI uses this only
+ * to choose what to render — a caller who ignores it still gets nothing back.
+ */
+export async function canViewMemberDirectory(communityId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("can_view_member_directory", {
+    cid: communityId,
+  });
+  return !error && data === true;
+}
+
 export async function getCommunityMembers(communityId: string): Promise<CommunityMember[]> {
   const [memberships, profiles] = await Promise.all([
     loadCommunityMemberships(communityId),

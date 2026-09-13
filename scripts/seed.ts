@@ -14,6 +14,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { channelGroups, channels, communities, memberships } from "@/lib/mock/communities";
 import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
+import { communityPolicies } from "@/lib/mock/community-policies";
 import { customEmojis } from "@/lib/mock/emojis";
 import { events } from "@/lib/mock/events";
 import { messages } from "@/lib/mock/messages";
@@ -165,6 +166,28 @@ async function main() {
     ).error,
   );
   console.log(`  ${communities.length} fellesskap`);
+
+  // Privacy settings are configuration rather than content, so they live in
+  // their own file and are applied here. The database is authoritative: the
+  // application never branches on a community's name or slug.
+  for (const policy of communityPolicies) {
+    fail(
+      `personverninnstillinger for ${policy.communityId}`,
+      (
+        await supabase
+          .from("communities")
+          .update({
+            member_directory_visibility: policy.memberDirectoryVisibility,
+            dm_policy: policy.dmPolicy,
+          })
+          .eq("id", policy.communityId)
+      ).error,
+    );
+  }
+  console.log(
+    `  ${communityPolicies.length} personverninnstillinger ` +
+      `(${communityPolicies.filter((p) => p.memberDirectoryVisibility === "admin_only").length} med lukket medlemsliste)`,
+  );
 
   fail(
     "kanalgrupper",

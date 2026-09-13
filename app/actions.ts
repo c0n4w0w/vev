@@ -37,6 +37,24 @@ import { demoLoginEnabled } from "@/lib/supabase/env";
 // ── Authentication ──────────────────────────────────────────────────────
 
 /**
+ * The absolute origin to put in an emailed link.
+ *
+ * `NEXT_PUBLIC_SITE_URL` first, because it is the only source the deployment
+ * controls outright. Then the proxy's forwarded headers, which nginx sets.
+ * The `Origin` request header is deliberately *not* consulted: it is supplied
+ * by the caller, so trusting it would let someone ask us to email a link
+ * pointing at a host of their choosing. Supabase's redirect allowlist would
+ * still refuse to honour it, but a link should not depend on that backstop.
+ */
+async function siteOrigin(): Promise<string> {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  const header = await headers();
+  const proto = header.get("x-forwarded-proto") ?? "http";
+  const host = header.get("x-forwarded-host") ?? header.get("host") ?? "localhost:3000";
+  return `${proto}://${host}`;
+}
+
+/**
  * Sends a sign-in link. No passwords: an organisation's membership list is the
  * sensitive part, and one less credential to leak is one less to protect.
  */
@@ -45,7 +63,7 @@ export async function sendMagicLink(formData: FormData) {
   const next = String(formData.get("next") || "/home");
   if (!email) redirect(`/login?feil=e-post`);
 
-  const origin = (await headers()).get("origin") ?? "http://localhost:3000";
+  const origin = await siteOrigin();
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
@@ -413,10 +431,7 @@ async function deliverInvitation(minted: {
   if (!minted.token) return { ok: false, message: "Ingen invitasjon å sende." };
 
   const community = await getCommunityById(minted.communityId);
-  const header = await headers();
-  const origin =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    `${header.get("x-forwarded-proto") ?? "http"}://${header.get("host") ?? "localhost:3000"}`;
+  const origin = await siteOrigin();
 
   const result = await sendInvitationEmail({
     to: minted.email,

@@ -3,13 +3,15 @@ import {
   Avatar,
   Badge,
   ButtonLink,
-  Panel,
+  EmptyState,
   PageContainer,
   PageHeader,
+  Panel,
   SectionHeading,
 } from "@/components/ui/primitives";
 import { IconLock, IconMapPin, IconShield } from "@/components/ui/icons";
 import {
+  canViewMemberDirectory,
   getCommunityById,
   getCommunityMembers,
   getMembership,
@@ -37,11 +39,28 @@ export default async function MembersPage({
   const community = await getCommunityById(communityId);
   if (!community) notFound();
 
-  const [membership, members] = await Promise.all([
+  const [membership, canViewDirectory] = await Promise.all([
     getMembership(user.id, community.id),
-    getCommunityMembers(community.id),
+    canViewMemberDirectory(community.id),
   ]);
   const isAdmin = membership?.role === "admin";
+
+  // The database returns nothing to someone who may not list the membership.
+  // Asking first lets the page explain itself instead of rendering an empty
+  // list that looks like a fault.
+  if (!canViewDirectory) {
+    return (
+      <PageContainer>
+        <PageHeader eyebrow={community.name} title="Medlemmer" />
+        <EmptyState
+          title="Medlemslisten er ikke åpen her"
+          body={`${community.name} har valgt at bare administratorer kan se hvem som er medlem. Du ser fortsatt navnet på dem som skriver innlegg, kommentarer og meldinger du har tilgang til.`}
+        />
+      </PageContainer>
+    );
+  }
+
+  const members = await getCommunityMembers(community.id);
 
   return (
     <PageContainer>

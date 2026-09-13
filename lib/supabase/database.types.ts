@@ -213,12 +213,14 @@ export type Database = {
           accent: string
           accent_soft: string
           access_policy: Database["public"]["Enums"]["access_policy"]
+          dm_policy: Database["public"]["Enums"]["dm_policy"]
           founded_year: number
           id: string
           links: Json
           location: string
           mark_style: string
           member_count: number
+          member_directory_visibility: Database["public"]["Enums"]["member_directory_visibility"]
           monogram: string
           name: string
           public_description: string
@@ -230,12 +232,14 @@ export type Database = {
           accent: string
           accent_soft: string
           access_policy?: Database["public"]["Enums"]["access_policy"]
+          dm_policy?: Database["public"]["Enums"]["dm_policy"]
           founded_year: number
           id: string
           links?: Json
           location: string
           mark_style?: string
           member_count?: number
+          member_directory_visibility?: Database["public"]["Enums"]["member_directory_visibility"]
           monogram: string
           name: string
           public_description: string
@@ -247,12 +251,14 @@ export type Database = {
           accent?: string
           accent_soft?: string
           access_policy?: Database["public"]["Enums"]["access_policy"]
+          dm_policy?: Database["public"]["Enums"]["dm_policy"]
           founded_year?: number
           id?: string
           links?: Json
           location?: string
           mark_style?: string
           member_count?: number
+          member_directory_visibility?: Database["public"]["Enums"]["member_directory_visibility"]
           monogram?: string
           name?: string
           public_description?: string
@@ -787,6 +793,11 @@ export type Database = {
       can_moderate: { Args: { cid: string }; Returns: boolean }
       can_moderate_post: { Args: { pid: string }; Returns: boolean }
       can_read_channel: { Args: { chid: string }; Returns: boolean }
+      can_send_dm: {
+        Args: { cid: string; recipient: string }
+        Returns: boolean
+      }
+      can_view_member_directory: { Args: { cid: string }; Returns: boolean }
       emoji_matches_post: {
         Args: { eid: string; pid: string }
         Returns: boolean
@@ -858,11 +869,15 @@ export type Database = {
         }[]
       }
       shares_community: { Args: { other: string }; Returns: boolean }
+      shares_visible_authorship: { Args: { other: string }; Returns: boolean }
+      shares_visible_directory: { Args: { other: string }; Returns: boolean }
     }
     Enums: {
       access_policy: "invite-only" | "request-to-join"
       access_request_status: "pending" | "approved" | "rejected" | "cancelled"
       community_role: "member" | "moderator" | "admin"
+      dm_policy: "staff_only" | "members"
+      member_directory_visibility: "admin_only" | "members"
       membership_status: "active" | "invited" | "requested"
       notification_kind:
         | "mention"
@@ -1004,6 +1019,8 @@ export const Constants = {
       access_policy: ["invite-only", "request-to-join"],
       access_request_status: ["pending", "approved", "rejected", "cancelled"],
       community_role: ["member", "moderator", "admin"],
+      dm_policy: ["staff_only", "members"],
+      member_directory_visibility: ["admin_only", "members"],
       membership_status: ["active", "invited", "requested"],
       notification_kind: [
         "mention",
