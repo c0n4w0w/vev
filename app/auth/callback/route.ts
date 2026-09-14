@@ -1,12 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { siteOrigin } from "@/lib/site-url";
 
 /**
  * Where the emailed sign-in link lands. Exchanges the one-time code for a
  * session cookie, then forwards to whatever the person was trying to reach.
+ *
+ * The destination is built from the deployment's configured origin rather than
+ * from the incoming request, so it does not depend on what the proxy in front
+ * of this process happens to put in the Host header.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+
+  // Not `new URL(request.url).origin`. Behind a reverse proxy that does not
+  // rewrite the Host header, that is the upstream address the proxy dialled
+  // (localhost:3010), so a successful sign-in bounced the person to a port on
+  // the server rather than to the site they came from.
+  const origin = await siteOrigin();
   const code = searchParams.get("code");
   const next = searchParams.get("neste");
 

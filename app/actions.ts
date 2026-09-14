@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import {
   acceptInvitationToken,
@@ -31,28 +30,11 @@ import {
 import type { PostFormState } from "@/lib/post-form";
 import { sendInvitationEmail } from "@/lib/email/invitation";
 import { getSessionUser } from "@/lib/session";
+import { siteOrigin } from "@/lib/site-url";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { demoLoginEnabled } from "@/lib/supabase/env";
 
 // ── Authentication ──────────────────────────────────────────────────────
-
-/**
- * The absolute origin to put in an emailed link.
- *
- * `NEXT_PUBLIC_SITE_URL` first, because it is the only source the deployment
- * controls outright. Then the proxy's forwarded headers, which nginx sets.
- * The `Origin` request header is deliberately *not* consulted: it is supplied
- * by the caller, so trusting it would let someone ask us to email a link
- * pointing at a host of their choosing. Supabase's redirect allowlist would
- * still refuse to honour it, but a link should not depend on that backstop.
- */
-async function siteOrigin(): Promise<string> {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  const header = await headers();
-  const proto = header.get("x-forwarded-proto") ?? "http";
-  const host = header.get("x-forwarded-host") ?? header.get("host") ?? "localhost:3000";
-  return `${proto}://${host}`;
-}
 
 /**
  * Sends a sign-in link. No passwords: an organisation's membership list is the
