@@ -472,6 +472,7 @@ export type Database = {
       }
       memberships: {
         Row: {
+          accepts_member_dms: boolean
           community_id: string
           id: string
           invited_by: string | null
@@ -482,6 +483,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          accepts_member_dms?: boolean
           community_id: string
           id?: string
           invited_by?: string | null
@@ -492,6 +494,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          accepts_member_dms?: boolean
           community_id?: string
           id?: string
           invited_by?: string | null
@@ -820,6 +823,10 @@ export type Database = {
       looks_like_email: { Args: { p_email: string }; Returns: boolean }
       mark_notifications_read: { Args: never; Returns: undefined }
       normalize_email: { Args: { p_email: string }; Returns: string }
+      my_accepts_member_dms: {
+        Args: { p_community_id: string }
+        Returns: boolean
+      }
       portal_by_slug: {
         Args: { p_slug: string }
         Returns: {
@@ -867,6 +874,10 @@ export type Database = {
           expires_at: string
           token: string
         }[]
+      }
+      set_accepts_member_dms: {
+        Args: { p_community_id: string; p_value: boolean }
+        Returns: boolean
       }
       shares_community: { Args: { other: string }; Returns: boolean }
       shares_visible_authorship: { Args: { other: string }; Returns: boolean }

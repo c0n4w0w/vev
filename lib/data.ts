@@ -105,7 +105,24 @@ function toCommunity(row: CommunityRow): Community {
   return { ...toCommunityPublic(row), about: row.about };
 }
 
-function toMembership(row: MembershipRow): Membership {
+/**
+ * The membership columns a client may read.
+ *
+ * Spelled out rather than `*` because `accepts_member_dms` is not granted to
+ * `authenticated` — a `select *` against this table is refused outright, not
+ * quietly trimmed. Keeping the list here means the refusal cannot reappear as
+ * a runtime surprise in one query that still asks for everything.
+ */
+const MEMBERSHIP_COLUMNS =
+  "id, user_id, community_id, role, status, joined_at, title, invited_by" as const;
+
+/**
+ * Note the absence of `accepts_member_dms`. It is private to the person it
+ * belongs to: `myAcceptsMemberDms()` reads the caller's own value, and
+ * `can_send_dm()` reads it inside the database for an authorisation decision.
+ * Nothing else sees it.
+ */
+function toMembership(row: Omit<MembershipRow, "accepts_member_dms">): Membership {
   return {
     userId: row.user_id,
     communityId: row.community_id,
@@ -280,7 +297,10 @@ export async function getPortalEvents(slug: string) {
 /** The caller's own membership rows, whatever their status. */
 const loadOwnMemberships = cache(async (userId: string): Promise<Membership[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.from("memberships").select("*").eq("user_id", userId);
+  const { data } = await supabase
+    .from("memberships")
+    .select(MEMBERSHIP_COLUMNS)
+    .eq("user_id", userId);
   return rows(data).map(toMembership);
 });
 
@@ -335,7 +355,7 @@ const loadCommunityMemberships = cache(async (communityId: string): Promise<Memb
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("memberships")
-    .select("*")
+    .select(MEMBERSHIP_COLUMNS)
     .eq("community_id", communityId);
   return rows(data).map(toMembership);
 });
@@ -352,6 +372,67 @@ export async function canViewMemberDirectory(communityId: string): Promise<boole
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("can_view_member_directory", {
     cid: communityId,
+  });
+  return !error && data === true;
+}
+
+/**
+ * A community's direct-message policy.
+ *
+ * Read on its own rather than added to `Community`, because that type is the
+ * shape of the organisations' own content file and this is configuration. The
+ * application uses it to decide what to explain, never to decide what is
+ * allowed — `can_send_dm()` settles that in the database.
+ */
+export async function getCommunityDmPolicy(
+  communityId: string,
+): Promise<"staff_only" | "members" | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("communities")
+    .select("dm_policy")
+    .eq("id", communityId)
+    .maybeSingle();
+  return data?.dm_policy ?? undefined;
+}
+
+/**
+ * The caller's own "members may message me" setting, in one community.
+ *
+ * Read through a function because the column itself is not granted to
+ * `authenticated` — see the migration. The function is SECURITY DEFINER and
+ * takes no argument naming a person, so it can only ever answer about whoever
+ * is asking. There is no form of this call that reads somebody else's value.
+ */
+export async function myAcceptsMemberDms(communityId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("my_accepts_member_dms", {
+    p_community_id: communityId,
+  });
+  return !error && data === true;
+}
+
+/**
+ * Turns this person's "members may message me" setting on or off, in one
+ * community.
+ *
+ * The community is the only thing passed in. Who is asking comes from
+ * auth.uid() inside the function, and the statement it runs touches that one
+ * row and no other — so there is no user id here to get wrong, and no way to
+ * aim this at somebody else's setting or another community's row.
+ *
+ * Returns what is actually stored afterwards. A caller who may not change it
+ * — an ordinary member, or anyone outside the community — is told false
+ * rather than given an error, because false is the truth about them.
+ */
+export async function setAcceptsMemberDms(
+  communityId: string,
+  value: boolean,
+): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_accepts_member_dms", {
+    p_community_id: communityId,
+    p_value: value,
   });
   return !error && data === true;
 }

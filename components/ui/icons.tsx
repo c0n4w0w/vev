@@ -212,6 +212,13 @@ export const IconShield = (p: IconProps) => (
   </Svg>
 );
 
+export const IconSettings = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="3.1" />
+    <path d="M12 3.2h.9l.4 2.2 1.9.8 1.8-1.3.9.9-1.3 1.8.8 1.9 2.2.4v1.8l-2.2.4-.8 1.9 1.3 1.8-.9.9-1.8-1.3-1.9.8-.4 2.2h-1.8l-.4-2.2-1.9-.8-1.8 1.3-.9-.9 1.3-1.8-.8-1.9-2.2-.4v-1.8l2.2-.4.8-1.9-1.3-1.8.9-.9 1.8 1.3 1.9-.8.4-2.2Z" />
+  </Svg>
+);
+
 export const IconSearch = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="10.8" cy="10.8" r="6.4" />

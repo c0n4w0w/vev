@@ -15,6 +15,7 @@ import {
   rejectAccessRequest,
   requestCommunityAccess,
   resendInvitation,
+  setAcceptsMemberDms,
   toggleReaction as togglePostReaction,
   updateComment as editComment,
   updatePost as editPost,
@@ -27,6 +28,7 @@ import {
   normalizeEmojiName,
   validateEmojiName,
 } from "@/lib/emoji-image";
+import type { DmSettingFormState } from "@/lib/dm-settings-form";
 import type { PostFormState } from "@/lib/post-form";
 import { sendInvitationEmail } from "@/lib/email/invitation";
 import { getSessionUser } from "@/lib/session";
@@ -239,6 +241,42 @@ export async function toggleReactionAction(
   return { status: "ok" };
 }
 
+
+// ── Direct message settings ─────────────────────────────────────────────
+
+/**
+ * Sets whether ordinary members of one community may open a DM with the
+ * person making the request.
+ *
+ * The form carries a community and a boolean, and nothing else — no user id,
+ * because the database takes the acting person from the session. Submitting
+ * another community's id gets the caller's own membership of *that* community
+ * checked, which for anyone who is not staff there is a refusal.
+ */
+export async function setAcceptsMemberDmsAction(
+  _prev: DmSettingFormState,
+  formData: FormData,
+): Promise<DmSettingFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const value = formData.get("value") === "on";
+
+  const stored = await setAcceptsMemberDms(communityId, value);
+
+  // The function reports what is stored, so a refusal shows up as the value
+  // not having moved rather than as an exception.
+  if (stored !== value) {
+    return {
+      status: "error",
+      error: "Innstillingen kunne ikke endres. Bare administratorer og moderatorer kan endre denne.",
+    };
+  }
+
+  revalidatePath(`/community/${communityId}/settings`);
+  return { status: "ok", acceptsMemberDms: stored };
+}
 
 // ── Custom emojis ───────────────────────────────────────────────────────
 //

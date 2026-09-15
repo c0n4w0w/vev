@@ -17,6 +17,7 @@ import {
   IconMenu,
   IconMail,
   IconOverview,
+  IconSettings,
   IconSmile,
   IconUser,
   IconUsers,
@@ -88,6 +89,12 @@ function communityNav(id: string) {
     { href: `/community/${id}/members`, label: "Medlemmer", icon: IconUsers },
     { href: `/community/${id}/requests`, label: "Forespørsler", icon: IconMail, adminOnly: true },
     { href: `/community/${id}/emojis`, label: "Emojier", icon: IconSmile },
+    {
+      href: `/community/${id}/settings`,
+      label: "Innstillinger",
+      icon: IconSettings,
+      staffOnly: true,
+    },
   ];
 }
 
@@ -128,9 +135,17 @@ function SidebarContent({
 
             <ul className="space-y-px">
               {communityNav(current.community.id)
-                // The queue is an administrator's tool. Hiding it is only
-                // tidiness — the page and the database both refuse anyone else.
+                // Both of these are tidiness only — the pages and the
+                // database refuse anyone else regardless of what is rendered.
+                // The queue is an administrator's tool; the settings page
+                // holds a choice that only staff have to make.
                 .filter((item) => !item.adminOnly || current.membership.role === "admin")
+                .filter(
+                  (item) =>
+                    !item.staffOnly ||
+                    current.membership.role === "admin" ||
+                    current.membership.role === "moderator",
+                )
                 .map((item) => (
                 <li key={item.href}>
                   <NavLink
