@@ -6,6 +6,7 @@ import {
   acceptInvitationToken,
   approveAccessRequest,
   createComment as persistComment,
+  createMessage as persistMessage,
   createCommunityEmoji as persistEmoji,
   createPost as persistPost,
   deleteComment as removeComment,
@@ -29,6 +30,7 @@ import {
   validateEmojiName,
 } from "@/lib/emoji-image";
 import type { DmSettingFormState } from "@/lib/dm-settings-form";
+import type { MessageFormState } from "@/lib/message-form";
 import type { PostFormState } from "@/lib/post-form";
 import { sendInvitationEmail } from "@/lib/email/invitation";
 import { getSessionUser } from "@/lib/session";
@@ -160,6 +162,37 @@ export async function deletePostAction(
   return { status: "ok" };
 }
 
+
+// ── Channel messages ────────────────────────────────────────────────────
+
+/**
+ * Sends one message to a channel.
+ *
+ * The channel is the only thing the form carries. Whether the caller may write
+ * there — member of the community, and a moderator if the channel is read-only
+ * — is decided by `messages_insert`, so a tampered channel id reaches a policy
+ * that refuses it rather than a check in this file.
+ */
+export async function createMessageAction(
+  _prev: MessageFormState,
+  formData: FormData,
+): Promise<MessageFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const channelId = String(formData.get("channelId") ?? "");
+  const result = await persistMessage({
+    channelId,
+    body: String(formData.get("body") ?? ""),
+  });
+
+  if (!result.ok) return { status: "error", error: result.error };
+
+  const communityId = String(formData.get("communityId") ?? "");
+  revalidatePath(`/community/${communityId}/channel/${channelId}`);
+  revalidatePath(`/community/${communityId}`);
+  return { status: "ok", message: result.message };
+}
 
 // ── Comments and reactions ──────────────────────────────────────────────
 //

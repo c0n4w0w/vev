@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Avatar, Badge, cn } from "@/components/ui/primitives";
 import { IconAttach, IconHash, IconLock, IconSend } from "@/components/ui/icons";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
+import { createMessageAction } from "@/app/actions";
+import { emptyMessageFormState } from "@/lib/message-form";
 import type { Channel, Community, Message, User } from "@/lib/types";
 
 /**
@@ -12,10 +14,11 @@ import type { Channel, Community, Message, User } from "@/lib/types";
  * The page mounts this with `key={channel.id}`, so moving between channels
  * gives a fresh component rather than a state reset.
  *
- * Sending appends to local state only — there is no backend yet. The shape of
- * `onSend` is the seam a realtime client (Supabase channels, or an encrypted
- * transport) would plug into later: everything below it already renders from a
- * plain message list.
+ * Sending writes through `createMessageAction` and then replaces the pending
+ * row with the one the database returned, so what stays on screen is what was
+ * actually stored. A refused write — a member in a read-only channel — takes
+ * the pending row back out and puts the text back in the composer, so nothing
+ * anyone typed is lost to a failed write.
  */
 export function ChannelView({
   channel,
@@ -40,6 +43,8 @@ export function ChannelView({
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | undefined>(undefined);
+  const [pending, startTransition] = useTransition();
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
@@ -54,11 +59,16 @@ export function ChannelView({
 
   function send() {
     const body = draft.trim();
-    if (!body) return;
+    if (!body || pending) return;
+
+    // Shown immediately under a temporary id. Nothing reads this id but React;
+    // the row it stands for is replaced by the stored one as soon as the write
+    // comes back, and removed entirely if it does not.
+    const pendingId = `pending-${Date.now()}`;
     setMessages((current) => [
       ...current,
       {
-        id: `local-${Date.now()}`,
+        id: pendingId,
         channelId: channel.id,
         authorId: currentUser.id,
         body,
@@ -66,7 +76,26 @@ export function ChannelView({
       },
     ]);
     setDraft("");
+    setError(undefined);
     composerRef.current?.focus();
+
+    const form = new FormData();
+    form.set("channelId", channel.id);
+    form.set("communityId", community.id);
+    form.set("body", body);
+
+    startTransition(async () => {
+      const result = await createMessageAction(emptyMessageFormState, form);
+      if (result.status === "ok") {
+        setMessages((current) =>
+          current.map((message) => (message.id === pendingId ? result.message : message)),
+        );
+        return;
+      }
+      setMessages((current) => current.filter((message) => message.id !== pendingId));
+      setError(result.status === "error" ? result.error : undefined);
+      setDraft((current) => current || body);
+    });
   }
 
   return (
@@ -215,7 +244,7 @@ export function ChannelView({
               <button
                 type="button"
                 onClick={send}
-                disabled={!draft.trim()}
+                disabled={!draft.trim() || pending}
                 aria-label="Send melding"
                 className="mb-0.5 rounded-[5px] p-2 text-white transition-opacity disabled:opacity-30"
                 style={{ backgroundColor: community.branding.accent }}
@@ -229,8 +258,13 @@ export function ChannelView({
               Bare moderatorer og administratorer kan skrive i denne kanalen.
             </p>
           )}
+          {error ? (
+            <p role="alert" className="mt-2 text-[11px] text-rust">
+              {error}
+            </p>
+          ) : null}
           <p className="mt-2 text-[11px] text-ink-3">
-            Meldinger i denne prototypen lagres kun lokalt i nettleseren.
+            Meldinger er kun synlige for medlemmer av {community.name}.
             {lastActivityLabel ? ` Siste aktivitet ${lastActivityLabel}.` : ""}
           </p>
         </div>

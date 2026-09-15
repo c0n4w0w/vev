@@ -540,7 +540,7 @@ export type Database = {
         }
         Insert: {
           attachment?: Json | null
-          author_id: string
+          author_id?: string
           body: string
           channel_id: string
           created_at?: string

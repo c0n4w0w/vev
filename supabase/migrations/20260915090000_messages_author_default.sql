@@ -1,0 +1,14 @@
+-- Gives channel messages the same authorship invariant as posts and comments.
+--
+-- `messages_insert` already required author_id = auth.uid(), so authorship was
+-- never forgeable. But `messages.author_id` had no default, because until now
+-- the only writer was the seed, which supplies every column explicitly. That
+-- left the application with no way to insert a message without naming an
+-- author — and a write path that has to name an author is a write path where
+-- a client-supplied value could one day be threaded through by mistake.
+--
+-- Posts got this treatment in 20260908100000 and comments in 20260908110000.
+-- This is the third and last table with an author, brought into line: an
+-- insert simply does not carry an author_id, so there is nothing to forge.
+-- The policy still checks it for any caller that sends one anyway.
+alter table messages alter column author_id set default auth.uid();

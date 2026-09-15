@@ -530,6 +530,45 @@ export async function getLatestMessage(channelId: string): Promise<Message | und
   return data ? toMessage(data) : undefined;
 }
 
+export type MessageWriteResult =
+  | { ok: true; message: Message }
+  | { ok: false; error: string };
+
+/**
+ * Writes one message to a channel.
+ *
+ * Nothing here decides who may write. `author_id` is omitted so the column
+ * default fills in auth.uid(), and `messages_insert` independently requires
+ * the row's author to be the caller, the caller to be able to read the
+ * channel, and the channel not to be read-only unless the caller moderates
+ * the community. A member posting in #kunngjoringer is refused by the
+ * database, not by this function.
+ */
+export async function createMessage(input: {
+  channelId: string;
+  body: string;
+}): Promise<MessageWriteResult> {
+  const body = input.body.trim();
+  if (!body) return { ok: false, error: "Meldingen kan ikke være tom." };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("messages")
+    .insert({ channel_id: input.channelId, body })
+    .select("*")
+    .single();
+
+  if (error) return { ok: false, error: messageWriteError(error.message) };
+  return { ok: true, message: toMessage(data) };
+}
+
+function messageWriteError(message: string): string {
+  if (message.includes("row-level security")) {
+    return "Du har ikke tilgang til å skrive i denne kanalen.";
+  }
+  return "Meldingen kunne ikke sendes. Prøv igjen.";
+}
+
 // ── Posts ───────────────────────────────────────────────────────────────
 
 export async function getFeed(communityId: string): Promise<Post[]> {
