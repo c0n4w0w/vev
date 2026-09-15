@@ -22,13 +22,23 @@ function Save({ accent, label }: { accent: string; label: string }) {
   );
 }
 
+/**
+ * Stores "no local group".
+ *
+ * Its field is deliberately *not* `localGroupId`. A submit button contributes
+ * its own name and value to the submission, so sharing the radios' name put
+ * two `localGroupId` entries in the FormData — the checked radio first, then
+ * this one — and `get()` returns the first. Clearing an existing affiliation
+ * therefore re-saved it. A separate field cannot collide with the radios
+ * whatever is selected.
+ */
 function Skip({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      name="localGroupId"
-      value=""
+      name="clear"
+      value="1"
       disabled={pending}
       className="h-10 rounded-[5px] border border-line-2 px-4 text-sm text-ink-2 transition-colors hover:border-ink-3 disabled:opacity-40"
     >

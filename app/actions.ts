@@ -348,7 +348,12 @@ export async function setMyLocalGroupAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
-  const raw = String(formData.get("localGroupId") ?? "");
+
+  // The clear button carries its own field rather than an empty localGroupId,
+  // because a radio may well be checked at the same moment and would win. When
+  // it is present the selection goes, whatever else the form said.
+  const clearing = formData.get("clear") === "1";
+  const raw = clearing ? "" : String(formData.get("localGroupId") ?? "");
 
   const ok = await setMyLocalGroup(communityId, raw || null);
   if (!ok) return { status: "error", error: SELECTION_REFUSED };
