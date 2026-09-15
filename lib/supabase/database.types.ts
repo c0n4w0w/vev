@@ -1,13 +1,3 @@
-/**
- * Database types, generated from the local Supabase schema.
- *
- * Regenerate after every migration:
- *
- *   npx supabase gen types typescript --local > lib/supabase/database.types.ts
- *
- * Do not edit by hand — `lib/data.ts` types every query against this file, so
- * drift here shows up as a type error rather than a runtime surprise.
- */
 export type Json =
   | string
   | number
@@ -315,6 +305,44 @@ export type Database = {
           },
         ]
       }
+      community_local_groups: {
+        Row: {
+          active: boolean
+          community_id: string
+          created_at: string
+          id: string
+          name: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          community_id: string
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          community_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_local_groups_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_attendees: {
         Row: {
           event_id: string
@@ -477,6 +505,7 @@ export type Database = {
           id: string
           invited_by: string | null
           joined_at: string
+          local_group_id: string | null
           role: Database["public"]["Enums"]["community_role"]
           status: Database["public"]["Enums"]["membership_status"]
           title: string | null
@@ -488,6 +517,7 @@ export type Database = {
           id?: string
           invited_by?: string | null
           joined_at?: string
+          local_group_id?: string | null
           role?: Database["public"]["Enums"]["community_role"]
           status?: Database["public"]["Enums"]["membership_status"]
           title?: string | null
@@ -499,6 +529,7 @@ export type Database = {
           id?: string
           invited_by?: string | null
           joined_at?: string
+          local_group_id?: string | null
           role?: Database["public"]["Enums"]["community_role"]
           status?: Database["public"]["Enums"]["membership_status"]
           title?: string | null
@@ -518,6 +549,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_local_group_fkey"
+            columns: ["local_group_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_local_groups"
+            referencedColumns: ["id", "community_id"]
           },
           {
             foreignKeyName: "memberships_user_id_fkey"
@@ -801,6 +839,10 @@ export type Database = {
         Returns: boolean
       }
       can_view_member_directory: { Args: { cid: string }; Returns: boolean }
+      create_local_group: {
+        Args: { p_community_id: string; p_name: string }
+        Returns: string
+      }
       emoji_matches_post: {
         Args: { eid: string; pid: string }
         Returns: boolean
@@ -820,13 +862,21 @@ export type Database = {
       }
       is_admin: { Args: { cid: string }; Returns: boolean }
       is_member: { Args: { cid: string }; Returns: boolean }
+      local_group_member_counts: {
+        Args: { p_community_id: string }
+        Returns: {
+          local_group_id: string
+          member_count: number
+        }[]
+      }
+      local_group_slug: { Args: { p_name: string }; Returns: string }
       looks_like_email: { Args: { p_email: string }; Returns: boolean }
       mark_notifications_read: { Args: never; Returns: undefined }
-      normalize_email: { Args: { p_email: string }; Returns: string }
       my_accepts_member_dms: {
         Args: { p_community_id: string }
         Returns: boolean
       }
+      normalize_email: { Args: { p_email: string }; Returns: string }
       portal_by_slug: {
         Args: { p_slug: string }
         Returns: {
@@ -862,6 +912,10 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: boolean
       }
+      rename_local_group: {
+        Args: { p_local_group_id: string; p_name: string }
+        Returns: boolean
+      }
       request_community_access: {
         Args: { p_display_name?: string; p_email: string; p_slug: string }
         Returns: boolean
@@ -877,6 +931,14 @@ export type Database = {
       }
       set_accepts_member_dms: {
         Args: { p_community_id: string; p_value: boolean }
+        Returns: boolean
+      }
+      set_local_group_active: {
+        Args: { p_active: boolean; p_local_group_id: string }
+        Returns: boolean
+      }
+      set_my_local_group: {
+        Args: { p_community_id: string; p_local_group_id: string }
         Returns: boolean
       }
       shares_community: { Args: { other: string }; Returns: boolean }
@@ -1060,6 +1122,7 @@ type FunctionReturns<F extends keyof PublicSchema["Functions"]> =
 export type ProfileRow = TableRow<"profiles">;
 export type CommunityRow = TableRow<"communities">;
 export type MembershipRow = TableRow<"memberships">;
+export type LocalGroupRow = TableRow<"community_local_groups">;
 export type ChannelGroupRow = TableRow<"channel_groups">;
 export type ChannelRow = TableRow<"channels">;
 export type MessageRow = TableRow<"messages">;

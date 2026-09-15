@@ -15,6 +15,7 @@ import { channelGroups, channels, communities, memberships } from "@/lib/mock/co
 import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
 import { communityPolicies } from "@/lib/mock/community-policies";
+import { localGroupAssignments, localGroups } from "@/lib/mock/local-groups";
 import { customEmojis } from "@/lib/mock/emojis";
 import { events } from "@/lib/mock/events";
 import { messages } from "@/lib/mock/messages";
@@ -189,6 +190,35 @@ async function main() {
       `(${communityPolicies.filter((p) => p.memberDirectoryVisibility === "admin_only").length} med lukket medlemsliste)`,
   );
 
+  // Local groups, before memberships so an affiliation has something to point
+  // at. Communities absent from the fixture get none, which is how the feature
+  // stays out of Under The Rug without anything checking its slug.
+  const localGroupId = new Map<string, string>();
+  for (const group of localGroups) {
+    const { data, error } = await supabase
+      .from("community_local_groups")
+      .insert({
+        community_id: group.communityId,
+        name: group.name,
+        slug: group.name
+          .toLowerCase()
+          .replace(/[æ]/g, "a")
+          .replace(/[ø]/g, "o")
+          .replace(/[å]/g, "a")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, ""),
+        sort_order: group.sortOrder,
+      })
+      .select("id")
+      .single();
+    fail(`lokallag ${group.name}`, error);
+    localGroupId.set(`${group.communityId}|${group.name}`, data!.id);
+  }
+  console.log(
+    `  ${localGroups.length} lokallag ` +
+      `(${new Set(localGroups.map((g) => g.communityId)).size} fellesskap)`,
+  );
+
   fail(
     "kanalgrupper",
     (
@@ -239,6 +269,42 @@ async function main() {
     ).error,
   );
   console.log(`  ${memberships.length} medlemskap`);
+
+  // Affiliations are applied after the memberships exist, and only for the
+  // people the fixture names. Everyone else keeps local_group_id null, which
+  // is the state the feature has to handle well and the demo should show.
+  let applied = 0;
+  for (const assignment of localGroupAssignments) {
+    const groupId = localGroupId.get(`${assignment.communityId}|${assignment.localGroupName}`);
+    if (!groupId) {
+      console.error(`\n✗ ukjent lokallag: ${assignment.localGroupName}`);
+      process.exit(1);
+    }
+
+    // The fixture names people from more than one cast — the organisations'
+    // own, and the showcase personas, which are seeded only when that module
+    // is in play. An assignment for somebody absent is skipped rather than
+    // treated as an error: a group that does not exist is a typo, a person who
+    // is not in this run is a configuration.
+    const userId = uid.get(assignment.userId);
+    if (!userId) continue;
+    applied += 1;
+
+    fail(
+      `lokallagstilknytning for ${assignment.userId}`,
+      (
+        await supabase
+          .from("memberships")
+          .update({ local_group_id: groupId })
+          .eq("user_id", userId)
+          .eq("community_id", assignment.communityId)
+      ).error,
+    );
+  }
+  console.log(
+    `  ${applied} lokallagstilknytninger ` +
+      `(${memberships.length - applied} uten lokallag)`,
+  );
 
   // Real uuids for the mock string ids, so comments and reactions can point at
   // the right post. Note what is *not* written here: comment_count and

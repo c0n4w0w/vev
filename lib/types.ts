@@ -86,6 +86,28 @@ export interface Membership {
   title?: string;
   /** Who invited this person, for pending invitations. */
   invitedBy?: string;
+  /**
+   * The local group this membership belongs to, if the member has chosen one.
+   * Absent is an ordinary, permanent state — not an unfinished profile.
+   * Community-scoped: the same person may have a different answer, or none, in
+   * another community.
+   */
+  localGroupId?: string;
+}
+
+/**
+ * A local group within one community.
+ *
+ * `active` false means retired: it keeps its existing members and its name
+ * stays readable, but nobody new can choose it.
+ */
+export interface LocalGroup {
+  id: string;
+  communityId: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  active: boolean;
 }
 
 export interface ChannelGroup {

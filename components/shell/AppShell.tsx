@@ -13,6 +13,7 @@ import {
   IconHash,
   IconHome,
   IconLock,
+  IconMapPin,
   IconMegaphone,
   IconMenu,
   IconMail,
@@ -80,13 +81,25 @@ const platformNav = [
   { href: "/notifications", label: "Varsler", icon: IconBell },
 ];
 
-function communityNav(id: string) {
+function communityNav(id: string, localGroups: ShellCommunity["localGroups"]) {
   return [
     { href: `/community/${id}`, label: "Oversikt", icon: IconOverview, exact: true },
     { href: `/community/${id}/feed`, label: "Feed", icon: IconFeed },
     { href: `/community/${id}/announcements`, label: "Kunngjøringer", icon: IconMegaphone },
     { href: `/community/${id}/events`, label: "Arrangementer", icon: IconCalendar },
     { href: `/community/${id}/members`, label: "Medlemmer", icon: IconUsers },
+    // Present only where the community actually has local groups. The label
+    // carries the answer when there is one, so the sidebar doubles as the
+    // reminder for a member who has not chosen yet.
+    ...(localGroups.usesLocalGroups
+      ? [
+          {
+            href: `/community/${id}/lokallag`,
+            label: localGroups.selectedName ?? "Finn ditt lokallag",
+            icon: IconMapPin,
+          },
+        ]
+      : []),
     { href: `/community/${id}/requests`, label: "Forespørsler", icon: IconMail, adminOnly: true },
     { href: `/community/${id}/emojis`, label: "Emojier", icon: IconSmile },
     {
@@ -134,7 +147,7 @@ function SidebarContent({
             </div>
 
             <ul className="space-y-px">
-              {communityNav(current.community.id)
+              {communityNav(current.community.id, current.localGroups)
                 // Both of these are tidiness only — the pages and the
                 // database refuse anyone else regardless of what is rendered.
                 // The queue is an administrator's tool; the settings page

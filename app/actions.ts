@@ -6,17 +6,22 @@ import {
   acceptInvitationToken,
   approveAccessRequest,
   createComment as persistComment,
+  createLocalGroup,
   createMessage as persistMessage,
   createCommunityEmoji as persistEmoji,
   createPost as persistPost,
   deleteComment as removeComment,
   getCommunityById,
+  getLocalGroups,
   deleteCommunityEmoji as removeEmoji,
   deletePost as removePost,
   rejectAccessRequest,
+  renameLocalGroup,
   requestCommunityAccess,
   resendInvitation,
   setAcceptsMemberDms,
+  setLocalGroupActive,
+  setMyLocalGroup,
   toggleReaction as togglePostReaction,
   updateComment as editComment,
   updatePost as editPost,
@@ -30,6 +35,11 @@ import {
   validateEmojiName,
 } from "@/lib/emoji-image";
 import type { DmSettingFormState } from "@/lib/dm-settings-form";
+import {
+  ADMIN_REFUSED,
+  SELECTION_REFUSED,
+  type LocalGroupFormState,
+} from "@/lib/local-group-form";
 import type { MessageFormState } from "@/lib/message-form";
 import type { PostFormState } from "@/lib/post-form";
 import { sendInvitationEmail } from "@/lib/email/invitation";
@@ -311,6 +321,98 @@ export async function setAcceptsMemberDmsAction(
   return { status: "ok", acceptsMemberDms: stored };
 }
 
+
+// ── Local groups ────────────────────────────────────────────────────────
+//
+// None of these carry a user id. Which membership is being changed, and
+// whether the caller administers the community, is decided inside the database
+// from auth.uid(), so a tampered field reaches a function that refuses it
+// rather than a check in this file.
+
+function revalidateLocalGroups(communityId: string) {
+  revalidatePath(`/community/${communityId}/lokallag`);
+  revalidatePath(`/community/${communityId}`);
+}
+
+/**
+ * The member's own choice: a group, or none.
+ *
+ * An empty value is not a failed submission — it is "Jeg vil ikke velge
+ * lokallag nå", and it clears the selection.
+ */
+export async function setMyLocalGroupAction(
+  _prev: LocalGroupFormState,
+  formData: FormData,
+): Promise<LocalGroupFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const raw = String(formData.get("localGroupId") ?? "");
+
+  const ok = await setMyLocalGroup(communityId, raw || null);
+  if (!ok) return { status: "error", error: SELECTION_REFUSED };
+
+  revalidateLocalGroups(communityId);
+  return { status: "ok" };
+}
+
+export async function createLocalGroupAction(
+  _prev: LocalGroupFormState,
+  formData: FormData,
+): Promise<LocalGroupFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { status: "error", error: "Lokallaget må ha et navn." };
+
+  const ok = await createLocalGroup(communityId, name);
+  if (!ok) return { status: "error", error: ADMIN_REFUSED };
+
+  revalidateLocalGroups(communityId);
+  return { status: "ok" };
+}
+
+export async function renameLocalGroupAction(
+  _prev: LocalGroupFormState,
+  formData: FormData,
+): Promise<LocalGroupFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { status: "error", error: "Lokallaget må ha et navn." };
+
+  const ok = await renameLocalGroup(String(formData.get("localGroupId") ?? ""), name);
+  if (!ok) return { status: "error", error: ADMIN_REFUSED };
+
+  revalidateLocalGroups(String(formData.get("communityId") ?? ""));
+  return { status: "ok" };
+}
+
+/**
+ * Retires or reinstates a group. Never deletes it, and never moves the people
+ * attached to it — they keep the affiliation they chose.
+ */
+export async function setLocalGroupActiveAction(
+  _prev: LocalGroupFormState,
+  formData: FormData,
+): Promise<LocalGroupFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const ok = await setLocalGroupActive(
+    String(formData.get("localGroupId") ?? ""),
+    formData.get("active") === "on",
+  );
+  if (!ok) return { status: "error", error: ADMIN_REFUSED };
+
+  revalidateLocalGroups(String(formData.get("communityId") ?? ""));
+  return { status: "ok" };
+}
+
 // ── Custom emojis ───────────────────────────────────────────────────────
 //
 // Authorisation is the database's, twice over: the storage policies require
@@ -516,6 +618,16 @@ export async function acceptInvitationAction(
 
   revalidatePath("/home");
   revalidatePath("/communities");
+
+  // Membership already exists at this point — the question that follows cannot
+  // withdraw it. Communities that use local groups get one chance to ask, with
+  // skipping a single click away; communities that do not are sent straight
+  // in, which is how this stays invisible where it does not apply.
+  const groups = await getLocalGroups(result.communityId!);
+  if (groups.some((group) => group.active)) {
+    redirect(`/community/${result.communityId}/lokallag?velkommen=1`);
+  }
+
   redirect(`/community/${result.communityId}`);
 }
 

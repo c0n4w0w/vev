@@ -20,6 +20,7 @@ import type {
   MintedInvitationRow,
   PostRow,
   ProfileRow,
+  LocalGroupRow,
 } from "@/lib/supabase/database.types";
 import type {
   Channel,
@@ -36,6 +37,7 @@ import type {
   Post,
   RoleId,
   User,
+  LocalGroup,
 } from "@/lib/types";
 
 export { getRole, roles } from "@/lib/roles";
@@ -114,7 +116,7 @@ function toCommunity(row: CommunityRow): Community {
  * a runtime surprise in one query that still asks for everything.
  */
 const MEMBERSHIP_COLUMNS =
-  "id, user_id, community_id, role, status, joined_at, title, invited_by" as const;
+  "id, user_id, community_id, role, status, joined_at, title, invited_by, local_group_id" as const;
 
 /**
  * Note the absence of `accepts_member_dms`. It is private to the person it
@@ -131,6 +133,7 @@ function toMembership(row: Omit<MembershipRow, "accepts_member_dms">): Membershi
     joinedAt: row.joined_at,
     title: row.title ?? undefined,
     invitedBy: row.invited_by ?? undefined,
+    localGroupId: row.local_group_id ?? undefined,
   };
 }
 
@@ -433,6 +436,119 @@ export async function setAcceptsMemberDms(
   const { data, error } = await supabase.rpc("set_accepts_member_dms", {
     p_community_id: communityId,
     p_value: value,
+  });
+  return !error && data === true;
+}
+
+// ── Local groups ────────────────────────────────────────────────────────
+//
+// Reads go straight to the table, which carries its own policy: active members
+// of that community and nobody else. Writes go through functions, because
+// every one of them has an authorisation question attached — is this your own
+// membership, do you administer this community — and the answer belongs in the
+// database rather than in a caller that could forget to ask.
+
+function toLocalGroup(row: LocalGroupRow): LocalGroup {
+  return {
+    id: row.id,
+    communityId: row.community_id,
+    name: row.name,
+    slug: row.slug,
+    sortOrder: row.sort_order,
+    active: row.active,
+  };
+}
+
+/**
+ * Every local group in a community, retired ones included.
+ *
+ * Retired groups are returned rather than filtered out here because a member
+ * who belongs to one still needs to see its name. Callers offering a choice
+ * filter on `active` themselves.
+ */
+export const getLocalGroups = cache(async (communityId: string): Promise<LocalGroup[]> => {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("community_local_groups")
+    .select("*")
+    .eq("community_id", communityId)
+    .order("sort_order", { ascending: true });
+  return rows(data).map(toLocalGroup);
+});
+
+/**
+ * How many active members each local group has, keyed by group id.
+ *
+ * Every group in the community gets an entry, including those nobody has
+ * joined — zero is a real answer and reads as one. Empty only for a caller who
+ * is not an active member of the community, who should not be seeing this page
+ * at all.
+ *
+ * Counts name nobody. Reading the membership itself is unchanged and still
+ * follows member_directory_visibility.
+ */
+export async function getLocalGroupMemberCounts(
+  communityId: string,
+): Promise<Map<string, number>> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("local_group_member_counts", {
+    p_community_id: communityId,
+  });
+  if (error) return new Map();
+  return new Map(rows(data).map((row) => [row.local_group_id, Number(row.member_count)]));
+}
+
+/**
+ * Chooses, changes or clears the caller's own local group.
+ *
+ * `null` clears it, and that is a real answer rather than a failure — it is
+ * how "Jeg vil ikke velge lokallag nå" is stored. The community is the only
+ * thing passed in: who is asking comes from auth.uid() inside the function, so
+ * there is no membership here to aim at somebody else.
+ */
+export async function setMyLocalGroup(
+  communityId: string,
+  localGroupId: string | null,
+): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_my_local_group", {
+    p_community_id: communityId,
+    // The generated argument type is non-nullable because Postgres does not
+    // record argument nullability, but null is a meaningful value here: it is
+    // how a member clears their selection. The function signature accepts it.
+    p_local_group_id: localGroupId as unknown as string,
+  });
+  return !error && data === true;
+}
+
+/** Administrators only; the database decides that, not the caller. */
+export async function createLocalGroup(communityId: string, name: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("create_local_group", {
+    p_community_id: communityId,
+    p_name: name,
+  });
+  return !error && typeof data === "string";
+}
+
+export async function renameLocalGroup(localGroupId: string, name: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("rename_local_group", {
+    p_local_group_id: localGroupId,
+    p_name: name,
+  });
+  return !error && data === true;
+}
+
+/** Retires or reinstates a group. Never deletes, never moves anyone. */
+export async function setLocalGroupActive(
+  localGroupId: string,
+  active: boolean,
+): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_local_group_active", {
+    p_local_group_id: localGroupId,
+    p_active: active,
   });
   return !error && data === true;
 }

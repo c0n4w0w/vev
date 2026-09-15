@@ -1,6 +1,7 @@
 import {
   getCommunitiesForUser,
   getGroupedChannels,
+  getLocalGroups,
   getUnreadCount,
 } from "@/lib/data";
 import type { Channel, ChannelGroup, Community, Membership, User } from "@/lib/types";
@@ -18,6 +19,15 @@ export interface ShellCommunity {
   community: Community;
   membership: Membership;
   channelGroups: { group: ChannelGroup; channels: Channel[] }[];
+  /**
+   * Enough to label the sidebar entry, and nothing more.
+   *
+   * `usesLocalGroups` is what keeps the feature out of communities that never
+   * adopted it — a community with no groups has no entry — without anything
+   * checking a name or slug. `selectedName` is the viewer's own affiliation;
+   * no one else's is carried here.
+   */
+  localGroups: { usesLocalGroups: boolean; selectedName?: string };
 }
 
 export interface ShellData {
@@ -33,11 +43,22 @@ export async function buildShellData(user: User): Promise<ShellData> {
   ]);
 
   const communities = await Promise.all(
-    memberships.map(async ({ community, membership }) => ({
-      community,
-      membership,
-      channelGroups: await getGroupedChannels(community.id),
-    })),
+    memberships.map(async ({ community, membership }) => {
+      const [channelGroups, groups] = await Promise.all([
+        getGroupedChannels(community.id),
+        getLocalGroups(community.id),
+      ]);
+
+      return {
+        community,
+        membership,
+        channelGroups,
+        localGroups: {
+          usesLocalGroups: groups.some((group) => group.active),
+          selectedName: groups.find((group) => group.id === membership.localGroupId)?.name,
+        },
+      };
+    }),
   );
 
   return { user, communities, unreadCount };
