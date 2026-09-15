@@ -1,5 +1,5 @@
 /**
- * Fills a fresh Supabase project with the prototype's content.
+ * Fills a **demo** Supabase project with showcase content.
  *
  * Run with `npm run seed`. It is idempotent: application rows are cleared and
  * rewritten, and auth users are reused when the email already exists — so it
@@ -7,10 +7,22 @@
  *
  * Uses the service-role key and therefore bypasses row level security. That is
  * appropriate here and nowhere else.
+ *
+ * It refuses to run unless `TING_MODE=demo`. The refusal is not politeness:
+ * this script deletes application rows belonging to any account whose address
+ * matches a fixture, so pointing it at production would quietly destroy real
+ * data. Production never sets TING_MODE, so the default answer is no.
+ *
+ * Accounts are created with no password, and nothing in the product signs
+ * anyone in with one. Showcase entry is `/demo/<token>` (`lib/demo/entry.ts`),
+ * which mints and redeems a one-time link and never needs a credential to
+ * exist, so there is no password for this script to set and none for it to
+ * require.
  */
 import { readFile } from "node:fs/promises";
 import { config } from "dotenv";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { assertDemoDeployment } from "@/lib/environment";
 import { channelGroups, channels, communities, memberships } from "@/lib/mock/communities";
 import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
@@ -22,13 +34,30 @@ import { messages } from "@/lib/mock/messages";
 import { notifications } from "@/lib/mock/notifications";
 import { posts } from "@/lib/mock/posts";
 import { users } from "@/lib/mock/users";
+import { demoPersonaMemberships, demoPersonas } from "@/lib/mock/demo-personas";
+import { fixtureTimeOffset, shiftDate, shiftTimestamp } from "@/lib/mock/fixture-time";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
 
-const DEMO_PASSWORD = process.env.DEMO_ACCOUNT_PASSWORD ?? "vev-demo-passord";
+// Before anything else, and before a client is even constructed.
+assertDemoDeployment("Seeding");
 
 const supabase = createSupabaseAdminClient();
+
+// Personas are seeded alongside the cast rather than as a special case: they
+// need an auth account, a profile and memberships exactly like any other
+// fixture. Keeping them in their own module is about not editing the
+// organisations' content files, not about them being a different kind of thing.
+const allUsers = [...users, ...demoPersonas];
+const allMemberships = [...memberships, ...demoPersonaMemberships];
+
+// One offset for the whole run, so every timestamp moves together and the
+// spacing between them survives. Computed once: a seed that straddles midnight
+// should not shift its later rows by a different amount than its earlier ones.
+const TIME_OFFSET = fixtureTimeOffset();
+const at = (iso: string) => shiftTimestamp(iso, TIME_OFFSET);
+const on = (iso: string) => shiftDate(iso, TIME_OFFSET);
 
 function fail(step: string, error: { message: string } | null) {
   if (error) {
@@ -55,29 +84,29 @@ async function seedAccounts(): Promise<Map<string, string>> {
     if (data.users.length < 200) break;
   }
 
-  for (const user of users) {
+  for (const user of allUsers) {
     const email = user.email.toLowerCase();
     let id = existing.get(email);
 
     if (!id) {
+      // No password: the only way in is `/demo/<token>`, which authenticates
+      // by minting and redeeming a one-time link, not by checking a
+      // credential. An account with no password cannot be signed into any
+      // other way, which is one fewer secret this script has to hold.
       const { data, error } = await supabase.auth.admin.createUser({
         email: user.email,
-        password: DEMO_PASSWORD,
         email_confirm: true,
         user_metadata: { name: user.name, handle: user.handle },
       });
       fail(`kunne ikke opprette konto for ${user.email}`, error);
       id = data.user!.id;
-    } else {
-      // Keep the demo password in step with the environment.
-      await supabase.auth.admin.updateUserById(id, { password: DEMO_PASSWORD });
     }
 
     idByHandle.set(user.id, id);
   }
 
   const { error } = await supabase.from("profiles").upsert(
-    users.map((user) => ({
+    allUsers.map((user) => ({
       id: idByHandle.get(user.id)!,
       name: user.name,
       handle: user.handle,
@@ -86,7 +115,7 @@ async function seedAccounts(): Promise<Map<string, string>> {
       pronoun: user.pronoun,
       location: user.location,
       bio: user.bio,
-      joined_at: user.joinedAt,
+      joined_at: on(user.joinedAt),
     })),
   );
   fail("kunne ikke skrive profiler", error);
@@ -140,7 +169,7 @@ async function main() {
   await clearEmojiFiles();
 
   const uid = await seedAccounts();
-  console.log(`  ${users.length} kontoer`);
+  console.log(`  ${allUsers.length} kontoer (${demoPersonas.length} showcase-personaer)`);
 
   fail(
     "fellesskap",
@@ -256,19 +285,19 @@ async function main() {
     "medlemskap",
     (
       await supabase.from("memberships").insert(
-        memberships.map((membership) => ({
+        allMemberships.map((membership) => ({
           user_id: uid.get(membership.userId)!,
           community_id: membership.communityId,
           role: membership.role,
           status: membership.status,
-          joined_at: membership.joinedAt,
+          joined_at: on(membership.joinedAt),
           title: membership.title ?? null,
           invited_by: membership.invitedBy ? uid.get(membership.invitedBy)! : null,
         })),
       )
     ).error,
   );
-  console.log(`  ${memberships.length} medlemskap`);
+  console.log(`  ${allMemberships.length} medlemskap`);
 
   // Affiliations are applied after the memberships exist, and only for the
   // people the fixture names. Everyone else keeps local_group_id null, which
@@ -303,7 +332,7 @@ async function main() {
   }
   console.log(
     `  ${applied} lokallagstilknytninger ` +
-      `(${memberships.length - applied} uten lokallag)`,
+      `(${allMemberships.length - applied} uten lokallag)`,
   );
 
   // Real uuids for the mock string ids, so comments and reactions can point at
@@ -322,7 +351,7 @@ async function main() {
           author_id: uid.get(post.authorId)!,
           title: post.title ?? null,
           body: post.body,
-          created_at: post.createdAt,
+          created_at: at(post.createdAt),
           kind: post.kind,
           pinned: Boolean(post.pinned),
         })),
@@ -348,7 +377,7 @@ async function main() {
           parent_id: comment.parentId ? commentId.get(comment.parentId)! : null,
           author_id: uid.get(comment.authorId)!,
           body: comment.body,
-          created_at: comment.createdAt,
+          created_at: at(comment.createdAt),
         })),
       )
     ).error,
@@ -363,7 +392,7 @@ async function main() {
         post_id: postId.get(post.id)!,
         user_id: uid.get(userId)!,
         emoji: reaction.emoji,
-        created_at: post.createdAt,
+        created_at: at(post.createdAt),
       })),
     ),
   );
@@ -419,7 +448,7 @@ async function main() {
           channel_id: message.channelId,
           author_id: uid.get(message.authorId)!,
           body: message.body,
-          created_at: message.createdAt,
+          created_at: at(message.createdAt),
           attachment: message.attachment ?? null,
           reactions: (message.reactions ?? []).map((reaction) => ({
             emoji: reaction.emoji,
@@ -438,8 +467,8 @@ async function main() {
         community_id: event.communityId,
         title: event.title,
         description: event.description,
-        starts_at: event.startsAt,
-        ends_at: event.endsAt,
+        starts_at: at(event.startsAt),
+        ends_at: at(event.endsAt),
         location: event.location,
         is_public: event.isPublic,
         host_id: uid.get(event.hostId) ?? null,
@@ -476,7 +505,7 @@ async function main() {
           community_id: notification.communityId ?? null,
           title: notification.title,
           body: notification.body,
-          created_at: notification.createdAt,
+          created_at: at(notification.createdAt),
           read: notification.read,
           href: notification.href,
         })),
@@ -501,7 +530,7 @@ async function main() {
 
   console.log(`  ${notifications.length} varsler`);
 
-  console.log("\n✓ Ferdig. Logg inn med en av demokontoene på /login.");
+  console.log("\n✓ Ferdig. Gå inn via showcase-lenken: /demo/<DEMO_TOKEN_*>.");
 }
 
 main().catch((error) => {

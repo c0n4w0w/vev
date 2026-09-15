@@ -26,11 +26,3 @@ export function supabaseAnonKey() {
 export function supabaseServiceRoleKey() {
   return required("SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
-
-/**
- * Password sign-in for the seeded demo accounts. Off unless explicitly enabled,
- * so a deployed instance cannot be entered by picking a name from a list.
- */
-export function demoLoginEnabled() {
-  return process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN === "true";
-}

@@ -29,8 +29,8 @@ Fyll inn fra Supabase (Project settings → API), eller fra utskriften til
 | `NEXT_PUBLIC_SUPABASE_URL` | Prosjektets URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Offentlig nøkkel, trygg i nettleseren |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Hemmelig.** Går utenom all radsikkerhet. Brukes kun av `npm run seed` |
-| `NEXT_PUBLIC_ENABLE_DEMO_LOGIN` | `true` slår på demokontoene på innloggingssiden |
-| `DEMO_ACCOUNT_PASSWORD` | Passordet seed-skriptet gir demokontoene |
+| `TING_MODE` | Sett til `demo` for en showcase-utrulling. Ubrukt (produksjon) er standard |
+| `DEMO_TOKEN_TRYGGERE`, `DEMO_TOKEN_UTR` | Én uttrekkbar lenke per showcase — se «Showcase-innlogging» under |
 
 ### 2. Skjema
 
@@ -87,15 +87,19 @@ innholdstabellene først og gjenbruker kontoer som allerede finnes.
 npm run dev
 ```
 
-Med `NEXT_PUBLIC_ENABLE_DEMO_LOGIN=true` kan du logge inn som:
+Uten videre oppsett logger man inn med engangslenke på e-post.
 
-| Konto | Tilgang | Viser |
-| --- | --- | --- |
-| Ingrid Hovden | 3 fellesskap (admin, moderator, medlem) | Multi-fellesskap på tvers av to uavhengige organisasjoner, og adminverktøy |
-| Jonas Aalborg | 1 fellesskap (Under The Rug) | Produktet med bare én organisasjon |
-| Sofie Lind | 0 fellesskap, 1 invitasjon til Tryggere Ungdom | Tom tilstand og veien inn via en portal |
+#### Showcase-innlogging (`/demo/<token>`)
 
-Uten demomodus logger man inn med engangslenke på e-post.
+Den tiltenkte veien inn i en showcase-utrulling. Krever `TING_MODE=demo` og en
+`DEMO_TOKEN_*`-verdi (se tabellen over) — ingen passord, ingen e-post, ingen
+konto å opprette. Lenken logger besøkende rett inn som showcasens person og
+sender dem til fellesskapet showcasen handler om. `npm run seed` oppretter
+disse kontoene uten passord; det er ikke nødvendig for denne veien inn.
+
+En feil eller manglende token svarer alltid 404, og på en utrulling der
+`TING_MODE` ikke er `demo` — altså produksjon — svarer den 404 uansett hva
+token er, selv om en gyldig verdi skulle stå i miljøet.
 
 ---
 
@@ -156,7 +160,7 @@ databasen — ikke bare i applikasjonskoden.
 ```
 app/
   page.tsx                  Offentlig forside (ingen katalog)
-  login/                    Engangslenke på e-post, og demokontoer i demomodus
+  login/                    Engangslenke på e-post
   auth/callback/            Veksler innloggingskoden mot en sesjon
   actions.ts                Server actions: innlogging, invitasjoner, tilgang
   (app)/                    Alt bak innlogging — deler navigasjonsskallet

@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { sendMagicLink, signInAsDemoUser } from "@/app/actions";
+import { sendMagicLink } from "@/app/actions";
 import { Wordmark } from "@/components/shell/Wordmark";
-import { Button, Panel, buttonClass, cn } from "@/components/ui/primitives";
+import { Button, Panel, buttonClass } from "@/components/ui/primitives";
 import { IconArrowRight, IconLock, IconMail } from "@/components/ui/icons";
-import { demoAccounts } from "@/lib/demo-accounts";
 import { getSessionUser } from "@/lib/session";
-import { demoLoginEnabled } from "@/lib/supabase/env";
 import { PUBLIC_HOST } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "Logg inn" };
@@ -88,53 +86,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             ) : null}
           </Panel>
         )}
-
-        {demoLoginEnabled() ? (
-          <section className="mt-12">
-            <div className="rounded-[6px] border border-dashed border-line-2 p-5 sm:p-6">
-              <p className="label">Kun i denne prototypen</p>
-              <h2 className="mt-3 font-display text-xl text-ink">Demokontoer</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-2">
-                Tre konteer med ulik tilgang, så du ser hvordan plattformen oppfører seg for folk
-                med ingen, ett og flere fellesskap. De finnes bare når databasen er fylt med
-                testdata, og knappene er slått av i et ekte oppsett.
-              </p>
-
-              <div className="mt-5 space-y-3">
-                {demoAccounts.map((account) => (
-                  <Panel key={account.email}>
-                    <form action={signInAsDemoUser}>
-                      <input type="hidden" name="email" value={account.email} />
-                      <input type="hidden" name="next" value={nextPath} />
-                      <button
-                        type="submit"
-                        className="flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-paper-2/60"
-                      >
-                        <span
-                          className={cn(
-                            "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-paper-2 text-xs font-semibold text-ink-2",
-                          )}
-                        >
-                          {account.initials}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block font-display text-lg text-ink">
-                            {account.name}
-                          </span>
-                          <span className="mt-1 block text-[13px] leading-relaxed text-ink-2">
-                            {account.summary}
-                          </span>
-                          <span className="mt-1.5 block text-xs text-ink-3">{account.access}</span>
-                        </span>
-                        <IconArrowRight size={18} className="shrink-0 text-ink-3" />
-                      </button>
-                    </form>
-                  </Panel>
-                ))}
-              </div>
-            </div>
-          </section>
-        ) : null}
 
         <div className="mt-10 flex flex-col gap-4 rounded-[6px] border border-line bg-surface p-5 sm:flex-row sm:items-start">
           <IconLock size={18} className="mt-0.5 shrink-0 text-skog" />

@@ -46,7 +46,6 @@ import { sendInvitationEmail } from "@/lib/email/invitation";
 import { getSessionUser } from "@/lib/session";
 import { siteOrigin } from "@/lib/site-url";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { demoLoginEnabled } from "@/lib/supabase/env";
 
 // ── Authentication ──────────────────────────────────────────────────────
 
@@ -72,25 +71,6 @@ export async function sendMagicLink(formData: FormData) {
   // exactly the kind of thing this platform should not confirm to a stranger.
   if (error) console.error("Kunne ikke sende innloggingslenke:", error.message);
   redirect(`/login?sendt=${encodeURIComponent(email)}`);
-}
-
-/**
- * Password sign-in for the seeded demo accounts. Only available when
- * NEXT_PUBLIC_ENABLE_DEMO_LOGIN is on, so a real deployment cannot be entered
- * by picking a name off a list.
- */
-export async function signInAsDemoUser(formData: FormData) {
-  if (!demoLoginEnabled()) redirect("/login");
-
-  const email = String(formData.get("email") ?? "");
-  const next = String(formData.get("next") || "/home");
-  const password = process.env.DEMO_ACCOUNT_PASSWORD ?? "";
-
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) redirect(`/login?feil=${encodeURIComponent(error.message)}`);
-
-  redirect(next);
 }
 
 export async function signOut() {
