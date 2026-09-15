@@ -164,10 +164,10 @@ export default async function CommunityOverviewPage({
                 <SectionHeading
                   action={
                     <Link
-                      href={`/community/${community.id}/announcements`}
+                      href={`/community/${community.id}/feed`}
                       className="inline-flex items-center gap-1 text-xs text-ink-2 transition-colors hover:text-ink"
                     >
-                      Alle kunngjøringer
+                      Åpne feeden
                       <IconArrowRight size={13} />
                     </Link>
                   }

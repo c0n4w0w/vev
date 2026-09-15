@@ -18,8 +18,9 @@ export type SeedPost = Omit<Post, "commentCount" | "reactions"> & {
 };
 
 /**
- * Feed content. `announcement` entries also surface on the community overview
- * and the announcements page; ordinary posts only appear in the feed.
+ * Feed content. Everything here appears in the feed; an `announcement` is a
+ * kind of post rather than a separate destination, and a pinned one is also
+ * surfaced on the community overview.
  */
 export const posts: SeedPost[] = [
   // ── Tryggere Ruspolitikk ──────────────────────────────────────────────

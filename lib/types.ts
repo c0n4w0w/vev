@@ -150,7 +150,7 @@ export interface Post {
   createdAt: string;
   /** Stamped by the database when the text is changed, never by the client. */
   editedAt?: string;
-  /** Pinned announcements surface on the overview and announcements page. */
+  /** A pinned announcement is also surfaced on the community overview. */
   kind: "post" | "announcement";
   pinned?: boolean;
   channelId?: string;

@@ -47,7 +47,7 @@ export default async function CommunityFeedPage({
       <PageHeader
         eyebrow={community.name}
         title="Feed"
-        lead={`Innlegg og kunngjøringer fra medlemmene i ${community.name}, nyeste først.`}
+        lead={`Alt som skjer i ${community.name} — innlegg og kunngjøringer, nyeste først.`}
       />
 
       <Composer

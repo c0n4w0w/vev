@@ -92,7 +92,6 @@ export async function signOut() {
 /** Clears the router cache for every screen that renders posts. */
 function revalidatePosts(communityId: string) {
   revalidatePath(`/community/${communityId}/feed`);
-  revalidatePath(`/community/${communityId}/announcements`);
   revalidatePath(`/community/${communityId}`);
   revalidatePath("/home");
 }

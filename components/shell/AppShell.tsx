@@ -14,7 +14,6 @@ import {
   IconHome,
   IconLock,
   IconMapPin,
-  IconMegaphone,
   IconMenu,
   IconMail,
   IconOverview,
@@ -81,16 +80,23 @@ const platformNav = [
   { href: "/notifications", label: "Varsler", icon: IconBell },
 ];
 
+/**
+ * The community sidebar's primary group: what a member came here to do.
+ *
+ * Kunngjøringer is deliberately absent. An announcement is a kind of post and
+ * appears in the feed alongside everything else, so a second destination
+ * listing the same rows was duplication rather than navigation.
+ *
+ * Lokallag belongs here — a member chooses their own — and appears only where
+ * the community actually has local groups, so a community that never adopted
+ * them never sees it.
+ */
 function communityNav(id: string, localGroups: ShellCommunity["localGroups"]) {
   return [
     { href: `/community/${id}`, label: "Oversikt", icon: IconOverview, exact: true },
     { href: `/community/${id}/feed`, label: "Feed", icon: IconFeed },
-    { href: `/community/${id}/announcements`, label: "Kunngjøringer", icon: IconMegaphone },
     { href: `/community/${id}/events`, label: "Arrangementer", icon: IconCalendar },
     { href: `/community/${id}/members`, label: "Medlemmer", icon: IconUsers },
-    // Present only where the community actually has local groups. The label
-    // carries the answer when there is one, so the sidebar doubles as the
-    // reminder for a member who has not chosen yet.
     ...(localGroups.usesLocalGroups
       ? [
           {
@@ -100,8 +106,25 @@ function communityNav(id: string, localGroups: ShellCommunity["localGroups"]) {
           },
         ]
       : []),
+  ];
+}
+
+/**
+ * Administration: configuration rather than participation.
+ *
+ * Separating these is the point of the split. Previously an emoji manager sat
+ * in the same undifferentiated list as the feed, which made it look equally
+ * central to being a member here.
+ *
+ * Emojier is navigation-gated to staff because managing the set is a staff
+ * job. That is *all* it is: `community_emojis` still lets any member read the
+ * set and only staff change it, unchanged by this. Hiding a link is tidiness —
+ * every page and policy behind these refuses the wrong caller anyway.
+ */
+function communityAdminNav(id: string) {
+  return [
     { href: `/community/${id}/requests`, label: "Forespørsler", icon: IconMail, adminOnly: true },
-    { href: `/community/${id}/emojis`, label: "Emojier", icon: IconSmile },
+    { href: `/community/${id}/emojis`, label: "Emojier", icon: IconSmile, staffOnly: true },
     {
       href: `/community/${id}/settings`,
       label: "Innstillinger",
@@ -146,54 +169,78 @@ function SidebarContent({
               </span>
             </div>
 
+            <p className="label mb-2 px-2.5">Hoved</p>
             <ul className="space-y-px">
-              {communityNav(current.community.id, current.localGroups)
-                // Both of these are tidiness only — the pages and the
-                // database refuse anyone else regardless of what is rendered.
-                // The queue is an administrator's tool; the settings page
-                // holds a choice that only staff have to make.
-                .filter((item) => !item.adminOnly || current.membership.role === "admin")
-                .filter(
-                  (item) =>
-                    !item.staffOnly ||
-                    current.membership.role === "admin" ||
-                    current.membership.role === "moderator",
-                )
-                .map((item) => (
+              {communityNav(current.community.id, current.localGroups).map((item) => (
                 <li key={item.href}>
                   <NavLink
                     href={item.href}
                     label={item.label}
                     icon={<item.icon size={17} />}
                     accent={accent}
-                    active={
-                      item.exact ? pathname === item.href : pathname.startsWith(item.href)
-                    }
+                    active={item.exact ? pathname === item.href : pathname.startsWith(item.href)}
                     onNavigate={onNavigate}
                   />
                 </li>
               ))}
             </ul>
 
-            {current.channelGroups.map(({ group, channels }) => (
-              <div key={group.id} className="mt-6">
-                <p className="label mb-2 px-2.5">{group.label}</p>
-                <ul className="space-y-px">
-                  {channels.map((channel) => (
-                    <li key={channel.id}>
-                      <NavLink
-                        href={`/community/${current.community.id}/channel/${channel.id}`}
-                        label={channel.name}
-                        icon={<IconHash size={15} />}
-                        accent={accent}
-                        active={pathname.endsWith(`/channel/${channel.id}`)}
-                        onNavigate={onNavigate}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {(() => {
+              // Filtering happens before the heading is drawn, so a member who
+              // administers nothing does not get an empty "Administrasjon".
+              const adminItems = communityAdminNav(current.community.id)
+                .filter((item) => !item.adminOnly || current.membership.role === "admin")
+                .filter(
+                  (item) =>
+                    !item.staffOnly ||
+                    current.membership.role === "admin" ||
+                    current.membership.role === "moderator",
+                );
+              if (adminItems.length === 0) return null;
+
+              return (
+                <div className="mt-6">
+                  <p className="label mb-2 px-2.5">Administrasjon</p>
+                  <ul className="space-y-px">
+                    {adminItems.map((item) => (
+                      <li key={item.href}>
+                        <NavLink
+                          href={item.href}
+                          label={item.label}
+                          icon={<item.icon size={17} />}
+                          accent={accent}
+                          active={pathname.startsWith(item.href)}
+                          onNavigate={onNavigate}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
+
+            <div className="mt-6">
+              <p className="label mb-2 px-2.5">Kanaler</p>
+              {current.channelGroups.map(({ group, channels }) => (
+                <div key={group.id} className="mt-3 first:mt-0">
+                  <p className="mb-1 px-2.5 text-[11px] text-ink-3">{group.label}</p>
+                  <ul className="space-y-px">
+                    {channels.map((channel) => (
+                      <li key={channel.id}>
+                        <NavLink
+                          href={`/community/${current.community.id}/channel/${channel.id}`}
+                          label={channel.name}
+                          icon={<IconHash size={15} />}
+                          accent={accent}
+                          active={pathname.endsWith(`/channel/${channel.id}`)}
+                          onNavigate={onNavigate}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </>
         ) : (
           <>

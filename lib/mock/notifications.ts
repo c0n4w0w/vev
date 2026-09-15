@@ -33,7 +33,7 @@ export const notifications: Notification[] = [
     body: "Marte Fjeldstad publiserte en kunngjøring i Under The Rug.",
     createdAt: "2026-09-05T17:31:00+02:00",
     read: false,
-    href: "/community/under-the-rug/announcements",
+    href: "/community/under-the-rug/feed",
   },
   {
     id: "n-4",
@@ -44,7 +44,7 @@ export const notifications: Notification[] = [
     body: "Hanne Nordbø publiserte en kunngjøring i Tryggere Ungdom.",
     createdAt: "2026-09-05T14:11:00+02:00",
     read: true,
-    href: "/community/tryggere-ungdom/announcements",
+    href: "/community/tryggere-ungdom/feed",
   },
   {
     id: "n-5",
@@ -66,7 +66,7 @@ export const notifications: Notification[] = [
     body: "Amina Sørhaug publiserte en kunngjøring i Tryggere Ruspolitikk.",
     createdAt: "2026-09-05T08:21:00+02:00",
     read: true,
-    href: "/community/tryggere-ruspolitikk/announcements",
+    href: "/community/tryggere-ruspolitikk/feed",
   },
 
   // ── Jonas — one community ────────────────────────────────────────────
@@ -79,7 +79,7 @@ export const notifications: Notification[] = [
     body: "Marte Fjeldstad publiserte en kunngjøring i Under The Rug.",
     createdAt: "2026-09-05T17:31:00+02:00",
     read: false,
-    href: "/community/under-the-rug/announcements",
+    href: "/community/under-the-rug/feed",
   },
   {
     id: "n-11",
