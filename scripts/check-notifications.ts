@@ -36,6 +36,15 @@
  * if the recipient query stops being scoped to the announcement's own
  * community.
  *
+ * Section L does the same for the access request lifecycle added in
+ * 20260916200000: a new request notifies the community's administrators and
+ * nobody else — not its moderators, who cannot open the queue — and a
+ * rejection notifies the applicant when the address belongs to an account.
+ * Approval deliberately notifies no one, and that is asserted rather than
+ * merely absent. Those cases fail if request generation is removed, if the
+ * recipient query stops being scoped to the requested community, or if the
+ * rejection notice goes missing or to the wrong person.
+ *
  * Whatever it creates it removes again, and every row it touches is put back.
  *
  * Run with `npm run check:notifications` against the local stack.
@@ -668,6 +677,253 @@ async function main() {
 
   expect(
     "varslene fra denne seksjonen er ryddet bort",
+    (await admin.from("notifications").select("*", { count: "exact", head: true })).count,
+    10,
+  );
+
+  // ── L. The access request lifecycle ───────────────────────────────────
+  //
+  // Three transitions, two of which now notify. Generation lives inside the
+  // existing SECURITY DEFINER lifecycle functions, so these cases drive those
+  // functions the way the application does — anonymously for the request form,
+  // and as a signed-in administrator for the decision.
+  //
+  // The role boundary under test is `is_admin`, not `can_moderate`:
+  // approve_access_request says a moderator does not decide who is admitted,
+  // and the same predicate guards the queue's RLS, its page and its nav entry.
+  const createdRequestEmails: string[] = [];
+
+  const requestAccess = (
+    client: SupabaseClient<Database>,
+    slug: string,
+    email: string,
+    name?: string,
+  ) => {
+    createdRequestEmails.push(email);
+    return client.rpc("request_community_access", {
+      p_slug: slug,
+      p_email: email,
+      p_display_name: name,
+    });
+  };
+
+  const noticesFor = async (titleLike: string) => {
+    const { data } = await admin
+      .from("notifications")
+      .select("id, user_id, kind, community_id, title, body, href")
+      .like("title", titleLike)
+      .not("id", "in", `(${seededNotificationIds.join(",")})`);
+    return data ?? [];
+  };
+
+  const handlesOf = async (rows: { user_id: string }[]) => {
+    const { data } = await admin.from("profiles").select("id, handle");
+    const byId = new Map(data!.map((p) => [p.id, p.handle]));
+    return rows.map((r) => byId.get(r.user_id)!).sort();
+  };
+
+  // 1. A new request reaches exactly the administrators of that community.
+  const newcomer = "sjekk.soker@example.no";
+  const asked = await requestAccess(anon, TR, newcomer, "Sjekk Søker");
+  expect("forespørselen ble tatt imot", asked.error, null);
+
+  const staffNotices = await noticesFor("Sjekk Søker%");
+  expect(
+    "alle administratorene i fellesskapet fikk beskjed",
+    (await handlesOf(staffNotices)).join(","),
+    "amina,ingrid,karimoen",
+  );
+  expect("og ingen andre", staffNotices.length, 3);
+
+  const notice = staffNotices[0] ?? {
+    kind: "(ingen)",
+    community_id: "(ingen)",
+    href: "(ingen)",
+    title: "(ingen)",
+    body: "",
+  };
+  expect("varselet er av typen medlemskap", notice.kind, "membership");
+  expect("og hører til fellesskapet det gjelder", notice.community_id, TR);
+  expect("lenken går til forespørselskøen", notice.href, `/community/${TR}/requests`);
+  expect("lenken er intern", internalHref(notice.href), notice.href);
+  expect("tittelen navngir søkeren", notice.title, "Sjekk Søker ba om tilgang");
+  expect("teksten sier hvorfor du fikk den", notice.body.includes("Du er administrator"), true);
+
+  // The moderator is deliberately not among them: moderators cannot open the
+  // queue, so a notice would point them at a page that refuses them.
+  const nadiaProfile = await profileId("nadia");
+  expect(
+    "moderatoren fikk ingen — bare administratorer behandler forespørsler",
+    staffNotices.filter((n) => n.user_id === nadiaProfile).length,
+    0,
+  );
+  const linnProfile = await profileId("linn");
+  expect("og vanlige medlemmer heller ikke", staffNotices.filter((n) => n.user_id === linnProfile).length, 0);
+
+  // 2. Asking twice does not tell anyone twice. The insert carries
+  //    `on conflict do nothing`, and the fan-out runs only when a row appeared.
+  const again2 = await requestAccess(anon, TR, newcomer, "Sjekk Søker");
+  expect("en gjentatt forespørsel tas også imot", again2.error, null);
+  expect("men lager ingen nye varsler", (await noticesFor("Sjekk Søker%")).length, 3);
+
+  // 3. Cross-community isolation. Ingrid administers Tryggere and is an
+  //    ordinary member of UTR, so a UTR request must not reach her.
+  const utrSeeker = "sjekk.utr@example.no";
+  await requestAccess(anon, UTR, utrSeeker, "Sjekk UTR");
+  const utrNotices = await noticesFor("Sjekk UTR%");
+  expect(
+    "UTR-forespørselen nådde bare UTRs administratorer",
+    (await handlesOf(utrNotices)).join(","),
+    "marte,robinsaether,vilde",
+  );
+  expect(
+    "og ikke den som bare er vanlig medlem der",
+    utrNotices.filter((n) => n.user_id === ingridId).length,
+    0,
+  );
+  expect(
+    "alle UTR-varslene peker på UTR",
+    utrNotices.every((n) => n.community_id === UTR),
+    true,
+  );
+
+  // 4. The requester is never among the recipients. An address that already
+  //    belongs to a member returns before the queue is touched at all.
+  const aminaEmail = await emailFor("amina");
+  const selfRequest = await requestAccess(anon, TR, aminaEmail, "Sjekk Selv");
+  expect("en forespørsel fra et medlem tas imot uten å si noe", selfRequest.error, null);
+  expect("og lager ingen varsler", (await noticesFor("Sjekk Selv%")).length, 0);
+
+  // 5. Who may decide. The queue is administrators only, at every layer.
+  const trRequest = (
+    await admin.from("access_requests").select("id").eq("email", newcomer).single()
+  ).data!;
+
+  const memberRejects = await linn.rpc("reject_access_request", { p_request_id: trRequest.id });
+  expect("et vanlig medlem kan ikke avslå", memberRejects.data, false);
+
+  const moderatorRejects = await nadia.rpc("reject_access_request", { p_request_id: trRequest.id });
+  expect("en moderator kan ikke avslå", moderatorRejects.data, false);
+
+  const otherAdminRejects = await marte.rpc("reject_access_request", { p_request_id: trRequest.id });
+  expect("en administrator i et annet fellesskap kan ikke avslå", otherAdminRejects.data, false);
+
+  const anonRejects = await anon.rpc("reject_access_request", { p_request_id: trRequest.id });
+  expect("utlogget kan ikke avslå", anonRejects.data ?? null, null);
+
+  const memberApproves = await linn.rpc("approve_access_request", { p_request_id: trRequest.id });
+  expect("et vanlig medlem kan ikke godkjenne", (memberApproves.data ?? []).length, 0);
+  const moderatorApproves = await nadia.rpc("approve_access_request", { p_request_id: trRequest.id });
+  expect("en moderator kan ikke godkjenne", (moderatorApproves.data ?? []).length, 0);
+
+  expect(
+    "ingen av forsøkene endret forespørselen",
+    (await admin.from("access_requests").select("status").eq("id", trRequest.id).single()).data!.status,
+    "pending",
+  );
+  expect("og ingen av dem lagde varsler", (await noticesFor("Forespørselen om tilgang%")).length, 0);
+
+  // 6. Rejection reaches an applicant who has an account.
+  const sofieEmail = await emailFor("sofie");
+  const sofieId = await profileId("sofie");
+  await requestAccess(anon, TR, sofieEmail, "Sjekk Sofie");
+  const sofieRequest = (
+    await admin.from("access_requests").select("id").eq("email", sofieEmail).eq("status", "pending").single()
+  ).data!;
+
+  const rejected = await amina.rpc("reject_access_request", { p_request_id: sofieRequest.id });
+  expect("administrator kan avslå", rejected.data, true);
+
+  const rejection = await noticesFor("Forespørselen om tilgang%");
+  expect("søkeren fikk nøyaktig ett varsel", rejection.length, 1);
+  expect("og det er søkeren selv", rejection[0]?.user_id, sofieId);
+  expect("teksten navngir fellesskapet", rejection[0]?.body.includes("Tryggere Ruspolitikk"), true);
+  expect(
+    "teksten røper ingen begrunnelse",
+    rejection[0]?.body.includes("avslag") || rejection[0]?.body.includes("grunn"),
+    false,
+  );
+
+  // The link must not lead into content they were just refused.
+  expect("lenken går til den offentlige portalen", rejection[0]?.href, "/tryggere-ruspolitikk");
+  expect("og ikke inn i fellesskapet", rejection[0]?.href.startsWith("/community/"), false);
+  expect("lenken er intern", internalHref(rejection[0]?.href ?? ""), rejection[0]?.href);
+
+  // Repeating the rejection changes nothing and says nothing twice.
+  const rejectAgain = await amina.rpc("reject_access_request", { p_request_id: sofieRequest.id });
+  expect("en gjentatt avslagshandling gjør ingenting", rejectAgain.data, false);
+  expect("og lager ikke et varsel til", (await noticesFor("Forespørselen om tilgang%")).length, 1);
+
+  // 7. Rejecting an address with no account is silent, and still succeeds.
+  const stranger = "sjekk.ukjent@example.no";
+  await requestAccess(anon, TR, stranger, "Sjekk Ukjent");
+  const strangerRequest = (
+    await admin.from("access_requests").select("id").eq("email", stranger).eq("status", "pending").single()
+  ).data!;
+  const rejectedStranger = await amina.rpc("reject_access_request", { p_request_id: strangerRequest.id });
+  expect("avslag virker også uten konto", rejectedStranger.data, true);
+  expect(
+    "men det finnes ingen å varsle",
+    (await noticesFor("Forespørselen om tilgang%")).length,
+    1,
+  );
+
+  // 8. Approval mints an invitation and deliberately does *not* notify. The
+  //    outcome travels by email, and accept_invitation_token() writes the one
+  //    in-app record when the link is used — see 20260916200000.
+  const approvalSeeker = "sjekk.godkjent@example.no";
+  await requestAccess(anon, TR, approvalSeeker, "Sjekk Godkjent");
+  const approvalRequest = (
+    await admin.from("access_requests").select("id").eq("email", approvalSeeker).eq("status", "pending").single()
+  ).data!;
+  const notificationsBeforeApproval = (
+    await admin.from("notifications").select("*", { count: "exact", head: true })
+  ).count;
+
+  const approved = await amina.rpc("approve_access_request", { p_request_id: approvalRequest.id });
+  expect("administrator kan godkjenne", ((approved.data as { token: string }[]) ?? []).length, 1);
+  expect(
+    "godkjenning lager ingen varsler — e-posten og innløsningen dekker det",
+    (await admin.from("notifications").select("*", { count: "exact", head: true })).count,
+    notificationsBeforeApproval,
+  );
+  expect(
+    "men den lagde en invitasjon",
+    (await admin.from("invitations").select("*", { count: "exact", head: true }).eq("request_id", approvalRequest.id)).count,
+    1,
+  );
+
+  const approveAgain = await amina.rpc("approve_access_request", { p_request_id: approvalRequest.id });
+  expect(
+    "og en gjentatt godkjenning lager verken invitasjon eller varsel",
+    (await admin.from("invitations").select("*", { count: "exact", head: true }).eq("request_id", approvalRequest.id)).count,
+    1,
+  );
+  expect(
+    "heller ikke et varsel",
+    (await admin.from("notifications").select("*", { count: "exact", head: true })).count,
+    notificationsBeforeApproval,
+  );
+  void approveAgain;
+
+  // Tidy: every request, invitation and notification this section produced.
+  for (const email of createdRequestEmails) {
+    const { data: reqs } = await admin.from("access_requests").select("id").eq("email", email);
+    for (const r of reqs ?? []) await admin.from("invitations").delete().eq("request_id", r.id);
+    await admin.from("access_requests").delete().eq("email", email);
+  }
+  await admin
+    .from("notifications")
+    .delete()
+    .not("id", "in", `(${seededNotificationIds.join(",")})`);
+
+  expect(
+    "forespørslene fra denne seksjonen er ryddet bort",
+    (await admin.from("access_requests").select("*", { count: "exact", head: true })).count,
+    2,
+  );
+  expect(
+    "og varslene også",
     (await admin.from("notifications").select("*", { count: "exact", head: true })).count,
     10,
   );
