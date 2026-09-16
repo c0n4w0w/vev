@@ -10,6 +10,7 @@
     "seed": "tsx scripts/seed.ts",
     "typecheck": "tsc --noEmit",
     "check:content": "tsx scripts/check-content.ts",
+    "check:fixture-time": "tsx scripts/check-fixture-time.ts",
     "check:storage": "tsx scripts/check-storage.ts"
   },
   "dependencies": {
