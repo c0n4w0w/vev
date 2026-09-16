@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   Badge,
@@ -17,7 +16,10 @@ import {
   IconMegaphone,
   IconUsers,
 } from "@/components/ui/icons";
+import { MarkAllReadButton } from "@/components/notifications/MarkAllReadButton";
+import { NotificationRow } from "@/components/notifications/NotificationRow";
 import { getCommunityById, getNotifications, getUnreadCount } from "@/lib/data";
+import { internalHref } from "@/lib/notification-href";
 import { timeAgo } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 import type { NotificationKind } from "@/lib/types";
@@ -61,12 +63,13 @@ export default async function NotificationsPage() {
             ? `${unread} uleste. Varsler samles på tvers av fellesskapene dine.`
             : "Alt er lest. Varsler samles på tvers av fellesskapene dine."
         }
+        action={unread > 0 ? <MarkAllReadButton /> : undefined}
       />
 
       {notifications.length === 0 ? (
         <EmptyState
           title="Ingen varsler"
-          body="Du får beskjed her når noen nevner deg, når et fellesskap publiserer en kunngjøring, eller når et arrangement du er påmeldt nærmer seg."
+          body="Når du får et varsel, havner det her."
         />
       ) : (
         <Panel className="divide-y divide-line">
@@ -78,9 +81,11 @@ export default async function NotificationsPage() {
             const Icon = meta.icon;
 
             return (
-              <Link
+              <NotificationRow
                 key={notification.id}
-                href={notification.href}
+                id={notification.id}
+                href={internalHref(notification.href)}
+                read={notification.read}
                 className={cn(
                   "flex gap-4 px-5 py-4 transition-colors hover:bg-paper-2/60",
                   !notification.read && "bg-skog-soft/30",
@@ -95,7 +100,10 @@ export default async function NotificationsPage() {
                     </span>
                   )}
                   {!notification.read ? (
-                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rust ring-2 ring-surface" />
+                    <>
+                      <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rust ring-2 ring-surface" />
+                      <span className="sr-only">Ulest.</span>
+                    </>
                   ) : null}
                 </span>
 
@@ -121,7 +129,7 @@ export default async function NotificationsPage() {
                     <span className="text-[11px] text-ink-3">{timeAgo(notification.createdAt)}</span>
                   </span>
                 </span>
-              </Link>
+              </NotificationRow>
             );
           })}
         </Panel>

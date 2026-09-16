@@ -1565,3 +1565,54 @@ export async function getUnreadCount(userId: string): Promise<number> {
     .eq("read", false);
   return count ?? 0;
 }
+
+// ── Notification read state ─────────────────────────────────────────────
+//
+// Marking one notification read goes through the ordinary table API rather
+// than an RPC, and deliberately so: after 20260916160000 there is nothing left
+// for a SECURITY DEFINER function to check that the database does not already
+// enforce on its own.
+//
+//   which row    — `notifications_update` admits only `user_id = auth.uid()`,
+//                  so an id belonging to someone else matches nothing. There
+//                  is no ownership test to write here, and writing one would
+//                  only be able to disagree with the policy that actually runs.
+//   which column — `authenticated` holds UPDATE on `read` and on no other
+//                  column, so a request naming any other column is refused
+//                  before a policy is consulted, and the notifications_immutable
+//                  trigger refuses the write even if that grant were restored.
+//
+// A function would add authority rather than remove it — it would run as the
+// table's owner, outside both of those — so the narrow thing is the plain
+// update.
+
+/**
+ * Marks one of the caller's notifications read.
+ *
+ * Returns whether a row was actually affected. A false means the notification
+ * is not the caller's or does not exist; the two are not distinguished, and
+ * the caller should not tell the user which it was.
+ */
+export async function markNotificationRead(notificationId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("notifications")
+    .update({ read: true })
+    .eq("id", notificationId)
+    .select("id")
+    .maybeSingle();
+  return data !== null;
+}
+
+/**
+ * Marks everything the caller has not read.
+ *
+ * This one *is* an RPC, because `mark_notifications_read()` has existed since
+ * the first migration and already scopes itself with `where user_id =
+ * auth.uid()`. It has simply never been called from anywhere.
+ */
+export async function markAllNotificationsRead(): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("mark_notifications_read");
+  return !error;
+}

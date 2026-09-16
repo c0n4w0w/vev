@@ -16,6 +16,8 @@ import {
   getLocalGroups,
   joinEvent,
   leaveEvent,
+  markAllNotificationsRead,
+  markNotificationRead,
   deleteCommunityEmoji as removeEmoji,
   deletePost as removePost,
   rejectAccessRequest,
@@ -31,6 +33,7 @@ import {
   updatePost as editPost,
 } from "@/lib/data";
 import type { AccessFormState } from "@/lib/access-form";
+import type { NotificationFormState } from "@/lib/notification-form";
 import { REQUEST_SENT_MESSAGE } from "@/lib/access-form";
 import type { CommentFormState } from "@/lib/comment-form";
 import {
@@ -187,6 +190,61 @@ export async function setPostPinnedAction(
 
   if (!result.ok) return { status: "error", message: result.error };
   revalidatePosts(communityId);
+  return { status: "ok" };
+}
+
+
+// ── Notifications ───────────────────────────────────────────────────────
+//
+// The unread badge lives in the `(app)` layout, not on any one page, so these
+// are the first actions in this file whose visible effect is in the navigation
+// shell. That is what the layout-scoped revalidation below is for: without it
+// the list updates and the badge keeps its old number until something else
+// happens to rebuild the shell.
+
+/** Clears the cached shell (the unread badge) and the notification list. */
+function revalidateNotifications() {
+  revalidatePath("/notifications");
+  revalidatePath("/", "layout");
+}
+
+/**
+ * Marks a single notification read.
+ *
+ * Called on click, alongside following the notification's link — not from a
+ * form — so it takes the id directly rather than FormData.
+ *
+ * The id is not validated here and does not need to be. `notifications_update`
+ * admits only rows belonging to `auth.uid()`, so somebody else's id, or one
+ * that does not exist, updates nothing; and a client holds UPDATE on the
+ * `read` column alone, so this cannot be turned into a write of anything else.
+ * The result is deliberately not reported back to the user: whether a given
+ * notification id exists is not theirs to learn.
+ */
+export async function markNotificationReadAction(notificationId: string): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const changed = await markNotificationRead(notificationId);
+  if (changed) revalidateNotifications();
+}
+
+/**
+ * Marks everything the caller has not yet read.
+ *
+ * A form action, because it is a real button the user presses.
+ */
+export async function markAllNotificationsReadAction(
+  _prev: NotificationFormState,
+  _formData: FormData,
+): Promise<NotificationFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const ok = await markAllNotificationsRead();
+  if (!ok) return { status: "error", message: "Varslene kunne ikke merkes som lest. Prøv igjen." };
+
+  revalidateNotifications();
   return { status: "ok" };
 }
 
