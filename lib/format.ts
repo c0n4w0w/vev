@@ -10,6 +10,65 @@ function now(): number {
   return Date.now();
 }
 
+/**
+ * The zone this product thinks in.
+ *
+ * Every formatter below renders in it, and `osloInstant` reads back into it,
+ * so a time means the same thing whether it is being written or displayed —
+ * and regardless of where the server happens to be running.
+ */
+export const COMMUNITY_ZONE = "Europe/Oslo";
+
+/** How far `COMMUNITY_ZONE` is from UTC at a given instant, in milliseconds. */
+function zoneOffsetMs(instant: number): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: COMMUNITY_ZONE,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(instant));
+
+  const field = (type: string) => Number(parts.find((part) => part.type === type)!.value);
+
+  return (
+    Date.UTC(
+      field("year"),
+      field("month") - 1,
+      field("day"),
+      field("hour") % 24,
+      field("minute"),
+      field("second"),
+    ) - instant
+  );
+}
+
+/**
+ * Turns a date and a time a person typed into the instant they meant.
+ *
+ * `new Date("2026-10-08T18:00")` is interpreted in whatever zone the process
+ * runs in, so an administrator in Oslo entering 18:00 got 15:00 back from a
+ * server running in Karachi. The times in this product belong to the
+ * community, not to the machine, so they are resolved against
+ * `COMMUNITY_ZONE` explicitly.
+ *
+ * Returns null when the input is not a date and a time.
+ */
+export function osloInstant(date: string, time: string): Date | null {
+  const asIfUtc = Date.parse(`${date}T${time}:00Z`);
+  if (Number.isNaN(asIfUtc)) return null;
+
+  // The offset depends on the instant, and the instant depends on the offset.
+  // One correction settles it everywhere except inside a transition, where the
+  // second pass picks the offset that actually applies.
+  const firstPass = asIfUtc - zoneOffsetMs(asIfUtc);
+  const settled = asIfUtc - zoneOffsetMs(firstPass);
+  return new Date(settled);
+}
+
 const time = new Intl.DateTimeFormat(nb, {
   hour: "2-digit",
   minute: "2-digit",

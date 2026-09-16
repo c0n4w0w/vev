@@ -350,7 +350,7 @@ export type Database = {
         }
         Insert: {
           event_id: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           event_id?: string

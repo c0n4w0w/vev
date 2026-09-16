@@ -1418,6 +1418,80 @@ export async function getEventsForUser(_userId: string): Promise<CommunityEvent[
   return withAttendees(rows(data));
 }
 
+export type EventWriteResult = { ok: true } | { ok: false; error: "full" | "refused" };
+
+/**
+ * Signs the caller up for an event.
+ *
+ * `user_id` is deliberately absent: the column defaults to auth.uid(), and
+ * `event_attendees_write` independently requires the row to be the caller's
+ * own and the caller to be an active member of the event's community. There is
+ * no code path here that could carry a client-supplied attendee.
+ *
+ * A second RSVP hits the (event_id, user_id) primary key rather than creating
+ * a duplicate, and a full event is refused by the capacity trigger.
+ */
+export async function joinEvent(eventId: string): Promise<EventWriteResult> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("event_attendees").insert({ event_id: eventId });
+
+  if (!error) return { ok: true };
+  // Already attending is the state the caller wanted; treat it as success so a
+  // double submit is not reported as a failure.
+  if (error.code === "23505") return { ok: true };
+  if (error.message.includes("event_full")) return { ok: false, error: "full" };
+  return { ok: false, error: "refused" };
+}
+
+/**
+ * Withdraws the caller from an event.
+ *
+ * The delete is filtered by the policy to the caller's own row, so cancelling
+ * somebody else's place removes nothing rather than erroring.
+ */
+export async function leaveEvent(eventId: string): Promise<EventWriteResult> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("event_attendees").delete().eq("event_id", eventId);
+  return error ? { ok: false, error: "refused" } : { ok: true };
+}
+
+/**
+ * Creates an event in one community.
+ *
+ * `host_id` is omitted for the same reason as above — it defaults to
+ * auth.uid() — and `events_insert` requires the caller to administer the
+ * community named in the row. Field limits and the ends-after-starts rule are
+ * in the policy too, so a caller that skips this function still meets them.
+ */
+export async function createEvent(input: {
+  communityId: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  isPublic: boolean;
+  capacity?: number;
+}): Promise<{ ok: true; id: string } | { ok: false }> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("events")
+    .insert({
+      community_id: input.communityId,
+      title: input.title.trim(),
+      description: input.description.trim(),
+      starts_at: input.startsAt,
+      ends_at: input.endsAt,
+      location: input.location.trim(),
+      is_public: input.isPublic,
+      capacity: input.capacity ?? null,
+    })
+    .select("id")
+    .single();
+
+  return error ? { ok: false } : { ok: true, id: data.id };
+}
+
 export async function getEvent(eventId: string): Promise<CommunityEvent | undefined> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.from("events").select("*").eq("id", eventId).maybeSingle();

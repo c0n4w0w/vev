@@ -74,7 +74,14 @@ export function EventCard({
         <div className="flex gap-3">
           <DateBlock iso={event.startsAt} accent={accent} compact />
           <div className="min-w-0 flex-1">
-            <h3 className="font-display text-[0.9375rem] leading-snug text-ink">{event.title}</h3>
+            <h3 className="font-display text-[0.9375rem] leading-snug text-ink">
+              <Link
+                href={`/community/${event.communityId}/events/${event.id}`}
+                className="transition-colors hover:text-ink-2"
+              >
+                {event.title}
+              </Link>
+            </h3>
             <p className="mt-1 text-[12px] leading-snug text-ink-2">
               {formatTime(event.startsAt)}–{formatTime(event.endsAt)} · {event.location}
             </p>
@@ -110,7 +117,14 @@ export function EventCard({
             </Link>
           ) : null}
 
-          <h3 className="font-display text-lg leading-snug text-ink">{event.title}</h3>
+          <h3 className="font-display text-lg leading-snug text-ink">
+            <Link
+              href={`/community/${event.communityId}/events/${event.id}`}
+              className="transition-colors hover:text-ink-2"
+            >
+              {event.title}
+            </Link>
+          </h3>
 
           <dl className="mt-2 space-y-1 text-[13px] text-ink-2">
             <div className="flex items-start gap-1.5">
@@ -143,10 +157,13 @@ export function EventCard({
               {host ? <Avatar user={host} size="xs" /> : null}
               <span>{host ? `Vert: ${host.name}` : "Vert kommer"}</span>
             </div>
-            <span className="text-xs text-ink-3">
+            <Link
+              href={`/community/${event.communityId}/events/${event.id}`}
+              className="text-xs text-ink-3 transition-colors hover:text-ink"
+            >
               {plural(event.attendeeIds.length, "påmeldt", "påmeldte")}
               {event.capacity ? ` av ${event.capacity}` : ""}
-            </span>
+            </Link>
           </div>
         </div>
       </div>

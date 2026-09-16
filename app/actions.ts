@@ -7,12 +7,15 @@ import {
   approveAccessRequest,
   createComment as persistComment,
   createLocalGroup,
+  createEvent,
   createMessage as persistMessage,
   createCommunityEmoji as persistEmoji,
   createPost as persistPost,
   deleteComment as removeComment,
   getCommunityById,
   getLocalGroups,
+  joinEvent,
+  leaveEvent,
   deleteCommunityEmoji as removeEmoji,
   deletePost as removePost,
   rejectAccessRequest,
@@ -36,6 +39,13 @@ import {
 } from "@/lib/emoji-image";
 import type { DmSettingFormState } from "@/lib/dm-settings-form";
 import {
+  EVENT_CREATE_REFUSED,
+  EVENT_FULL,
+  RSVP_REFUSED,
+  type EventFormState,
+  type RsvpFormState,
+} from "@/lib/event-form";
+import {
   ADMIN_REFUSED,
   SELECTION_REFUSED,
   type LocalGroupFormState,
@@ -43,6 +53,7 @@ import {
 import type { MessageFormState } from "@/lib/message-form";
 import type { PostFormState } from "@/lib/post-form";
 import { sendInvitationEmail } from "@/lib/email/invitation";
+import { osloInstant } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 import { siteOrigin } from "@/lib/site-url";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -300,6 +311,119 @@ export async function setAcceptsMemberDmsAction(
   return { status: "ok", acceptsMemberDms: stored };
 }
 
+
+
+// ── Events ──────────────────────────────────────────────────────────────
+//
+// Neither action carries an identity. Who is signing up and who is hosting
+// both come from auth.uid() inside the database, so a tampered form reaches a
+// policy that refuses it rather than a check in this file.
+
+function revalidateEvents(communityId: string, eventId?: string) {
+  revalidatePath(`/community/${communityId}/events`);
+  if (eventId) revalidatePath(`/community/${communityId}/events/${eventId}`);
+  revalidatePath(`/community/${communityId}`);
+  revalidatePath("/events");
+  revalidatePath("/home");
+}
+
+/**
+ * Signs the caller up for an event, or withdraws them.
+ *
+ * One action for both directions: the form says which way it is going, and the
+ * database decides whether it may. A full event is reported as its own thing —
+ * being turned away because there is no room left is not the same as an error,
+ * and the member has done nothing wrong.
+ */
+export async function rsvpEventAction(
+  _prev: RsvpFormState,
+  formData: FormData,
+): Promise<RsvpFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const communityId = String(formData.get("communityId") ?? "");
+  const leaving = formData.get("leaving") === "1";
+
+  const result = leaving ? await leaveEvent(eventId) : await joinEvent(eventId);
+
+  if (!result.ok) {
+    return { status: "error", error: result.error === "full" ? EVENT_FULL : RSVP_REFUSED };
+  }
+
+  revalidateEvents(communityId, eventId);
+  return { status: "ok", attending: !leaving };
+}
+
+/**
+ * Creates an event.
+ *
+ * The date and the two times arrive as separate fields because that is how a
+ * person fills them in; they are combined here into the instants the column
+ * wants. Everything this checks, `events_insert` checks again — this exists to
+ * give a person a sentence rather than a failed insert.
+ */
+export async function createEventAction(
+  _prev: EventFormState,
+  formData: FormData,
+): Promise<EventFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
+  const date = String(formData.get("date") ?? "");
+  const startTime = String(formData.get("startTime") ?? "");
+  const endTime = String(formData.get("endTime") ?? "");
+
+  if (!title) return { status: "error", error: "Arrangementet må ha en tittel." };
+  if (title.length > 120) return { status: "error", error: "Tittelen kan være høyst 120 tegn." };
+  if (!location) return { status: "error", error: "Legg inn et sted." };
+  if (location.length > 120) return { status: "error", error: "Stedet kan være høyst 120 tegn." };
+  if (description.length > 4000) {
+    return { status: "error", error: "Beskrivelsen kan være høyst 4000 tegn." };
+  }
+  if (!date || !startTime || !endTime) {
+    return { status: "error", error: "Fyll inn dato, start og slutt." };
+  }
+
+  // Resolved against the community's own zone rather than the server's, so
+  // 18:00 means 18:00 in Oslo wherever this happens to be running.
+  const startsAt = osloInstant(date, startTime);
+  const endsAt = osloInstant(date, endTime);
+
+  if (!startsAt || !endsAt) {
+    return { status: "error", error: "Dato eller klokkeslett kunne ikke leses." };
+  }
+  if (endsAt <= startsAt) {
+    return { status: "error", error: "Arrangementet må slutte etter at det har begynt." };
+  }
+
+  const rawCapacity = String(formData.get("capacity") ?? "").trim();
+  const capacity = rawCapacity ? Number(rawCapacity) : undefined;
+  if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1)) {
+    return { status: "error", error: "Antall plasser må være et helt tall, eller stå tomt." };
+  }
+
+  const result = await createEvent({
+    communityId,
+    title,
+    description,
+    location,
+    startsAt: startsAt.toISOString(),
+    endsAt: endsAt.toISOString(),
+    isPublic: formData.get("isPublic") === "on",
+    capacity,
+  });
+
+  if (!result.ok) return { status: "error", error: EVENT_CREATE_REFUSED };
+
+  revalidateEvents(communityId, result.id);
+  return { status: "ok" };
+}
 
 // ── Local groups ────────────────────────────────────────────────────────
 //

@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { EventCard } from "@/components/community/EventCard";
+import { EventComposer } from "@/components/community/EventComposer";
 import {
   EmptyState,
   PageContainer,
@@ -8,6 +9,7 @@ import {
 } from "@/components/ui/primitives";
 import {
   getCommunityById,
+  getMembership,
   getPastCommunityEvents,
   getUpcomingCommunityEvents,
   getUsers,
@@ -32,10 +34,14 @@ export default async function CommunityEventsPage({
   const community = await getCommunityById(communityId);
   if (!community) notFound();
 
-  const [upcoming, past] = await Promise.all([
+  const [upcoming, past, membership] = await Promise.all([
     getUpcomingCommunityEvents(community.id),
     getPastCommunityEvents(community.id),
+    getMembership(user.id, community.id),
   ]);
+  // Creation is an administrator's job, the same gate the membership queue
+  // uses. The database refuses everyone else regardless of what is rendered.
+  const isAdmin = membership?.role === "admin";
   const publicCount = upcoming.filter((event) => event.isPublic).length;
   const hosts = new Map(
     (await getUsers([...new Set([...upcoming, ...past].map((e) => e.hostId))])).map((u) => [
@@ -52,10 +58,22 @@ export default async function CommunityEventsPage({
         lead={`${plural(upcoming.length, "kommende arrangement", "kommende arrangementer")}. ${publicCount} av dem vises også på den offentlige siden ${PUBLIC_HOST}/${community.slug}.`}
       />
 
+      {isAdmin ? (
+        <EventComposer
+          communityId={community.id}
+          communityName={community.name}
+          accent={community.branding.accent}
+        />
+      ) : null}
+
       {upcoming.length === 0 ? (
         <EmptyState
           title="Ingen kommende arrangementer"
-          body="Møter, vakter og andre samlinger legges inn her av moderatorer og administratorer."
+          body={
+            isAdmin
+              ? "Møter, vakter og andre samlinger legges inn her. Opprett det første over."
+              : "Møter, vakter og andre samlinger legges inn her av administratorene i fellesskapet."
+          }
         />
       ) : (
         <div className="space-y-4">
