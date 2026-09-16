@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Wordmark } from "@/components/shell/Wordmark";
 import { buttonClass } from "@/components/ui/primitives";
+import { notFoundCopy } from "@/lib/not-found-copy";
+
+// Without this an unmatched address is titled plainly "TING", which reads in a
+// tab or a history entry as though the page loaded.
+export const metadata: Metadata = { title: notFoundCopy.label };
 
 export default function NotFound() {
   return (
@@ -13,22 +19,25 @@ export default function NotFound() {
         </div>
       </header>
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-5 py-20 lg:px-8">
-        <p className="label">Ikke funnet</p>
+        <p className="label">{notFoundCopy.label}</p>
         <h1 className="mt-3 font-display text-[2rem] leading-tight text-ink">
-          Vi finner ikke denne siden
+          {notFoundCopy.heading}
         </h1>
         <p className="mt-3 max-w-lg text-[0.9375rem] leading-relaxed text-ink-2">
-          Adressen kan være feilskrevet, eller så peker den til et fellesskap du ikke har tilgang
-          til. TING viser ikke hvilke fellesskap som finnes, så vi kan dessverre ikke foreslå noe
-          liknende.
+          {notFoundCopy.body}
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/" className={buttonClass({ variant: "secondary" })}>
-            Til forsiden
-          </Link>
-          <Link href="/home" className={buttonClass()}>
-            Til fellesskapene mine
-          </Link>
+          {notFoundCopy.links.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={buttonClass(
+                link.variant === "secondary" ? { variant: "secondary" } : undefined,
+              )}
+            >
+              {link.label}
+            </Link>
+          ))}
         </div>
       </div>
     </main>

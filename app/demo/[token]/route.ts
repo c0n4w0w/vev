@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { enterShowcase } from "@/lib/demo/entry";
+import { notFoundDocument } from "@/lib/demo/not-found-document";
 import { siteOrigin } from "@/lib/site-url";
 
 /**
@@ -22,8 +23,19 @@ export async function GET(request: NextRequest, context: RouteContext<"/demo/[to
 
   if (!result.ok) {
     // Deliberately uniform. The reason is logged server-side where an operator
-    // can see it; the visitor learns nothing either way.
-    return new NextResponse(null, { status: 404 });
+    // can see it; the visitor learns nothing either way — every rejection
+    // produces this identical document, byte for byte.
+    //
+    // It is built here rather than delegated to `notFound()`, which in a route
+    // handler yields a status with no body: a blank white page for anyone whose
+    // demo link has been mistyped or rotated.
+    return new NextResponse(notFoundDocument(), {
+      status: 404,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store, private",
+      },
+    });
   }
 
   const origin = await siteOrigin();
