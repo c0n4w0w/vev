@@ -687,12 +687,24 @@ function messageWriteError(message: string): string {
 
 // ── Posts ───────────────────────────────────────────────────────────────
 
+/**
+ * One community's feed: pinned posts first, then everything by recency.
+ *
+ * The ordering is the query's, not the caller's. A pinned post that only rose
+ * to the top in component state would sink again the moment anyone posted —
+ * which is exactly what the "Festet" badge used to promise and fail to do.
+ *
+ * `pinned` is a boolean and nothing constrains it to one row per community, so
+ * several posts can be pinned at once; within that group the ordinary rule
+ * applies and the newest comes first.
+ */
 export async function getFeed(communityId: string): Promise<Post[]> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("posts")
     .select("*")
     .eq("community_id", communityId)
+    .order("pinned", { ascending: false })
     .order("created_at", { ascending: false });
   return rows(data).map(toPost);
 }
@@ -803,6 +815,40 @@ export async function deletePost(postId: string): Promise<PostWriteResult> {
   if (error) return { ok: false, error: postWriteError(error.message) };
   if (!data) return { ok: false, error: "Du har ikke tilgang til å slette dette innlegget." };
   return { ok: true, id: data.id };
+}
+
+/**
+ * Pins or unpins a post.
+ *
+ * This one *does* go through an RPC, unlike its neighbours above, and the
+ * reason is the shape of the existing policies rather than a change of mind.
+ * `posts_update` restricts updates to the author, which is deliberate — a
+ * moderator follows up conversations, they do not rewrite someone else's
+ * words — but pinning is precisely a thing a moderator does to someone else's
+ * post. Widening that policy would hand over the editing rights with it, so
+ * pinning gets its own entry point that can change this single column.
+ *
+ * The post id is the only argument. The community, and therefore the
+ * permission question, is read from the post itself inside the function, so
+ * there is no community for a caller to supply or forge.
+ */
+export async function setPostPinned(
+  postId: string,
+  pinned: boolean,
+): Promise<PostWriteResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_post_pinned", {
+    p_post_id: postId,
+    p_pinned: pinned,
+  });
+
+  if (error) return { ok: false, error: postWriteError(error.message) };
+  // Null is the function's single answer to every refusal — not a moderator,
+  // wrong community, no such post — so there is nothing to tell apart here.
+  if (data === null) {
+    return { ok: false, error: "Du har ikke tilgang til å feste innlegg her." };
+  }
+  return { ok: true, id: postId };
 }
 
 /** Turns a Postgres message into something worth showing a person. */

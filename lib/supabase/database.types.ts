@@ -941,6 +941,10 @@ export type Database = {
         Args: { p_community_id: string; p_local_group_id: string }
         Returns: boolean
       }
+      set_post_pinned: {
+        Args: { p_pinned: boolean; p_post_id: string }
+        Returns: boolean
+      }
       shares_community: { Args: { other: string }; Returns: boolean }
       shares_visible_authorship: { Args: { other: string }; Returns: boolean }
       shares_visible_directory: { Args: { other: string }; Returns: boolean }

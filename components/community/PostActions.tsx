@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { deletePostAction, updatePostAction } from "@/app/actions";
+import { deletePostAction, setPostPinnedAction, updatePostAction } from "@/app/actions";
 import { IconClose } from "@/components/ui/icons";
 import { emptyPostFormState } from "@/lib/post-form";
 import type { Post } from "@/lib/types";
@@ -29,28 +29,32 @@ function SubmitButton({
 }
 
 /**
- * Edit and delete controls.
+ * Edit, pin and delete controls.
  *
- * `canEdit` and `canDelete` decide only whether the controls are *drawn* — the
- * rules that matter are the `posts_update` and `posts_delete` policies, which
- * run whether or not this component renders anything. A viewer who forged
- * their way to submitting either form gets the same refusal from the database.
+ * `canEdit`, `canPin` and `canDelete` decide only whether the controls are
+ * *drawn* — the rules that matter are the `posts_update` and `posts_delete`
+ * policies and the `set_post_pinned` function, which run whether or not this
+ * component renders anything. A viewer who forged their way to submitting any
+ * of these forms gets the same refusal from the database.
  */
 export function PostActions({
   post,
   canEdit,
   canDelete,
+  canPin,
   accent,
 }: {
   post: Post;
   canEdit: boolean;
   canDelete: boolean;
+  canPin: boolean;
   accent: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [editState, editAction] = useActionState(updatePostAction, emptyPostFormState);
   const [deleteState, deleteAction] = useActionState(deletePostAction, emptyPostFormState);
+  const [pinState, pinAction] = useActionState(setPostPinnedAction, emptyPostFormState);
 
   // Close the editor only once the update is confirmed, adjusted during render
   // rather than in an effect.
@@ -60,7 +64,7 @@ export function PostActions({
     if (editState.status === "ok") setEditing(false);
   }
 
-  if (!canEdit && !canDelete) return null;
+  if (!canEdit && !canDelete && !canPin) return null;
 
   if (editing) {
     return (
@@ -117,6 +121,21 @@ export function PostActions({
         </button>
       ) : null}
 
+      {canPin ? (
+        <form action={pinAction} className="flex items-center">
+          <input type="hidden" name="postId" value={post.id} />
+          <input type="hidden" name="communityId" value={post.communityId} />
+          {/* The wanted state, not a toggle — see setPostPinnedAction. The
+              submit button stays unnamed so it cannot collide with this. */}
+          <input type="hidden" name="pinned" value={post.pinned ? "0" : "1"} />
+          <SubmitButton
+            label={post.pinned ? "Løsne innlegg" : "Fest innlegg"}
+            pendingLabel={post.pinned ? "Løsner …" : "Fester …"}
+            className="text-xs text-ink-3 transition-colors hover:text-ink disabled:opacity-40"
+          />
+        </form>
+      ) : null}
+
       {canDelete ? (
         confirming ? (
           <form action={deleteAction} className="flex items-center gap-2">
@@ -151,6 +170,12 @@ export function PostActions({
       {deleteState.status === "error" ? (
         <span role="alert" className="text-xs text-rust">
           {deleteState.message}
+        </span>
+      ) : null}
+
+      {pinState.status === "error" ? (
+        <span role="alert" className="text-xs text-rust">
+          {pinState.message}
         </span>
       ) : null}
     </div>

@@ -139,6 +139,7 @@ export function PostCard({
                 post={post}
                 canEdit={isAuthor}
                 canDelete={isAuthor || canModerate}
+                canPin={canModerate}
                 accent={community.branding.accent}
               />
             </>

@@ -25,6 +25,7 @@ import {
   setAcceptsMemberDms,
   setLocalGroupActive,
   setMyLocalGroup,
+  setPostPinned,
   toggleReaction as togglePostReaction,
   updateComment as editComment,
   updatePost as editPost,
@@ -156,6 +157,33 @@ export async function deletePostAction(
 
   const communityId = String(formData.get("communityId") ?? "");
   const result = await removePost(String(formData.get("postId") ?? ""));
+
+  if (!result.ok) return { status: "error", message: result.error };
+  revalidatePosts(communityId);
+  return { status: "ok" };
+}
+
+/**
+ * Pins or unpins one post.
+ *
+ * The form carries the desired state rather than a "toggle", so two clicks
+ * racing each other settle on what was actually asked for instead of flipping
+ * twice. Whether the caller may do it at all is decided by `set_post_pinned`,
+ * which checks the post's own community — a tampered id reaches a function
+ * that refuses it.
+ */
+export async function setPostPinnedAction(
+  _prev: PostFormState,
+  formData: FormData,
+): Promise<PostFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const result = await setPostPinned(
+    String(formData.get("postId") ?? ""),
+    formData.get("pinned") === "1",
+  );
 
   if (!result.ok) return { status: "error", message: result.error };
   revalidatePosts(communityId);
