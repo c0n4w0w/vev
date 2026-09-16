@@ -13,6 +13,7 @@
     "check:demo-entry": "tsx scripts/check-demo-entry.ts",
     "check:events": "tsx scripts/check-events.ts",
     "check:fixture-time": "tsx scripts/check-fixture-time.ts",
+    "check:notifications": "tsx scripts/check-notifications.ts",
     "check:pinning": "tsx scripts/check-pinning.ts",
     "check:storage": "tsx scripts/check-storage.ts"
   },
