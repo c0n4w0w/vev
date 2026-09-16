@@ -27,6 +27,15 @@
  * the service role appears only where the seed's own path is what is under
  * test.
  *
+ * Since 20260916180000 the file also covers the other direction: who a
+ * notification is *created* for. Publishing a feed announcement fans out to
+ * every active member of that community except its author, and section K
+ * exercises that through the ordinary publish path — there is no callable
+ * generator to invoke, because the fan-out is an AFTER INSERT trigger. Those
+ * cases fail if the trigger is dropped, if the author exclusion is removed, or
+ * if the recipient query stops being scoped to the announcement's own
+ * community.
+ *
  * Whatever it creates it removes again, and every row it touches is put back.
  *
  * Run with `npm run check:notifications` against the local stack.
@@ -108,6 +117,9 @@ async function unreadCount(handle: string): Promise<number> {
   return count ?? 0;
 }
 
+const TR = "tryggere-ruspolitikk";
+const UTR = "under-the-rug";
+
 async function main() {
   // Roles used below, from the seed:
   //   ingrid — 6 notifications, 3 unread
@@ -131,6 +143,17 @@ async function main() {
 
   // Jonas is the control throughout: nothing Ingrid does may move this number.
   const jonasUnreadBaseline = await unreadCount("jonas");
+
+  // Every notification that existed before this run. The announcement section
+  // creates real ones through the real publish path, and this is how they are
+  // told apart from the seed afterwards — by identity, not by matching titles.
+  const seededNotificationIds = (await admin.from("notifications").select("id")).data!.map(
+    (row) => row.id,
+  );
+
+  /** Rows this run creates through the product's own paths, to be removed again. */
+  const createdPostIds: string[] = [];
+  const createdMessageIds: string[] = [];
 
   // ── A. Reading ────────────────────────────────────────────────────────
   const mine = await ingrid.from("notifications").select("id");
@@ -406,6 +429,249 @@ async function main() {
   expect("tjenesterollen kan opprette varsler (seed-veien)", created.error, null);
   await admin.from("notifications").delete().eq("id", created.data!.id);
 
+  // ── K. Announcements notify the community ─────────────────────────────
+  //
+  // Publishing a feed announcement fans out to every active member of that
+  // community except its author. The fan-out is an AFTER INSERT trigger on
+  // `posts`, so there is no callable generator to test — what these cases
+  // exercise is the ordinary publish path, through PostgREST under the same
+  // policies the composer uses.
+  const [amina, nadia, linn, marte] = await Promise.all([
+    signIn(await emailFor("amina")), // administrator, Tryggere Ruspolitikk
+    signIn(await emailFor("nadia")), // moderator, Tryggere Ruspolitikk
+    signIn(await emailFor("linn")), // ordinary member, Tryggere Ruspolitikk
+    signIn(await emailFor("marte")), // administrator, Under The Rug
+  ]);
+
+  const activeIn = async (communityId: string) => {
+    const { count } = await admin
+      .from("memberships")
+      .select("*", { count: "exact", head: true })
+      .eq("community_id", communityId)
+      .eq("status", "active");
+    return count ?? 0;
+  };
+
+  /** Notifications created since this run began, newest first. */
+  const notificationsSince = async (communityId: string) => {
+    const { data } = await admin
+      .from("notifications")
+      .select("id, user_id, kind, community_id, title, body, href, read")
+      .eq("community_id", communityId)
+      .eq("kind", "announcement")
+      .not("id", "in", `(${seededNotificationIds.join(",")})`);
+    return data ?? [];
+  };
+
+  const publish = (
+    client: SupabaseClient<Database>,
+    communityId: string,
+    fields: Record<string, unknown>,
+  ) =>
+    client
+      .from("posts")
+      .insert({ community_id: communityId, kind: "announcement", body: "Sjekk: kunngjøring", ...fields })
+      .select("id")
+      .single();
+
+  // A. Who may publish one at all.
+  const memberTries = await publish(linn, TR, { title: "Sjekk: medlemmets kunngjøring" });
+  expect("medlem kan ikke publisere kunngjøring", memberTries.error !== null, true);
+  expect("og ingen varsler ble laget", (await notificationsSince(TR)).length, 0);
+
+  const trActive = await activeIn(TR);
+  expect("Tryggere har åtte aktive medlemmer", trActive, 8);
+
+  // B. Fan-out, from an administrator.
+  const adminPost = await publish(amina, TR, { title: "Sjekk: kunngjøring fra administrator" });
+  expect("administrator kan publisere kunngjøring", adminPost.error, null);
+  createdPostIds.push(adminPost.data!.id);
+
+  const fanOut = await notificationsSince(TR);
+  expect("alle aktive medlemmer utenom forfatteren fikk varsel", fanOut.length, trActive - 1);
+
+  const aminaId = await profileId("amina");
+  expect("forfatteren fikk ingen", fanOut.filter((n) => n.user_id === aminaId).length, 0);
+
+  const perRecipient = new Set(fanOut.map((n) => n.user_id));
+  expect("nøyaktig ett varsel per mottaker", perRecipient.size, fanOut.length);
+
+  const activeMembers = (
+    await admin.from("memberships").select("user_id").eq("community_id", TR).eq("status", "active")
+  ).data!.map((m) => m.user_id);
+  expect(
+    "og alle mottakerne er aktive medlemmer av dette fellesskapet",
+    fanOut.every((n) => activeMembers.includes(n.user_id)),
+    true,
+  );
+
+  // C. What the notification says.
+  // A fallback rather than `fanOut[0]!`: if generation is removed entirely the
+  // content checks below should each report what is missing, not crash on the
+  // first property access and take the rest of the run with them.
+  const sample = fanOut[0] ?? {
+    kind: "(ingen varsler)",
+    community_id: "(ingen varsler)",
+    href: "(ingen varsler)",
+    title: "(ingen varsler)",
+    body: "",
+    read: "(ingen varsler)",
+  };
+  expect("varselet er av typen kunngjøring", sample.kind, "announcement");
+  expect("og hører til riktig fellesskap", sample.community_id, TR);
+  expect("lenken peker på fellesskapets feed", sample.href, `/community/${TR}/feed`);
+  expect("lenken er en intern sti", internalHref(sample.href), sample.href);
+  expect(
+    "tittelen navngir kunngjøringen, med samme prefiks som de seedede",
+    sample.title,
+    "Ny kunngjøring: Sjekk: kunngjøring fra administrator",
+  );
+  expect("teksten navngir forfatteren", sample.body.startsWith("Amina Sørhaug publiserte"), true);
+  expect("og fellesskapet", sample.body.includes("Tryggere Ruspolitikk"), true);
+  expect("varselet starter som ulest", sample.read, false);
+
+  // D. No update ever fans out again. This is where a duplicate would come
+  // from if the trigger were widened, and pinning is the obvious candidate.
+  const beforeUpdates = (await notificationsSince(TR)).length;
+  await amina.rpc("set_post_pinned", { p_post_id: adminPost.data!.id, p_pinned: true });
+  expect("å feste kunngjøringen lager ingen nye varsler", (await notificationsSince(TR)).length, beforeUpdates);
+  await amina.rpc("set_post_pinned", { p_post_id: adminPost.data!.id, p_pinned: false });
+  expect("å løsne den heller ikke", (await notificationsSince(TR)).length, beforeUpdates);
+
+  await amina
+    .from("posts")
+    .update({ body: "Sjekk: kunngjøring, endret" })
+    .eq("id", adminPost.data!.id);
+  expect("å endre teksten lager ingen nye varsler", (await notificationsSince(TR)).length, beforeUpdates);
+
+  // E. An ordinary post notifies nobody, pinned or not.
+  const ordinary = await linn
+    .from("posts")
+    .insert({ community_id: TR, body: "Sjekk: helt vanlig innlegg" })
+    .select("id")
+    .single();
+  expect("vanlig innlegg går gjennom", ordinary.error, null);
+  createdPostIds.push(ordinary.data!.id);
+  expect("vanlig innlegg lager ingen varsler", (await notificationsSince(TR)).length, beforeUpdates);
+
+  await nadia.rpc("set_post_pinned", { p_post_id: ordinary.data!.id, p_pinned: true });
+  expect("å feste et vanlig innlegg lager ingen varsler", (await notificationsSince(TR)).length, beforeUpdates);
+  await nadia.rpc("set_post_pinned", { p_post_id: ordinary.data!.id, p_pinned: false });
+
+  // F. #kunngjoringer is a channel, and channels are silent.
+  const channelBefore = (await admin.from("notifications").select("id")).data!.length;
+  const announcementChannel = `${TR}--kunngjoringer`;
+  const posted = await nadia
+    .from("messages")
+    .insert({ channel_id: announcementChannel, body: "Sjekk: melding i kunngjøringskanalen" })
+    .select("id")
+    .single();
+  expect("moderator kan skrive i #kunngjoringer", posted.error, null);
+  createdMessageIds.push(posted.data!.id);
+  expect(
+    "men kanalen lager ingen varsler",
+    (await admin.from("notifications").select("id")).data!.length,
+    channelBefore,
+  );
+
+  // G. A moderator publishing, and the author exclusion again for that role.
+  const modPost = await publish(nadia, TR, { title: "Sjekk: kunngjøring fra moderator" });
+  expect("moderator kan publisere kunngjøring", modPost.error, null);
+  createdPostIds.push(modPost.data!.id);
+
+  const nadiaId = await profileId("nadia");
+  const modFanOut = (await notificationsSince(TR)).filter(
+    (n) => n.title === "Ny kunngjøring: Sjekk: kunngjøring fra moderator",
+  );
+  expect("moderatorens kunngjøring nådde alle andre aktive", modFanOut.length, trActive - 1);
+  expect("og ikke moderatoren selv", modFanOut.filter((n) => n.user_id === nadiaId).length, 0);
+
+  // H. Only active memberships. Nothing writes 'requested' any more, so the
+  // case has to be constructed as the service role to be tested at all.
+  const outsider = await profileId("sofie");
+  await admin
+    .from("memberships")
+    .insert({ user_id: outsider, community_id: TR, role: "member", status: "requested" });
+  const pendingPost = await publish(amina, TR, { title: "Sjekk: kunngjøring med ventende medlem" });
+  createdPostIds.push(pendingPost.data!.id);
+  const pendingFanOut = (await notificationsSince(TR)).filter(
+    (n) => n.title === "Ny kunngjøring: Sjekk: kunngjøring med ventende medlem",
+  );
+  expect("ventende medlemskap får ikke varsel", pendingFanOut.filter((n) => n.user_id === outsider).length, 0);
+  expect("og fan-out er fortsatt bare de aktive", pendingFanOut.length, trActive - 1);
+  await admin.from("memberships").delete().eq("user_id", outsider).eq("community_id", TR);
+
+  // I. Community isolation, both directions.
+  const utrBefore = (await notificationsSince(UTR)).length;
+  expect("ingen kunngjøringsvarsler i UTR ennå", utrBefore, 0);
+
+  const crossCommunity = await publish(nadia, UTR, { title: "Sjekk: moderator utenfor sitt fellesskap" });
+  expect("moderator i ett fellesskap kan ikke kunngjøre i et annet", crossCommunity.error !== null, true);
+  expect("og det lagde ingen varsler", (await notificationsSince(UTR)).length, 0);
+
+  const utrPost = await publish(marte, UTR, { title: "Sjekk: kunngjøring i UTR" });
+  expect("UTR-administrator kan kunngjøre i UTR", utrPost.error, null);
+  createdPostIds.push(utrPost.data!.id);
+
+  const utrFanOut = await notificationsSince(UTR);
+  const utrActive = await activeIn(UTR);
+  expect("UTR-kunngjøringen nådde UTRs aktive medlemmer", utrFanOut.length, utrActive - 1);
+  expect(
+    "alle UTR-varslene peker på UTR",
+    utrFanOut.every((n) => n.community_id === UTR),
+    true,
+  );
+
+  // Ingrid is an ordinary member of UTR and an administrator of Tryggere. She
+  // is a recipient here because of the UTR membership and nothing else.
+  const ingridUtr = utrFanOut.filter((n) => n.user_id === ingridId);
+  expect("den som er medlem begge steder fikk nøyaktig ett UTR-varsel", ingridUtr.length, 1);
+
+  // The Tryggere fan-out did not touch anyone who is only in UTR.
+  const utrOnly = (
+    await admin.from("memberships").select("user_id").eq("community_id", UTR).eq("status", "active")
+  ).data!.map((m) => m.user_id).filter((id) => !activeMembers.includes(id));
+  const trFanOutAll = await notificationsSince(TR);
+  expect(
+    "Tryggere-varslene nådde ingen som bare er i UTR",
+    trFanOutAll.some((n) => utrOnly.includes(n.user_id)),
+    false,
+  );
+
+  // J. The fan-out is not callable. It is a trigger function, revoked from
+  // every API role, and it takes no recipient argument to supply.
+  const rpcAttempt = await amina.rpc("notify_announcement" as never);
+  expect("fan-out kan ikke kalles som RPC", rpcAttempt.error !== null, true);
+
+  const anonPublish = await anon
+    .from("posts")
+    .insert({ community_id: TR, kind: "announcement", body: "Sjekk: utlogget" })
+    .select("id");
+  expect("utlogget kan ikke publisere kunngjøring", anonPublish.error !== null, true);
+
+  const forgedAuthor = await amina
+    .from("posts")
+    .insert({ community_id: TR, kind: "announcement", body: "Sjekk: forfalsket forfatter", author_id: ingridId })
+    .select("id");
+  expect("kan ikke kunngjøre i andres navn", forgedAuthor.error !== null, true);
+
+  // Clean up this section: the posts, the message, and every notification the
+  // fan-out produced.
+  for (const id of createdPostIds) await admin.from("posts").delete().eq("id", id);
+  createdPostIds.length = 0;
+  for (const id of createdMessageIds) await admin.from("messages").delete().eq("id", id);
+  createdMessageIds.length = 0;
+  await admin
+    .from("notifications")
+    .delete()
+    .not("id", "in", `(${seededNotificationIds.join(",")})`);
+
+  expect(
+    "varslene fra denne seksjonen er ryddet bort",
+    (await admin.from("notifications").select("*", { count: "exact", head: true })).count,
+    10,
+  );
+
   // ── The one real generator ────────────────────────────────────────────
   //
   // accept_invitation_token() is currently the only thing in the product that
@@ -418,7 +684,6 @@ async function main() {
     .eq("email", "oskar@lie.studio")
     .single();
 
-  const amina = await signIn(await emailFor("amina"));
   const approval = await amina.rpc("approve_access_request", { p_request_id: request!.id });
   const invitationToken = (approval.data as { token: string }[] | null)?.[0]?.token;
   expect("administrator kunne godkjenne forespørselen", Boolean(invitationToken), true);
