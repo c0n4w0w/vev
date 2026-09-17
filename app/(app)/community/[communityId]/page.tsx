@@ -150,7 +150,17 @@ export default async function CommunityOverviewPage({
       </div>
 
       <PageContainer width="wide" className="py-8 lg:py-10">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12">
+        {/*
+          The single mobile column needs `minmax(0,1fr)` for the same reason the
+          two desktop ones have it. An implicit grid track is sized `auto`,
+          which floors at the widest child's min-content width, and the sidebar
+          contains channel descriptions set in `truncate` — `white-space:
+          nowrap`, whose min-content is the whole unwrapped sentence. The track
+          grew to fit it (444px inside a 335px container) and took the page with
+          it. With a 0 floor the track shrinks and the descriptions ellipsis as
+          they were meant to.
+        */}
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12">
           <div className="space-y-10">
             <section>
               <SectionHeading>Om fellesskapet</SectionHeading>
