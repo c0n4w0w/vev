@@ -55,6 +55,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import { internalHref } from "@/lib/notification-href";
+import { notifications as fixtureNotifications } from "@/lib/mock/notifications";
+import { demoPersonas } from "@/lib/mock/demo-personas";
 import type { Database } from "@/lib/supabase/database.types";
 
 config({ path: ".env.local" });
@@ -129,10 +131,22 @@ async function unreadCount(handle: string): Promise<number> {
 const TR = "tryggere-ruspolitikk";
 const UTR = "under-the-rug";
 
+/**
+ * Fixture account id → the handle it is seeded under.
+ *
+ * For most people the two are the same string. The showcase personas are the
+ * exception: `demo-tryggere` is seeded as `karimoen`, because their fixture ids
+ * name the showcase and their handles name the person.
+ */
+const handleForFixtureUser = new Map(demoPersonas.map((p) => [p.id, p.handle]));
+const asHandle = (fixtureUserId: string) =>
+  handleForFixtureUser.get(fixtureUserId) ?? fixtureUserId;
+
 async function main() {
-  // Roles used below, from the seed:
-  //   ingrid — 6 notifications, 3 unread
-  //   jonas  — 3 notifications, 2 unread. Shares no notification with Ingrid.
+  // Roles used below, from the seed. Counts come from the fixture file rather
+  // than this comment, which is what keeps them from going stale.
+  //   ingrid — administrator in Tryggere, moderator in TU, member in UTR
+  //   jonas  — ordinary member of UTR, and the control for recipient isolation
   //   oskar  — an account with a pending access request to Tryggere
   //   amina  — administrator of Tryggere, so she can approve that request
   const [ingrid, jonas] = await Promise.all([
@@ -160,13 +174,21 @@ async function main() {
     (row) => row.id,
   );
 
+  // The seed's own totals, read from the fixtures rather than retyped here.
+  // The fixture set was rewritten around the reachable demo personas, and
+  // hard-coded counts below would have had to move one by one.
+  const seededTotal = fixtureNotifications.length;
+  const seededUnread = fixtureNotifications.filter((n) => !n.read).length;
+  const seededFor = (handle: string) =>
+    fixtureNotifications.filter((n) => n.userId === handle);
+
   /** Rows this run creates through the product's own paths, to be removed again. */
   const createdPostIds: string[] = [];
   const createdMessageIds: string[] = [];
 
   // ── A. Reading ────────────────────────────────────────────────────────
   const mine = await ingrid.from("notifications").select("id");
-  expect("mottakeren ser sine egne varsler", (mine.data ?? []).length, 6);
+  expect("mottakeren ser sine egne varsler", (mine.data ?? []).length, seededFor("ingrid").length);
 
   const theirs = await ingrid.from("notifications").select("id").eq("user_id", jonasId);
   expect("mottakeren ser ikke andres varsler", (theirs.data ?? []).length, 0);
@@ -199,7 +221,7 @@ async function main() {
   const { count: afterInserts } = await admin
     .from("notifications")
     .select("*", { count: "exact", head: true });
-  expect("ingen nye rader ble laget", afterInserts, 10);
+  expect("ingen nye rader ble laget", afterInserts, seededTotal);
 
   // ── C. The read state, and only the read state ────────────────────────
   const flip = await ingrid
@@ -282,7 +304,7 @@ async function main() {
   const { count: afterDeletes } = await admin
     .from("notifications")
     .select("*", { count: "exact", head: true });
-  expect("alle ti rader er fortsatt der", afterDeletes, 10);
+  expect("alle radene er fortsatt der", afterDeletes, seededTotal);
 
   // ── I. Marking one notification read ──────────────────────────────────
   //
@@ -678,7 +700,7 @@ async function main() {
   expect(
     "varslene fra denne seksjonen er ryddet bort",
     (await admin.from("notifications").select("*", { count: "exact", head: true })).count,
-    10,
+    seededTotal,
   );
 
   // ── L. The access request lifecycle ───────────────────────────────────
@@ -925,7 +947,7 @@ async function main() {
   expect(
     "og varslene også",
     (await admin.from("notifications").select("*", { count: "exact", head: true })).count,
-    10,
+    seededTotal,
   );
 
   // ── The one real generator ────────────────────────────────────────────
@@ -1034,17 +1056,132 @@ async function main() {
   }
   expect("men slipper gjennom en vanlig sti", internalHref("/community/x/feed"), "/community/x/feed");
 
+  // ── M. The seeded set itself ──────────────────────────────────────────
+  //
+  // Everything above tests behaviour. This tests the fixtures, because the
+  // demo is the only thing most people ever see of this feature and it spent
+  // three releases advertising two that do not exist.
+  const fixtureKinds = new Set(fixtureNotifications.map((n) => n.kind));
+  expect("ingen seedede mention-varsler — funksjonen finnes ikke", fixtureKinds.has("mention"), false);
+  expect("ingen seedede arrangementsvarsler — påminnelser finnes ikke", fixtureKinds.has("event"), false);
+  expect(
+    "bare typer produktet faktisk skriver",
+    [...fixtureKinds].sort().join(","),
+    "announcement,membership",
+  );
+
+  const fixtureIds = fixtureNotifications.map((n) => n.id);
+  expect("fixture-id-ene er unike", new Set(fixtureIds).size, fixtureIds.length);
+  expect("noen av dem er lest", fixtureNotifications.some((n) => n.read), true);
+  expect("og noen er uleste", seededUnread > 0, true);
+
+  // Both showcase personas have something to look at, and something unread so
+  // the badge is not a dead ornament.
+  for (const persona of ["demo-tryggere", "demo-utr"] as const) {
+    const rows = seededFor(persona);
+    expect(`${asHandle(persona)} har seedede varsler`, rows.length > 0, true);
+    expect(`${asHandle(persona)} har minst ett ulest`, rows.some((n) => !n.read), true);
+  }
+
+  // Every seeded link is an internal path that actually resolves.
+  const routes = new Set<string>();
+  for (const community of [TR, "tryggere-ungdom", UTR]) {
+    routes.add(`/community/${community}`);
+    routes.add(`/community/${community}/feed`);
+    routes.add(`/community/${community}/requests`);
+  }
+  for (const row of fixtureNotifications) {
+    expect(`lenken i ${row.id} er intern`, internalHref(row.href), row.href);
+    expect(`lenken i ${row.id} peker på en rute som finnes`, routes.has(row.href), true);
+  }
+
+  // The rule the fixtures must not quietly break: a seeded notification may
+  // never hand its recipient something their role in that community does not
+  // already give them. An announcement needs active membership; a request
+  // notice needs `admin`, which is what approve_access_request requires and
+  // what the queue's own policy enforces.
+  const { data: allMemberships } = await admin
+    .from("memberships")
+    .select("community_id, status, role, profiles!memberships_user_id_fkey!inner(handle)");
+  const roleIn = new Map(
+    (allMemberships as unknown as {
+      community_id: string;
+      status: string;
+      role: string;
+      profiles: { handle: string };
+    }[]).map((m) => [`${m.profiles.handle}|${m.community_id}`, `${m.role}|${m.status}`]),
+  );
+  const handleOf = new Map(
+    (await admin.from("profiles").select("id, handle")).data!.map((p) => [p.id, p.handle]),
+  );
+  void handleOf;
+
+  for (const row of fixtureNotifications) {
+    if (!row.communityId) continue;
+    const role = roleIn.get(`${asHandle(row.userId)}|${row.communityId}`) ?? "(ingen)";
+    expect(`${row.id}: mottakeren er aktivt medlem der`, role.endsWith("|active"), true);
+
+    if (row.href.endsWith("/requests")) {
+      expect(`${row.id}: bare administratorer får forespørselsvarsler`, role, "admin|active");
+    }
+  }
+
+  // Stated the other way round, because it is the case most likely to be got
+  // wrong: Kari moderates Tryggere Ungdom, and moderators do not process
+  // requests, so she must have no request notice there.
+  expect(
+    "moderatorrollen gir ingen forespørselsvarsler",
+    fixtureNotifications.filter(
+      (n) => n.userId === "demo-tryggere" && n.communityId === "tryggere-ungdom" && n.href.endsWith("/requests"),
+    ).length,
+    0,
+  );
+
+  // An announcement notice must never be about the recipient's own post.
+  const { data: announcementPosts } = await admin
+    .from("posts")
+    .select("title, community_id, profiles!inner(handle)")
+    .eq("kind", "announcement");
+  for (const row of fixtureNotifications.filter((n) => n.kind === "announcement")) {
+    const post = (announcementPosts as unknown as {
+      title: string;
+      community_id: string;
+      profiles: { handle: string };
+    }[]).find((p) => row.title === `Ny kunngjøring: ${p.title}` && p.community_id === row.communityId);
+    expect(`${row.id}: kunngjøringen finnes faktisk`, Boolean(post), true);
+    expect(`${row.id}: og mottakeren skrev den ikke selv`, post?.profiles.handle === asHandle(row.userId), false);
+  }
+
+  // The seed is deterministic: what is in the database is exactly the fixture
+  // set, once each. A second seed cannot add to it, which is the property that
+  // matters when the seed is run repeatedly during a demo.
+  const { data: live } = await admin
+    .from("notifications")
+    .select("title, read, href, profiles!inner(handle)");
+  const liveKey = (r: { profiles: { handle: string }; title: string; read: boolean; href: string }) =>
+    `${r.profiles.handle}|${r.title}|${r.read}|${r.href}`;
+  const liveRows = (live as unknown as {
+    profiles: { handle: string };
+    title: string;
+    read: boolean;
+    href: string;
+  }[]).map(liveKey).sort();
+  const wantRows = fixtureNotifications
+    .map((n) => `${asHandle(n.userId)}|${n.title}|${n.read}|${n.href}`)
+    .sort();
+  expect("databasen holder nøyaktig fixture-settet", liveRows.join("\n"), wantRows.join("\n"));
+
   // ── Back to where we started ──────────────────────────────────────────
   const { count: finalCount } = await admin
     .from("notifications")
     .select("*", { count: "exact", head: true });
-  expect("ti varsler, som i seed", finalCount, 10);
+  expect("like mange varsler som i seed", finalCount, seededTotal);
 
   const { count: finalUnread } = await admin
     .from("notifications")
     .select("*", { count: "exact", head: true })
     .eq("read", false);
-  expect("og seks av dem er uleste", finalUnread, 6);
+  expect("og like mange uleste", finalUnread, seededUnread);
 
   const { count: memberships } = await admin
     .from("memberships")

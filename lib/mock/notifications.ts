@@ -1,31 +1,166 @@
 import type { Notification } from "@/lib/types";
 
+/**
+ * Seeded notifications.
+ *
+ * Every row here is one the product could actually have produced. That was not
+ * true before: the previous set opened with "Hanne nevnte deg i #samarbeid" and
+ * "Rigg og gjennomgang om 19 dager — Du er påmeldt", and TING has no mentions
+ * and no event reminders. A demo whose notification list advertises two
+ * features that do not exist is worse than an empty one, because the empty one
+ * is at least honest.
+ *
+ * It was also aimed at the wrong people. The set was written around Ingrid,
+ * who spans three communities and therefore makes the richest list — and then
+ * `lib/mock/demo-personas.ts` deliberately made the reachable personas narrow,
+ * for good reasons it explains at length. Nobody rewrote this file, so Kari and
+ * Robin, the only two accounts a showcase link can sign anyone in as, had none
+ * at all. The bell was permanently empty in the only session anyone sees.
+ *
+ * ── What may appear here ────────────────────────────────────────────────
+ *
+ * Only the three shapes the database actually writes, copied from the
+ * generators so that seeded and live notifications are indistinguishable:
+ *
+ *   announcement  — notify_announcement(), 20260916180000.
+ *                   "Ny kunngjøring: <tittel>" / "<Forfatter> publiserte en
+ *                   kunngjøring i <Fellesskap>." → /community/<id>/feed
+ *   membership    — request_community_access(), 20260916200000.
+ *                   "<Navn> ba om tilgang" / "Forespørselen kom inn til
+ *                   <Fellesskap>. Du er administrator der."
+ *                   → /community/<id>/requests
+ *   membership    — accept_invitation_token(), 20260908150000.
+ *                   "Du er nå medlem av <Fellesskap>" → /community/<id>
+ *
+ * The `mention` and `event` kinds stay in the enum — removing an enum value in
+ * PostgreSQL is a rebuild of every column that uses it, which 20260908160000
+ * already declined to do for `membership_status` — but nothing seeds them, and
+ * nothing should until those features exist.
+ *
+ * ── Everything below is checkable against the rest of the fixtures ──────
+ *
+ * Each announcement notice names a post that exists in `posts.ts`, written by
+ * that post's real author, in a community the recipient is an active member of,
+ * and never one they wrote themselves. Each request notice names an address in
+ * `access-requests.ts` and goes only to administrators of the community it was
+ * sent to. Timestamps sit just after the thing they are about, so the shift in
+ * `fixture-time.ts` keeps them in order.
+ *
+ * This is a curated snapshot rather than a replay: a real request notifies
+ * *every* administrator, and these seed only the ones whose lists are worth
+ * looking at. What is asserted in `check-notifications.ts` is that no seeded
+ * row grants its recipient something their role does not — not that fan-out is
+ * exhaustive.
+ */
 export const notifications: Notification[] = [
-  // ── Ingrid — active across three communities ─────────────────────────
+  // ── Kari Moen — the Tryggere showcase persona ────────────────────────
+  //
+  // Administrator in Tryggere Ruspolitikk, moderator in Tryggere Ungdom. The
+  // split is the point of her account, and her notifications show it: she is
+  // told about the request queue she can actually work, and about an
+  // announcement in the youth organisation where she is only staff, not an
+  // administrator. There is deliberately no request notice for Tryggere
+  // Ungdom — a moderator does not decide who is admitted, and
+  // `access_requests` will not even show her that queue.
   {
-    id: "n-1",
-    userId: "ingrid",
-    kind: "mention",
-    communityId: "tryggere-ungdom",
-    title: "Hanne nevnte deg i #samarbeid",
-    body: "«Moderorganisasjonen kan stille med en fagperson på ett av besøkene hvis det hjelper.»",
-    createdAt: "2026-09-06T11:46:00+02:00",
+    id: "n-kari-1",
+    userId: "demo-tryggere",
+    kind: "membership",
+    communityId: "tryggere-ruspolitikk",
+    title: "Turid Moen ba om tilgang",
+    body: "Forespørselen kom inn til Tryggere Ruspolitikk. Du er administrator der.",
+    createdAt: "2026-09-08T09:40:00+02:00",
     read: false,
-    href: "/community/tryggere-ungdom/channel/tryggere-ungdom--samarbeid",
+    href: "/community/tryggere-ruspolitikk/requests",
   },
   {
-    id: "n-2",
+    id: "n-kari-2",
+    userId: "demo-tryggere",
+    kind: "membership",
+    communityId: "tryggere-ruspolitikk",
+    title: "Oskar Lie ba om tilgang",
+    body: "Forespørselen kom inn til Tryggere Ruspolitikk. Du er administrator der.",
+    createdAt: "2026-09-05T11:05:00+02:00",
+    read: false,
+    href: "/community/tryggere-ruspolitikk/requests",
+  },
+  {
+    id: "n-kari-3",
+    userId: "demo-tryggere",
+    kind: "announcement",
+    communityId: "tryggere-ungdom",
+    title: "Ny kunngjøring: Høstens kursrekke er klar",
+    body: "Hanne Nordbø publiserte en kunngjøring i Tryggere Ungdom.",
+    createdAt: "2026-09-05T14:11:00+02:00",
+    read: false,
+    href: "/community/tryggere-ungdom/feed",
+  },
+  {
+    id: "n-kari-4",
+    userId: "demo-tryggere",
+    kind: "announcement",
+    communityId: "tryggere-ruspolitikk",
+    title: "Ny kunngjøring: Høringssvaret om rusreformen er levert",
+    body: "Amina Sørhaug publiserte en kunngjøring i Tryggere Ruspolitikk.",
+    createdAt: "2026-09-05T08:21:00+02:00",
+    read: true,
+    href: "/community/tryggere-ruspolitikk/feed",
+  },
+
+  // ── Robin Sæther — the Under The Rug showcase persona ────────────────
+  //
+  // Administrator in Under The Rug and nothing else, which is what keeps that
+  // showcase from wandering into a civic NGO. It also bounds this list: Under
+  // The Rug has exactly one announcement in `posts.ts` and no access requests
+  // in `access-requests.ts`, so one announcement notice is everything the
+  // fixture graph can honestly support. The second is his own joining, which
+  // is the notification `accept_invitation_token()` writes, dated to the
+  // membership in `demo-personas.ts` rather than to something more recent and
+  // more convenient.
+  {
+    id: "n-robin-1",
+    userId: "demo-utr",
+    kind: "announcement",
+    communityId: "under-the-rug",
+    title: "Ny kunngjøring: Høstprogrammet er klart",
+    body: "Marte Fjeldstad publiserte en kunngjøring i Under The Rug.",
+    createdAt: "2026-09-05T17:31:00+02:00",
+    read: false,
+    href: "/community/under-the-rug/feed",
+  },
+  {
+    id: "n-robin-2",
+    userId: "demo-utr",
+    kind: "membership",
+    communityId: "under-the-rug",
+    title: "Du er nå medlem av Under The Rug",
+    body: "Invitasjonen er tatt i bruk. Du kan lese og delta i fellesskapet.",
+    createdAt: "2023-04-02T10:15:00+02:00",
+    read: true,
+    href: "/community/under-the-rug",
+  },
+
+  // ── Ingrid Hovden — one account across three organisations ───────────
+  //
+  // Not reachable from a showcase link, and kept anyway: she is the fixture
+  // that demonstrates one person holding a different role in each community,
+  // and her notification list is where that is most visible. Administrator in
+  // Tryggere Ruspolitikk, so the request queue reaches her; moderator in
+  // Tryggere Ungdom and an ordinary member of Under The Rug, so their
+  // announcements do and their queues do not.
+  {
+    id: "n-ingrid-1",
     userId: "ingrid",
     kind: "membership",
     communityId: "tryggere-ruspolitikk",
-    title: "Oskar Lie ber om tilgang",
-    body: "Søknaden venter på behandling. Du er administrator i dette fellesskapet.",
-    createdAt: "2026-09-06T09:12:00+02:00",
+    title: "Oskar Lie ba om tilgang",
+    body: "Forespørselen kom inn til Tryggere Ruspolitikk. Du er administrator der.",
+    createdAt: "2026-09-05T11:05:00+02:00",
     read: false,
-    href: "/community/tryggere-ruspolitikk/members",
+    href: "/community/tryggere-ruspolitikk/requests",
   },
   {
-    id: "n-3",
+    id: "n-ingrid-2",
     userId: "ingrid",
     kind: "announcement",
     communityId: "under-the-rug",
@@ -36,7 +171,7 @@ export const notifications: Notification[] = [
     href: "/community/under-the-rug/feed",
   },
   {
-    id: "n-4",
+    id: "n-ingrid-3",
     userId: "ingrid",
     kind: "announcement",
     communityId: "tryggere-ungdom",
@@ -47,73 +182,39 @@ export const notifications: Notification[] = [
     href: "/community/tryggere-ungdom/feed",
   },
   {
-    id: "n-5",
-    userId: "ingrid",
-    kind: "event",
-    communityId: "under-the-rug",
-    title: "Rigg og gjennomgang om 19 dager",
-    body: "Fredag 25. september, 14.00 — Kabelgata 37. Du er påmeldt.",
-    createdAt: "2026-09-05T08:00:00+02:00",
-    read: true,
-    href: "/community/under-the-rug/events",
-  },
-  {
-    id: "n-6",
+    id: "n-ingrid-4",
     userId: "ingrid",
     kind: "announcement",
     communityId: "tryggere-ruspolitikk",
-    title: "Høringssvaret om rusreformen er levert",
+    title: "Ny kunngjøring: Høringssvaret om rusreformen er levert",
     body: "Amina Sørhaug publiserte en kunngjøring i Tryggere Ruspolitikk.",
     createdAt: "2026-09-05T08:21:00+02:00",
     read: true,
     href: "/community/tryggere-ruspolitikk/feed",
   },
 
-  // ── Jonas — one community ────────────────────────────────────────────
+  // ── Jonas Aalborg — one community, one notification ──────────────────
+  //
+  // An ordinary member of Under The Rug and nothing else. He is here so the
+  // fixtures hold at least one account whose list is what most members' lists
+  // actually look like: short.
   {
-    id: "n-10",
+    id: "n-jonas-1",
     userId: "jonas",
     kind: "announcement",
     communityId: "under-the-rug",
-    title: "Høstprogrammet er klart",
+    title: "Ny kunngjøring: Høstprogrammet er klart",
     body: "Marte Fjeldstad publiserte en kunngjøring i Under The Rug.",
     createdAt: "2026-09-05T17:31:00+02:00",
     read: false,
     href: "/community/under-the-rug/feed",
   },
-  {
-    id: "n-11",
-    userId: "jonas",
-    kind: "event",
-    communityId: "under-the-rug",
-    title: "Lydtest med publikum om 12 dager",
-    body: "Fredag 18. september, 19.00 — Kabelgata 37. Du er påmeldt.",
-    createdAt: "2026-09-04T09:00:00+02:00",
-    read: false,
-    href: "/community/under-the-rug/events",
-  },
-  {
-    id: "n-12",
-    userId: "jonas",
-    kind: "mention",
-    communityId: "under-the-rug",
-    title: "Eirik svarte deg i #generelt",
-    body: "«Har en Radial. Kan legge den i lokalet i morgen tidlig.»",
-    createdAt: "2026-09-06T12:42:00+02:00",
-    read: true,
-    href: "/community/under-the-rug/channel/under-the-rug--generelt",
-  },
 
-  // ── Sofie — no memberships, one invitation ───────────────────────────
-  {
-    id: "n-20",
-    userId: "sofie",
-    kind: "invitation",
-    communityId: "tryggere-ungdom",
-    title: "Hanne Nordbø har invitert deg til Tryggere Ungdom",
-    body: "«Hei Sofie — hyggelig å møte deg på fagdagen. Her er invitasjonen jeg lovte.»",
-    createdAt: "2026-09-03T14:12:00+02:00",
-    read: false,
-    href: "/tryggere-ungdom",
-  },
+  // Sofie Lind has none, which is the honest answer rather than an oversight.
+  // She belongs to no community, so no announcement can reach her and no queue
+  // is hers to work. Her previous notification announced an invitation to
+  // Tryggere Ungdom that does not exist anywhere in the fixtures — the seed
+  // creates no invitations and no 'invited' memberships, because
+  // 20260908160000 replaced that model — so it described a state the database
+  // has never been in.
 ];

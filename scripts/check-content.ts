@@ -27,6 +27,7 @@ import { messages } from "@/lib/mock/messages";
 import { notifications } from "@/lib/mock/notifications";
 import { posts } from "@/lib/mock/posts";
 import { demoUserIds, users } from "@/lib/mock/users";
+import { demoPersonas } from "@/lib/mock/demo-personas";
 
 const failures: string[] = [];
 let checks = 0;
@@ -36,7 +37,12 @@ function check(label: string, condition: boolean, detail?: string) {
   if (!condition) failures.push(detail ? `${label} — ${detail}` : label);
 }
 
-const userIds = new Set(users.map((user) => user.id));
+// The accounts the seed actually creates, which is `users` plus the two
+// showcase personas — `scripts/seed.ts` concatenates exactly these. Leaving the
+// personas out made every fixture that names one look like a dangling
+// reference, which is what happened the moment the notification fixtures were
+// written around Kari and Robin.
+const userIds = new Set([...users, ...demoPersonas].map((user) => user.id));
 const communityIds = new Set(communities.map((community) => community.id));
 const channelIds = new Set(channels.map((channel) => channel.id));
 
