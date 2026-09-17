@@ -1,9 +1,15 @@
 import type { User } from "@/lib/types";
 
 /**
- * The three accounts at the top are the ones the login screen offers, chosen to
- * demonstrate the no / one / many communities cases. The rest populate member
- * lists, threads and events.
+ * The people in the fixtures.
+ *
+ * The three accounts at the top cover the membership shapes the product has to
+ * handle — many communities, exactly one, and none at all — and the rest
+ * populate member lists, threads and events. They were once offered by name on
+ * a demo login screen, backed by a shared password; that path went in 50fe465,
+ * and a showcase visitor now arrives through `/demo/<token>` as one of the two
+ * personas in `demo-personas.ts`. The three stayed because the shapes they
+ * cover are still worth having, not because anything signs in as them.
  *
  * A person's communities are unrelated to each other: an account is held by the
  * individual, not by any organisation, so the same person turns up in a civic
@@ -212,8 +218,14 @@ export const users: User[] = [
   },
 ];
 
-/** The account used when no explicit choice has been made. */
-export const defaultUserId = "ingrid";
-
-/** Accounts offered on the login screen, in the order they appear. */
+/**
+ * The three membership shapes, in order: many communities, one, none.
+ *
+ * Not the showcase personas — those are Kari and Robin in `demo-personas.ts`,
+ * and they are the only accounts a `/demo/<token>` link signs anyone in as.
+ * These three are a fixture-coverage guarantee: `check-content.ts` asserts that
+ * Ingrid is in all three communities, Jonas in exactly one, and Sofie in none
+ * and with no membership row at all, so the empty and cold-start screens always
+ * have an account that actually reaches them.
+ */
 export const demoUserIds = ["ingrid", "jonas", "sofie"];

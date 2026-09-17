@@ -146,12 +146,12 @@ databasen — ikke bare i applikasjonskoden.
   og den som eventuelt inviterte deg. Ikke mer.
 - **Medlemskap endres bare gjennom databasefunksjoner.** `memberships` har ingen
   insert-, update- eller delete-policy i det hele tatt. Overgangene
-  (`request_access`, `accept_invitation`, `decline_invitation`,
-  `approve_membership`, `reject_membership`) sjekker sine egne forutsetninger, så
-  reglene holder uansett hva som kaller dem.
+  (`request_community_access`, `approve_access_request`,
+  `reject_access_request`, `accept_invitation_token`) sjekker sine egne
+  forutsetninger, så reglene holder uansett hva som kaller dem.
 - **En innlogget ikke-medlem som prøver `/community/<id>`** blir sendt til
-  portalen hvis de har en invitasjon eller en søknad liggende, og får ellers 404
-  — vi bekrefter ikke at rommet finnes.
+  fellesskapets offentlige portal — vi bekrefter ikke at det private rommet
+  finnes. Finnes det ingen portal å sende dem til, blir det 404.
 
 ---
 
@@ -205,29 +205,40 @@ prototypen før migreringen; dette bekrefter at radsikkerheten oppfører seg lik
 3. `/community/under-the-rug` sender deg til `/login`.
 4. `/finnes-ikke` gir 404.
 
-**Som Sofie (ingen fellesskap, én invitasjon)**
+**Som showcase-personaene** — gå inn via `/demo/<token>`, se
+«Showcase-innlogging» over. Tokenet ligger i miljøet, ikke her.
 
-5. `/home` viser tom tilstand og invitasjonen til Tryggere Ungdom.
-6. `/community/tryggere-ungdom` sender deg til portalen — invitasjon er ikke tilgang.
-7. Portalen viser «Du er invitert», med hvem som inviterte.
-8. «Nei takk» → invitasjonen forsvinner fra hjem, sidefelt og varsler blir lest.
-9. Portalen tilbyr nå «Be om tilgang» i stedet.
-10. Send en søknad til `/tryggere-ruspolitikk` → «Forespørselen er sendt», og
-    `/communities` viser «Venter på svar» uten å legge den i Mine fellesskap.
-11. Ta imot invitasjonen på nytt (kjør seed igjen) → du havner rett inn i
-    fellesskapet, står i medlemslisten merket «Deg».
+5. Tryggere-lenken logger deg inn som **Kari Moen** og lander på Tryggere
+   Ruspolitikk. Bytteren viser hennes to fellesskap — Tryggere Ruspolitikk og
+   Tryggere Ungdom — og ingenting fra Under The Rug.
+6. `/notifications` viser fire varsler, tre uleste: to forespørsler om tilgang
+   fra fellesskapet hun administrerer, og kunngjøringer fra begge. Klikk på ett
+   → det ene merkes som lest, telleren i sidefeltet går ned, og lenken lander
+   der varselet peker.
+7. UTR-lenken logger deg inn som **Robin Sæther** og lander på Under The Rug.
+   Bytteren har bare det ene fellesskapet, og varslene hans er bare derfra.
+
+**Som Sofie (kaldstart: ingen fellesskap, ingen medlemskapsrad)**
+
+8. `/home` og `/communities` viser tom tilstand — ingen katalog, ingen
+   invitasjon liggende.
+9. `/community/tryggere-ungdom` sender deg til den offentlige portalen. Det
+   private rommet bekreftes ikke.
+10. Portalen tilbyr «Be om tilgang» → «Forespørselen er sendt». Svaret er det
+    samme uansett hva databasen fant.
 
 **Som Ingrid (administrator i Tryggere Ruspolitikk, moderator i Tryggere Ungdom,
 medlem i Under The Rug)**
 
-12. `/community/tryggere-ruspolitikk/members` viser ventende søknader med
-    Godkjenn/Avslå.
-13. Godkjenn → personen flyttes til medlemslisten og får varselet «Du har fått
-    tilgang til …».
-14. Avslå → raden forsvinner. Seksjonen skjules når køen er tom.
-15. `/community/tryggere-ungdom/members` viser ingen Godkjenn/Avslå — moderator
-    er ikke administrator.
-16. `/community/under-the-rug/members` har **ingen** admin-knapper — der er hun
+11. `/community/tryggere-ruspolitikk/requests` viser køen med Godkjenn/Avslå.
+    Den ligger under Forespørsler i sidefeltet, og bare for administratorer.
+12. Godkjenn → TING sender en invitasjon på e-post. Personen blir medlem først
+    når lenken tas i bruk, og får varselet «Du er nå medlem av …» da.
+13. Avslå → raden forsvinner, og søkeren får beskjed hvis adressen hører til en
+    konto.
+14. `/community/tryggere-ungdom/requests` sier «Kun for administratorer» —
+    moderator er ikke administrator.
+15. `/community/under-the-rug/members` har **ingen** admin-knapper — der er hun
     bare medlem.
 
 **I databasen** (`psql` mot prosjektet, eller SQL Editor)
