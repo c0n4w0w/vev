@@ -1,8 +1,28 @@
 import type { CommunityEvent } from "@/lib/types";
 
+export type SeedEvent = CommunityEvent & {
+  /** Human-readable fixture key; the seed resolves it to events.local_group_id. */
+  localGroupName?: string;
+};
+
 /** `isPublic` events are the only ones that appear on a community's portal. */
-export const events: CommunityEvent[] = [
+export const events: SeedEvent[] = [
   // ── Tryggere Ruspolitikk ──────────────────────────────────────────────
+  {
+    id: "e-tr-local-1",
+    communityId: "tryggere-ruspolitikk",
+    localGroupName: "FTR Trøndelag",
+    title: "Medlemsmøte i Trondheim",
+    description:
+      "Lokalt medlemsmøte om høstens standvakter og møtet med kommunen. Nye medlemmer er særlig velkommen.",
+    startsAt: "2026-09-24T18:00:00+02:00",
+    endsAt: "2026-09-24T20:00:00+02:00",
+    location: "Trondheim frivilligsentral",
+    isPublic: false,
+    hostId: "demo-tryggere",
+    attendeeIds: ["demo-tryggere", "petter"],
+    capacity: 24,
+  },
   {
     id: "e-tr-1",
     communityId: "tryggere-ruspolitikk",

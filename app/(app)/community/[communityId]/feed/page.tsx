@@ -7,6 +7,7 @@ import {
   getCommunityEmojis,
   getCommunityById,
   getFeed,
+  getLocalGroups,
   getMembership,
   getUsers,
 } from "@/lib/data";
@@ -28,9 +29,10 @@ export default async function CommunityFeedPage({
   const community = await getCommunityById(communityId);
   if (!community) notFound();
 
-  const [membership, feed] = await Promise.all([
+  const [membership, feed, groups] = await Promise.all([
     getMembership(user.id, community.id),
     getFeed(community.id),
+    getLocalGroups(community.id),
   ]);
   const customEmojis = await getCommunityEmojis(community.id);
   const commentsByPost = await getCommentsForPosts(feed.map((post) => post.id));
@@ -54,6 +56,7 @@ export default async function CommunityFeedPage({
         user={user}
         community={community}
         canAnnounce={membership?.role === "admin" || membership?.role === "moderator"}
+        localGroups={groups.filter((group) => group.active)}
       />
 
       <div className="mt-6 space-y-4">

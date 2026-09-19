@@ -143,6 +143,8 @@ export interface Message {
 export interface Post {
   id: string;
   communityId: string;
+  /** Optional local group scope. Absent means community-wide. */
+  localGroupId?: string;
   authorId: string;
   /** Optional headline; short updates have none. */
   title?: string;
@@ -163,6 +165,8 @@ export interface Post {
 export interface CommunityEvent {
   id: string;
   communityId: string;
+  /** Optional local group scope. Absent means community-wide. */
+  localGroupId?: string;
   title: string;
   description: string;
   /** ISO timestamp for the start. */

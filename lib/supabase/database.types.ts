@@ -382,6 +382,7 @@ export type Database = {
           host_id: string | null
           id: string
           is_public: boolean
+          local_group_id: string | null
           location: string
           starts_at: string
           title: string
@@ -394,6 +395,7 @@ export type Database = {
           host_id?: string | null
           id?: string
           is_public?: boolean
+          local_group_id?: string | null
           location: string
           starts_at: string
           title: string
@@ -406,6 +408,7 @@ export type Database = {
           host_id?: string | null
           id?: string
           is_public?: boolean
+          local_group_id?: string | null
           location?: string
           starts_at?: string
           title?: string
@@ -424,6 +427,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_local_group_fkey"
+            columns: ["local_group_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_local_groups"
+            referencedColumns: ["id", "community_id"]
           },
         ]
       }
@@ -721,6 +731,7 @@ export type Database = {
           edited_at: string | null
           id: string
           kind: Database["public"]["Enums"]["post_kind"]
+          local_group_id: string | null
           pinned: boolean
           reactions: Json
           title: string | null
@@ -734,6 +745,7 @@ export type Database = {
           edited_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["post_kind"]
+          local_group_id?: string | null
           pinned?: boolean
           reactions?: Json
           title?: string | null
@@ -747,6 +759,7 @@ export type Database = {
           edited_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["post_kind"]
+          local_group_id?: string | null
           pinned?: boolean
           reactions?: Json
           title?: string | null
@@ -765,6 +778,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "communities"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_local_group_fkey"
+            columns: ["local_group_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_local_groups"
+            referencedColumns: ["id", "community_id"]
           },
         ]
       }

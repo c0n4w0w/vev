@@ -26,8 +26,9 @@ import { events } from "@/lib/mock/events";
 import { messages } from "@/lib/mock/messages";
 import { notifications } from "@/lib/mock/notifications";
 import { posts } from "@/lib/mock/posts";
+import { localGroups, localGroupAssignments } from "@/lib/mock/local-groups";
 import { demoUserIds, users } from "@/lib/mock/users";
-import { demoPersonas } from "@/lib/mock/demo-personas";
+import { demoPersonaMemberships, demoPersonas } from "@/lib/mock/demo-personas";
 
 const failures: string[] = [];
 let checks = 0;
@@ -45,13 +46,18 @@ function check(label: string, condition: boolean, detail?: string) {
 const userIds = new Set([...users, ...demoPersonas].map((user) => user.id));
 const communityIds = new Set(communities.map((community) => community.id));
 const channelIds = new Set(channels.map((channel) => channel.id));
+const localGroupKeys = new Set(localGroups.map((group) => `${group.communityId}/${group.name}`));
+const allMemberships = [...memberships, ...demoPersonaMemberships];
 
 const activeMembers = (communityId: string) =>
   new Set(
-    memberships
+    allMemberships
       .filter((m) => m.communityId === communityId && m.status === "active")
       .map((m) => m.userId),
   );
+
+const TRYGGERE = ["tryggere-ruspolitikk", "tryggere-ungdom"];
+const INDEPENDENT = "under-the-rug";
 
 // ── 1. Referential integrity ────────────────────────────────────────────
 
@@ -89,6 +95,13 @@ for (const message of messages) {
 for (const post of posts) {
   check("post.communityId finnes", communityIds.has(post.communityId), post.id);
   check("post.authorId finnes", userIds.has(post.authorId), post.id);
+  if (post.localGroupName) {
+    check(
+      "innleggets lokallag finnes i samme fellesskap",
+      localGroupKeys.has(`${post.communityId}/${post.localGroupName}`),
+      `${post.id}: ${post.communityId}/${post.localGroupName}`,
+    );
+  }
   check(
     "innlegg er skrevet av et aktivt medlem",
     activeMembers(post.communityId).has(post.authorId),
@@ -103,6 +116,13 @@ for (const post of posts) {
 
 for (const event of events) {
   check("event.communityId finnes", communityIds.has(event.communityId), event.id);
+  if (event.localGroupName) {
+    check(
+      "arrangementets lokallag finnes i samme fellesskap",
+      localGroupKeys.has(`${event.communityId}/${event.localGroupName}`),
+      `${event.id}: ${event.communityId}/${event.localGroupName}`,
+    );
+  }
   const members = activeMembers(event.communityId);
   check("arrangementets vert er aktivt medlem", members.has(event.hostId), `${event.id}: ${event.hostId}`);
   for (const attendeeId of event.attendeeIds) {
@@ -249,6 +269,40 @@ for (const community of communities) {
   );
 }
 
+for (const group of localGroups) {
+  check("lokallagets fellesskap finnes", communityIds.has(group.communityId), group.name);
+  check("lokallag har ikke tomt navn", group.name.trim().length > 0, group.communityId);
+}
+
+check(
+  "lokallag er unike innenfor hvert fellesskap",
+  localGroupKeys.size === localGroups.length,
+);
+
+for (const assignment of localGroupAssignments) {
+  check("lokallagstilknytning peker på bruker som finnes", userIds.has(assignment.userId), assignment.userId);
+  check(
+    "lokallagstilknytning peker på aktivt medlemskap",
+    activeMembers(assignment.communityId).has(assignment.userId),
+    `${assignment.userId}/${assignment.communityId}`,
+  );
+  check(
+    "lokallagstilknytning peker på lokallag i samme fellesskap",
+    localGroupKeys.has(`${assignment.communityId}/${assignment.localGroupName}`),
+    `${assignment.communityId}/${assignment.localGroupName}`,
+  );
+}
+
+check(
+  "Under The Rug har ingen lokallag",
+  !localGroups.some((group) => group.communityId === INDEPENDENT),
+);
+check(
+  "Under The Rug har ikke lokalt skopet innhold",
+  !posts.some((post) => post.communityId === INDEPENDENT && post.localGroupName) &&
+    !events.some((event) => event.communityId === INDEPENDENT && event.localGroupName),
+);
+
 // The three demo accounts exist to show the many / one / none cases.
 const [manyId, oneId, noneId] = demoUserIds;
 const activeCount = (userId: string) =>
@@ -358,9 +412,6 @@ for (const policy of communityPolicies) {
 }
 
 // ── 3. Organisational independence ──────────────────────────────────────
-
-const TRYGGERE = ["tryggere-ruspolitikk", "tryggere-ungdom"];
-const INDEPENDENT = "under-the-rug";
 
 /** Every string a reader can see for one community. */
 function contentFor(communityId: string): { where: string; text: string }[] {

@@ -107,6 +107,7 @@ export async function signOut() {
 /** Clears the router cache for every screen that renders posts. */
 function revalidatePosts(communityId: string) {
   revalidatePath(`/community/${communityId}/feed`);
+  revalidatePath(`/community/${communityId}/lokallag`);
   revalidatePath(`/community/${communityId}`);
   revalidatePath("/home");
 }
@@ -121,6 +122,7 @@ export async function createPostAction(
   const communityId = String(formData.get("communityId") ?? "");
   const result = await persistPost({
     communityId,
+    localGroupId: String(formData.get("localGroupId") ?? "") || undefined,
     body: String(formData.get("body") ?? ""),
     title: String(formData.get("title") ?? ""),
     // A tampered checkbox only reaches a policy that refuses it: publishing an
@@ -407,6 +409,7 @@ export async function setAcceptsMemberDmsAction(
 
 function revalidateEvents(communityId: string, eventId?: string) {
   revalidatePath(`/community/${communityId}/events`);
+  revalidatePath(`/community/${communityId}/lokallag`);
   if (eventId) revalidatePath(`/community/${communityId}/events/${eventId}`);
   revalidatePath(`/community/${communityId}`);
   revalidatePath("/events");
@@ -496,6 +499,7 @@ export async function createEventAction(
 
   const result = await createEvent({
     communityId,
+    localGroupId: String(formData.get("localGroupId") ?? "") || undefined,
     title,
     description,
     location,

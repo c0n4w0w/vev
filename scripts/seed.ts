@@ -335,6 +335,16 @@ async function main() {
       `(${allMemberships.length - applied} uten lokallag)`,
   );
 
+  const localScopeId = (communityId: string, groupName?: string) => {
+    if (!groupName) return null;
+    const id = localGroupId.get(`${communityId}|${groupName}`);
+    if (!id) {
+      console.error(`\n✗ ukjent lokallag for innhold: ${communityId}/${groupName}`);
+      process.exit(1);
+    }
+    return id;
+  };
+
   // Real uuids for the mock string ids, so comments and reactions can point at
   // the right post. Note what is *not* written here: comment_count and
   // reactions. Those are aggregates the database derives from the rows below,
@@ -348,6 +358,7 @@ async function main() {
         posts.map((post) => ({
           id: postId.get(post.id)!,
           community_id: post.communityId,
+          local_group_id: localScopeId(post.communityId, post.localGroupName),
           author_id: uid.get(post.authorId)!,
           title: post.title ?? null,
           body: post.body,
@@ -465,6 +476,7 @@ async function main() {
     .insert(
       events.map((event) => ({
         community_id: event.communityId,
+        local_group_id: localScopeId(event.communityId, event.localGroupName),
         title: event.title,
         description: event.description,
         starts_at: at(event.startsAt),

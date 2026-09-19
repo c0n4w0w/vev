@@ -164,6 +164,7 @@ function toPost(row: PostRow): Post {
   return {
     id: row.id,
     communityId: row.community_id,
+    localGroupId: row.local_group_id ?? undefined,
     authorId: row.author_id,
     title: row.title ?? undefined,
     body: row.body,
@@ -180,6 +181,7 @@ function toEvent(row: EventRow, attendeeIds: string[]): CommunityEvent {
   return {
     id: row.id,
     communityId: row.community_id,
+    localGroupId: row.local_group_id ?? undefined,
     title: row.title,
     description: row.description,
     startsAt: row.starts_at,
@@ -720,6 +722,23 @@ export async function getAnnouncements(communityId: string): Promise<Post[]> {
   return rows(data).map(toPost);
 }
 
+/** Recent posts for one selected local group. The ordinary post RLS still applies. */
+export async function getRecentLocalGroupPosts(
+  communityId: string,
+  localGroupId: string,
+  limit = 3,
+): Promise<Post[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("posts")
+    .select("*")
+    .eq("community_id", communityId)
+    .eq("local_group_id", localGroupId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return rows(data).map(toPost);
+}
+
 /**
  * Feed across every community the user belongs to.
  *
@@ -755,6 +774,7 @@ export type PostWriteResult = { ok: true; id: string } | { ok: false; error: str
 
 export async function createPost(input: {
   communityId: string;
+  localGroupId?: string;
   body: string;
   title?: string;
   announcement?: boolean;
@@ -767,6 +787,7 @@ export async function createPost(input: {
     .from("posts")
     .insert({
       community_id: input.communityId,
+      local_group_id: input.localGroupId || null,
       body,
       title: input.title?.trim() || null,
       kind: input.announcement ? "announcement" : "post",
@@ -1448,6 +1469,23 @@ export async function getUpcomingCommunityEvents(communityId: string) {
   return events.filter((event) => Date.parse(event.endsAt) >= now().getTime());
 }
 
+export async function getUpcomingLocalGroupEvents(
+  communityId: string,
+  localGroupId: string,
+  limit = 3,
+): Promise<CommunityEvent[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("events")
+    .select("*")
+    .eq("community_id", communityId)
+    .eq("local_group_id", localGroupId)
+    .gte("ends_at", now().toISOString())
+    .order("starts_at", { ascending: true })
+    .limit(limit);
+  return withAttendees(rows(data));
+}
+
 export async function getPastCommunityEvents(communityId: string) {
   const events = await getCommunityEvents(communityId);
   return events.filter((event) => Date.parse(event.endsAt) < now().getTime()).reverse();
@@ -1511,6 +1549,7 @@ export async function leaveEvent(eventId: string): Promise<EventWriteResult> {
  */
 export async function createEvent(input: {
   communityId: string;
+  localGroupId?: string;
   title: string;
   description: string;
   startsAt: string;
@@ -1524,6 +1563,7 @@ export async function createEvent(input: {
     .from("events")
     .insert({
       community_id: input.communityId,
+      local_group_id: input.localGroupId || null,
       title: input.title.trim(),
       description: input.description.trim(),
       starts_at: input.startsAt,

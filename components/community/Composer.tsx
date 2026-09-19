@@ -6,7 +6,7 @@ import { Avatar, Panel, cn } from "@/components/ui/primitives";
 import { IconMegaphone } from "@/components/ui/icons";
 import { createPostAction } from "@/app/actions";
 import { emptyPostFormState } from "@/lib/post-form";
-import type { Community, User } from "@/lib/types";
+import type { Community, LocalGroup, User } from "@/lib/types";
 
 function PublishButton({ accent, disabled }: { accent: string; disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -34,10 +34,12 @@ export function Composer({
   user,
   community,
   canAnnounce,
+  localGroups = [],
 }: {
   user: User;
   community: Community;
   canAnnounce: boolean;
+  localGroups?: LocalGroup[];
 }) {
   const [state, formAction] = useActionState(createPostAction, emptyPostFormState);
   const [open, setOpen] = useState(false);
@@ -85,28 +87,47 @@ export function Composer({
 
             {open ? (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
-                {canAnnounce ? (
-                  <label
-                    className={cn(
-                      "inline-flex cursor-pointer items-center gap-2 rounded-[5px] border px-2.5 py-1.5 text-[13px] transition-colors",
-                      announcement
-                        ? "border-rust/30 bg-rust-soft text-rust"
-                        : "border-line text-ink-2 hover:bg-paper-2",
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      name="announcement"
-                      checked={announcement}
-                      onChange={(event) => setAnnouncement(event.target.checked)}
-                      className="sr-only"
-                    />
-                    <IconMegaphone size={14} />
-                    Publiser som kunngjøring
-                  </label>
-                ) : (
-                  <span className="text-[13px] text-ink-3">Synlig for alle medlemmer</span>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {localGroups.length > 0 ? (
+                    <label className="flex items-center gap-2 text-[13px] text-ink-3">
+                      <span>Synlighet / område</span>
+                      <select
+                        name="localGroupId"
+                        className="h-8 rounded-[5px] border border-line-2 bg-surface px-2 text-[13px] text-ink outline-none focus:border-ink-3"
+                      >
+                        <option value="">Hele fellesskapet</option>
+                        {localGroups.map((group) => (
+                          <option key={group.id} value={group.id}>
+                            {group.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <span className="text-[13px] text-ink-3">Synlig for alle medlemmer</span>
+                  )}
+
+                  {canAnnounce ? (
+                    <label
+                      className={cn(
+                        "inline-flex cursor-pointer items-center gap-2 rounded-[5px] border px-2.5 py-1.5 text-[13px] transition-colors",
+                        announcement
+                          ? "border-rust/30 bg-rust-soft text-rust"
+                          : "border-line text-ink-2 hover:bg-paper-2",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        name="announcement"
+                        checked={announcement}
+                        onChange={(event) => setAnnouncement(event.target.checked)}
+                        className="sr-only"
+                      />
+                      <IconMegaphone size={14} />
+                      Publiser som kunngjøring
+                    </label>
+                  ) : null}
+                </div>
 
                 <div className="flex items-center gap-2">
                   <button

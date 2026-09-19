@@ -6,6 +6,7 @@ import { Panel } from "@/components/ui/primitives";
 import { IconPlus } from "@/components/ui/icons";
 import { createEventAction } from "@/app/actions";
 import { emptyEventFormState } from "@/lib/event-form";
+import type { LocalGroup } from "@/lib/types";
 
 function Save({ accent }: { accent: string }) {
   const { pending } = useFormStatus();
@@ -40,10 +41,12 @@ export function EventComposer({
   communityId,
   communityName,
   accent,
+  localGroups = [],
 }: {
   communityId: string;
   communityName: string;
   accent: string;
+  localGroups?: LocalGroup[];
 }) {
   const [state, formAction] = useActionState(createEventAction, emptyEventFormState);
   const [open, setOpen] = useState(false);
@@ -108,6 +111,22 @@ export function EventComposer({
           </label>
           <input id="event-location" name="location" maxLength={120} className={field} />
         </div>
+
+        {localGroups.length > 0 ? (
+          <div>
+            <label htmlFor="event-local-group" className="label mb-1.5 block">
+              Synlighet / område
+            </label>
+            <select id="event-local-group" name="localGroupId" className={field}>
+              <option value="">Hele fellesskapet</option>
+              {localGroups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         <div>
           <label htmlFor="event-description" className="label mb-1.5 block">

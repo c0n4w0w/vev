@@ -9,6 +9,8 @@ import type { Post } from "@/lib/types";
  * aggregate, it writes the rows the aggregate is computed from.
  */
 export type SeedPost = Omit<Post, "commentCount" | "reactions"> & {
+  /** Human-readable fixture key; the seed resolves it to posts.local_group_id. */
+  localGroupName?: string;
   /**
    * Seed source for built-in reaction rows. The database stores one row per
    * person per emoji and derives the aggregate; this aggregate-looking shape
@@ -24,6 +26,29 @@ export type SeedPost = Omit<Post, "commentCount" | "reactions"> & {
  */
 export const posts: SeedPost[] = [
   // ── Tryggere Ruspolitikk ──────────────────────────────────────────────
+  {
+    id: "p-tr-local-1",
+    communityId: "tryggere-ruspolitikk",
+    localGroupName: "FTR Trøndelag",
+    authorId: "petter",
+    kind: "post",
+    title: "Plan for medlemsmøtet i Trondheim",
+    body:
+      "Vi møtes på Frivilligsentralen torsdag 24. september. Første halvtime bruker vi på høstens standvakter, så fordeler vi hvem som følger opp møtet med kommunen.\n\nJeg tar med utskrifter av notatet Nadia la inn i #pagaende-prosjekter. Si fra hvis du vil holde en kort innledning.",
+    createdAt: "2026-09-17T18:10:00+02:00",
+    reactions: [{ emoji: "👍", userIds: ["demo-tryggere", "amina"] }],
+  },
+  {
+    id: "p-tr-local-2",
+    communityId: "tryggere-ruspolitikk",
+    localGroupName: "FTR Trøndelag",
+    authorId: "demo-tryggere",
+    kind: "post",
+    body:
+      "Jeg har reservert møterommet i Trondheim fram til klokka 20.30. Hvis noen kan komme ti minutter før og hjelpe med kaffe og stoler, blir jeg veldig glad.",
+    createdAt: "2026-09-16T09:25:00+02:00",
+    reactions: [{ emoji: "☕", userIds: ["petter"] }],
+  },
   {
     id: "p-tr-1",
     communityId: "tryggere-ruspolitikk",

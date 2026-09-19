@@ -101,7 +101,7 @@ function communityNav(id: string, localGroups: ShellCommunity["localGroups"]) {
       ? [
           {
             href: `/community/${id}/lokallag`,
-            label: localGroups.selectedName ?? "Finn ditt lokallag",
+            label: "Lokallag",
             icon: IconMapPin,
           },
         ]

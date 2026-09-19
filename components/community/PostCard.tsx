@@ -57,6 +57,7 @@ export function PostCard({
   return (
     <Panel
       as="article"
+      id={`post-${post.id}`}
       className={cn("p-5 sm:p-6", isAnnouncement && "border-l-2")}
       {...(isAnnouncement
         ? { style: { borderLeftColor: community.branding.accent } }
