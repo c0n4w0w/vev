@@ -91,12 +91,20 @@ const platformNav = [
  * the community actually has local groups, so a community that never adopted
  * them never sees it.
  */
-function communityNav(id: string, localGroups: ShellCommunity["localGroups"]) {
+function communityNav(
+  id: string,
+  localGroups: ShellCommunity["localGroups"],
+  hasOrganizationPeople: boolean,
+) {
   return [
     { href: `/community/${id}`, label: "Oversikt", icon: IconOverview, exact: true },
     { href: `/community/${id}/feed`, label: "Feed", icon: IconFeed },
     { href: `/community/${id}/events`, label: "Arrangementer", icon: IconCalendar },
-    { href: `/community/${id}/members`, label: "Medlemmer", icon: IconUsers },
+    {
+      href: `/community/${id}/members`,
+      label: hasOrganizationPeople ? "Organisasjonen" : "Medlemmer",
+      icon: IconUsers,
+    },
     ...(localGroups.usesLocalGroups
       ? [
           {
@@ -171,7 +179,11 @@ function SidebarContent({
 
             <p className="label mb-2 px-2.5">Hoved</p>
             <ul className="space-y-px">
-              {communityNav(current.community.id, current.localGroups).map((item) => (
+              {communityNav(
+                current.community.id,
+                current.localGroups,
+                current.hasOrganizationPeople,
+              ).map((item) => (
                 <li key={item.href}>
                   <NavLink
                     href={item.href}

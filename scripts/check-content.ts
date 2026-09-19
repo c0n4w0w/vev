@@ -18,6 +18,7 @@
  */
 import { existsSync } from "node:fs";
 import { channels, communities, memberships } from "@/lib/mock/communities";
+import { communityPeople } from "@/lib/mock/community-people";
 import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
 import { communityPolicies } from "@/lib/mock/community-policies";
@@ -293,6 +294,48 @@ for (const assignment of localGroupAssignments) {
   );
 }
 
+for (const person of communityPeople) {
+  const where = `${person.communityId}/${person.section}/${person.name}`;
+  check("organisasjonspersonens fellesskap finnes", communityIds.has(person.communityId), where);
+  check("organisasjonsperson har navn", person.name.trim().length > 0, where);
+  check(
+    "organisasjonspersonens seksjon er gyldig",
+    ["staff", "board", "local_group_leader"].includes(person.section),
+    where,
+  );
+  if (person.email) {
+    check(
+      "organisasjonspersonens e-post er normalisert",
+      person.email === person.email.trim().toLowerCase(),
+      `${where}: ${person.email}`,
+    );
+  }
+  if (person.section === "local_group_leader") {
+    check("lokallagsleder peker på lokallag", Boolean(person.localGroupName), where);
+    check(
+      "lokallagsleder peker på lokallag i samme fellesskap",
+      Boolean(person.localGroupName) &&
+        localGroupKeys.has(`${person.communityId}/${person.localGroupName}`),
+      `${person.communityId}/${person.localGroupName ?? "mangler"}`,
+    );
+  } else {
+    check("bare lokallagsledere peker på lokallag", !person.localGroupName, where);
+  }
+}
+
+check(
+  "Under The Rug har ingen organisasjonspersoner",
+  !communityPeople.some((person) => person.communityId === INDEPENDENT),
+);
+
+check(
+  "Tryggere Ungdom har ikke seedede lokallagsledere uten reelle data",
+  !communityPeople.some(
+    (person) =>
+      person.communityId === "tryggere-ungdom" && person.section === "local_group_leader",
+  ),
+);
+
 check(
   "Under The Rug har ingen lokallag",
   !localGroups.some((group) => group.communityId === INDEPENDENT),
@@ -480,7 +523,7 @@ check(
 );
 
 // No stale references to communities that have been removed.
-const everyString = JSON.stringify([communities, channels, memberships, posts, comments, customEmojis, messages, events, notifications, users]);
+const everyString = JSON.stringify([communities, channels, memberships, posts, comments, customEmojis, messages, events, notifications, users, communityPeople]);
 check("ingen referanser til fjernede fellesskap", !/mnmt/i.test(everyString));
 
 // ── Report ──────────────────────────────────────────────────────────────
@@ -496,5 +539,5 @@ console.log(
   `  ${communities.length} fellesskap · ${users.length} personer · ${memberships.length} medlemskap`,
 );
 console.log(
-  `  ${posts.length} innlegg · ${comments.length} kommentarer · ${customEmojis.length} egne emojier · ${messages.length} meldinger · ${events.length} arrangementer · ${notifications.length} varsler`,
+  `  ${posts.length} innlegg · ${comments.length} kommentarer · ${customEmojis.length} egne emojier · ${messages.length} meldinger · ${events.length} arrangementer · ${notifications.length} varsler · ${communityPeople.length} organisasjonspersoner`,
 );

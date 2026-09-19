@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { EventCard } from "@/components/community/EventCard";
 import { LocalGroupAdmin } from "@/components/community/LocalGroupAdmin";
 import { LocalGroupPicker } from "@/components/community/LocalGroupPicker";
+import { OrganizationPersonCard } from "@/components/community/OrganizationPersonCard";
 import {
   EmptyState,
   PageContainer,
@@ -14,6 +15,7 @@ import {
 import { IconArrowRight, IconMapPin } from "@/components/ui/icons";
 import {
   getCommunityById,
+  getLocalGroupLeader,
   getLocalGroupMemberCounts,
   getLocalGroups,
   getMembership,
@@ -123,6 +125,9 @@ export default async function LocalGroupsPage({
         getRecentLocalGroupPosts(community.id, selected.id, 3),
       ])
     : [[], []];
+  const localLeader = selected
+    ? await getLocalGroupLeader(community.id, selected.id)
+    : undefined;
   const localPeople = new Map(
     selected
       ? (
@@ -239,6 +244,15 @@ export default async function LocalGroupsPage({
               />
             )}
           </section>
+
+          {localLeader ? (
+            <section className="mb-10">
+              <SectionHeading>Kontakt</SectionHeading>
+              <ul className="max-w-xl">
+                <OrganizationPersonCard person={localLeader} localGroupName={selected.name} compact />
+              </ul>
+            </section>
+          ) : null}
 
           <details id="endre-lokallag" className="mb-8 rounded-[6px] border border-line bg-surface p-5">
             <summary className="cursor-pointer text-sm font-medium text-ink">Endre lokallag</summary>

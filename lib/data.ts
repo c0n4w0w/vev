@@ -21,6 +21,7 @@ import type {
   PostRow,
   ProfileRow,
   LocalGroupRow,
+  CommunityPersonRow,
 } from "@/lib/supabase/database.types";
 import type {
   Channel,
@@ -38,6 +39,7 @@ import type {
   RoleId,
   User,
   LocalGroup,
+  CommunityPerson,
 } from "@/lib/types";
 
 export { getRole, roles } from "@/lib/roles";
@@ -461,6 +463,21 @@ function toLocalGroup(row: LocalGroupRow): LocalGroup {
   };
 }
 
+function toCommunityPerson(row: CommunityPersonRow, localGroup?: LocalGroup): CommunityPerson {
+  return {
+    id: row.id,
+    communityId: row.community_id,
+    section: row.section,
+    localGroupId: row.local_group_id ?? undefined,
+    localGroupName: localGroup?.name,
+    name: row.name,
+    role: row.role ?? undefined,
+    email: row.email ?? undefined,
+    description: row.description ?? undefined,
+    sortOrder: row.sort_order,
+  };
+}
+
 /**
  * Every local group in a community, retired ones included.
  *
@@ -477,6 +494,43 @@ export const getLocalGroups = cache(async (communityId: string): Promise<LocalGr
     .order("sort_order", { ascending: true });
   return rows(data).map(toLocalGroup);
 });
+
+/**
+ * Organisation-published people for one community.
+ *
+ * This is separate from `profiles` and `memberships`: no user id is read, and
+ * no membership metadata is inferred. RLS limits rows to active members of the
+ * same community and active records only.
+ */
+export const getCommunityPeople = cache(
+  async (communityId: string): Promise<CommunityPerson[]> => {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase
+      .from("community_people")
+      .select("id, community_id, section, local_group_id, name, role, email, description, sort_order, active, created_at")
+      .eq("community_id", communityId)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true });
+
+    const localGroups = new Map((await getLocalGroups(communityId)).map((group) => [group.id, group]));
+    return rows(data).map((row) =>
+      toCommunityPerson(
+        row,
+        row.local_group_id ? localGroups.get(row.local_group_id) : undefined,
+      ),
+    );
+  },
+);
+
+/** The public contact for one selected local group, if the organisation has one. */
+export async function getLocalGroupLeader(
+  communityId: string,
+  localGroupId: string,
+): Promise<CommunityPerson | undefined> {
+  return (await getCommunityPeople(communityId)).find(
+    (person) => person.section === "local_group_leader" && person.localGroupId === localGroupId,
+  );
+}
 
 /**
  * How many active members each local group has, keyed by group id.

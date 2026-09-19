@@ -1,5 +1,6 @@
 import {
   getCommunitiesForUser,
+  getCommunityPeople,
   getGroupedChannels,
   getLocalGroups,
   getUnreadCount,
@@ -28,6 +29,7 @@ export interface ShellCommunity {
    * no one else's is carried here.
    */
   localGroups: { usesLocalGroups: boolean; selectedName?: string };
+  hasOrganizationPeople: boolean;
 }
 
 export interface ShellData {
@@ -44,15 +46,17 @@ export async function buildShellData(user: User): Promise<ShellData> {
 
   const communities = await Promise.all(
     memberships.map(async ({ community, membership }) => {
-      const [channelGroups, groups] = await Promise.all([
+      const [channelGroups, groups, people] = await Promise.all([
         getGroupedChannels(community.id),
         getLocalGroups(community.id),
+        getCommunityPeople(community.id),
       ]);
 
       return {
         community,
         membership,
         channelGroups,
+        hasOrganizationPeople: people.length > 0,
         localGroups: {
           usesLocalGroups: groups.some((group) => group.active),
           selectedName: groups.find((group) => group.id === membership.localGroupId)?.name,

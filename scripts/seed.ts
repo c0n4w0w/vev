@@ -24,6 +24,7 @@ import { config } from "dotenv";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { assertDemoDeployment } from "@/lib/environment";
 import { channelGroups, channels, communities, memberships } from "@/lib/mock/communities";
+import { communityPeople } from "@/lib/mock/community-people";
 import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
 import { communityPolicies } from "@/lib/mock/community-policies";
@@ -133,6 +134,7 @@ async function clearContent() {
     "events",
     "messages",
     "posts",
+    "community_people",
     "memberships",
     "channels",
     "channel_groups",
@@ -247,6 +249,35 @@ async function main() {
     `  ${localGroups.length} lokallag ` +
       `(${new Set(localGroups.map((g) => g.communityId)).size} fellesskap)`,
   );
+
+  fail(
+    "offentlige organisasjonspersoner",
+    (
+      await supabase.from("community_people").insert(
+        communityPeople.map((person) => {
+          const groupId = person.localGroupName
+            ? localGroupId.get(`${person.communityId}|${person.localGroupName}`)
+            : null;
+          if (person.localGroupName && !groupId) {
+            console.error(`\n✗ ukjent lokallag for organisasjonsperson: ${person.localGroupName}`);
+            process.exit(1);
+          }
+
+          return {
+            community_id: person.communityId,
+            section: person.section,
+            local_group_id: groupId,
+            name: person.name,
+            role: person.role ?? null,
+            email: person.email ?? null,
+            description: person.description ?? null,
+            sort_order: person.sortOrder,
+          };
+        }),
+      )
+    ).error,
+  );
+  console.log(`  ${communityPeople.length} offentlige organisasjonspersoner`);
 
   fail(
     "kanalgrupper",

@@ -343,6 +343,63 @@ export type Database = {
           },
         ]
       }
+      community_people: {
+        Row: {
+          active: boolean
+          community_id: string
+          created_at: string
+          description: string | null
+          email: string | null
+          id: string
+          local_group_id: string | null
+          name: string
+          role: string | null
+          section: Database["public"]["Enums"]["community_person_section"]
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          community_id: string
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          id?: string
+          local_group_id?: string | null
+          name: string
+          role?: string | null
+          section: Database["public"]["Enums"]["community_person_section"]
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          community_id?: string
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          id?: string
+          local_group_id?: string | null
+          name?: string
+          role?: string | null
+          section?: Database["public"]["Enums"]["community_person_section"]
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_people_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_people_local_group_fkey"
+            columns: ["local_group_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_local_groups"
+            referencedColumns: ["id", "community_id"]
+          },
+        ]
+      }
       event_attendees: {
         Row: {
           event_id: string
@@ -972,6 +1029,7 @@ export type Database = {
     Enums: {
       access_policy: "invite-only" | "request-to-join"
       access_request_status: "pending" | "approved" | "rejected" | "cancelled"
+      community_person_section: "staff" | "board" | "local_group_leader"
       community_role: "member" | "moderator" | "admin"
       dm_policy: "staff_only" | "members"
       member_directory_visibility: "admin_only" | "members"
@@ -1115,6 +1173,7 @@ export const Constants = {
     Enums: {
       access_policy: ["invite-only", "request-to-join"],
       access_request_status: ["pending", "approved", "rejected", "cancelled"],
+      community_person_section: ["staff", "board", "local_group_leader"],
       community_role: ["member", "moderator", "admin"],
       dm_policy: ["staff_only", "members"],
       member_directory_visibility: ["admin_only", "members"],
@@ -1147,6 +1206,8 @@ export type ProfileRow = TableRow<"profiles">;
 export type CommunityRow = TableRow<"communities">;
 export type MembershipRow = TableRow<"memberships">;
 export type LocalGroupRow = TableRow<"community_local_groups">;
+export type CommunityPersonRow = TableRow<"community_people">;
+export type CommunityPersonSectionRow = PublicSchema["Enums"]["community_person_section"];
 export type ChannelGroupRow = TableRow<"channel_groups">;
 export type ChannelRow = TableRow<"channels">;
 export type MessageRow = TableRow<"messages">;

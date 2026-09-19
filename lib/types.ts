@@ -110,6 +110,28 @@ export interface LocalGroup {
   active: boolean;
 }
 
+export type CommunityPersonSection = "staff" | "board" | "local_group_leader";
+
+/**
+ * A person the organisation publishes as staff, board or local-group contact.
+ *
+ * This is not a TING account and not a membership row. There is deliberately no
+ * user id here, so rendering this type cannot reveal roles, DM settings,
+ * private profiles or membership status.
+ */
+export interface CommunityPerson {
+  id: string;
+  communityId: string;
+  section: CommunityPersonSection;
+  localGroupId?: string;
+  localGroupName?: string;
+  name: string;
+  role?: string;
+  email?: string;
+  description?: string;
+  sortOrder: number;
+}
+
 export interface ChannelGroup {
   id: string;
   /** Uppercase group heading, e.g. GENERELT. */
