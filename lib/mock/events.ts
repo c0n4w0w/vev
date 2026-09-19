@@ -76,12 +76,12 @@ export const events: CommunityEvent[] = [
   {
     id: "e-tu-1",
     communityId: "tryggere-ungdom",
-    title: "Kurs: Hva gjør du hvis noen blir dårlig?",
+    title: "Cannabisreform – hvorfor venter Norge?",
     description:
-      "To timer om førstehjelp og skadereduksjon i praksis. Ingen forkunnskaper nødvendig, og det er helt greit å bare sitte og høre på. Gratis, med mat.",
-    startsAt: "2026-09-17T17:00:00+02:00",
-    endsAt: "2026-09-17T19:00:00+02:00",
-    location: "Aktivitetshuset K1, Oslo",
+      "Sandefjord – hold av datoen 10. september! Vi har med oss SU-leder Sara og gruppeleder for Sandefjord Venstre, Camilla, for å diskutere hvorfor Norge trenger en ny cannabispolitikk. Spre ordet og ta med en venn – gratis og åpent for alle.",
+    startsAt: "2026-09-10T17:00:00+02:00",
+    endsAt: "2026-09-10T19:00:00+02:00",
+    location: "Aktivitetshuset K1, Sandefjord",
     isPublic: true,
     hostId: "mathea",
     attendeeIds: ["mathea", "hanne", "petter", "adrian"],

@@ -78,6 +78,7 @@ export const posts: SeedPost[] = [
     communityId: "tryggere-ruspolitikk",
     authorId: "amina",
     kind: "announcement",
+    pinned: true,
     title: "Årsmøtet blir 14. november i Oslo",
     body:
       "Datoen er endelig satt. Årsmøtet holdes lørdag 14. november på Litteraturhuset, med digital deltakelse for dem som ikke kan møte fysisk.\n\nSaker som skal behandles må være styret i hende senest 17. oktober. Innkalling med fullstendig saksliste kommer i midten av oktober.",

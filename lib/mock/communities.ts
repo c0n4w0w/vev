@@ -19,7 +19,7 @@ export const communities: Community[] = [
     name: "Tryggere Ruspolitikk",
     tagline: "Kunnskapsbasert rusreform og skadereduksjon",
     publicDescription:
-      "Tryggere Ruspolitikk er en medlemsorganisasjon som arbeider for en ruspolitikk bygget på helsefaglig kunnskap i stedet for straff. Vi driver med opplysningsarbeid, høringssvar og skadereduksjon i praksis. Er du medlem, frivillig eller samarbeidspartner, logger du inn her.",
+      "Tryggere Ruspolitikk er en medlemsorganisasjon som jobber for en kunnskapsbasert ruspolitikk der skadeforebygging og hjelp går foran straff. Vi driver med opplysningsarbeid, høringssvar og skadereduksjon i praksis. Er du medlem, frivillig eller samarbeidspartner, logger du inn her.",
     about:
       "Her koordinerer vi lokallag, høringsarbeid, standvakter og festivalsesongen. Alt av fagmateriell og maler ligger i #pagaende-prosjekter. Er du usikker på hvor noe hører hjemme, spør i #generelt.",
     location: "Oslo, Bergen, Trondheim, Tromsø",
@@ -46,7 +46,7 @@ export const communities: Community[] = [
     publicDescription:
       "Tryggere Ungdom er ungdomsorganisasjonen til Tryggere Ruspolitikk. Vi lager møteplasser, kurs og aktiviteter for unge mellom 15 og 26, og jobber for at unge selv skal bli hørt når ruspolitikken utformes. Alt vi arrangerer er gratis, og du trenger ingen forkunnskaper for å bli med.",
     about:
-      "Her planlegger vi aktiviteter, kurs og turer, og fordeler oppgaver mellom lokallagene i Oslo, Bergen og Trondheim. Vi er rundt førti aktive frivillige. Er du ny, si hei i #presentasjoner — det finnes ingen dumme spørsmål her.",
+      "Her planlegger vi aktiviteter, kurs og events, og fordeler oppgaver mellom lokallagene i Oslo, Bergen og Trondheim. Vi er rundt førti aktive frivillige. Er du ny, si hei i #presentasjoner — det finnes ingen dumme spørsmål her.",
     location: "Oslo, Bergen, Trondheim",
     foundedYear: 2019,
     branding: {

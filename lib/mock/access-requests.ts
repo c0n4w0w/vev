@@ -17,8 +17,8 @@ export interface SeedAccessRequest {
 export const accessRequests: SeedAccessRequest[] = [
   {
     communityId: "tryggere-ruspolitikk",
-    email: "oskar@lie.studio",
-    displayName: "Oskar Lie",
+    email: "maja.solberg@example.no",
+    displayName: "Maja Solberg",
     daysAgo: 4,
   },
   {
