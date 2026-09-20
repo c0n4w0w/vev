@@ -356,6 +356,7 @@ export type Database = {
           role: string | null
           section: Database["public"]["Enums"]["community_person_section"]
           sort_order: number
+          user_id: string | null
         }
         Insert: {
           active?: boolean
@@ -369,6 +370,7 @@ export type Database = {
           role?: string | null
           section: Database["public"]["Enums"]["community_person_section"]
           sort_order?: number
+          user_id?: string | null
         }
         Update: {
           active?: boolean
@@ -382,6 +384,7 @@ export type Database = {
           role?: string | null
           section?: Database["public"]["Enums"]["community_person_section"]
           sort_order?: number
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -397,6 +400,144 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "community_local_groups"
             referencedColumns: ["id", "community_id"]
+          },
+          {
+            foreignKeyName: "community_people_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      direct_conversation_reads: {
+        Row: {
+          conversation_id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_conversation_reads_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "direct_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_conversation_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      direct_conversations: {
+        Row: {
+          community_id: string
+          created_at: string
+          created_by: string
+          id: string
+          last_message_at: string
+          participant_one_id: string
+          participant_two_id: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          last_message_at?: string
+          participant_one_id: string
+          participant_two_id: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          last_message_at?: string
+          participant_one_id?: string
+          participant_two_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_conversations_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_conversations_participant_one_id_fkey"
+            columns: ["participant_one_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_conversations_participant_two_id_fkey"
+            columns: ["participant_two_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      direct_messages: {
+        Row: {
+          author_id: string
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          author_id?: string
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "direct_conversations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -911,15 +1052,40 @@ export type Database = {
       can_moderate: { Args: { cid: string }; Returns: boolean }
       can_moderate_post: { Args: { pid: string }; Returns: boolean }
       can_read_channel: { Args: { chid: string }; Returns: boolean }
+      can_reply_direct_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
       can_send_dm: {
         Args: { cid: string; recipient: string }
         Returns: boolean
       }
       can_view_member_directory: { Args: { cid: string }; Returns: boolean }
+      community_person_account_links: {
+        Args: { p_community_id: string }
+        Returns: {
+          member_email: string
+          member_handle: string
+          member_name: string
+          membership_role: Database["public"]["Enums"]["community_role"]
+          membership_status: Database["public"]["Enums"]["membership_status"]
+          membership_title: string
+          person_id: string
+          user_id: string
+        }[]
+      }
       create_local_group: {
         Args: { p_community_id: string; p_name: string }
         Returns: string
       }
+      direct_member_dm_actions: {
+        Args: { p_community_id: string }
+        Returns: {
+          conversation_id: string
+          user_id: string
+        }[]
+      }
+      direct_unread_count: { Args: { p_community_id: string }; Returns: number }
       emoji_matches_post: {
         Args: { eid: string; pid: string }
         Returns: boolean
@@ -938,6 +1104,10 @@ export type Database = {
         }[]
       }
       is_admin: { Args: { cid: string }; Returns: boolean }
+      is_direct_conversation_participant: {
+        Args: { p_conversation_id: string; p_user_id?: string }
+        Returns: boolean
+      }
       is_member: { Args: { cid: string }; Returns: boolean }
       local_group_member_counts: {
         Args: { p_community_id: string }
@@ -948,12 +1118,23 @@ export type Database = {
       }
       local_group_slug: { Args: { p_name: string }; Returns: string }
       looks_like_email: { Args: { p_email: string }; Returns: boolean }
+      mark_direct_conversation_read: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
       mark_notifications_read: { Args: never; Returns: undefined }
       my_accepts_member_dms: {
         Args: { p_community_id: string }
         Returns: boolean
       }
       normalize_email: { Args: { p_email: string }; Returns: string }
+      organization_person_dm_actions: {
+        Args: { p_community_id: string }
+        Returns: {
+          conversation_id: string
+          person_id: string
+        }[]
+      }
       portal_by_slug: {
         Args: { p_slug: string }
         Returns: {
@@ -1010,6 +1191,10 @@ export type Database = {
         Args: { p_community_id: string; p_value: boolean }
         Returns: boolean
       }
+      set_community_person_user: {
+        Args: { p_person_id: string; p_user_id: string }
+        Returns: boolean
+      }
       set_local_group_active: {
         Args: { p_active: boolean; p_local_group_id: string }
         Returns: boolean
@@ -1023,8 +1208,20 @@ export type Database = {
         Returns: boolean
       }
       shares_community: { Args: { other: string }; Returns: boolean }
+      shares_direct_conversation: { Args: { other: string }; Returns: boolean }
       shares_visible_authorship: { Args: { other: string }; Returns: boolean }
       shares_visible_directory: { Args: { other: string }; Returns: boolean }
+      start_direct_conversation: {
+        Args: { p_community_id: string; p_recipient_id: string }
+        Returns: string
+      }
+      start_direct_conversation_with_organization_person: {
+        Args: { p_person_id: string }
+        Returns: {
+          community_id: string
+          conversation_id: string
+        }[]
+      }
     }
     Enums: {
       access_policy: "invite-only" | "request-to-join"
@@ -1040,6 +1237,7 @@ export type Database = {
         | "event"
         | "invitation"
         | "membership"
+        | "direct_message"
       post_kind: "post" | "announcement"
     }
     CompositeTypes: {
@@ -1184,48 +1382,42 @@ export const Constants = {
         "event",
         "invitation",
         "membership",
+        "direct_message",
       ],
       post_kind: ["post", "announcement"],
     },
   },
 } as const
 
-/**
- * Row aliases used across `lib/data.ts`.
- *
- * These are derived from the generated `Database` type rather than restated,
- * so a column added or removed in a migration reaches the application code as
- * a type error the moment the types are regenerated.
- */
-type PublicSchema = Database["public"];
-type TableRow<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Row"];
-type FunctionReturns<F extends keyof PublicSchema["Functions"]> =
-  PublicSchema["Functions"][F]["Returns"];
+type PublicTables = Database["public"]["Tables"]
+type PublicFunctions = Database["public"]["Functions"]
 
-export type ProfileRow = TableRow<"profiles">;
-export type CommunityRow = TableRow<"communities">;
-export type MembershipRow = TableRow<"memberships">;
-export type LocalGroupRow = TableRow<"community_local_groups">;
-export type CommunityPersonRow = TableRow<"community_people">;
-export type CommunityPersonSectionRow = PublicSchema["Enums"]["community_person_section"];
-export type ChannelGroupRow = TableRow<"channel_groups">;
-export type ChannelRow = TableRow<"channels">;
-export type MessageRow = TableRow<"messages">;
-export type PostRow = TableRow<"posts">;
-export type EventRow = TableRow<"events">;
-export type EventAttendeeRow = TableRow<"event_attendees">;
-export type NotificationRow = TableRow<"notifications">;
-export type CommentRow = TableRow<"comments">;
-export type PostReactionRow = TableRow<"post_reactions">;
-export type CommunityEmojiRow = TableRow<"community_emojis">;
-export type AccessRequestRow = TableRow<"access_requests">;
-export type InvitationRow = TableRow<"invitations">;
+export type ProfileRow = PublicTables["profiles"]["Row"]
+export type CommunityRow = PublicTables["communities"]["Row"]
+export type MembershipRow = PublicTables["memberships"]["Row"]
+export type ChannelRow = PublicTables["channels"]["Row"]
+export type EventRow = PublicTables["events"]["Row"]
+export type MessageRow = PublicTables["messages"]["Row"]
+export type NotificationRow = PublicTables["notifications"]["Row"]
+export type PostRow = PublicTables["posts"]["Row"]
+export type CommentRow = PublicTables["comments"]["Row"]
+export type AccessRequestRow = PublicTables["access_requests"]["Row"]
+export type InvitationRow = PublicTables["invitations"]["Row"]
+export type CommunityEmojiRow = PublicTables["community_emojis"]["Row"]
+export type LocalGroupRow = PublicTables["community_local_groups"]["Row"]
+export type CommunityPersonRow = PublicTables["community_people"]["Row"]
+export type DirectConversationRow =
+  PublicTables["direct_conversations"]["Row"]
+export type DirectConversationReadRow =
+  PublicTables["direct_conversation_reads"]["Row"]
+export type DirectMessageRow = PublicTables["direct_messages"]["Row"]
 
-/** What an anonymous portal visitor receives — strictly less than a full row. */
-export type PortalCommunityRow = FunctionReturns<"portal_by_slug">[number];
-export type PortalEventRow = FunctionReturns<"portal_events">[number];
-
-/** Row shapes returned by the access-request and invitation RPCs. */
-export type MintedInvitationRow = FunctionReturns<"approve_access_request">[number];
-export type InvitationPreviewRow = FunctionReturns<"invitation_preview">[number];
-export type AcceptInvitationRow = FunctionReturns<"accept_invitation_token">[number];
+export type PortalCommunityRow =
+  PublicFunctions["portal_by_slug"]["Returns"][number]
+export type PortalEventRow = PublicFunctions["portal_events"]["Returns"][number]
+export type InvitationPreviewRow =
+  PublicFunctions["invitation_preview"]["Returns"][number]
+export type MintedInvitationRow =
+  PublicFunctions["approve_access_request"]["Returns"][number]
+export type AcceptInvitationRow =
+  PublicFunctions["accept_invitation_token"]["Returns"][number]

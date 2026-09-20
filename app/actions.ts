@@ -8,6 +8,7 @@ import {
   createComment as persistComment,
   createLocalGroup,
   createEvent,
+  createDirectMessage as persistDirectMessage,
   createMessage as persistMessage,
   createCommunityEmoji as persistEmoji,
   createPost as persistPost,
@@ -24,7 +25,10 @@ import {
   renameLocalGroup,
   requestCommunityAccess,
   resendInvitation,
+  startDirectConversation,
+  startDirectConversationWithOrganizationPerson,
   setAcceptsMemberDms,
+  setCommunityPersonAccountLink,
   setLocalGroupActive,
   setMyLocalGroup,
   setPostPinned,
@@ -42,6 +46,7 @@ import {
   validateEmojiName,
 } from "@/lib/emoji-image";
 import type { DmSettingFormState } from "@/lib/dm-settings-form";
+import type { DirectMessageFormState } from "@/lib/direct-message-form";
 import {
   EVENT_CREATE_REFUSED,
   EVENT_FULL,
@@ -280,6 +285,77 @@ export async function createMessageAction(
   revalidatePath(`/community/${communityId}/channel/${channelId}`);
   revalidatePath(`/community/${communityId}`);
   return { status: "ok", message: result.message };
+}
+
+// ── Direct messages ────────────────────────────────────────────────────
+
+function revalidateDirectMessages(communityId: string, conversationId?: string) {
+  revalidatePath(`/community/${communityId}/messages`);
+  if (conversationId) revalidatePath(`/community/${communityId}/messages/${conversationId}`);
+  revalidatePath("/", "layout");
+}
+
+export async function startDirectConversationAction(formData: FormData): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const recipientId = String(formData.get("recipientId") ?? "");
+  const result = await startDirectConversation({ communityId, recipientId });
+
+  if (!result.ok) redirect(`/community/${communityId}/messages?feil=start`);
+  revalidateDirectMessages(communityId, result.conversationId);
+  redirect(`/community/${communityId}/messages/${result.conversationId}`);
+}
+
+export async function startOrganizationPersonConversationAction(
+  formData: FormData,
+): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const fallbackCommunityId = String(formData.get("communityId") ?? "");
+  const result = await startDirectConversationWithOrganizationPerson(
+    String(formData.get("personId") ?? ""),
+  );
+
+  if (!result.ok) redirect(`/community/${fallbackCommunityId}/messages?feil=start`);
+  revalidateDirectMessages(result.communityId, result.conversationId);
+  redirect(`/community/${result.communityId}/messages/${result.conversationId}`);
+}
+
+export async function createDirectMessageAction(
+  _prev: DirectMessageFormState,
+  formData: FormData,
+): Promise<DirectMessageFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const conversationId = String(formData.get("conversationId") ?? "");
+  const communityId = String(formData.get("communityId") ?? "");
+  const result = await persistDirectMessage({
+    conversationId,
+    body: String(formData.get("body") ?? ""),
+  });
+
+  if (!result.ok) return { status: "error", error: result.error };
+  revalidateDirectMessages(communityId, conversationId);
+  return { status: "ok", message: result.message };
+}
+
+export async function setCommunityPersonAccountLinkAction(formData: FormData): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const personId = String(formData.get("personId") ?? "");
+  const rawUserId = String(formData.get("userId") ?? "");
+  const userId = rawUserId || null;
+
+  await setCommunityPersonAccountLink({ personId, userId });
+  revalidatePath(`/community/${communityId}/members`);
+  revalidatePath(`/community/${communityId}/organization-links`);
+  revalidatePath(`/community/${communityId}/lokallag`);
 }
 
 // ── Comments and reactions ──────────────────────────────────────────────

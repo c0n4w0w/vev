@@ -32,6 +32,7 @@ const kindMeta: Record<NotificationKind, { icon: typeof IconBell; label: string 
   event: { icon: IconCalendar, label: "Arrangement" },
   invitation: { icon: IconMail, label: "Invitasjon" },
   membership: { icon: IconUsers, label: "Medlemskap" },
+  direct_message: { icon: IconMail, label: "Melding" },
 };
 
 export default async function NotificationsPage() {

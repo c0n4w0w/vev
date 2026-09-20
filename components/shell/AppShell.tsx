@@ -33,6 +33,7 @@ function NavLink({
   icon,
   active,
   badge,
+  unread,
   onNavigate,
   accent,
 }: {
@@ -41,6 +42,7 @@ function NavLink({
   icon?: ReactNode;
   active: boolean;
   badge?: number;
+  unread?: boolean;
   onNavigate?: () => void;
   accent?: string;
 }) {
@@ -68,6 +70,53 @@ function NavLink({
         <span className="shrink-0 rounded-full bg-rust px-1.5 py-px text-[10px] font-semibold leading-4 text-white">
           {badge}
         </span>
+      ) : unread ? (
+        <span className="h-2 w-2 shrink-0 rounded-full bg-rust" aria-label="Ulest" />
+      ) : null}
+    </Link>
+  );
+}
+
+function DirectConversationNavLink({
+  href,
+  conversation,
+  active,
+  onNavigate,
+  accent,
+}: {
+  href: string;
+  conversation: ShellCommunity["recentDirectConversations"][number];
+  active: boolean;
+  onNavigate?: () => void;
+  accent?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "group relative flex min-w-0 items-center gap-2.5 rounded-[5px] px-2.5 py-[7px] text-sm transition-colors",
+        active ? "bg-paper-2 font-medium text-ink" : "text-ink-2 hover:bg-paper-2/70 hover:text-ink",
+      )}
+    >
+      {active ? (
+        <span
+          className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full"
+          style={{ backgroundColor: accent ?? "var(--color-skog)" }}
+        />
+      ) : null}
+      <Avatar user={conversation.otherParticipant} size="xs" />
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate",
+          conversation.unread && !active && "font-medium text-ink",
+        )}
+      >
+        {conversation.otherParticipant.name}
+      </span>
+      {conversation.unread && !active ? (
+        <span className="h-2 w-2 shrink-0 rounded-full bg-rust" aria-label="Ulest" />
       ) : null}
     </Link>
   );
@@ -159,6 +208,12 @@ function SidebarContent({
   inDrawer?: boolean;
 }) {
   const accent = current?.community.branding.accent;
+  const activeDirectConversation = current?.recentDirectConversations.find(
+    (conversation) =>
+      pathname === `/community/${current.community.id}/messages/${conversation.id}`,
+  );
+  const unreadDirectCountOutsideActive =
+    (current?.unreadDirectCount ?? 0) - (activeDirectConversation?.unread ? 1 : 0);
 
   return (
     <div className="flex h-full flex-col">
@@ -196,6 +251,37 @@ function SidebarContent({
                 </li>
               ))}
             </ul>
+
+            <div className="mt-6">
+              <p className="label mb-2 px-2.5">Meldinger</p>
+              <ul className="space-y-px">
+                <li>
+                  <NavLink
+                    href={`/community/${current.community.id}/messages`}
+                    label="Alle meldinger"
+                    icon={<IconMail size={17} />}
+                    accent={accent}
+                    active={pathname === `/community/${current.community.id}/messages`}
+                    unread={unreadDirectCountOutsideActive > 0}
+                    onNavigate={onNavigate}
+                  />
+                </li>
+                {current.recentDirectConversations.map((conversation) => (
+                  <li key={conversation.id}>
+                    <DirectConversationNavLink
+                      href={`/community/${current.community.id}/messages/${conversation.id}`}
+                      conversation={conversation}
+                      accent={accent}
+                      active={
+                        pathname ===
+                        `/community/${current.community.id}/messages/${conversation.id}`
+                      }
+                      onNavigate={onNavigate}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
 
             {(() => {
               // Filtering happens before the heading is drawn, so a member who

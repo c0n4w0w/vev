@@ -19,6 +19,7 @@ import {
   getLocalGroupMemberCounts,
   getLocalGroups,
   getMembership,
+  getOrganizationPersonDmActions,
   getRecentLocalGroupPosts,
   getUpcomingLocalGroupEvents,
   getUsers,
@@ -128,6 +129,9 @@ export default async function LocalGroupsPage({
   const localLeader = selected
     ? await getLocalGroupLeader(community.id, selected.id)
     : undefined;
+  const organizationDmActions = localLeader
+    ? await getOrganizationPersonDmActions(community.id)
+    : new Map<string, string | undefined>();
   const localPeople = new Map(
     selected
       ? (
@@ -249,7 +253,19 @@ export default async function LocalGroupsPage({
             <section className="mb-10">
               <SectionHeading>Kontakt</SectionHeading>
               <ul className="max-w-xl">
-                <OrganizationPersonCard person={localLeader} localGroupName={selected.name} compact />
+                <OrganizationPersonCard
+                  person={localLeader}
+                  localGroupName={selected.name}
+                  compact
+                  dmAction={
+                    organizationDmActions.has(localLeader.id)
+                      ? {
+                          communityId: community.id,
+                          conversationId: organizationDmActions.get(localLeader.id),
+                        }
+                      : undefined
+                  }
+                />
               </ul>
             </section>
           ) : null}

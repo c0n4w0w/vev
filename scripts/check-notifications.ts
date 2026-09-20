@@ -956,17 +956,22 @@ async function main() {
   // creates a notification. It inserts rather than updates, and runs as the
   // table owner, so neither new layer should be able to reach it — but that is
   // an argument, and this is the test.
+  const oskarId = await profileId("oskar");
+  const oskarEmail = await emailFor("oskar");
+  const oskarRequestCreated = await requestAccess(anon, TR, oskarEmail, "Sjekk Oskar");
+  expect("forespørselen for invitasjonssjekken ble tatt imot", oskarRequestCreated.error, null);
+
   const { data: request } = await admin
     .from("access_requests")
     .select("id, community_id, email, status, reviewed_at, reviewed_by")
-    .eq("email", "oskar@lie.studio")
+    .eq("email", oskarEmail)
+    .eq("status", "pending")
     .single();
 
   const approval = await amina.rpc("approve_access_request", { p_request_id: request!.id });
   const invitationToken = (approval.data as { token: string }[] | null)?.[0]?.token;
   expect("administrator kunne godkjenne forespørselen", Boolean(invitationToken), true);
 
-  const oskarId = await profileId("oskar");
   const oskarNotificationsBefore = (
     await admin.from("notifications").select("id").eq("user_id", oskarId)
   ).data!.length;
@@ -998,14 +1003,11 @@ async function main() {
     .eq("user_id", oskarId)
     .eq("community_id", request!.community_id);
   await admin.from("invitations").delete().eq("request_id", request!.id);
+  await admin.from("access_requests").delete().eq("id", request!.id);
   await admin
-    .from("access_requests")
-    .update({
-      status: request!.status,
-      reviewed_at: request!.reviewed_at,
-      reviewed_by: request!.reviewed_by,
-    })
-    .eq("id", request!.id);
+    .from("notifications")
+    .delete()
+    .not("id", "in", `(${seededNotificationIds.join(",")})`);
 
   // ── J. The application actually takes these paths ─────────────────────
   //

@@ -81,14 +81,12 @@ async function communityPeople(client: SupabaseClient<Database>, communityId?: s
 }
 
 async function main() {
-  const [kristoffer, nadia, kari, adrian, robin, anon] = await Promise.all([
-    emailFor("kristoffer").then(signIn), // ordinary FTR member
-    emailFor("nadia").then(signIn), // FTR moderator
-    emailFor("karimoen").then(signIn), // FTR admin, TU moderator
-    emailFor("adrian").then(signIn), // ordinary TU member
-    emailFor("robinsaether").then(signIn), // UTR admin
-    Promise.resolve(anonymous()),
-  ]);
+  const kristoffer = await signIn(await emailFor("kristoffer")); // ordinary FTR member
+  const nadia = await signIn(await emailFor("nadia")); // FTR moderator
+  const kari = await signIn(await emailFor("karimoen")); // FTR admin, TU moderator
+  const adrian = await signIn(await emailFor("adrian")); // ordinary TU member
+  const robin = await signIn(await emailFor("robinsaether")); // UTR admin
+  const anon = anonymous();
 
   const ftrPeople = await communityPeople(kristoffer, "tryggere-ruspolitikk");
   expect("FTR-medlem kan lese FTR organisasjonspersoner", ftrPeople.length > 0, true);

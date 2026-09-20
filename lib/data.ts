@@ -22,6 +22,9 @@ import type {
   ProfileRow,
   LocalGroupRow,
   CommunityPersonRow,
+  DirectConversationReadRow,
+  DirectConversationRow,
+  DirectMessageRow,
 } from "@/lib/supabase/database.types";
 import type {
   Channel,
@@ -40,6 +43,9 @@ import type {
   User,
   LocalGroup,
   CommunityPerson,
+  DirectConversation,
+  DirectConversationSummary,
+  DirectMessage,
 } from "@/lib/types";
 
 export { getRole, roles } from "@/lib/roles";
@@ -159,6 +165,16 @@ function toMessage(row: MessageRow): Message {
     createdAt: row.created_at,
     reactions: (row.reactions as unknown as Message["reactions"]) ?? [],
     attachment: (row.attachment as Message["attachment"]) ?? undefined,
+  };
+}
+
+function toDirectMessage(row: DirectMessageRow): DirectMessage {
+  return {
+    id: row.id,
+    conversationId: row.conversation_id,
+    authorId: row.author_id,
+    body: row.body,
+    createdAt: row.created_at,
   };
 }
 
@@ -356,6 +372,17 @@ export interface CommunityMember {
   membership: Membership;
 }
 
+export interface CommunityPersonAccountLink {
+  personId: string;
+  userId: string;
+  memberName?: string;
+  memberHandle?: string;
+  memberEmail?: string;
+  membershipRole?: RoleId;
+  membershipTitle?: string;
+  membershipStatus?: Membership["status"];
+}
+
 const roleWeight: Record<RoleId, number> = { admin: 0, moderator: 1, member: 2 };
 
 const loadCommunityMemberships = cache(async (communityId: string): Promise<Membership[]> => {
@@ -463,7 +490,9 @@ function toLocalGroup(row: LocalGroupRow): LocalGroup {
   };
 }
 
-function toCommunityPerson(row: CommunityPersonRow, localGroup?: LocalGroup): CommunityPerson {
+type PublicCommunityPersonRow = Omit<CommunityPersonRow, "user_id">;
+
+function toCommunityPerson(row: PublicCommunityPersonRow, localGroup?: LocalGroup): CommunityPerson {
   return {
     id: row.id,
     communityId: row.community_id,
@@ -625,6 +654,46 @@ export async function getCommunityMembers(communityId: string): Promise<Communit
     );
 }
 
+export async function getCommunityPersonAccountLinks(
+  communityId: string,
+): Promise<Map<string, CommunityPersonAccountLink>> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("community_person_account_links", {
+    p_community_id: communityId,
+  });
+  if (error) return new Map();
+
+  return new Map(
+    rows(data).map((row) => [
+      row.person_id,
+      {
+        personId: row.person_id,
+        userId: row.user_id,
+        memberName: row.member_name ?? undefined,
+        memberHandle: row.member_handle ?? undefined,
+        memberEmail: row.member_email ?? undefined,
+        membershipRole: row.membership_role ?? undefined,
+        membershipTitle: row.membership_title ?? undefined,
+        membershipStatus: row.membership_status ?? undefined,
+      },
+    ]),
+  );
+}
+
+export async function setCommunityPersonAccountLink(input: {
+  personId: string;
+  userId: string | null;
+}): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_community_person_user", {
+    p_person_id: input.personId,
+    // Postgres accepts null here to unlink; generated RPC argument types do
+    // not record argument nullability.
+    p_user_id: input.userId as unknown as string,
+  });
+  return !error && data === true;
+}
+
 // ── Channels ────────────────────────────────────────────────────────────
 
 const loadChannelGroups = cache(async (): Promise<ChannelGroup[]> => {
@@ -737,6 +806,317 @@ export async function createMessage(input: {
 function messageWriteError(message: string): string {
   if (message.includes("row-level security")) {
     return "Du har ikke tilgang til å skrive i denne kanalen.";
+  }
+  return "Meldingen kunne ikke sendes. Prøv igjen.";
+}
+
+// ── Direct messages ────────────────────────────────────────────────────
+
+function otherParticipantId(row: DirectConversationRow, userId: string): string {
+  return row.participant_one_id === userId ? row.participant_two_id : row.participant_one_id;
+}
+
+async function directReadState(
+  conversationIds: string[],
+): Promise<Map<string, DirectConversationReadRow>> {
+  if (conversationIds.length === 0) return new Map();
+
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("direct_conversation_reads")
+    .select("*")
+    .in("conversation_id", conversationIds);
+
+  return new Map(rows(data).map((row) => [row.conversation_id, row]));
+}
+
+async function latestDirectMessages(
+  conversationIds: string[],
+): Promise<Map<string, DirectMessage>> {
+  if (conversationIds.length === 0) return new Map();
+
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("direct_messages")
+    .select("*")
+    .in("conversation_id", conversationIds)
+    .order("created_at", { ascending: false });
+
+  const latest = new Map<string, DirectMessage>();
+  for (const row of rows(data)) {
+    if (!latest.has(row.conversation_id)) latest.set(row.conversation_id, toDirectMessage(row));
+  }
+  return latest;
+}
+
+async function latestDirectMessageMeta(
+  conversationIds: string[],
+): Promise<Map<string, { authorId: string; createdAt: string }>> {
+  if (conversationIds.length === 0) return new Map();
+
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("direct_messages")
+    .select("conversation_id, author_id, created_at")
+    .in("conversation_id", conversationIds)
+    .order("created_at", { ascending: false });
+
+  const latest = new Map<string, { authorId: string; createdAt: string }>();
+  for (const row of rows(data)) {
+    if (!latest.has(row.conversation_id)) {
+      latest.set(row.conversation_id, {
+        authorId: row.author_id,
+        createdAt: row.created_at,
+      });
+    }
+  }
+  return latest;
+}
+
+export async function getDirectConversations(
+  communityId: string,
+  userId: string,
+): Promise<DirectConversationSummary[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("direct_conversations")
+    .select("*")
+    .eq("community_id", communityId)
+    .order("last_message_at", { ascending: false });
+
+  const conversations = rows(data);
+  const conversationIds = conversations.map((conversation) => conversation.id);
+  const otherIds = conversations.map((conversation) => otherParticipantId(conversation, userId));
+  const [people, latest, reads] = await Promise.all([
+    getUsers([...new Set(otherIds)]),
+    latestDirectMessages(conversationIds),
+    directReadState(conversationIds),
+  ]);
+  const users = new Map(people.map((person) => [person.id, person]));
+
+  return conversations
+    .map((conversation) => {
+      const other = users.get(otherParticipantId(conversation, userId));
+      if (!other) return undefined;
+      const message = latest.get(conversation.id);
+      const read = reads.get(conversation.id);
+      const summary: DirectConversationSummary = {
+        id: conversation.id,
+        communityId: conversation.community_id,
+        participantIds: [
+          conversation.participant_one_id,
+          conversation.participant_two_id,
+        ] as [string, string],
+        otherParticipant: other,
+        latestMessage: message,
+        lastMessageAt: conversation.last_message_at,
+        unread: Boolean(
+          message &&
+            message.authorId !== userId &&
+            Date.parse(message.createdAt) > Date.parse(read?.last_read_at ?? "0001-01-01T00:00:00.000Z"),
+        ),
+      };
+      return summary;
+    })
+    .filter((conversation): conversation is DirectConversationSummary => Boolean(conversation));
+}
+
+export async function getRecentDirectConversations(
+  communityId: string,
+  userId: string,
+  limit = 5,
+): Promise<DirectConversationSummary[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("direct_conversations")
+    .select("*")
+    .eq("community_id", communityId)
+    .order("last_message_at", { ascending: false })
+    .limit(limit);
+
+  const conversations = rows(data);
+  const conversationIds = conversations.map((conversation) => conversation.id);
+  const otherIds = conversations.map((conversation) => otherParticipantId(conversation, userId));
+  const [people, latest, reads] = await Promise.all([
+    getUsers([...new Set(otherIds)]),
+    latestDirectMessageMeta(conversationIds),
+    directReadState(conversationIds),
+  ]);
+  const users = new Map(people.map((person) => [person.id, person]));
+
+  return conversations
+    .map((conversation) => {
+      const other = users.get(otherParticipantId(conversation, userId));
+      if (!other) return undefined;
+      const message = latest.get(conversation.id);
+      const read = reads.get(conversation.id);
+      const summary: DirectConversationSummary = {
+        id: conversation.id,
+        communityId: conversation.community_id,
+        participantIds: [
+          conversation.participant_one_id,
+          conversation.participant_two_id,
+        ] as [string, string],
+        otherParticipant: other,
+        lastMessageAt: conversation.last_message_at,
+        unread: Boolean(
+          message &&
+            message.authorId !== userId &&
+            Date.parse(message.createdAt) > Date.parse(read?.last_read_at ?? "0001-01-01T00:00:00.000Z"),
+        ),
+      };
+      return summary;
+    })
+    .filter((conversation): conversation is DirectConversationSummary => Boolean(conversation));
+}
+
+export async function getDirectConversation(
+  conversationId: string,
+  userId: string,
+): Promise<DirectConversation | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data: conversation } = await supabase
+    .from("direct_conversations")
+    .select("*")
+    .eq("id", conversationId)
+    .maybeSingle();
+
+  if (!conversation) return undefined;
+
+  const [{ data: messageRows }, readMap, other] = await Promise.all([
+    supabase
+      .from("direct_messages")
+      .select("*")
+      .eq("conversation_id", conversation.id)
+      .order("created_at", { ascending: true }),
+    directReadState([conversation.id]),
+    getUser(otherParticipantId(conversation, userId)),
+  ]);
+
+  if (!other) return undefined;
+
+  const messages = rows(messageRows).map(toDirectMessage);
+  const last = messages[messages.length - 1];
+  const read = readMap.get(conversation.id);
+
+  return {
+    id: conversation.id,
+    communityId: conversation.community_id,
+    participantIds: [
+      conversation.participant_one_id,
+      conversation.participant_two_id,
+    ],
+    otherParticipant: other,
+    messages,
+    unread: Boolean(
+      last &&
+        last.authorId !== userId &&
+        Date.parse(last.createdAt) > Date.parse(read?.last_read_at ?? "0001-01-01T00:00:00.000Z"),
+    ),
+  };
+}
+
+export async function startDirectConversation(input: {
+  communityId: string;
+  recipientId: string;
+}): Promise<{ ok: true; conversationId: string } | { ok: false; error: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("start_direct_conversation", {
+    p_community_id: input.communityId,
+    p_recipient_id: input.recipientId,
+  });
+
+  if (error || !data) return { ok: false, error: directConversationError(error?.message) };
+  return { ok: true, conversationId: data };
+}
+
+export async function startDirectConversationWithOrganizationPerson(
+  personId: string,
+): Promise<
+  | { ok: true; conversationId: string; communityId: string }
+  | { ok: false; error: string }
+> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc(
+    "start_direct_conversation_with_organization_person",
+    { p_person_id: personId },
+  );
+  const row = rows(data)[0];
+
+  if (error || !row) return { ok: false, error: directConversationError(error?.message) };
+  return { ok: true, conversationId: row.conversation_id, communityId: row.community_id };
+}
+
+export async function getOrganizationPersonDmActions(
+  communityId: string,
+): Promise<Map<string, string | undefined>> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("organization_person_dm_actions", {
+    p_community_id: communityId,
+  });
+  return new Map(rows(data).map((row) => [row.person_id, row.conversation_id ?? undefined]));
+}
+
+export async function getMemberDmActions(
+  communityId: string,
+): Promise<Map<string, string | undefined>> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("direct_member_dm_actions", {
+    p_community_id: communityId,
+  });
+  return new Map(rows(data).map((row) => [row.user_id, row.conversation_id ?? undefined]));
+}
+
+export async function markDirectConversationRead(conversationId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("mark_direct_conversation_read", {
+    p_conversation_id: conversationId,
+  });
+  return !error && data === true;
+}
+
+export async function getUnreadDirectConversationCount(communityId: string): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("direct_unread_count", {
+    p_community_id: communityId,
+  });
+  return error ? 0 : data ?? 0;
+}
+
+export type DirectMessageWriteResult =
+  | { ok: true; message: DirectMessage }
+  | { ok: false; error: string };
+
+export async function createDirectMessage(input: {
+  conversationId: string;
+  body: string;
+}): Promise<DirectMessageWriteResult> {
+  const body = input.body.trim();
+  if (!body) return { ok: false, error: "Meldingen kan ikke være tom." };
+  if (body.length > 4000) return { ok: false, error: "Meldingen kan være høyst 4000 tegn." };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("direct_messages")
+    .insert({ conversation_id: input.conversationId, body })
+    .select("*")
+    .single();
+
+  if (error) return { ok: false, error: directMessageWriteError(error.message) };
+  return { ok: true, message: toDirectMessage(data) };
+}
+
+function directConversationError(message?: string): string {
+  if (message?.includes("direkte melding") || message?.includes("mot")) return message;
+  return "Samtalen kunne ikke åpnes. Prøv igjen.";
+}
+
+function directMessageWriteError(message: string): string {
+  if (message.includes("row-level security") || message.includes("tilgang")) {
+    return "Du har ikke tilgang til å skrive i denne samtalen.";
+  }
+  if (message.includes("direct_messages_body_present")) {
+    return "Meldingen kan være mellom 1 og 4000 tegn.";
   }
   return "Meldingen kunne ikke sendes. Prøv igjen.";
 }

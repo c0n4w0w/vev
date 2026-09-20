@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { startDirectConversationAction } from "@/app/actions";
 import { OrganizationPersonCard } from "@/components/community/OrganizationPersonCard";
 import {
   Avatar,
@@ -9,6 +10,7 @@ import {
   PageHeader,
   Panel,
   SectionHeading,
+  buttonClass,
 } from "@/components/ui/primitives";
 import { IconLock, IconMapPin, IconShield } from "@/components/ui/icons";
 import {
@@ -17,7 +19,9 @@ import {
   getCommunityById,
   getCommunityMembers,
   getCommunityPeople,
+  getMemberDmActions,
   getMembership,
+  getOrganizationPersonDmActions,
   getRole,
 } from "@/lib/data";
 import { formatFullDate, plural } from "@/lib/format";
@@ -59,10 +63,14 @@ function GeneralContactBlock({ email }: { email: string }) {
 function OrganizationRows({
   title,
   people,
+  communityId,
+  dmActions,
   leaders = false,
 }: {
   title: string;
   people: CommunityPerson[];
+  communityId: string;
+  dmActions: Map<string, string | undefined>;
   leaders?: boolean;
 }) {
   if (people.length === 0) return null;
@@ -76,6 +84,11 @@ function OrganizationRows({
             key={person.id}
             person={person}
             localGroupName={leaders ? person.localGroupName : undefined}
+            dmAction={
+              dmActions.has(person.id)
+                ? { communityId, conversationId: dmActions.get(person.id) }
+                : undefined
+            }
           />
         ))}
       </ul>
@@ -86,9 +99,13 @@ function OrganizationRows({
 function MemberDirectory({
   members,
   userId,
+  communityId,
+  dmActions,
 }: {
   members: CommunityMember[];
   userId: string;
+  communityId: string;
+  dmActions: Map<string, string | undefined>;
 }) {
   return (
     <div className="space-y-10">
@@ -127,6 +144,30 @@ function MemberDirectory({
                       </span>
                       <span>Medlem siden {formatFullDate(personMembership.joinedAt)}</span>
                     </p>
+                    {dmActions.has(person.id) ? (
+                      <div className="mt-3">
+                        {dmActions.get(person.id) ? (
+                          <ButtonLink
+                            href={`/community/${communityId}/messages/${dmActions.get(person.id)}`}
+                            size="sm"
+                            variant="secondary"
+                          >
+                            Send melding
+                          </ButtonLink>
+                        ) : (
+                          <form action={startDirectConversationAction}>
+                            <input type="hidden" name="communityId" value={communityId} />
+                            <input type="hidden" name="recipientId" value={person.id} />
+                            <button
+                              type="submit"
+                              className={buttonClass({ variant: "secondary", size: "sm" })}
+                            >
+                              Send melding
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 </Panel>
               ))}
@@ -156,7 +197,11 @@ export default async function MembersPage({
   const isAdmin = membership?.role === "admin";
 
   if (organizationPeople.length > 0) {
-    const members = canViewDirectory ? await getCommunityMembers(community.id) : [];
+    const [members, organizationDmActions, memberDmActions] = await Promise.all([
+      canViewDirectory ? getCommunityMembers(community.id) : Promise.resolve([]),
+      getOrganizationPersonDmActions(community.id),
+      canViewDirectory ? getMemberDmActions(community.id) : Promise.resolve(new Map()),
+    ]);
 
     return (
       <PageContainer>
@@ -166,9 +211,23 @@ export default async function MembersPage({
           lead="Offentlig kontaktinformasjon fra organisasjonen. Dette er ikke medlemslisten i TING."
           action={
             isAdmin ? (
-              <ButtonLink href={`/community/${community.id}/requests`} size="sm" variant="secondary">
-                Medlemsforespørsler
-              </ButtonLink>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <ButtonLink
+                  href={`/community/${community.id}/organization-links`}
+                  size="sm"
+                  variant="secondary"
+                >
+                  Administrer kontokoblinger
+                </ButtonLink>
+                <ButtonLink
+                  href={`/community/${community.id}/requests`}
+                  size="sm"
+                  variant="secondary"
+                  className="sm:order-first"
+                >
+                  Medlemsforespørsler
+                </ButtonLink>
+              </div>
             ) : undefined
           }
         />
@@ -185,6 +244,8 @@ export default async function MembersPage({
                 key={section.id}
                 title={section.title}
                 people={people}
+                communityId={community.id}
+                dmActions={organizationDmActions}
                 leaders={section.id === "local_group_leader"}
               />
             );
@@ -210,7 +271,12 @@ export default async function MembersPage({
                 </ButtonLink>
               </div>
             </div>
-            <MemberDirectory members={members} userId={user.id} />
+            <MemberDirectory
+              members={members}
+              userId={user.id}
+              communityId={community.id}
+              dmActions={memberDmActions}
+            />
           </section>
         ) : (
           <Panel className="mt-10 flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
@@ -241,7 +307,10 @@ export default async function MembersPage({
     );
   }
 
-  const members = await getCommunityMembers(community.id);
+  const [members, memberDmActions] = await Promise.all([
+    getCommunityMembers(community.id),
+    getMemberDmActions(community.id),
+  ]);
 
   return (
     <PageContainer>
@@ -258,7 +327,12 @@ export default async function MembersPage({
         }
       />
 
-      <MemberDirectory members={members} userId={user.id} />
+      <MemberDirectory
+        members={members}
+        userId={user.id}
+        communityId={community.id}
+        dmActions={memberDmActions}
+      />
 
       <Panel className="mt-10 flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
         {isAdmin ? (

@@ -3,9 +3,18 @@ import {
   getCommunityPeople,
   getGroupedChannels,
   getLocalGroups,
+  getRecentDirectConversations,
+  getUnreadDirectConversationCount,
   getUnreadCount,
 } from "@/lib/data";
-import type { Channel, ChannelGroup, Community, Membership, User } from "@/lib/types";
+import type {
+  Channel,
+  ChannelGroup,
+  Community,
+  DirectConversationSummary,
+  Membership,
+  User,
+} from "@/lib/types";
 
 /**
  * Everything the navigation shell needs, resolved once per request on the
@@ -30,6 +39,8 @@ export interface ShellCommunity {
    */
   localGroups: { usesLocalGroups: boolean; selectedName?: string };
   hasOrganizationPeople: boolean;
+  unreadDirectCount: number;
+  recentDirectConversations: DirectConversationSummary[];
 }
 
 export interface ShellData {
@@ -46,16 +57,21 @@ export async function buildShellData(user: User): Promise<ShellData> {
 
   const communities = await Promise.all(
     memberships.map(async ({ community, membership }) => {
-      const [channelGroups, groups, people] = await Promise.all([
-        getGroupedChannels(community.id),
-        getLocalGroups(community.id),
-        getCommunityPeople(community.id),
-      ]);
+      const [channelGroups, groups, people, unreadDirectCount, recentDirectConversations] =
+        await Promise.all([
+          getGroupedChannels(community.id),
+          getLocalGroups(community.id),
+          getCommunityPeople(community.id),
+          getUnreadDirectConversationCount(community.id),
+          getRecentDirectConversations(community.id, user.id, 5),
+        ]);
 
       return {
         community,
         membership,
         channelGroups,
+        unreadDirectCount,
+        recentDirectConversations,
         hasOrganizationPeople: people.length > 0,
         localGroups: {
           usesLocalGroups: groups.some((group) => group.active),

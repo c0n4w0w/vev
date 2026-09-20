@@ -128,9 +128,16 @@ async function seedAccounts(): Promise<Map<string, string>> {
 async function clearContent() {
   // Order matters: children before parents. `event_attendees` is cleared by
   // the caller because it has a composite key rather than an `id`.
+  await supabase
+    .from("direct_conversation_reads")
+    .delete()
+    .not("conversation_id", "is", null);
+
   const tables = [
     "access_requests",
     "notifications",
+    "direct_messages",
+    "direct_conversations",
     "events",
     "messages",
     "posts",

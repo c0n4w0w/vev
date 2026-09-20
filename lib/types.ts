@@ -132,6 +132,33 @@ export interface CommunityPerson {
   sortOrder: number;
 }
 
+export interface DirectMessage {
+  id: string;
+  conversationId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface DirectConversationSummary {
+  id: string;
+  communityId: string;
+  participantIds: [string, string];
+  otherParticipant: User;
+  latestMessage?: DirectMessage;
+  lastMessageAt: string;
+  unread: boolean;
+}
+
+export interface DirectConversation {
+  id: string;
+  communityId: string;
+  participantIds: [string, string];
+  otherParticipant: User;
+  messages: DirectMessage[];
+  unread: boolean;
+}
+
 export interface ChannelGroup {
   id: string;
   /** Uppercase group heading, e.g. GENERELT. */
@@ -246,7 +273,8 @@ export type NotificationKind =
   | "announcement"
   | "event"
   | "invitation"
-  | "membership";
+  | "membership"
+  | "direct_message";
 
 export interface Notification {
   id: string;
