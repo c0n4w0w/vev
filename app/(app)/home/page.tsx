@@ -6,11 +6,11 @@ import { PostCard } from "@/components/community/PostCard";
 import {
   ButtonLink,
   CommunityMark,
+  ElevatedRoleBadge,
   EmptyState,
   Panel,
   PageContainer,
   PageHeader,
-  RoleBadge,
   SectionHeading,
 } from "@/components/ui/primitives";
 import { IconArrowRight, IconLock } from "@/components/ui/icons";
@@ -25,6 +25,7 @@ import {
   getUsers,
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
+import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 import { PUBLIC_HOST } from "@/lib/brand";
 
@@ -208,13 +209,13 @@ export default async function HomePage() {
                       <span className="block truncate text-[13px] font-medium text-ink">
                         {community.name}
                       </span>
-                      {membership.title ? (
+                      {publicMemberTitle(membership.title) ? (
                         <span className="block truncate text-[11px] text-ink-3">
-                          {membership.title}
+                          {publicMemberTitle(membership.title)}
                         </span>
                       ) : null}
                     </span>
-                    <RoleBadge role={membership.role} />
+                    <ElevatedRoleBadge role={membership.role} />
                   </Link>
                 ))}
               </Panel>

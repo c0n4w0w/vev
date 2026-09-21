@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Avatar, CommunityMark, RoleBadge, cn } from "@/components/ui/primitives";
+import { Avatar, CommunityMark, ElevatedRoleBadge, cn } from "@/components/ui/primitives";
 import {
   IconBell,
   IconCalendar,
@@ -225,7 +225,7 @@ function SidebarContent({
         {current ? (
           <>
             <div className="mb-4 flex items-center gap-2 px-2.5">
-              <RoleBadge role={current.membership.role} />
+              <ElevatedRoleBadge role={current.membership.role} />
               <span className="inline-flex items-center gap-1 text-[11px] text-ink-3">
                 <IconLock size={12} />
                 Lukket

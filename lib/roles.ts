@@ -25,3 +25,9 @@ export const roles: Record<RoleId, Role> = {
 export function getRole(roleId: RoleId): Role {
   return roles[roleId];
 }
+
+export function publicMemberTitle(title?: string | null) {
+  const trimmed = title?.trim();
+  if (!trimmed || trimmed.toLocaleLowerCase("nb-NO") === "medlem") return undefined;
+  return trimmed;
+}

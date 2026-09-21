@@ -7,15 +7,16 @@ import {
   Button,
   ButtonLink,
   CommunityMark,
+  ElevatedRoleBadge,
   Panel,
   PageContainer,
   PageHeader,
-  RoleBadge,
   SectionHeading,
 } from "@/components/ui/primitives";
 import { IconLock, IconMapPin, IconShield, IconSwitch } from "@/components/ui/icons";
 import { getCommunitiesForUser, getEventsForUser } from "@/lib/data";
 import { formatFullDate, plural } from "@/lib/format";
+import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Profil" };
@@ -83,10 +84,12 @@ export default async function ProfilePage() {
                     {community.name}
                   </span>
                   <span className="mt-0.5 block truncate text-[13px] text-ink-3">
-                    {membership.title ?? "Medlem"} · siden {formatFullDate(membership.joinedAt)}
+                    {publicMemberTitle(membership.title)
+                      ? `${publicMemberTitle(membership.title)} · siden ${formatFullDate(membership.joinedAt)}`
+                      : `Siden ${formatFullDate(membership.joinedAt)}`}
                   </span>
                 </span>
-                <RoleBadge role={membership.role} />
+                <ElevatedRoleBadge role={membership.role} />
               </Link>
             ))}
           </Panel>

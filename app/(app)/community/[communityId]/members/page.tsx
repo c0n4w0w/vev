@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import type { ReactNode } from "react";
 import { startDirectConversationAction } from "@/app/actions";
 import { OrganizationPersonCard } from "@/components/community/OrganizationPersonCard";
 import {
@@ -9,7 +10,6 @@ import {
   PageContainer,
   PageHeader,
   Panel,
-  RoleBadge,
   SectionHeading,
   buttonClass,
 } from "@/components/ui/primitives";
@@ -26,6 +26,7 @@ import {
   getRole,
 } from "@/lib/data";
 import { formatFullDate, plural } from "@/lib/format";
+import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 import type { CommunityPerson, CommunityPersonSection, RoleId } from "@/lib/types";
 
@@ -38,11 +39,22 @@ export async function generateMetadata({ params }: PageProps<"/community/[commun
 }
 
 const roleOrder: RoleId[] = ["admin", "moderator", "member"];
+const adminPermissionLabels: Record<RoleId, string> = {
+  admin: "Administrator",
+  moderator: "Moderator",
+  member: "Normal tilgang",
+};
+
 const organizationSections: { id: CommunityPersonSection; title: string }[] = [
   { id: "staff", title: "Ansatte" },
   { id: "board", title: "Sentralstyret" },
   { id: "local_group_leader", title: "Lokallagsledere" },
 ];
+
+function PermissionBadge({ role }: { role: RoleId }) {
+  const tone = role === "admin" ? "skog" : role === "moderator" ? "fjord" : "outline";
+  return <Badge tone={tone}>{adminPermissionLabels[role]}</Badge>;
+}
 
 function GeneralContactBlock({ email }: { email: string }) {
   return (
@@ -98,7 +110,7 @@ function OrganizationRows({
   );
 }
 
-function MemberDirectory({
+function AdminMemberDirectory({
   members,
   userId,
   communityId,
@@ -115,11 +127,12 @@ function MemberDirectory({
         const group = members.filter((entry) => entry.membership.role === roleId);
         if (group.length === 0) return null;
         const role = getRole(roleId);
+        const label = adminPermissionLabels[roleId];
 
         return (
           <section key={roleId}>
             <SectionHeading>
-              {role.label} · {group.length}
+              {label} · {group.length}
             </SectionHeading>
             <p className="-mt-2 mb-4 text-[13px] text-ink-3">{role.description}</p>
             <ul className="grid gap-3 sm:grid-cols-2">
@@ -130,7 +143,7 @@ function MemberDirectory({
                   userId={userId}
                   communityId={communityId}
                   dmActions={dmActions}
-                  fallbackTitle={role.label}
+                  permissionBadge={<PermissionBadge role={personMembership.role} />}
                 />
               ))}
             </ul>
@@ -146,18 +159,16 @@ function MemberCard({
   userId,
   communityId,
   dmActions,
-  fallbackTitle,
-  showPermissionBadge = false,
+  permissionBadge,
 }: {
   member: CommunityMember;
   userId: string;
   communityId: string;
   dmActions: Map<string, string | undefined>;
-  fallbackTitle?: string;
-  showPermissionBadge?: boolean;
+  permissionBadge?: ReactNode;
 }) {
   const { user: person, membership: personMembership } = member;
-  const title = personMembership.title ?? fallbackTitle;
+  const title = publicMemberTitle(personMembership.title);
 
   return (
     <Panel as="li" className="flex gap-3.5 p-4">
@@ -168,9 +179,7 @@ function MemberCard({
             {person.name}
           </span>
           {person.id === userId ? <Badge tone="skog">Deg</Badge> : null}
-          {showPermissionBadge && personMembership.role !== "member" ? (
-            <RoleBadge role={personMembership.role} />
-          ) : null}
+          {permissionBadge}
         </p>
         {title ? <p className="mt-0.5 text-[13px] text-ink-2">{title}</p> : null}
         <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-ink-3">
@@ -240,7 +249,6 @@ function FlatMemberDirectory({
           userId={userId}
           communityId={communityId}
           dmActions={dmActions}
-          showPermissionBadge
         />
       ))}
     </ul>
@@ -408,7 +416,7 @@ export default async function MembersPage({
                 </ButtonLink>
               </div>
             </div>
-            <MemberDirectory
+            <AdminMemberDirectory
               members={members}
               userId={user.id}
               communityId={community.id}
@@ -464,7 +472,7 @@ export default async function MembersPage({
         }
       />
 
-      <MemberDirectory
+      <FlatMemberDirectory
         members={members}
         userId={user.id}
         communityId={community.id}

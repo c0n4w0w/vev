@@ -4,11 +4,11 @@ import { redirect } from "next/navigation";
 import {
   Badge,
   CommunityMark,
+  ElevatedRoleBadge,
   EmptyState,
   Panel,
   PageContainer,
   PageHeader,
-  RoleBadge,
 } from "@/components/ui/primitives";
 import { IconArrowRight, IconLock, IconUsers } from "@/components/ui/icons";
 import {
@@ -17,6 +17,7 @@ import {
   getUpcomingCommunityEvents,
 } from "@/lib/data";
 import { plural } from "@/lib/format";
+import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Mine fellesskap" };
@@ -75,8 +76,10 @@ export default async function CommunitiesPage() {
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <RoleBadge role={membership.role} />
-                  {membership.title ? <Badge tone="outline">{membership.title}</Badge> : null}
+                  <ElevatedRoleBadge role={membership.role} />
+                  {publicMemberTitle(membership.title) ? (
+                    <Badge tone="outline">{publicMemberTitle(membership.title)}</Badge>
+                  ) : null}
                 </div>
 
                 <dl className="mt-4 flex flex-wrap gap-x-5 gap-y-1 border-t border-line pt-3.5 text-xs text-ink-3">

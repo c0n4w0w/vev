@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CommunityMark, RoleBadge, cn } from "@/components/ui/primitives";
+import { CommunityMark, ElevatedRoleBadge, cn } from "@/components/ui/primitives";
 import { IconCheck, IconChevronDown, IconPlus, IconSwitch } from "@/components/ui/icons";
 import { Wordmark } from "@/components/shell/Wordmark";
 import type { ShellCommunity, ShellData } from "@/components/shell/shell-data";
@@ -122,7 +122,7 @@ export function CommunitySwitcher({
                       {active ? (
                         <IconCheck size={15} className="shrink-0 text-skog" />
                       ) : (
-                        <RoleBadge role={membership.role} />
+                        <ElevatedRoleBadge role={membership.role} />
                       )}
                     </Link>
                   </li>

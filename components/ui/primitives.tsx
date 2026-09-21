@@ -145,6 +145,11 @@ export function RoleBadge({ role, className }: { role: RoleId; className?: strin
   );
 }
 
+export function ElevatedRoleBadge({ role, className }: { role: RoleId; className?: string }) {
+  if (role === "member") return null;
+  return <RoleBadge role={role} className={className} />;
+}
+
 // ── Buttons ─────────────────────────────────────────────────────────────
 
 const buttonBase =

@@ -6,10 +6,10 @@ import {
   Avatar,
   Badge,
   CommunityMark,
+  ElevatedRoleBadge,
   Panel,
   PageContainer,
   RichText,
-  RoleBadge,
   SectionHeading,
   cn,
 } from "@/components/ui/primitives";
@@ -34,6 +34,7 @@ import {
 } from "@/lib/data";
 import { PUBLIC_HOST } from "@/lib/brand";
 import { plural, timeAgo } from "@/lib/format";
+import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]">) {
@@ -66,6 +67,7 @@ export default async function CommunityOverviewPage({
   const feed = allPosts.filter((post) => post.id !== pinned?.id).slice(0, 2);
   const events = upcoming.slice(0, 2);
   const accent = community.branding.accent;
+  const membershipTitle = publicMemberTitle(membership?.title);
 
   const people = new Map(
     (
@@ -109,8 +111,8 @@ export default async function CommunityOverviewPage({
                     ? "Lukket · kun ved invitasjon"
                     : "Lukket · tar imot søknader"}
                 </Badge>
-                {membership ? <RoleBadge role={membership.role} /> : null}
-                {membership?.title ? <Badge tone="outline">{membership.title}</Badge> : null}
+                {membership ? <ElevatedRoleBadge role={membership.role} /> : null}
+                {membershipTitle ? <Badge tone="outline">{membershipTitle}</Badge> : null}
               </div>
               <h1 className="mt-3 font-display text-[2rem] leading-tight text-ink sm:text-[2.5rem]">
                 {community.name}
@@ -311,11 +313,12 @@ export default async function CommunityOverviewPage({
                       <span className="block truncate text-[13px] font-medium text-ink">
                         {person.name}
                       </span>
-                      <span className="block truncate text-[11px] text-ink-3">
-                        {personMembership.title}
-                      </span>
+                      {publicMemberTitle(personMembership.title) ? (
+                        <span className="block truncate text-[11px] text-ink-3">
+                          {publicMemberTitle(personMembership.title)}
+                        </span>
+                      ) : null}
                     </span>
-                    <RoleBadge role={personMembership.role} />
                   </div>
                 ))}
               </Panel>
