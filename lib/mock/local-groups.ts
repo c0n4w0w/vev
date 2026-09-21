@@ -52,10 +52,10 @@ export const localGroups: LocalGroupFixture[] = [
  * nowhere below, because a member with no local group is the case the feature
  * has to handle gracefully and the demo should show it rather than hide it.
  *
- * The showcase persona (Kari, `demo-tryggere`) is given a group in the parent
- * organisation and left without one in the youth organisation, so a single
- * session demonstrates both states and the fact that the affiliation is
- * per-community rather than per-person.
+ * The Tryggere showcase personas are given a group in the parent organisation
+ * and left without one in the youth organisation, so each session demonstrates
+ * both states and the fact that the affiliation is per-community rather than
+ * per-person.
  */
 export interface LocalGroupAssignment {
   userId: string;
@@ -66,6 +66,7 @@ export interface LocalGroupAssignment {
 export const localGroupAssignments: LocalGroupAssignment[] = [
   // Tryggere Ruspolitikk
   { userId: "demo-tryggere", communityId: "tryggere-ruspolitikk", localGroupName: "FTR Trøndelag" },
+  { userId: "demo-tryggere-member", communityId: "tryggere-ruspolitikk", localGroupName: "FTR Trøndelag" },
   { userId: "amina", communityId: "tryggere-ruspolitikk", localGroupName: "FTR Oslo" },
   { userId: "kristoffer", communityId: "tryggere-ruspolitikk", localGroupName: "FTR Oslo" },
   { userId: "petter", communityId: "tryggere-ruspolitikk", localGroupName: "FTR Trøndelag" },
@@ -78,5 +79,5 @@ export const localGroupAssignments: LocalGroupAssignment[] = [
   { userId: "mathea", communityId: "tryggere-ungdom", localGroupName: "TU UiO" },
   { userId: "adrian", communityId: "tryggere-ungdom", localGroupName: "TU Vestland" },
   { userId: "petter", communityId: "tryggere-ungdom", localGroupName: "TU Trøndelag" },
-  // demo-tryggere is a moderator here with no local group, on purpose.
+  // The Tryggere showcase personas have no local group here, on purpose.
 ];

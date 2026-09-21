@@ -12,7 +12,7 @@
  */
 export interface Showcase {
   /** URL-safe key, used in `DEMO_TOKEN_<KEY>` and for logging. */
-  id: "tryggere" | "utr";
+  id: "tryggere" | "tryggere_member" | "utr" | "utr_member";
   label: string;
   /** Fixture account this showcase signs a visitor in as. */
   personaEmail: string;
@@ -32,12 +32,28 @@ export const showcases: Showcase[] = [
       "Civic organisation: admin-only member directory, staff-only DMs, access requests, invitations, announcements.",
   },
   {
+    id: "tryggere_member",
+    label: "Tryggere Ruspolitikk / Tryggere Ungdom (ordinary member)",
+    personaEmail: "demo.tryggere.member@demo.join-ting.no",
+    landing: "/community/tryggere-ruspolitikk",
+    demonstrates:
+      "Civic organisation as an ordinary member: FTR Trøndelag selected, Tryggere Ungdom without a local group, no admin controls.",
+  },
+  {
     id: "utr",
     label: "Under The Rug",
     personaEmail: "demo.utr@demo.join-ting.no",
     landing: "/community/under-the-rug",
     demonstrates:
       "Independent collective: open member directory, member DMs, active public event programme, custom emoji.",
+  },
+  {
+    id: "utr_member",
+    label: "Under The Rug (ordinary member)",
+    personaEmail: "demo.utr.member@demo.join-ting.no",
+    landing: "/community/under-the-rug",
+    demonstrates:
+      "Independent collective as an ordinary member: directory, channels, events, feed, and member-to-member DMs without admin controls.",
   },
 ];
 

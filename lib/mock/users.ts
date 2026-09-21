@@ -221,8 +221,8 @@ export const users: User[] = [
 /**
  * The three membership shapes, in order: many communities, one, none.
  *
- * Not the showcase personas — those are Kari and Robin in `demo-personas.ts`,
- * and they are the only accounts a `/demo/<token>` link signs anyone in as.
+ * Not the showcase personas — those live in `demo-personas.ts`, and they are
+ * the only accounts a `/demo/<token>` link signs anyone in as.
  * These three are a fixture-coverage guarantee: `check-content.ts` asserts that
  * Ingrid is in all three communities, Jonas in exactly one, and Sofie in none
  * and with no membership row at all, so the empty and cold-start screens always

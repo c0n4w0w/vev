@@ -39,11 +39,11 @@ function check(label: string, condition: boolean, detail?: string) {
   if (!condition) failures.push(detail ? `${label} — ${detail}` : label);
 }
 
-// The accounts the seed actually creates, which is `users` plus the two
+// The accounts the seed actually creates, which is `users` plus the
 // showcase personas — `scripts/seed.ts` concatenates exactly these. Leaving the
 // personas out made every fixture that names one look like a dangling
 // reference, which is what happened the moment the notification fixtures were
-// written around Kari and Robin.
+// written around showcase-only people.
 const userIds = new Set([...users, ...demoPersonas].map((user) => user.id));
 const communityIds = new Set(communities.map((community) => community.id));
 const channelIds = new Set(channels.map((channel) => channel.id));
@@ -62,7 +62,7 @@ const INDEPENDENT = "under-the-rug";
 
 // ── 1. Referential integrity ────────────────────────────────────────────
 
-for (const membership of memberships) {
+for (const membership of allMemberships) {
   const where = `${membership.userId}/${membership.communityId}`;
   check("membership.userId finnes", userIds.has(membership.userId), where);
   check("membership.communityId finnes", communityIds.has(membership.communityId), where);
@@ -375,6 +375,32 @@ check(
   new Set(
     memberships.filter((m) => m.userId === manyId && m.status === "active").map((m) => m.role),
   ).size === 3,
+);
+
+const membershipShape = (userId: string) =>
+  new Map(
+    allMemberships
+      .filter((m) => m.userId === userId && m.status === "active")
+      .map((m) => [m.communityId, m.role]),
+  );
+const tryggereMember = membershipShape("demo-tryggere-member");
+check(
+  "ordinær Tryggere-showcase er medlem i FTR og TU",
+  tryggereMember.get("tryggere-ruspolitikk") === "member" &&
+    tryggereMember.get("tryggere-ungdom") === "member",
+);
+check(
+  "ordinær Tryggere-showcase er ikke medlem i UTR",
+  !tryggereMember.has("under-the-rug"),
+);
+const utrMember = membershipShape("demo-utr-member");
+check(
+  "ordinær UTR-showcase er bare vanlig UTR-medlem",
+  utrMember.size === 1 && utrMember.get("under-the-rug") === "member",
+);
+check(
+  "ordinære showcase-personaer har ingen privilegerte roller",
+  [...tryggereMember.values(), ...utrMember.values()].every((role) => role === "member"),
 );
 // A request is now a row in `access_requests`, keyed by email, not a
 // membership in a pending state.

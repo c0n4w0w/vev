@@ -14,8 +14,8 @@ import type { Notification } from "@/lib/types";
  * who spans three communities and therefore makes the richest list — and then
  * `lib/mock/demo-personas.ts` deliberately made the reachable personas narrow,
  * for good reasons it explains at length. Nobody rewrote this file, so Kari and
- * Robin, the only two accounts a showcase link can sign anyone in as, had none
- * at all. The bell was permanently empty in the only session anyone sees.
+ * Robin, the original two privileged showcase accounts, had none at all. The
+ * bell was permanently empty in the only session anyone saw.
  *
  * ── What may appear here ────────────────────────────────────────────────
  *

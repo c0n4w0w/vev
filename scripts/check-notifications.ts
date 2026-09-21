@@ -1077,8 +1077,8 @@ async function main() {
   expect("noen av dem er lest", fixtureNotifications.some((n) => n.read), true);
   expect("og noen er uleste", seededUnread > 0, true);
 
-  // Both showcase personas have something to look at, and something unread so
-  // the badge is not a dead ornament.
+  // The privileged showcase personas have something to look at, and something
+  // unread so the badge is not a dead ornament.
   for (const persona of ["demo-tryggere", "demo-utr"] as const) {
     const rows = seededFor(persona);
     expect(`${asHandle(persona)} har seedede varsler`, rows.length > 0, true);

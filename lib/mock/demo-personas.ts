@@ -5,9 +5,9 @@ import type { Membership, User } from "@/lib/types";
  *
  * Deliberately a separate file from `lib/mock/users.ts` and
  * `lib/mock/communities.ts`. Those describe the fictional organisations and
- * the people in them — content. These two exist only so that a prospect
+ * the people in them — content. These exist only so that a prospect
  * following a link lands somewhere sensible, and their memberships are what
- * makes each showcase show one organisation and not the other.
+ * makes each showcase show the intended role and organisation set.
  *
  * The separation is the mechanism, not a UI filter. TING has no global
  * directory: the sidebar, the switcher and every query return exactly the
@@ -15,7 +15,7 @@ import type { Membership, User } from "@/lib/types";
  * Under The Rug membership and Under The Rug is not hidden from them — it is
  * genuinely not theirs, enforced by row level security like anyone else's.
  *
- * This is also why Ingrid is not the Tryggere persona. She is the fixture that
+ * This is also why Ingrid is not a Tryggere persona. She is the fixture that
  * demonstrates one account spanning two unrelated organisations, which is a
  * good story on its own and the wrong one here: her switcher would list Under
  * The Rug in the middle of a civic-organisation demo.
@@ -48,6 +48,28 @@ export const demoPersonas: User[] = [
     bio: "Booking og produksjon. Bruker mer tid på strømkurser og bæring enn på å høre på musikk.",
     joinedAt: "2023-04-02",
   },
+  {
+    id: "demo-tryggere-member",
+    name: "Eli Rønning",
+    handle: "elironning",
+    initials: "ER",
+    email: "demo.tryggere.member@demo.join-ting.no",
+    pronoun: "hen/hen",
+    location: "Trondheim",
+    bio: "Vanlig medlem som følger lokallagsaktivitet i Trøndelag og bidrar når det passer med jobb og studier.",
+    joinedAt: "2025-02-18",
+  },
+  {
+    id: "demo-utr-member",
+    name: "Mina Solberg",
+    handle: "minasolberg",
+    initials: "MS",
+    email: "demo.utr.member@demo.join-ting.no",
+    pronoun: "hun/henne",
+    location: "Oslo",
+    bio: "Frivillig i døra og på opprigg. Leser kanalene for å få med seg vaktplaner, program og nye arrangementer.",
+    joinedAt: "2024-11-03",
+  },
 ];
 
 /**
@@ -60,6 +82,12 @@ export const demoPersonas: User[] = [
  *
  * Under The Rug: admin in the collective and nothing else, so the switcher
  * holds one community and the demo never wanders into a civic NGO.
+ *
+ * Ordinary Tryggere member: member in the parent organisation and the youth
+ * organisation, no Under The Rug. The parent membership has FTR Trøndelag
+ * applied in `local-groups.ts`; the youth membership deliberately has none.
+ *
+ * Ordinary Under The Rug member: member in the collective and nothing else.
  */
 export const demoPersonaMemberships: Membership[] = [
   {
@@ -85,5 +113,29 @@ export const demoPersonaMemberships: Membership[] = [
     status: "active",
     joinedAt: "2023-04-02",
     title: "Booking og produksjon",
+  },
+  {
+    userId: "demo-tryggere-member",
+    communityId: "tryggere-ruspolitikk",
+    role: "member",
+    status: "active",
+    joinedAt: "2025-02-18",
+    title: "Medlem",
+  },
+  {
+    userId: "demo-tryggere-member",
+    communityId: "tryggere-ungdom",
+    role: "member",
+    status: "active",
+    joinedAt: "2025-03-04",
+    title: "Medlem",
+  },
+  {
+    userId: "demo-utr-member",
+    communityId: "under-the-rug",
+    role: "member",
+    status: "active",
+    joinedAt: "2024-11-03",
+    title: "Frivillig, vertskap",
   },
 ];
