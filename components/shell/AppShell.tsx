@@ -180,6 +180,7 @@ function communityNav(
  */
 function communityAdminNav(id: string) {
   return [
+    { href: `/community/${id}/admin/members`, label: "Medlemmer", icon: IconUsers, adminOnly: true },
     { href: `/community/${id}/requests`, label: "Forespørsler", icon: IconMail, adminOnly: true },
     { href: `/community/${id}/emojis`, label: "Emojier", icon: IconSmile, staffOnly: true },
     {
