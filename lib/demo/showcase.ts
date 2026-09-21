@@ -12,7 +12,14 @@
  */
 export interface Showcase {
   /** URL-safe key, used in `DEMO_TOKEN_<KEY>` and for logging. */
-  id: "tryggere" | "tryggere_member" | "utr" | "utr_member";
+  id:
+    | "tryggere"
+    | "tryggere_member"
+    | "utr"
+    | "utr_member"
+    | "utr_admin"
+    | "ftr_admin"
+    | "tu_admin";
   label: string;
   /** Fixture account this showcase signs a visitor in as. */
   personaEmail: string;
@@ -23,6 +30,30 @@ export interface Showcase {
 }
 
 export const showcases: Showcase[] = [
+  {
+    id: "utr_admin",
+    label: "Under The Rug (admin)",
+    personaEmail: "octavio@demo.join-ting.no",
+    landing: "/community/under-the-rug",
+    demonstrates:
+      "Under The Rug as the designated administrator: member administration, role management, access requests and account links.",
+  },
+  {
+    id: "ftr_admin",
+    label: "Tryggere Ruspolitikk (admin)",
+    personaEmail: "lars.bror@demo.join-ting.no",
+    landing: "/community/tryggere-ruspolitikk",
+    demonstrates:
+      "Foreningen Tryggere Ruspolitikk as the designated administrator: private member administration, access requests, account links and moderator assignment.",
+  },
+  {
+    id: "tu_admin",
+    label: "Tryggere Ungdom (admin)",
+    personaEmail: "emma@demo.join-ting.no",
+    landing: "/community/tryggere-ungdom",
+    demonstrates:
+      "Tryggere Ungdom as the designated administrator: private member administration, access requests, account links and moderator assignment.",
+  },
   {
     id: "tryggere",
     label: "Tryggere Ruspolitikk / Tryggere Ungdom",
