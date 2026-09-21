@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { startDirectConversationAction } from "@/app/actions";
+import { setMembershipRoleAction, startDirectConversationAction } from "@/app/actions";
 import { OrganizationPersonCard } from "@/components/community/OrganizationPersonCard";
 import {
   Avatar,
@@ -50,11 +50,6 @@ const organizationSections: { id: CommunityPersonSection; title: string }[] = [
   { id: "board", title: "Sentralstyret" },
   { id: "local_group_leader", title: "Lokallagsledere" },
 ];
-
-function PermissionBadge({ role }: { role: RoleId }) {
-  const tone = role === "admin" ? "skog" : role === "moderator" ? "fjord" : "outline";
-  return <Badge tone={tone}>{adminPermissionLabels[role]}</Badge>;
-}
 
 function GeneralContactBlock({ email }: { email: string }) {
   return (
@@ -110,6 +105,54 @@ function OrganizationRows({
   );
 }
 
+function RoleManagementControl({
+  member,
+  communityId,
+}: {
+  member: CommunityMember;
+  communityId: string;
+}) {
+  const { membership } = member;
+
+  if (membership.role === "admin") {
+    return (
+      <div className="mt-3 border-t border-line pt-3">
+        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
+          Tilgang
+        </p>
+        <p className="mt-1 text-[13px] font-medium text-ink">Administrator</p>
+        <p className="mt-0.5 text-[12px] text-ink-3">Full administrasjonstilgang</p>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      action={setMembershipRoleAction}
+      className="mt-3 flex flex-col gap-2 border-t border-line pt-3 sm:flex-row sm:items-end"
+    >
+      <input type="hidden" name="communityId" value={communityId} />
+      <input type="hidden" name="membershipId" value={membership.id ?? ""} />
+      <label className="min-w-0 flex-1">
+        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
+          Tilgang
+        </span>
+        <select
+          name="role"
+          defaultValue={membership.role}
+          className="mt-1 h-9 w-full rounded-[5px] border border-line-2 bg-surface px-2 text-[13px] text-ink outline-none focus:border-ink-3"
+        >
+          <option value="member">Normal tilgang</option>
+          <option value="moderator">Moderator</option>
+        </select>
+      </label>
+      <button type="submit" className={buttonClass({ variant: "secondary", size: "sm" })}>
+        Lagre
+      </button>
+    </form>
+  );
+}
+
 function AdminMemberDirectory({
   members,
   userId,
@@ -143,7 +186,12 @@ function AdminMemberDirectory({
                   userId={userId}
                   communityId={communityId}
                   dmActions={dmActions}
-                  permissionBadge={<PermissionBadge role={personMembership.role} />}
+                  roleManagement={
+                    <RoleManagementControl
+                      member={{ user: person, membership: personMembership }}
+                      communityId={communityId}
+                    />
+                  }
                 />
               ))}
             </ul>
@@ -160,12 +208,14 @@ function MemberCard({
   communityId,
   dmActions,
   permissionBadge,
+  roleManagement,
 }: {
   member: CommunityMember;
   userId: string;
   communityId: string;
   dmActions: Map<string, string | undefined>;
   permissionBadge?: ReactNode;
+  roleManagement?: ReactNode;
 }) {
   const { user: person, membership: personMembership } = member;
   const title = publicMemberTitle(personMembership.title);
@@ -216,8 +266,52 @@ function MemberCard({
             )}
           </div>
         ) : null}
+        {roleManagement}
       </div>
     </Panel>
+  );
+}
+
+function AdminManagementSection({
+  communityName,
+  members,
+  userId,
+  communityId,
+  dmActions,
+}: {
+  communityName: string;
+  members: CommunityMember[];
+  userId: string;
+  communityId: string;
+  dmActions: Map<string, string | undefined>;
+}) {
+  return (
+    <section className="mt-12 border-t border-line pt-8">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-2xl">
+          <p className="label mb-2">Kun for administratorer</p>
+          <h2 className="font-display text-2xl leading-tight text-ink">
+            Medlemsadministrasjon
+          </h2>
+          <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
+            Som administrator i {communityName} kan du se den private medlemslisten,
+            invitere nye medlemmer, behandle forespørsler og endre moderator-tilgang.
+            Moderator er en utvidet TING-tillatelse, ikke en offentlig tittel.
+          </p>
+        </div>
+        <div className="shrink-0">
+          <ButtonLink href={`/community/${communityId}/requests`} size="sm" variant="secondary">
+            Medlemsforespørsler
+          </ButtonLink>
+        </div>
+      </div>
+      <AdminMemberDirectory
+        members={members}
+        userId={userId}
+        communityId={communityId}
+        dmActions={dmActions}
+      />
+    </section>
   );
 }
 
@@ -326,6 +420,15 @@ export default async function MembersPage({
                 communityId={community.id}
                 dmActions={memberDmActions}
               />
+              {isAdmin ? (
+                <AdminManagementSection
+                  communityName={community.name}
+                  members={members}
+                  userId={user.id}
+                  communityId={community.id}
+                  dmActions={memberDmActions}
+                />
+              ) : null}
             </section>
           ) : (
             <Panel className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
@@ -398,31 +501,13 @@ export default async function MembersPage({
         </div>
 
         {isAdmin && canViewDirectory ? (
-          <section className="mt-12 border-t border-line pt-8">
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="max-w-2xl">
-                <p className="label mb-2">Kun for administratorer</p>
-                <h2 className="font-display text-2xl leading-tight text-ink">
-                  Medlemsadministrasjon
-                </h2>
-                <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
-                  Som administrator i {community.name} kan du se den private medlemslisten,
-                  invitere nye medlemmer, behandle forespørsler og endre roller.
-                </p>
-              </div>
-              <div className="shrink-0">
-                <ButtonLink href={`/community/${community.id}/requests`} size="sm" variant="secondary">
-                  Medlemsforespørsler
-                </ButtonLink>
-              </div>
-            </div>
-            <AdminMemberDirectory
-              members={members}
-              userId={user.id}
-              communityId={community.id}
-              dmActions={memberDmActions}
-            />
-          </section>
+          <AdminManagementSection
+            communityName={community.name}
+            members={members}
+            userId={user.id}
+            communityId={community.id}
+            dmActions={memberDmActions}
+          />
         ) : (
           <Panel className="mt-10 flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
             <IconLock size={20} className="mt-0.5 shrink-0 text-skog" />

@@ -1199,6 +1199,13 @@ export type Database = {
         Args: { p_active: boolean; p_local_group_id: string }
         Returns: boolean
       }
+      set_membership_role: {
+        Args: {
+          p_membership_id: string
+          p_role: Database["public"]["Enums"]["community_role"]
+        }
+        Returns: boolean
+      }
       set_my_local_group: {
         Args: { p_community_id: string; p_local_group_id: string }
         Returns: boolean
@@ -1398,35 +1405,31 @@ export const Constants = {
   },
 } as const
 
-type PublicTables = Database["public"]["Tables"]
-type PublicFunctions = Database["public"]["Functions"]
-
-export type ProfileRow = PublicTables["profiles"]["Row"]
-export type CommunityRow = PublicTables["communities"]["Row"]
-export type MembershipRow = PublicTables["memberships"]["Row"]
-export type ChannelRow = PublicTables["channels"]["Row"]
-export type EventRow = PublicTables["events"]["Row"]
-export type MessageRow = PublicTables["messages"]["Row"]
-export type NotificationRow = PublicTables["notifications"]["Row"]
-export type PostRow = PublicTables["posts"]["Row"]
-export type CommentRow = PublicTables["comments"]["Row"]
-export type AccessRequestRow = PublicTables["access_requests"]["Row"]
-export type InvitationRow = PublicTables["invitations"]["Row"]
-export type CommunityEmojiRow = PublicTables["community_emojis"]["Row"]
-export type LocalGroupRow = PublicTables["community_local_groups"]["Row"]
-export type CommunityPersonRow = PublicTables["community_people"]["Row"]
-export type DirectConversationRow =
-  PublicTables["direct_conversations"]["Row"]
-export type DirectConversationReadRow =
-  PublicTables["direct_conversation_reads"]["Row"]
-export type DirectMessageRow = PublicTables["direct_messages"]["Row"]
+export type ProfileRow = Tables<"profiles">
+export type CommunityRow = Tables<"communities">
+export type MembershipRow = Tables<"memberships">
+export type ChannelRow = Tables<"channels">
+export type MessageRow = Tables<"messages">
+export type PostRow = Tables<"posts">
+export type EventRow = Tables<"events">
+export type NotificationRow = Tables<"notifications">
+export type CommentRow = Tables<"comments">
+export type CommunityEmojiRow = Tables<"community_emojis">
+export type AccessRequestRow = Tables<"access_requests">
+export type InvitationRow = Tables<"invitations">
+export type LocalGroupRow = Tables<"community_local_groups">
+export type CommunityPersonRow = Tables<"community_people">
+export type DirectConversationRow = Tables<"direct_conversations">
+export type DirectConversationReadRow = Tables<"direct_conversation_reads">
+export type DirectMessageRow = Tables<"direct_messages">
 
 export type PortalCommunityRow =
-  PublicFunctions["portal_by_slug"]["Returns"][number]
-export type PortalEventRow = PublicFunctions["portal_events"]["Returns"][number]
-export type InvitationPreviewRow =
-  PublicFunctions["invitation_preview"]["Returns"][number]
-export type MintedInvitationRow =
-  PublicFunctions["approve_access_request"]["Returns"][number]
+  Database["public"]["Functions"]["portal_by_slug"]["Returns"][number]
+export type PortalEventRow =
+  Database["public"]["Functions"]["portal_events"]["Returns"][number]
 export type AcceptInvitationRow =
-  PublicFunctions["accept_invitation_token"]["Returns"][number]
+  Database["public"]["Functions"]["accept_invitation_token"]["Returns"][number]
+export type InvitationPreviewRow =
+  Database["public"]["Functions"]["invitation_preview"]["Returns"][number]
+export type MintedInvitationRow =
+  Database["public"]["Functions"]["approve_access_request"]["Returns"][number]

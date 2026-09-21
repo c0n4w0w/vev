@@ -134,6 +134,7 @@ const MEMBERSHIP_COLUMNS =
  */
 function toMembership(row: Omit<MembershipRow, "accepts_member_dms">): Membership {
   return {
+    id: row.id,
     userId: row.user_id,
     communityId: row.community_id,
     role: row.role,
@@ -690,6 +691,18 @@ export async function setCommunityPersonAccountLink(input: {
     // Postgres accepts null here to unlink; generated RPC argument types do
     // not record argument nullability.
     p_user_id: input.userId as unknown as string,
+  });
+  return !error && data === true;
+}
+
+export async function setMembershipRole(input: {
+  membershipId: string;
+  role: "member" | "moderator";
+}): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_membership_role", {
+    p_membership_id: input.membershipId,
+    p_role: input.role,
   });
   return !error && data === true;
 }

@@ -57,6 +57,7 @@ import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import { internalHref } from "@/lib/notification-href";
 import { notifications as fixtureNotifications } from "@/lib/mock/notifications";
 import { demoPersonas } from "@/lib/mock/demo-personas";
+import { users } from "@/lib/mock/users";
 import type { Database } from "@/lib/supabase/database.types";
 
 config({ path: ".env.local" });
@@ -138,17 +139,19 @@ const UTR = "under-the-rug";
  * exception: `demo-tryggere` is seeded as `karimoen`, because their fixture ids
  * name the showcase and their handles name the person.
  */
-const handleForFixtureUser = new Map(demoPersonas.map((p) => [p.id, p.handle]));
+const handleForFixtureUser = new Map(
+  [...users, ...demoPersonas].map((person) => [person.id, person.handle]),
+);
 const asHandle = (fixtureUserId: string) =>
   handleForFixtureUser.get(fixtureUserId) ?? fixtureUserId;
 
 async function main() {
   // Roles used below, from the seed. Counts come from the fixture file rather
   // than this comment, which is what keeps them from going stale.
-  //   ingrid — administrator in Tryggere, moderator in TU, member in UTR
+  //   ingrid — moderator in Tryggere/FTR and TU, member in UTR
   //   jonas  — ordinary member of UTR, and the control for recipient isolation
   //   oskar  — an account with a pending access request to Tryggere
-  //   amina  — administrator of Tryggere, so she can approve that request
+  //   lars   — administrator of Tryggere, so he can approve that request
   const [ingrid, jonas] = await Promise.all([
     signIn(await emailFor("ingrid")),
     signIn(await emailFor("jonas")),
@@ -467,11 +470,13 @@ async function main() {
   // `posts`, so there is no callable generator to test — what these cases
   // exercise is the ordinary publish path, through PostgREST under the same
   // policies the composer uses.
-  const [amina, nadia, linn, marte] = await Promise.all([
-    signIn(await emailFor("amina")), // administrator, Tryggere Ruspolitikk
+  const [amina, nadia, linn, marte, lars, octavio] = await Promise.all([
+    signIn(await emailFor("amina")), // moderator, Tryggere Ruspolitikk
     signIn(await emailFor("nadia")), // moderator, Tryggere Ruspolitikk
     signIn(await emailFor("linn")), // ordinary member, Tryggere Ruspolitikk
-    signIn(await emailFor("marte")), // administrator, Under The Rug
+    signIn(await emailFor("marte")), // moderator, Under The Rug
+    signIn(await emailFor("larsbror")), // administrator, Tryggere Ruspolitikk
+    signIn(await emailFor("octavio")), // administrator, Under The Rug
   ]);
 
   const activeIn = async (communityId: string) => {
@@ -511,11 +516,11 @@ async function main() {
   expect("og ingen varsler ble laget", (await notificationsSince(TR)).length, 0);
 
   const trActive = await activeIn(TR);
-  expect("Tryggere har åtte aktive medlemmer", trActive, 8);
+  expect("Tryggere har ti aktive medlemmer", trActive, 10);
 
-  // B. Fan-out, from an administrator.
+  // B. Fan-out, from staff.
   const adminPost = await publish(amina, TR, { title: "Sjekk: kunngjøring fra administrator" });
-  expect("administrator kan publisere kunngjøring", adminPost.error, null);
+  expect("moderator kan publisere kunngjøring", adminPost.error, null);
   createdPostIds.push(adminPost.data!.id);
 
   const fanOut = await notificationsSince(TR);
@@ -641,7 +646,7 @@ async function main() {
   expect("og det lagde ingen varsler", (await notificationsSince(UTR)).length, 0);
 
   const utrPost = await publish(marte, UTR, { title: "Sjekk: kunngjøring i UTR" });
-  expect("UTR-administrator kan kunngjøre i UTR", utrPost.error, null);
+  expect("UTR-moderator kan kunngjøre i UTR", utrPost.error, null);
   createdPostIds.push(utrPost.data!.id);
 
   const utrFanOut = await notificationsSince(UTR);
@@ -653,7 +658,7 @@ async function main() {
     true,
   );
 
-  // Ingrid is an ordinary member of UTR and an administrator of Tryggere. She
+  // Ingrid is an ordinary member of UTR and a moderator of Tryggere. She
   // is a recipient here because of the UTR membership and nothing else.
   const ingridUtr = utrFanOut.filter((n) => n.user_id === ingridId);
   expect("den som er medlem begge steder fikk nøyaktig ett UTR-varsel", ingridUtr.length, 1);
@@ -751,11 +756,11 @@ async function main() {
 
   const staffNotices = await noticesFor("Sjekk Søker%");
   expect(
-    "alle administratorene i fellesskapet fikk beskjed",
+    "administratoren i fellesskapet fikk beskjed",
     (await handlesOf(staffNotices)).join(","),
-    "amina,ingrid,karimoen",
+    "larsbror",
   );
-  expect("og ingen andre", staffNotices.length, 3);
+  expect("og ingen andre", staffNotices.length, 1);
 
   const notice = staffNotices[0] ?? {
     kind: "(ingen)",
@@ -786,17 +791,17 @@ async function main() {
   //    `on conflict do nothing`, and the fan-out runs only when a row appeared.
   const again2 = await requestAccess(anon, TR, newcomer, "Sjekk Søker");
   expect("en gjentatt forespørsel tas også imot", again2.error, null);
-  expect("men lager ingen nye varsler", (await noticesFor("Sjekk Søker%")).length, 3);
+  expect("men lager ingen nye varsler", (await noticesFor("Sjekk Søker%")).length, 1);
 
-  // 3. Cross-community isolation. Ingrid administers Tryggere and is an
+  // 3. Cross-community isolation. Ingrid moderates Tryggere and is an
   //    ordinary member of UTR, so a UTR request must not reach her.
   const utrSeeker = "sjekk.utr@example.no";
   await requestAccess(anon, UTR, utrSeeker, "Sjekk UTR");
   const utrNotices = await noticesFor("Sjekk UTR%");
   expect(
-    "UTR-forespørselen nådde bare UTRs administratorer",
+    "UTR-forespørselen nådde bare UTRs administrator",
     (await handlesOf(utrNotices)).join(","),
-    "marte,robinsaether,vilde",
+    "octavio",
   );
   expect(
     "og ikke den som bare er vanlig medlem der",
@@ -827,7 +832,7 @@ async function main() {
   const moderatorRejects = await nadia.rpc("reject_access_request", { p_request_id: trRequest.id });
   expect("en moderator kan ikke avslå", moderatorRejects.data, false);
 
-  const otherAdminRejects = await marte.rpc("reject_access_request", { p_request_id: trRequest.id });
+  const otherAdminRejects = await octavio.rpc("reject_access_request", { p_request_id: trRequest.id });
   expect("en administrator i et annet fellesskap kan ikke avslå", otherAdminRejects.data, false);
 
   const anonRejects = await anon.rpc("reject_access_request", { p_request_id: trRequest.id });
@@ -853,7 +858,7 @@ async function main() {
     await admin.from("access_requests").select("id").eq("email", sofieEmail).eq("status", "pending").single()
   ).data!;
 
-  const rejected = await amina.rpc("reject_access_request", { p_request_id: sofieRequest.id });
+  const rejected = await lars.rpc("reject_access_request", { p_request_id: sofieRequest.id });
   expect("administrator kan avslå", rejected.data, true);
 
   const rejection = await noticesFor("Forespørselen om tilgang%");
@@ -872,7 +877,7 @@ async function main() {
   expect("lenken er intern", internalHref(rejection[0]?.href ?? ""), rejection[0]?.href);
 
   // Repeating the rejection changes nothing and says nothing twice.
-  const rejectAgain = await amina.rpc("reject_access_request", { p_request_id: sofieRequest.id });
+  const rejectAgain = await lars.rpc("reject_access_request", { p_request_id: sofieRequest.id });
   expect("en gjentatt avslagshandling gjør ingenting", rejectAgain.data, false);
   expect("og lager ikke et varsel til", (await noticesFor("Forespørselen om tilgang%")).length, 1);
 
@@ -882,7 +887,7 @@ async function main() {
   const strangerRequest = (
     await admin.from("access_requests").select("id").eq("email", stranger).eq("status", "pending").single()
   ).data!;
-  const rejectedStranger = await amina.rpc("reject_access_request", { p_request_id: strangerRequest.id });
+  const rejectedStranger = await lars.rpc("reject_access_request", { p_request_id: strangerRequest.id });
   expect("avslag virker også uten konto", rejectedStranger.data, true);
   expect(
     "men det finnes ingen å varsle",
@@ -902,7 +907,7 @@ async function main() {
     await admin.from("notifications").select("*", { count: "exact", head: true })
   ).count;
 
-  const approved = await amina.rpc("approve_access_request", { p_request_id: approvalRequest.id });
+  const approved = await lars.rpc("approve_access_request", { p_request_id: approvalRequest.id });
   expect("administrator kan godkjenne", ((approved.data as { token: string }[]) ?? []).length, 1);
   expect(
     "godkjenning lager ingen varsler — e-posten og innløsningen dekker det",
@@ -915,7 +920,7 @@ async function main() {
     1,
   );
 
-  const approveAgain = await amina.rpc("approve_access_request", { p_request_id: approvalRequest.id });
+  const approveAgain = await lars.rpc("approve_access_request", { p_request_id: approvalRequest.id });
   expect(
     "og en gjentatt godkjenning lager verken invitasjon eller varsel",
     (await admin.from("invitations").select("*", { count: "exact", head: true }).eq("request_id", approvalRequest.id)).count,
@@ -968,7 +973,7 @@ async function main() {
     .eq("status", "pending")
     .single();
 
-  const approval = await amina.rpc("approve_access_request", { p_request_id: request!.id });
+  const approval = await lars.rpc("approve_access_request", { p_request_id: request!.id });
   const invitationToken = (approval.data as { token: string }[] | null)?.[0]?.token;
   expect("administrator kunne godkjenne forespørselen", Boolean(invitationToken), true);
 
@@ -1188,7 +1193,7 @@ async function main() {
   const { count: memberships } = await admin
     .from("memberships")
     .select("*", { count: "exact", head: true });
-  expect("medlemskapene er tilbake til 24", memberships, 24);
+  expect("medlemskapene er tilbake til 30", memberships, 30);
 
   const { count: invitations } = await admin
     .from("invitations")

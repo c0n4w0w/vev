@@ -29,6 +29,7 @@ import {
   startDirectConversationWithOrganizationPerson,
   setAcceptsMemberDms,
   setCommunityPersonAccountLink,
+  setMembershipRole,
   setLocalGroupActive,
   setMyLocalGroup,
   setPostPinned,
@@ -356,6 +357,21 @@ export async function setCommunityPersonAccountLinkAction(formData: FormData): P
   revalidatePath(`/community/${communityId}/members`);
   revalidatePath(`/community/${communityId}/organization-links`);
   revalidatePath(`/community/${communityId}/lokallag`);
+}
+
+export async function setMembershipRoleAction(formData: FormData): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const membershipId = String(formData.get("membershipId") ?? "");
+  const role = String(formData.get("role") ?? "");
+
+  if (role === "member" || role === "moderator") {
+    await setMembershipRole({ membershipId, role });
+  }
+
+  revalidatePath(`/community/${communityId}/members`);
 }
 
 // ── Comments and reactions ──────────────────────────────────────────────

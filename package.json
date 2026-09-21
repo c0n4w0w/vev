@@ -18,6 +18,7 @@
     "check:notifications": "tsx scripts/check-notifications.ts",
     "check:organization-people": "tsx scripts/check-organization-people.ts",
     "check:pinning": "tsx scripts/check-pinning.ts",
+    "check:role-management": "tsx scripts/check-role-management.ts",
     "check:storage": "tsx scripts/check-storage.ts"
   },
   "dependencies": {

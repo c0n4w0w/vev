@@ -141,7 +141,7 @@ export const memberships: Membership[] = [
   {
     userId: "ingrid",
     communityId: "tryggere-ruspolitikk",
-    role: "admin",
+    role: "moderator",
     status: "active",
     joinedAt: "2024-02-11",
     title: "Frivilligkoordinator",
@@ -177,7 +177,8 @@ export const memberships: Membership[] = [
   // the access-request and invitation lifecycle, not a row seeded ahead of her.
 
   // Tryggere Ruspolitikk
-  { userId: "amina", communityId: "tryggere-ruspolitikk", role: "admin", status: "active", joinedAt: "2023-09-04", title: "Fagansvarlig" },
+  { userId: "lars-bror-kristiansen", communityId: "tryggere-ruspolitikk", role: "admin", status: "active", joinedAt: "2023-09-04", title: "Organisasjonssekretær" },
+  { userId: "amina", communityId: "tryggere-ruspolitikk", role: "moderator", status: "active", joinedAt: "2023-09-04", title: "Fagansvarlig" },
   { userId: "nadia", communityId: "tryggere-ruspolitikk", role: "moderator", status: "active", joinedAt: "2024-05-30", title: "Erfaringskonsulent" },
   { userId: "kristoffer", communityId: "tryggere-ruspolitikk", role: "member", status: "active", joinedAt: "2023-11-19", title: "Frivillig, Oslo" },
   { userId: "linn", communityId: "tryggere-ruspolitikk", role: "member", status: "active", joinedAt: "2024-08-27", title: "Lokallag Tromsø" },
@@ -185,15 +186,17 @@ export const memberships: Membership[] = [
   { userId: "elise", communityId: "tryggere-ruspolitikk", role: "member", status: "active", joinedAt: "2025-01-20", title: "Juridisk bidragsyter" },
 
   // Tryggere Ungdom
-  { userId: "hanne", communityId: "tryggere-ungdom", role: "admin", status: "active", joinedAt: "2023-01-16", title: "Ungdomskoordinator" },
+  { userId: "emma-mortensen", communityId: "tryggere-ungdom", role: "admin", status: "active", joinedAt: "2023-01-16", title: "Fungerende daglig leder" },
+  { userId: "hanne", communityId: "tryggere-ungdom", role: "moderator", status: "active", joinedAt: "2023-01-16", title: "Ungdomskoordinator" },
   { userId: "mathea", communityId: "tryggere-ungdom", role: "moderator", status: "active", joinedAt: "2024-04-15", title: "Aktivitetsansvarlig" },
   { userId: "adrian", communityId: "tryggere-ungdom", role: "member", status: "active", joinedAt: "2025-09-08", title: "Frivillig, Bergen" },
   { userId: "petter", communityId: "tryggere-ungdom", role: "member", status: "active", joinedAt: "2025-03-03", title: "Frivillig, Trondheim" },
   { userId: "nadia", communityId: "tryggere-ungdom", role: "member", status: "active", joinedAt: "2025-06-11", title: "Erfaringskonsulent" },
 
   // Under The Rug
-  { userId: "marte", communityId: "under-the-rug", role: "admin", status: "active", joinedAt: "2023-05-22", title: "Kurator" },
-  { userId: "vilde", communityId: "under-the-rug", role: "admin", status: "active", joinedAt: "2023-06-12", title: "Produsent" },
+  { userId: "octavio-esperanto", communityId: "under-the-rug", role: "admin", status: "active", joinedAt: "2023-05-22", title: "Project Leader" },
+  { userId: "marte", communityId: "under-the-rug", role: "moderator", status: "active", joinedAt: "2023-05-22", title: "Kurator" },
+  { userId: "vilde", communityId: "under-the-rug", role: "moderator", status: "active", joinedAt: "2023-06-12", title: "Produsent" },
   { userId: "eirik", communityId: "under-the-rug", role: "moderator", status: "active", joinedAt: "2024-03-07", title: "Lys og scene" },
   { userId: "sindre", communityId: "under-the-rug", role: "moderator", status: "active", joinedAt: "2023-02-28", title: "Lyd og teknikk" },
   { userId: "oskar", communityId: "under-the-rug", role: "member", status: "active", joinedAt: "2024-01-09", title: "Grafisk design" },

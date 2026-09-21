@@ -12,6 +12,7 @@ export interface CommunityPersonFixture {
   communityId: string;
   section: CommunityPersonSection;
   localGroupName?: string;
+  userId?: string;
   name: string;
   role?: string;
   email?: string;
@@ -23,6 +24,7 @@ export const underTheRugCrew: CommunityPersonFixture[] = [
   {
     communityId: "under-the-rug",
     section: "crew",
+    userId: "octavio-esperanto",
     name: "Octavio Esperanto",
     role: "Project Leader",
     sortOrder: 0,
@@ -213,6 +215,7 @@ export const communityPeople: CommunityPersonFixture[] = [
   {
     communityId: "tryggere-ruspolitikk",
     section: "staff",
+    userId: "lars-bror-kristiansen",
     name: "Lars Bror Kristiansen",
     role: "Organisasjonssekretær",
     email: "bror@rusreform.no",
@@ -325,6 +328,7 @@ export const communityPeople: CommunityPersonFixture[] = [
   {
     communityId: "tryggere-ungdom",
     section: "staff",
+    userId: "emma-mortensen",
     name: "Emma Mortensen",
     role: "Fungerende daglig leder",
     email: "emma.mortensen@rusreform.no",

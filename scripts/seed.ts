@@ -279,6 +279,7 @@ async function main() {
             email: person.email ?? null,
             description: person.description ?? null,
             sort_order: person.sortOrder,
+            user_id: person.userId ? uid.get(person.userId)! : null,
           };
         }),
       )

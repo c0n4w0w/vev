@@ -84,9 +84,9 @@ async function communityPeople(client: SupabaseClient<Database>, communityId?: s
 async function main() {
   const kristoffer = await signIn(await emailFor("kristoffer")); // ordinary FTR member
   const nadia = await signIn(await emailFor("nadia")); // FTR moderator
-  const kari = await signIn(await emailFor("karimoen")); // FTR admin, TU moderator
+  const lars = await signIn(await emailFor("larsbror")); // FTR admin
   const adrian = await signIn(await emailFor("adrian")); // ordinary TU member
-  const robin = await signIn(await emailFor("robinsaether")); // UTR admin
+  const robin = await signIn(await emailFor("robinsaether")); // UTR moderator
   const mina = await signIn(await emailFor("minasolberg")); // ordinary UTR member
   const anon = anonymous();
 
@@ -107,7 +107,7 @@ async function main() {
     .eq("community_id", "tryggere-ruspolitikk");
   expect("FTR-moderator får ikke privat medlemskatalog", (moderatorRows ?? []).length, 1);
 
-  const { data: adminRows } = await kari
+  const { data: adminRows } = await lars
     .from("memberships")
     .select("user_id, community_id, role")
     .eq("community_id", "tryggere-ruspolitikk");
@@ -145,9 +145,9 @@ async function main() {
     .eq("community_id", "under-the-rug")
     .eq("section", "crew");
   expect(
-    "ingen UTR Crew-rader er forhåndskoblet til TING-konto",
-    (utrRawPeople ?? []).some((person) => person.user_id),
-    false,
+    "bare Octavio-raden er eksplisitt koblet til TING-konto",
+    (utrRawPeople ?? []).filter((person) => person.user_id).map((person) => person.name).join(","),
+    "Octavio Esperanto",
   );
 
   const { data: utrMemberships } = await admin
@@ -161,15 +161,18 @@ async function main() {
     .in("id", (utrMemberships ?? []).map((membership) => membership.user_id));
   const crewNames = new Set(underTheRugCrew.map((person) => person.name));
   expect(
-    "Crew seed oppretter ikke falske UTR-medlemskap",
-    (utrProfiles ?? []).some((profile) => crewNames.has(profile.name)),
-    false,
+    "Crew seed oppretter bare eksplisitt Octavio-medlemskap",
+    (utrProfiles ?? [])
+      .filter((profile) => crewNames.has(profile.name))
+      .map((profile) => profile.name)
+      .join(","),
+    "Octavio Esperanto",
   );
 
   const { data: utrDmActions } = await mina.rpc("organization_person_dm_actions", {
     p_community_id: "under-the-rug",
   });
-  expect("ukoblede UTR Crew-rader får ingen DM-handlinger", (utrDmActions ?? []).length, 0);
+  expect("bare eksplisitt koblet UTR Crew-rad får DM-handling", (utrDmActions ?? []).length, 1);
 
   const anonPeople = await anon.from("community_people").select("id").limit(1);
   expect("anonym tilgang er ikke utvidet", (anonPeople.data ?? []).length, 0);

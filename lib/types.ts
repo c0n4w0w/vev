@@ -77,6 +77,8 @@ export interface Community extends CommunityPublic {
 export type MembershipStatus = "active" | "invited" | "requested";
 
 export interface Membership {
+  /** Database row id. Fixture memberships omit this until they are seeded. */
+  id?: string;
   userId: string;
   communityId: string;
   role: RoleId;

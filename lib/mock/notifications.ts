@@ -53,18 +53,14 @@ import type { Notification } from "@/lib/types";
  * exhaustive.
  */
 export const notifications: Notification[] = [
-  // ── Kari Moen — the Tryggere showcase persona ────────────────────────
+  // ── Lars Bror Kristiansen — the Tryggere administrator ───────────────
   //
-  // Administrator in Tryggere Ruspolitikk, moderator in Tryggere Ungdom. The
-  // split is the point of her account, and her notifications show it: she is
-  // told about the request queue she can actually work, and about an
-  // announcement in the youth organisation where she is only staff, not an
-  // administrator. There is deliberately no request notice for Tryggere
-  // Ungdom — a moderator does not decide who is admitted, and
-  // `access_requests` will not even show her that queue.
+  // The single seeded administrator in Tryggere Ruspolitikk receives the
+  // request notices. Demo personas are moderators now, so they must not get
+  // queue notifications they can no longer act on.
   {
-    id: "n-kari-1",
-    userId: "demo-tryggere",
+    id: "n-lars-1",
+    userId: "lars-bror-kristiansen",
     kind: "membership",
     communityId: "tryggere-ruspolitikk",
     title: "Turid Moen ba om tilgang",
@@ -74,8 +70,8 @@ export const notifications: Notification[] = [
     href: "/community/tryggere-ruspolitikk/requests",
   },
   {
-    id: "n-kari-2",
-    userId: "demo-tryggere",
+    id: "n-lars-2",
+    userId: "lars-bror-kristiansen",
     kind: "membership",
     communityId: "tryggere-ruspolitikk",
     title: "Maja Solberg ba om tilgang",
@@ -84,6 +80,11 @@ export const notifications: Notification[] = [
     read: false,
     href: "/community/tryggere-ruspolitikk/requests",
   },
+
+  // ── Kari Moen — the Tryggere showcase persona ────────────────────────
+  //
+  // Moderator in both Tryggere communities. She still gets announcement
+  // notices as an active member, but no request queue notices.
   {
     id: "n-kari-3",
     userId: "demo-tryggere",
@@ -109,7 +110,7 @@ export const notifications: Notification[] = [
 
   // ── Robin Sæther — the Under The Rug showcase persona ────────────────
   //
-  // Administrator in Under The Rug and nothing else, which is what keeps that
+  // Moderator in Under The Rug and nothing else, which is what keeps that
   // showcase from wandering into a civic NGO. It also bounds this list: Under
   // The Rug has exactly one announcement in `posts.ts` and no access requests
   // in `access-requests.ts`, so one announcement notice is everything the
@@ -145,20 +146,8 @@ export const notifications: Notification[] = [
   // Not reachable from a showcase link, and kept anyway: she is the fixture
   // that demonstrates one person holding a different role in each community,
   // and her notification list is where that is most visible. Administrator in
-  // Tryggere Ruspolitikk, so the request queue reaches her; moderator in
-  // Tryggere Ungdom and an ordinary member of Under The Rug, so their
-  // announcements do and their queues do not.
-  {
-    id: "n-ingrid-1",
-    userId: "ingrid",
-    kind: "membership",
-    communityId: "tryggere-ruspolitikk",
-    title: "Maja Solberg ba om tilgang",
-    body: "Forespørselen kom inn til Tryggere Ruspolitikk. Du er administrator der.",
-    createdAt: "2026-09-05T11:05:00+02:00",
-    read: false,
-    href: "/community/tryggere-ruspolitikk/requests",
-  },
+  // Tryggere Ruspolitikk and Tryggere Ungdom, and an ordinary member of
+  // Under The Rug, so announcements reach her but request queues do not.
   {
     id: "n-ingrid-2",
     userId: "ingrid",
@@ -178,7 +167,7 @@ export const notifications: Notification[] = [
     title: "Ny kunngjøring: Høstens kursrekke er klar",
     body: "Hanne Nordbø publiserte en kunngjøring i Tryggere Ungdom.",
     createdAt: "2026-09-05T14:11:00+02:00",
-    read: true,
+    read: false,
     href: "/community/tryggere-ungdom/feed",
   },
   {

@@ -59,6 +59,11 @@ const activeMembers = (communityId: string) =>
 
 const TRYGGERE = ["tryggere-ruspolitikk", "tryggere-ungdom"];
 const INDEPENDENT = "under-the-rug";
+const intendedAdmins = new Map([
+  ["under-the-rug", "octavio-esperanto"],
+  ["tryggere-ruspolitikk", "lars-bror-kristiansen"],
+  ["tryggere-ungdom", "emma-mortensen"],
+]);
 const TRYGGERE_ORGANIZATION_SHAPE = {
   "tryggere-ruspolitikk": {
     staff: [
@@ -114,6 +119,22 @@ for (const membership of allMemberships) {
   check("membership.communityId finnes", communityIds.has(membership.communityId), where);
   if (membership.invitedBy) {
     check("membership.invitedBy finnes", userIds.has(membership.invitedBy), where);
+  }
+}
+
+for (const person of communityPeople) {
+  if (person.userId) {
+    check("organisasjonsperson-kobling peker på bruker som finnes", userIds.has(person.userId), `${person.name}: ${person.userId}`);
+    check(
+      "organisasjonsperson-kobling peker på aktivt medlem i samme fellesskap",
+      allMemberships.some(
+        (membership) =>
+          membership.userId === person.userId &&
+          membership.communityId === person.communityId &&
+          membership.status === "active",
+      ),
+      `${person.name}: ${person.userId}/${person.communityId}`,
+    );
   }
 }
 
@@ -306,9 +327,14 @@ for (const community of communities) {
     community.slug,
   );
   check(`${community.id}: har kanaler`, channels.some((c) => c.communityId === community.id));
+  const activeAdmins = allMemberships.filter(
+    (m) => m.communityId === community.id && m.status === "active" && m.role === "admin",
+  );
+  check(`${community.id}: har nøyaktig én administrator`, activeAdmins.length === 1, activeAdmins.map((m) => m.userId).join(", "));
   check(
-    `${community.id}: har minst én administrator`,
-    memberships.some((m) => m.communityId === community.id && m.status === "active" && m.role === "admin"),
+    `${community.id}: administratoren er tilsiktet fixture-identitet`,
+    activeAdmins[0]?.userId === intendedAdmins.get(community.id),
+    activeAdmins[0]?.userId,
   );
   check(
     `${community.id}: har minst ett offentlig arrangement til portalen`,
@@ -401,15 +427,16 @@ check(
 
 const userNameById = new Map([...users, ...demoPersonas].map((user) => [user.id, user.name]));
 const crewNames = new Set(underTheRugCrew.map((person) => person.name));
-const fakeCrewMemberships = allMemberships.filter(
+const unexpectedCrewMemberships = allMemberships.filter(
   (membership) =>
     membership.communityId === INDEPENDENT &&
-    crewNames.has(userNameById.get(membership.userId) ?? ""),
+    crewNames.has(userNameById.get(membership.userId) ?? "") &&
+    membership.userId !== "octavio-esperanto",
 );
 check(
-  "Crew-rader lager ikke falske UTR-medlemskap",
-  fakeCrewMemberships.length === 0,
-  fakeCrewMemberships.map((membership) => membership.userId).join(", "),
+  "Crew-rader lager ikke falske UTR-medlemskap utover eksplisitt Octavio-kobling",
+  unexpectedCrewMemberships.length === 0,
+  unexpectedCrewMemberships.map((membership) => membership.userId).join(", "),
 );
 
 for (const [communityId, expected] of Object.entries(TRYGGERE_ORGANIZATION_SHAPE)) {
@@ -480,10 +507,11 @@ check(
   memberships.filter((m) => m.status !== "active").map((m) => `${m.userId}/${m.communityId}=${m.status}`).join(", "),
 );
 check(
-  `${manyId} har tre ulike roller`,
-  new Set(
-    memberships.filter((m) => m.userId === manyId && m.status === "active").map((m) => m.role),
-  ).size === 3,
+  `${manyId} har fortsatt tre fellesskap uten administratorrolle`,
+  memberships.filter((m) => m.userId === manyId && m.status === "active").length === 3 &&
+    memberships
+      .filter((m) => m.userId === manyId && m.status === "active")
+      .every((m) => m.role !== "admin"),
 );
 
 const membershipShape = (userId: string) =>

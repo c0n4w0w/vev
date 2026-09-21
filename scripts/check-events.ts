@@ -107,8 +107,8 @@ async function createEventAs(
 }
 
 async function main() {
-  const [kari, nadia, linn, robin] = await Promise.all([
-    emailFor("karimoen").then(signIn),
+  const [lars, nadia, linn, robin] = await Promise.all([
+    emailFor("larsbror").then(signIn),
     emailFor("nadia").then(signIn),
     emailFor("linn").then(signIn),
     emailFor("robinsaether").then(signIn),
@@ -165,7 +165,7 @@ async function main() {
   expect("avmelding rører ikke andres påmelding", await attendeeCount(standvakt), beforeOthers);
 
   // ── Creating events ───────────────────────────────────────────────────
-  const adminCreate = await createEventAs(kari, "tryggere-ruspolitikk");
+  const adminCreate = await createEventAs(lars, "tryggere-ruspolitikk");
   expect("administrator kan opprette arrangement", adminCreate.error?.message ?? "ok", "ok");
 
   if (adminCreate.id) {
@@ -177,7 +177,7 @@ async function main() {
     expect(
       "vert settes fra sesjonen",
       (created!.profiles as unknown as { handle: string }).handle,
-      "karimoen",
+      "larsbror",
     );
     expect("arrangementet havner i riktig fellesskap", created!.community_id, "tryggere-ruspolitikk");
 
@@ -198,29 +198,29 @@ async function main() {
   const anonCreate = await createEventAs(anon, "tryggere-ruspolitikk");
   expect("anonym kan ikke opprette arrangement", anonCreate.error ? "avvist" : "tillatt", "avvist");
 
-  const wrongCommunity = await createEventAs(kari, "under-the-rug");
+  const wrongCommunity = await createEventAs(lars, "under-the-rug");
   expect(
     "administrator kan ikke opprette i et annet fellesskap",
     wrongCommunity.error?.code ?? "ingen feil",
     "42501",
   );
 
-  const forgedHost = await createEventAs(kari, "tryggere-ruspolitikk", {
+  const forgedHost = await createEventAs(lars, "tryggere-ruspolitikk", {
     host_id: (await admin.from("profiles").select("id").eq("handle", "linn").single()).data!.id,
   });
   expect("forfalsket vert avvises", forgedHost.error?.code ?? "ingen feil", "42501");
 
   // ── Validation, enforced by the policy rather than the form ───────────
-  const backwards = await createEventAs(kari, "tryggere-ruspolitikk", {
+  const backwards = await createEventAs(lars, "tryggere-ruspolitikk", {
     starts_at: LATER.toISOString(),
     ends_at: FUTURE.toISOString(),
   });
   expect("slutt før start avvises", backwards.error?.code ?? "ingen feil", "42501");
 
-  const blankTitle = await createEventAs(kari, "tryggere-ruspolitikk", { title: "   " });
+  const blankTitle = await createEventAs(lars, "tryggere-ruspolitikk", { title: "   " });
   expect("tom tittel avvises", blankTitle.error?.code ?? "ingen feil", "42501");
 
-  const longTitle = await createEventAs(kari, "tryggere-ruspolitikk", { title: "a".repeat(121) });
+  const longTitle = await createEventAs(lars, "tryggere-ruspolitikk", { title: "a".repeat(121) });
   expect("for lang tittel avvises", longTitle.error?.code ?? "ingen feil", "42501");
 
   // ── The clock an administrator types is the community's ──────────────
@@ -244,7 +244,7 @@ async function main() {
     expect(`${date} ${time} tolkes i ${COMMUNITY_ZONE}`, instant ? osloClock.format(instant) : "null", time);
   }
 
-  const tzEvent = await createEventAs(kari, "tryggere-ruspolitikk", {
+  const tzEvent = await createEventAs(lars, "tryggere-ruspolitikk", {
     title: "CHECK tidssone",
     starts_at: osloInstant("2026-10-08", "18:00")!.toISOString(),
     ends_at: osloInstant("2026-10-08", "20:00")!.toISOString(),
@@ -260,10 +260,10 @@ async function main() {
   }
 
   // ── Events are not editable or deletable from a client ────────────────
-  const edit = await kari.from("events").update({ title: "Endret" }).eq("id", standvakt).select("id");
+  const edit = await lars.from("events").update({ title: "Endret" }).eq("id", standvakt).select("id");
   expect("arrangementer kan ikke endres fra klienten", (edit.data ?? []).length, 0);
 
-  const remove = await kari.from("events").delete().eq("id", standvakt).select("id");
+  const remove = await lars.from("events").delete().eq("id", standvakt).select("id");
   expect("arrangementer kan ikke slettes fra klienten", (remove.data ?? []).length, 0);
 
   // ── Cross-community reads ─────────────────────────────────────────────

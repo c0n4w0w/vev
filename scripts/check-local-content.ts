@@ -116,9 +116,10 @@ async function insertEvent(
 }
 
 async function main() {
-  const [kari, hanne, robin] = await Promise.all([
+  const [kari, lars, emma, robin] = await Promise.all([
     emailFor("karimoen").then(signIn),
-    emailFor("hanne").then(signIn),
+    emailFor("larsbror").then(signIn),
+    emailFor("emmamortensen").then(signIn),
     emailFor("robinsaether").then(signIn),
   ]);
   const anon = anonymous();
@@ -165,19 +166,19 @@ async function main() {
   const ftrPostWithTuGroup = await insertPost(kari, "tryggere-ruspolitikk", tuOslo);
   expect("FTR-innlegg kan ikke bruke TU-lokallag", ftrPostWithTuGroup.error ? "avvist" : "tillatt", "avvist");
 
-  const tuPostWithFtrGroup = await insertPost(hanne, "tryggere-ungdom", ftrTrondelag);
+  const tuPostWithFtrGroup = await insertPost(emma, "tryggere-ungdom", ftrTrondelag);
   expect("TU-innlegg kan ikke bruke FTR-lokallag", tuPostWithFtrGroup.error ? "avvist" : "tillatt", "avvist");
 
-  const ftrEventWithTuGroup = await insertEvent(kari, "tryggere-ruspolitikk", tuOslo);
+  const ftrEventWithTuGroup = await insertEvent(lars, "tryggere-ruspolitikk", tuOslo);
   expect("FTR-arrangement kan ikke bruke TU-lokallag", ftrEventWithTuGroup.error ? "avvist" : "tillatt", "avvist");
 
-  const tuEventWithFtrGroup = await insertEvent(hanne, "tryggere-ungdom", ftrTrondelag);
+  const tuEventWithFtrGroup = await insertEvent(emma, "tryggere-ungdom", ftrTrondelag);
   expect("TU-arrangement kan ikke bruke FTR-lokallag", tuEventWithFtrGroup.error ? "avvist" : "tillatt", "avvist");
 
   const nationalPost = await insertPost(kari, "tryggere-ruspolitikk", null);
   expect("community-wide innlegg med null lokallag er gyldig", nationalPost.error?.message ?? "ok", "ok");
 
-  const nationalEvent = await insertEvent(kari, "tryggere-ruspolitikk", null);
+  const nationalEvent = await insertEvent(lars, "tryggere-ruspolitikk", null);
   expect("community-wide arrangement med null lokallag er gyldig", nationalEvent.error?.message ?? "ok", "ok");
 
   const { data: anonPosts } = await anon.from("posts").select("id").eq("local_group_id", ftrTrondelag);

@@ -75,13 +75,13 @@ export const demoPersonas: User[] = [
 /**
  * What each persona belongs to — and, just as importantly, what it does not.
  *
- * Tryggere: admin in the parent organisation so the membership queue,
- * invitations and the admin-only directory are all reachable; moderator in the
- * youth organisation so the difference between the two roles is visible in one
- * session. No Under The Rug.
+ * Tryggere: moderator in the parent organisation and the youth organisation.
+ * No Under The Rug. Admin-only surfaces now belong to the explicit
+ * Lars Bror fixture account, not to a demo persona.
  *
- * Under The Rug: admin in the collective and nothing else, so the switcher
- * holds one community and the demo never wanders into a civic NGO.
+ * Under The Rug: moderator in the collective and nothing else, so the switcher
+ * holds one community and the demo never wanders into a civic NGO. Admin-only
+ * surfaces now belong to the explicit Octavio fixture account.
  *
  * Ordinary Tryggere member: member in the parent organisation and the youth
  * organisation, no Under The Rug. The parent membership has FTR Trøndelag
@@ -93,7 +93,7 @@ export const demoPersonaMemberships: Membership[] = [
   {
     userId: "demo-tryggere",
     communityId: "tryggere-ruspolitikk",
-    role: "admin",
+    role: "moderator",
     status: "active",
     joinedAt: "2023-08-14",
     title: "Organisasjonsrådgiver",
@@ -109,7 +109,7 @@ export const demoPersonaMemberships: Membership[] = [
   {
     userId: "demo-utr",
     communityId: "under-the-rug",
-    role: "admin",
+    role: "moderator",
     status: "active",
     joinedAt: "2023-04-02",
     title: "Booking og produksjon",
