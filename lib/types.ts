@@ -110,10 +110,11 @@ export interface LocalGroup {
   active: boolean;
 }
 
-export type CommunityPersonSection = "staff" | "board" | "local_group_leader";
+export type CommunityPersonSection = "staff" | "board" | "local_group_leader" | "crew";
 
 /**
- * A person the organisation publishes as staff, board or local-group contact.
+ * A person the organisation publishes as staff, board, local-group contact or
+ * public crew.
  *
  * This is not a TING account and not a membership row. There is deliberately no
  * user id here, so rendering this type cannot reveal roles, DM settings,

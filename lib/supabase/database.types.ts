@@ -1226,7 +1226,11 @@ export type Database = {
     Enums: {
       access_policy: "invite-only" | "request-to-join"
       access_request_status: "pending" | "approved" | "rejected" | "cancelled"
-      community_person_section: "staff" | "board" | "local_group_leader"
+      community_person_section:
+        | "staff"
+        | "board"
+        | "local_group_leader"
+        | "crew"
       community_role: "member" | "moderator" | "admin"
       dm_policy: "staff_only" | "members"
       member_directory_visibility: "admin_only" | "members"
@@ -1371,7 +1375,12 @@ export const Constants = {
     Enums: {
       access_policy: ["invite-only", "request-to-join"],
       access_request_status: ["pending", "approved", "rejected", "cancelled"],
-      community_person_section: ["staff", "board", "local_group_leader"],
+      community_person_section: [
+        "staff",
+        "board",
+        "local_group_leader",
+        "crew",
+      ],
       community_role: ["member", "moderator", "admin"],
       dm_policy: ["staff_only", "members"],
       member_directory_visibility: ["admin_only", "members"],

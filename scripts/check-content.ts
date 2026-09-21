@@ -18,7 +18,7 @@
  */
 import { existsSync } from "node:fs";
 import { channels, communities, memberships } from "@/lib/mock/communities";
-import { communityPeople } from "@/lib/mock/community-people";
+import { communityPeople, underTheRugCrew } from "@/lib/mock/community-people";
 import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
 import { communityPolicies } from "@/lib/mock/community-policies";
@@ -59,6 +59,52 @@ const activeMembers = (communityId: string) =>
 
 const TRYGGERE = ["tryggere-ruspolitikk", "tryggere-ungdom"];
 const INDEPENDENT = "under-the-rug";
+const TRYGGERE_ORGANIZATION_SHAPE = {
+  "tryggere-ruspolitikk": {
+    staff: [
+      "Ina Roll Spinnangr",
+      "Dagfinn Hessen Paust",
+      "Lars Bror Kristiansen",
+      "Emil Bjørnstad Belgau",
+    ],
+    board: [
+      "Jonas Ali Werket Ghanizadeh",
+      "Hallvar Hyldbakk",
+      "Jørn Kløvvfjell Mjelva",
+      "Armin Khoshneviszadeh",
+      "Maren Vals Dekkerhus",
+      "Gisle Vonen",
+      "Line Rude Jacobsen",
+      "Emil Bjørnstad Belgau",
+    ],
+    local_group_leader: [
+      "Line Rude Jacobsen",
+      "Christian T. Eikeland",
+      "Bent Heier Johansen",
+      "Morten Revheim",
+      "Christian Øien",
+      "Joachim Strandberg",
+      "Eirik Olsen",
+    ],
+  },
+  "tryggere-ungdom": {
+    staff: [
+      "Ingrid E. Gøranson",
+      "Emma Mortensen",
+      "Ole Thomas Lunde",
+      "Thia Olivia Dahl",
+      "Sofia Litland Eckblad",
+    ],
+    board: [
+      "Emil Bjørnstad Belgau",
+      "Emil Mikalsen",
+      "Turid Elise Hennig",
+      "Omar Nawaz",
+      "Iver Strømsvold",
+    ],
+    local_group_leader: [],
+  },
+} as const;
 
 // ── 1. Referential integrity ────────────────────────────────────────────
 
@@ -300,7 +346,7 @@ for (const person of communityPeople) {
   check("organisasjonsperson har navn", person.name.trim().length > 0, where);
   check(
     "organisasjonspersonens seksjon er gyldig",
-    ["staff", "board", "local_group_leader"].includes(person.section),
+    ["staff", "board", "local_group_leader", "crew"].includes(person.section),
     where,
   );
   if (person.email) {
@@ -323,9 +369,72 @@ for (const person of communityPeople) {
   }
 }
 
+const utrCrew = communityPeople.filter(
+  (person) => person.communityId === INDEPENDENT && person.section === "crew",
+);
+const expectedCrewByName = new Map(underTheRugCrew.map((person) => [person.name, person]));
+check("Under The Rug har nøyaktig 24 Crew-rader", utrCrew.length === 24, `${utrCrew.length}`);
 check(
-  "Under The Rug har ingen organisasjonspersoner",
-  !communityPeople.some((person) => person.communityId === INDEPENDENT),
+  "Under The Rug Crew-navn er unike",
+  new Set(utrCrew.map((person) => person.name)).size === utrCrew.length,
+);
+check(
+  "Under The Rug Crew-fixturen er source of truth",
+  utrCrew.every((person) => {
+    const expected = expectedCrewByName.get(person.name);
+    return (
+      expected !== undefined &&
+      expected.role === person.role &&
+      expected.sortOrder === person.sortOrder &&
+      person.localGroupName === undefined &&
+      person.email === undefined &&
+      person.description === undefined
+    );
+  }) && expectedCrewByName.size === utrCrew.length,
+);
+check(
+  "Under The Rug har bare Crew som organisasjonspersoner",
+  communityPeople
+    .filter((person) => person.communityId === INDEPENDENT)
+    .every((person) => person.section === "crew"),
+);
+
+const userNameById = new Map([...users, ...demoPersonas].map((user) => [user.id, user.name]));
+const crewNames = new Set(underTheRugCrew.map((person) => person.name));
+const fakeCrewMemberships = allMemberships.filter(
+  (membership) =>
+    membership.communityId === INDEPENDENT &&
+    crewNames.has(userNameById.get(membership.userId) ?? ""),
+);
+check(
+  "Crew-rader lager ikke falske UTR-medlemskap",
+  fakeCrewMemberships.length === 0,
+  fakeCrewMemberships.map((membership) => membership.userId).join(", "),
+);
+
+for (const [communityId, expected] of Object.entries(TRYGGERE_ORGANIZATION_SHAPE)) {
+  for (const [section, names] of Object.entries(expected)) {
+    const actual = communityPeople
+      .filter((person) => person.communityId === communityId && person.section === section)
+      .map((person) => person.name);
+    check(
+      `${communityId}/${section}: organisasjonspersoner er uendret`,
+      actual.join("|") === names.join("|"),
+      actual.join(", "),
+    );
+  }
+}
+
+check(
+  "Under The Rug Crew-roller matcher source of truth",
+  underTheRugCrew.every((expected) =>
+    utrCrew.some(
+      (person) =>
+        person.name === expected.name &&
+        person.role === expected.role &&
+        person.sortOrder === expected.sortOrder,
+    ),
+  ),
 );
 
 check(

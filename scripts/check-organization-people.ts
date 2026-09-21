@@ -12,6 +12,7 @@
 import { config } from "dotenv";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { underTheRugCrew } from "@/lib/mock/community-people";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -86,6 +87,7 @@ async function main() {
   const kari = await signIn(await emailFor("karimoen")); // FTR admin, TU moderator
   const adrian = await signIn(await emailFor("adrian")); // ordinary TU member
   const robin = await signIn(await emailFor("robinsaether")); // UTR admin
+  const mina = await signIn(await emailFor("minasolberg")); // ordinary UTR member
   const anon = anonymous();
 
   const ftrPeople = await communityPeople(kristoffer, "tryggere-ruspolitikk");
@@ -118,7 +120,56 @@ async function main() {
   expect("FTR ser ikke TU-personer", ftrPeople.some((p) => p.community_id === "tryggere-ungdom"), false);
 
   const utrPeople = await communityPeople(robin, "under-the-rug");
-  expect("UTR har ingen organisasjonspersoner", utrPeople.length, 0);
+  const expectedCrewByName = new Map(underTheRugCrew.map((person) => [person.name, person]));
+  expect("UTR har 24 Crew-personer", utrPeople.length, 24);
+  expect("UTR Crew-navn er unike", new Set(utrPeople.map((p) => p.name)).size, 24);
+  expect("UTR Crew bruker crew-seksjonen", utrPeople.every((p) => p.section === "crew"), true);
+  expect(
+    "UTR Crew-roller matcher seed",
+    utrPeople.every((person) => expectedCrewByName.get(person.name)?.role === person.role),
+    true,
+  );
+  expect(
+    "UTR Crew har ikke medlemsmetadata i organisasjonsrader",
+    utrPeople.every((p) => !p.local_group_id && !p.email && !p.description),
+    true,
+  );
+  expect("UTR organisasjonspersoner har ingen profil-id", "user_id" in (utrPeople[0] ?? {}), false);
+
+  const utrPeopleForMina = await communityPeople(mina, "under-the-rug");
+  expect("ordinært UTR-medlem kan lese UTR Crew", utrPeopleForMina.length, 24);
+
+  const { data: utrRawPeople } = await admin
+    .from("community_people")
+    .select("id, user_id, name")
+    .eq("community_id", "under-the-rug")
+    .eq("section", "crew");
+  expect(
+    "ingen UTR Crew-rader er forhåndskoblet til TING-konto",
+    (utrRawPeople ?? []).some((person) => person.user_id),
+    false,
+  );
+
+  const { data: utrMemberships } = await admin
+    .from("memberships")
+    .select("user_id")
+    .eq("community_id", "under-the-rug")
+    .eq("status", "active");
+  const { data: utrProfiles } = await admin
+    .from("profiles")
+    .select("id, name")
+    .in("id", (utrMemberships ?? []).map((membership) => membership.user_id));
+  const crewNames = new Set(underTheRugCrew.map((person) => person.name));
+  expect(
+    "Crew seed oppretter ikke falske UTR-medlemskap",
+    (utrProfiles ?? []).some((profile) => crewNames.has(profile.name)),
+    false,
+  );
+
+  const { data: utrDmActions } = await mina.rpc("organization_person_dm_actions", {
+    p_community_id: "under-the-rug",
+  });
+  expect("ukoblede UTR Crew-rader får ingen DM-handlinger", (utrDmActions ?? []).length, 0);
 
   const anonPeople = await anon.from("community_people").select("id").limit(1);
   expect("anonym tilgang er ikke utvidet", (anonPeople.data ?? []).length, 0);

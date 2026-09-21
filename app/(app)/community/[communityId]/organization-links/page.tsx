@@ -240,7 +240,7 @@ export default async function OrganizationLinksPage({
         lead="Koble offentlige organisasjonskontakter til eksisterende TING-kontoer for funksjoner som direkte meldinger."
         action={
           <ButtonLink href={`/community/${community.id}/members`} size="sm" variant="secondary">
-            Tilbake til Organisasjonen
+            Tilbake til {community.id === "under-the-rug" ? "Medlemmer" : "Organisasjonen"}
           </ButtonLink>
         }
       />

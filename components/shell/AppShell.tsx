@@ -151,7 +151,7 @@ function communityNav(
     { href: `/community/${id}/events`, label: "Arrangementer", icon: IconCalendar },
     {
       href: `/community/${id}/members`,
-      label: hasOrganizationPeople ? "Organisasjonen" : "Medlemmer",
+      label: hasOrganizationPeople && id !== "under-the-rug" ? "Organisasjonen" : "Medlemmer",
       icon: IconUsers,
     },
     ...(localGroups.usesLocalGroups
