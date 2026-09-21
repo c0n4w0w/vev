@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { startOrganizationPersonConversationAction } from "@/app/actions";
 import { Avatar, Panel, buttonClass, cn } from "@/components/ui/primitives";
-import { IconMail, IconSend } from "@/components/ui/icons";
+import { IconMail, IconMapPin, IconSend } from "@/components/ui/icons";
 import type { CommunityPerson } from "@/lib/types";
 
 function initialsFor(name: string) {
@@ -35,11 +35,24 @@ export function OrganizationPersonCard({
   localGroupName,
   compact = false,
   dmAction,
+  linkedTitle,
+  bio,
+  location,
 }: {
   person: CommunityPerson;
   localGroupName?: string;
   compact?: boolean;
   dmAction?: { communityId: string; conversationId?: string };
+  /**
+   * Public membership title from an explicitly linked TING account, shown
+   * only when the caller has already decided it says something the Crew role
+   * doesn't — this component never compares the two itself.
+   */
+  linkedTitle?: string;
+  /** Bio from an explicitly linked TING account. */
+  bio?: string;
+  /** Location from an explicitly linked TING account. */
+  location?: string;
 }) {
   return (
     <Panel as="li" className="flex gap-3.5 p-4">
@@ -47,6 +60,7 @@ export function OrganizationPersonCard({
       <div className="min-w-0 flex-1">
         <p className="text-[0.9375rem] font-medium text-ink">{person.name}</p>
         {person.role ? <p className="mt-0.5 text-[13px] text-ink-2">{person.role}</p> : null}
+        {linkedTitle ? <p className="mt-0.5 text-[13px] text-ink-2">{linkedTitle}</p> : null}
         {localGroupName ? (
           <p className={compact ? "mt-1 text-[13px] font-medium text-ink" : "mt-2 text-[13px] font-medium text-ink"}>
             {localGroupName}
@@ -55,6 +69,15 @@ export function OrganizationPersonCard({
         {person.description ? (
           <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-ink-3">
             {person.description}
+          </p>
+        ) : null}
+        {bio ? (
+          <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-ink-3">{bio}</p>
+        ) : null}
+        {location ? (
+          <p className="mt-2.5 flex items-center gap-1 text-[11px] text-ink-3">
+            <IconMapPin size={12} />
+            {location}
           </p>
         ) : null}
         {dmAction || person.email ? (

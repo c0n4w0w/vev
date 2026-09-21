@@ -1,34 +1,32 @@
 import { notFound, redirect } from "next/navigation";
-import type { ReactNode } from "react";
-import { setMembershipRoleAction, startDirectConversationAction } from "@/app/actions";
+import { MemberCard } from "@/components/community/MemberCard";
 import { OrganizationPersonCard } from "@/components/community/OrganizationPersonCard";
 import {
-  Avatar,
-  Badge,
   ButtonLink,
   EmptyState,
   PageContainer,
   PageHeader,
   Panel,
   SectionHeading,
-  buttonClass,
 } from "@/components/ui/primitives";
-import { IconLock, IconMapPin, IconShield } from "@/components/ui/icons";
+import { IconLock, IconShield } from "@/components/ui/icons";
 import {
   canViewMemberDirectory,
   type CommunityMember,
   getCommunityById,
   getCommunityMembers,
   getCommunityPeople,
+  getCommunityPeopleLinkedMemberDetails,
+  getCommunityPeopleLinkedMemberIds,
   getMemberDmActions,
   getMembership,
   getOrganizationPersonDmActions,
-  getRole,
+  type LinkedCrewMemberDetails,
 } from "@/lib/data";
-import { formatFullDate, plural } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
-import type { CommunityPerson, CommunityPersonSection, RoleId } from "@/lib/types";
+import type { CommunityPerson, CommunityPersonSection } from "@/lib/types";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/members">) {
   const { communityId } = await params;
@@ -37,13 +35,6 @@ export async function generateMetadata({ params }: PageProps<"/community/[commun
   const title = people.length > 0 && community?.id !== "under-the-rug" ? "Organisasjonen" : "Medlemmer";
   return { title: `${title} · ${community?.name ?? "Fellesskap"}` };
 }
-
-const roleOrder: RoleId[] = ["admin", "moderator", "member"];
-const adminPermissionLabels: Record<RoleId, string> = {
-  admin: "Administrator",
-  moderator: "Moderator",
-  member: "Normal tilgang",
-};
 
 const organizationSections: { id: CommunityPersonSection; title: string }[] = [
   { id: "staff", title: "Ansatte" },
@@ -69,18 +60,34 @@ function GeneralContactBlock({ email }: { email: string }) {
   );
 }
 
+/**
+ * The membership title is worth a second line only when it says something the
+ * Crew role doesn't — otherwise it is the same fact twice.
+ */
+function linkedTitleFor(crewRole: string | undefined, membershipTitle: string | undefined) {
+  const title = publicMemberTitle(membershipTitle);
+  if (!title) return undefined;
+  if (crewRole && title.trim().toLocaleLowerCase("nb-NO") === crewRole.trim().toLocaleLowerCase("nb-NO")) {
+    return undefined;
+  }
+  return title;
+}
+
 function OrganizationRows({
   title,
   people,
   communityId,
   dmActions,
   leaders = false,
+  linkedDetails,
 }: {
   title: string;
   people: CommunityPerson[];
   communityId: string;
   dmActions: Map<string, string | undefined>;
   leaders?: boolean;
+  /** Explicit-link enrichment, keyed by `community_people.id`. UTR Crew only. */
+  linkedDetails?: Map<string, LinkedCrewMemberDetails>;
 }) {
   if (people.length === 0) return null;
 
@@ -88,229 +95,25 @@ function OrganizationRows({
     <section>
       <SectionHeading>{title}</SectionHeading>
       <ul className="grid gap-3 sm:grid-cols-2">
-        {people.map((person) => (
-          <OrganizationPersonCard
-            key={person.id}
-            person={person}
-            localGroupName={leaders ? person.localGroupName : undefined}
-            dmAction={
-              dmActions.has(person.id)
-                ? { communityId, conversationId: dmActions.get(person.id) }
-                : undefined
-            }
-          />
-        ))}
+        {people.map((person) => {
+          const details = linkedDetails?.get(person.id);
+          return (
+            <OrganizationPersonCard
+              key={person.id}
+              person={person}
+              localGroupName={leaders ? person.localGroupName : undefined}
+              dmAction={
+                dmActions.has(person.id)
+                  ? { communityId, conversationId: dmActions.get(person.id) }
+                  : undefined
+              }
+              linkedTitle={linkedTitleFor(person.role, details?.title)}
+              bio={details?.bio}
+              location={details?.location}
+            />
+          );
+        })}
       </ul>
-    </section>
-  );
-}
-
-function RoleManagementControl({
-  member,
-  communityId,
-}: {
-  member: CommunityMember;
-  communityId: string;
-}) {
-  const { membership } = member;
-
-  if (membership.role === "admin") {
-    return (
-      <div className="mt-3 border-t border-line pt-3">
-        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
-          Tilgang
-        </p>
-        <p className="mt-1 text-[13px] font-medium text-ink">Administrator</p>
-        <p className="mt-0.5 text-[12px] text-ink-3">Full administrasjonstilgang</p>
-      </div>
-    );
-  }
-
-  return (
-    <form
-      action={setMembershipRoleAction}
-      className="mt-3 flex flex-col gap-2 border-t border-line pt-3 sm:flex-row sm:items-end"
-    >
-      <input type="hidden" name="communityId" value={communityId} />
-      <input type="hidden" name="membershipId" value={membership.id ?? ""} />
-      <label className="min-w-0 flex-1">
-        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
-          Tilgang
-        </span>
-        <select
-          name="role"
-          defaultValue={membership.role}
-          className="mt-1 h-9 w-full rounded-[5px] border border-line-2 bg-surface px-2 text-[13px] text-ink outline-none focus:border-ink-3"
-        >
-          <option value="member">Normal tilgang</option>
-          <option value="moderator">Moderator</option>
-        </select>
-      </label>
-      <button type="submit" className={buttonClass({ variant: "secondary", size: "sm" })}>
-        Lagre
-      </button>
-    </form>
-  );
-}
-
-function AdminMemberDirectory({
-  members,
-  userId,
-  communityId,
-  dmActions,
-}: {
-  members: CommunityMember[];
-  userId: string;
-  communityId: string;
-  dmActions: Map<string, string | undefined>;
-}) {
-  return (
-    <div className="space-y-10">
-      {roleOrder.map((roleId) => {
-        const group = members.filter((entry) => entry.membership.role === roleId);
-        if (group.length === 0) return null;
-        const role = getRole(roleId);
-        const label = adminPermissionLabels[roleId];
-
-        return (
-          <section key={roleId}>
-            <SectionHeading>
-              {label} · {group.length}
-            </SectionHeading>
-            <p className="-mt-2 mb-4 text-[13px] text-ink-3">{role.description}</p>
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {group.map(({ user: person, membership: personMembership }) => (
-                <MemberCard
-                  key={person.id}
-                  member={{ user: person, membership: personMembership }}
-                  userId={userId}
-                  communityId={communityId}
-                  dmActions={dmActions}
-                  roleManagement={
-                    <RoleManagementControl
-                      member={{ user: person, membership: personMembership }}
-                      communityId={communityId}
-                    />
-                  }
-                />
-              ))}
-            </ul>
-          </section>
-        );
-      })}
-    </div>
-  );
-}
-
-function MemberCard({
-  member,
-  userId,
-  communityId,
-  dmActions,
-  permissionBadge,
-  roleManagement,
-}: {
-  member: CommunityMember;
-  userId: string;
-  communityId: string;
-  dmActions: Map<string, string | undefined>;
-  permissionBadge?: ReactNode;
-  roleManagement?: ReactNode;
-}) {
-  const { user: person, membership: personMembership } = member;
-  const title = publicMemberTitle(personMembership.title);
-
-  return (
-    <Panel as="li" className="flex gap-3.5 p-4">
-      <Avatar user={person} size="md" />
-      <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-center gap-2">
-          <span className="truncate text-[0.9375rem] font-medium text-ink">
-            {person.name}
-          </span>
-          {person.id === userId ? <Badge tone="skog">Deg</Badge> : null}
-          {permissionBadge}
-        </p>
-        {title ? <p className="mt-0.5 text-[13px] text-ink-2">{title}</p> : null}
-        <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-ink-3">
-          {person.bio}
-        </p>
-        <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-3">
-          <span className="inline-flex items-center gap-1">
-            <IconMapPin size={12} />
-            {person.location}
-          </span>
-          <span>Medlem siden {formatFullDate(personMembership.joinedAt)}</span>
-        </p>
-        {dmActions.has(person.id) ? (
-          <div className="mt-3">
-            {dmActions.get(person.id) ? (
-              <ButtonLink
-                href={`/community/${communityId}/messages/${dmActions.get(person.id)}`}
-                size="sm"
-                variant="secondary"
-              >
-                Send melding
-              </ButtonLink>
-            ) : (
-              <form action={startDirectConversationAction}>
-                <input type="hidden" name="communityId" value={communityId} />
-                <input type="hidden" name="recipientId" value={person.id} />
-                <button
-                  type="submit"
-                  className={buttonClass({ variant: "secondary", size: "sm" })}
-                >
-                  Send melding
-                </button>
-              </form>
-            )}
-          </div>
-        ) : null}
-        {roleManagement}
-      </div>
-    </Panel>
-  );
-}
-
-function AdminManagementSection({
-  communityName,
-  members,
-  userId,
-  communityId,
-  dmActions,
-}: {
-  communityName: string;
-  members: CommunityMember[];
-  userId: string;
-  communityId: string;
-  dmActions: Map<string, string | undefined>;
-}) {
-  return (
-    <section className="mt-12 border-t border-line pt-8">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="max-w-2xl">
-          <p className="label mb-2">Kun for administratorer</p>
-          <h2 className="font-display text-2xl leading-tight text-ink">
-            Medlemsadministrasjon
-          </h2>
-          <p className="mt-2 text-[13px] leading-relaxed text-ink-3">
-            Som administrator i {communityName} kan du se den private medlemslisten,
-            invitere nye medlemmer, behandle forespørsler og endre moderator-tilgang.
-            Moderator er en utvidet TING-tillatelse, ikke en offentlig tittel.
-          </p>
-        </div>
-        <div className="shrink-0">
-          <ButtonLink href={`/community/${communityId}/requests`} size="sm" variant="secondary">
-            Medlemsforespørsler
-          </ButtonLink>
-        </div>
-      </div>
-      <AdminMemberDirectory
-        members={members}
-        userId={userId}
-        communityId={communityId}
-        dmActions={dmActions}
-      />
     </section>
   );
 }
@@ -343,6 +146,7 @@ function FlatMemberDirectory({
           userId={userId}
           communityId={communityId}
           dmActions={dmActions}
+          showJoinedDate={false}
         />
       ))}
     </ul>
@@ -367,12 +171,24 @@ export default async function MembersPage({
   const isAdmin = membership?.role === "admin";
 
   if (community.id === "under-the-rug") {
-    const [members, organizationDmActions, memberDmActions] = await Promise.all([
-      canViewDirectory ? getCommunityMembers(community.id) : Promise.resolve([]),
-      getOrganizationPersonDmActions(community.id),
-      canViewDirectory ? getMemberDmActions(community.id) : Promise.resolve(new Map()),
-    ]);
+    const [allMembers, organizationDmActions, memberDmActions, crewLinkedMemberIds, crewLinkedDetails] =
+      await Promise.all([
+        canViewDirectory ? getCommunityMembers(community.id) : Promise.resolve([]),
+        getOrganizationPersonDmActions(community.id),
+        canViewDirectory ? getMemberDmActions(community.id) : Promise.resolve(new Map()),
+        canViewDirectory
+          ? getCommunityPeopleLinkedMemberIds(community.id)
+          : Promise.resolve(new Set<string>()),
+        canViewDirectory
+          ? getCommunityPeopleLinkedMemberDetails(community.id)
+          : Promise.resolve(new Map<string, LinkedCrewMemberDetails>()),
+      ]);
     const crew = organizationPeople.filter((person) => person.section === "crew");
+    // A person already shown as a Crew card should not also appear as a plain
+    // membership card below it — same product rule as elsewhere on this page:
+    // one card per person. Their membership itself is unchanged; this is
+    // presentation only, and only for whoever has an explicit Crew link.
+    const members = allMembers.filter((member) => !crewLinkedMemberIds.has(member.user.id));
 
     return (
       <PageContainer>
@@ -384,19 +200,25 @@ export default async function MembersPage({
             isAdmin ? (
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <ButtonLink
-                  href={`/community/${community.id}/organization-links`}
+                  href={`/community/${community.id}/admin/members`}
                   size="sm"
                   variant="secondary"
                 >
-                  Administrer kontokoblinger
+                  Administrer medlemmer
                 </ButtonLink>
                 <ButtonLink
                   href={`/community/${community.id}/requests`}
                   size="sm"
                   variant="secondary"
-                  className="sm:order-first"
                 >
                   Medlemsforespørsler
+                </ButtonLink>
+                <ButtonLink
+                  href={`/community/${community.id}/organization-links`}
+                  size="sm"
+                  variant="secondary"
+                >
+                  Administrer kontokoblinger
                 </ButtonLink>
               </div>
             ) : undefined
@@ -409,6 +231,7 @@ export default async function MembersPage({
             people={crew}
             communityId={community.id}
             dmActions={organizationDmActions}
+            linkedDetails={crewLinkedDetails}
           />
 
           {canViewDirectory ? (
@@ -420,15 +243,6 @@ export default async function MembersPage({
                 communityId={community.id}
                 dmActions={memberDmActions}
               />
-              {isAdmin ? (
-                <AdminManagementSection
-                  communityName={community.name}
-                  members={members}
-                  userId={user.id}
-                  communityId={community.id}
-                  dmActions={memberDmActions}
-                />
-              ) : null}
             </section>
           ) : (
             <Panel className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
@@ -445,11 +259,7 @@ export default async function MembersPage({
   }
 
   if (organizationPeople.length > 0) {
-    const [members, organizationDmActions, memberDmActions] = await Promise.all([
-      canViewDirectory ? getCommunityMembers(community.id) : Promise.resolve([]),
-      getOrganizationPersonDmActions(community.id),
-      canViewDirectory ? getMemberDmActions(community.id) : Promise.resolve(new Map()),
-    ]);
+    const organizationDmActions = await getOrganizationPersonDmActions(community.id);
 
     return (
       <PageContainer>
@@ -461,19 +271,25 @@ export default async function MembersPage({
             isAdmin ? (
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <ButtonLink
-                  href={`/community/${community.id}/organization-links`}
+                  href={`/community/${community.id}/admin/members`}
                   size="sm"
                   variant="secondary"
                 >
-                  Administrer kontokoblinger
+                  Administrer medlemmer
                 </ButtonLink>
                 <ButtonLink
                   href={`/community/${community.id}/requests`}
                   size="sm"
                   variant="secondary"
-                  className="sm:order-first"
                 >
                   Medlemsforespørsler
+                </ButtonLink>
+                <ButtonLink
+                  href={`/community/${community.id}/organization-links`}
+                  size="sm"
+                  variant="secondary"
+                >
+                  Administrer kontokoblinger
                 </ButtonLink>
               </div>
             ) : undefined
@@ -500,24 +316,14 @@ export default async function MembersPage({
           })}
         </div>
 
-        {isAdmin && canViewDirectory ? (
-          <AdminManagementSection
-            communityName={community.name}
-            members={members}
-            userId={user.id}
-            communityId={community.id}
-            dmActions={memberDmActions}
-          />
-        ) : (
-          <Panel className="mt-10 flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
-            <IconLock size={20} className="mt-0.5 shrink-0 text-skog" />
-            <p className="max-w-2xl text-[13px] leading-relaxed text-ink-2">
-              Medlemslisten i {community.name} er privat. Organisasjonsoversikten her er en
-              separat, offentlig kontaktliste og viser ikke TING-medlemskap, roller,
-              lokallagstilhørighet eller profilinformasjon.
-            </p>
-          </Panel>
-        )}
+        <Panel className="mt-10 flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
+          <IconLock size={20} className="mt-0.5 shrink-0 text-skog" />
+          <p className="max-w-2xl text-[13px] leading-relaxed text-ink-2">
+            Medlemslisten i {community.name} er privat. Organisasjonsoversikten her er en
+            separat, offentlig kontaktliste og viser ikke TING-medlemskap, roller,
+            lokallagstilhørighet eller profilinformasjon.
+          </p>
+        </Panel>
       </PageContainer>
     );
   }

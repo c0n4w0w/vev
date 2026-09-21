@@ -174,6 +174,89 @@ async function main() {
   });
   expect("bare eksplisitt koblet UTR Crew-rad får DM-handling", (utrDmActions ?? []).length, 1);
 
+  // ── community_people_linked_member_details: Crew-card enrichment ────────
+  //
+  // Never exposes user_id, a membership id, an email or a role — only what a
+  // Crew card is allowed to add to its own already-public row: bio, location,
+  // and membership title.
+  const octavioPerson = (utrRawPeople ?? []).find((person) => person.name === "Octavio Esperanto");
+  const unlinkedCrewPerson = (utrRawPeople ?? []).find((person) => person.name !== "Octavio Esperanto");
+  if (!octavioPerson || !unlinkedCrewPerson) {
+    throw new Error("forventet UTR Crew-fixture (koblet og ukoblet) mangler");
+  }
+
+  const { data: minaLinkedDetails, error: minaLinkedDetailsError } = await mina.rpc(
+    "community_people_linked_member_details",
+    { p_community_id: "under-the-rug" },
+  );
+  expect("aktivt UTR-medlem kan hente Crew-berikelse uten feil", minaLinkedDetailsError, null);
+  expect(
+    "berikelsen dekker akkurat den eksplisitt koblede Crew-raden",
+    (minaLinkedDetails ?? []).map((row) => row.person_id).join(","),
+    octavioPerson.id,
+  );
+  expect(
+    "ukoblet Crew-person får ingen oppdiktet berikelse",
+    (minaLinkedDetails ?? []).some((row) => row.person_id === unlinkedCrewPerson.id),
+    false,
+  );
+  const octavioDetails = (minaLinkedDetails ?? []).find((row) => row.person_id === octavioPerson.id);
+  expect("Octavios berikelse har bio", Boolean(octavioDetails?.bio), true);
+  expect("Octavios berikelse har sted", Boolean(octavioDetails?.location), true);
+  expect(
+    "berikelses-raden eksponerer aldri user_id",
+    Object.prototype.hasOwnProperty.call(octavioDetails ?? {}, "user_id"),
+    false,
+  );
+
+  const { data: kristofferLinkedDetails } = await kristoffer.rpc(
+    "community_people_linked_member_details",
+    { p_community_id: "under-the-rug" },
+  );
+  expect(
+    "medlem av annet fellesskap får ingen UTR Crew-berikelse (kryss-fellesskap)",
+    (kristofferLinkedDetails ?? []).length,
+    0,
+  );
+
+  const { data: anonLinkedDetails } = await anon.rpc("community_people_linked_member_details", {
+    p_community_id: "under-the-rug",
+  });
+  expect("anonym får ingen Crew-berikelse", (anonLinkedDetails ?? []).length, 0);
+
+  // An inactive linked membership must drop out of the enrichment immediately
+  // — restored exactly afterwards, same pattern as check-role-management.ts.
+  const { data: octavioMembership } = await admin
+    .from("memberships")
+    .select("*")
+    .eq("user_id", await profileId("octavio"))
+    .eq("community_id", "under-the-rug")
+    .single();
+  if (!octavioMembership) throw new Error("fant ikke Octavios UTR-medlemskap");
+  await admin.from("memberships").update({ status: "requested" }).eq("id", octavioMembership.id);
+  const { data: minaLinkedDetailsInactive } = await mina.rpc(
+    "community_people_linked_member_details",
+    { p_community_id: "under-the-rug" },
+  );
+  expect(
+    "inaktivt koblet medlemskap gir ikke lenger berikelse",
+    (minaLinkedDetailsInactive ?? []).length,
+    0,
+  );
+  await admin
+    .from("memberships")
+    .update({ status: octavioMembership.status })
+    .eq("id", octavioMembership.id);
+  const { data: minaLinkedDetailsRestored } = await mina.rpc(
+    "community_people_linked_member_details",
+    { p_community_id: "under-the-rug" },
+  );
+  expect(
+    "berikelse er tilbake etter gjenoppretting av medlemskapet",
+    (minaLinkedDetailsRestored ?? []).map((row) => row.person_id).join(","),
+    octavioPerson.id,
+  );
+
   const anonPeople = await anon.from("community_people").select("id").limit(1);
   expect("anonym tilgang er ikke utvidet", (anonPeople.data ?? []).length, 0);
 

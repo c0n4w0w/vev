@@ -1061,6 +1061,19 @@ export type Database = {
         Returns: boolean
       }
       can_view_member_directory: { Args: { cid: string }; Returns: boolean }
+      community_people_linked_member_details: {
+        Args: { p_community_id: string }
+        Returns: {
+          bio: string
+          location: string
+          person_id: string
+          title: string
+        }[]
+      }
+      community_people_linked_member_ids: {
+        Args: { p_community_id: string }
+        Returns: string[]
+      }
       community_person_account_links: {
         Args: { p_community_id: string }
         Returns: {

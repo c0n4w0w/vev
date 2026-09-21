@@ -1070,6 +1070,56 @@ export async function getOrganizationPersonDmActions(
   return new Map(rows(data).map((row) => [row.person_id, row.conversation_id ?? undefined]));
 }
 
+/**
+ * Active membership user ids that are also an explicit community_people link
+ * in this community — for hiding a membership from a plain member list when
+ * the same person is already shown as a published organisation/Crew card.
+ *
+ * Reads through `community_people_linked_member_ids`, which never returns
+ * `community_people.user_id` itself; it returns only the subset of member ids
+ * a caller who can view the directory already sees.
+ */
+export async function getCommunityPeopleLinkedMemberIds(
+  communityId: string,
+): Promise<Set<string>> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("community_people_linked_member_ids", {
+    p_community_id: communityId,
+  });
+  return new Set(rows(data));
+}
+
+export interface LinkedCrewMemberDetails {
+  title?: string;
+  bio?: string;
+  location?: string;
+}
+
+/**
+ * Bio/location/title for explicitly-linked, actively-membered Crew people,
+ * keyed by the Crew person's own `community_people.id` — a value already
+ * public through `getCommunityPeople`.
+ *
+ * Reads through `community_people_linked_member_details`, which never returns
+ * `community_people.user_id`, a membership id, an email, or a role. Used to
+ * enrich a linked person's Crew card; never for the MEDLEMMER de-duplication,
+ * which stays on `getCommunityPeopleLinkedMemberIds`.
+ */
+export async function getCommunityPeopleLinkedMemberDetails(
+  communityId: string,
+): Promise<Map<string, LinkedCrewMemberDetails>> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("community_people_linked_member_details", {
+    p_community_id: communityId,
+  });
+  return new Map(
+    rows(data).map((row) => [
+      row.person_id,
+      { title: row.title ?? undefined, bio: row.bio ?? undefined, location: row.location ?? undefined },
+    ]),
+  );
+}
+
 export async function getMemberDmActions(
   communityId: string,
 ): Promise<Map<string, string | undefined>> {
