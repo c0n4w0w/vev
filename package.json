@@ -9,6 +9,7 @@
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
     "typecheck": "tsc --noEmit",
+    "check:access-requests": "tsx scripts/check-access-requests.ts",
     "check:content": "tsx scripts/check-content.ts",
     "check:demo-entry": "tsx scripts/check-demo-entry.ts",
     "check:direct-messages": "tsx scripts/check-direct-messages.ts",

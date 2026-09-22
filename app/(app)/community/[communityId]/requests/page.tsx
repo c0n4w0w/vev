@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { RequestQueue } from "@/components/community/RequestQueue";
 import { EmptyState, PageContainer, PageHeader } from "@/components/ui/primitives";
 import {
+  getAccessRequestHistory,
   getAccessRequests,
   getCommunityById,
   getInvitations,
@@ -45,9 +46,10 @@ export default async function AccessRequestsPage({
     );
   }
 
-  const [requests, invitations] = await Promise.all([
+  const [requests, invitations, history] = await Promise.all([
     getAccessRequests(community.id),
     getInvitations(community.id),
+    getAccessRequestHistory(community.id),
   ]);
 
   return (
@@ -55,12 +57,13 @@ export default async function AccessRequestsPage({
       <PageHeader
         eyebrow={community.name}
         title="Medlemsforespørsler"
-        lead={`Folk som har bedt om tilgang til ${community.name} fra den offentlige siden. Godkjenner du, sender TING en invitasjon på e-post — først når den tas i bruk, blir personen medlem.`}
+        lead={`Folk som har bedt om tilgang til ${community.name} fra den offentlige siden. Godkjenner du, blir noen med en TING-konto fra før medlem med det samme — andre får en lenke på e-post for å logge inn eller opprette konto.`}
       />
       <RequestQueue
         communityId={community.id}
         requests={requests}
         invitations={invitations}
+        history={history}
         accent={community.branding.accent}
       />
     </PageContainer>

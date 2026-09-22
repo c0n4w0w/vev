@@ -796,12 +796,13 @@ export async function requestAccessAction(
 }
 
 /**
- * Approves a request, then sends the invitation.
- *
- * The email is sent only when the database actually minted a token. A second
- * click finds the request already approved, gets no token back, and therefore
- * sends nothing — which is what keeps approval idempotent all the way through
- * to the recipient's inbox.
+ * Approves a request. What happens next depends on what the database found:
+ * an address with a usable TING account is activated on the spot, and
+ * nothing is sent. An address with no account gets a claim-link email — sent
+ * only when the database actually minted a token, so a second click, which
+ * finds the request already approved and gets no token back, sends nothing.
+ * That is what keeps approval idempotent all the way through to the
+ * recipient's inbox.
  */
 export async function approveRequestAction(
   _prev: AccessFormState,
@@ -819,13 +820,20 @@ export async function approveRequestAction(
 
   revalidatePath(`/community/${communityId}/requests`);
 
+  if (minted.outcome === "activated") {
+    return {
+      status: "ok",
+      message: `Godkjent. ${minted.email} hadde allerede en TING-konto, så tilgangen er aktiv med det samme.`,
+    };
+  }
+
   if (!minted.token) {
-    return { status: "ok", message: "Forespørselen var allerede godkjent. Invitasjonen står ved lag." };
+    return { status: "ok", message: "Forespørselen var allerede godkjent. Lenken for å logge inn står ved lag." };
   }
 
   const sent = await deliverInvitation(minted);
   return sent.ok
-    ? { status: "ok", message: `Invitasjon sendt til ${minted.email}.` }
+    ? { status: "ok", message: `Godkjent. En lenke for å logge inn er sendt til ${minted.email}.` }
     : { status: "error", message: sent.message };
 }
 
@@ -871,9 +879,12 @@ async function deliverInvitation(minted: {
   token: string | null;
   email: string;
   communityId: string;
-  expiresAt: string;
+  expiresAt: string | null;
 }): Promise<{ ok: true } | { ok: false; message: string }> {
-  if (!minted.token) return { ok: false, message: "Ingen invitasjon å sende." };
+  // `expiresAt` is only ever null alongside a null token (the 'activated'
+  // outcome, which never reaches this function, and an idempotent replay
+  // with no fresh token to send).
+  if (!minted.token || !minted.expiresAt) return { ok: false, message: "Ingen invitasjon å sende." };
 
   const community = await getCommunityById(minted.communityId);
   const origin = await siteOrigin();

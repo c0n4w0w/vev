@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { AcceptInvitation } from "@/components/community/AcceptInvitation";
 import { Wordmark } from "@/components/shell/Wordmark";
@@ -50,23 +51,52 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
   const signedInAs = user?.email?.toLowerCase();
   const matches = signedInAs === preview.email.toLowerCase();
 
+  // A request-derived link means access was already approved — the visitor
+  // decided when they asked, and an administrator decided when they approved.
+  // Logging in here is proof of identity, not a second decision, so the copy
+  // and the accept step below both avoid asking "do you want this".
+  const label = preview.autoActivate ? "Tilgang godkjent" : "Invitasjon";
+  const lede = preview.autoActivate ? "Tilgangen din til" : "Du er invitert til";
+
   return (
     <Shell>
-      <p className="label">Invitasjon</p>
-      <p className="mt-4 text-[0.9375rem] text-ink-2">Du er invitert til</p>
+      <p className="label">{label}</p>
+      <p className="mt-4 text-[0.9375rem] text-ink-2">{lede}</p>
       <div className="mt-3 flex items-center gap-3">
-        {community ? <CommunityMark community={community} size="md" /> : null}
+        {community?.slug === "under-the-rug" ? (
+          <Image
+            src="/brand/under-the-rug-logo.png"
+            alt=""
+            width={80}
+            height={80}
+            className="h-11 w-11 shrink-0"
+          />
+        ) : community ? (
+          <CommunityMark community={community} size="md" />
+        ) : null}
         <h1 className="font-display text-[2rem] leading-tight text-ink">
           {preview.communityName}
+          {preview.autoActivate ? " er godkjent" : ""}
         </h1>
       </div>
-      <p className="mt-2 text-[0.9375rem] text-ink-2">på TING.</p>
+      <p className="mt-2 text-[0.9375rem] text-ink-2">
+        Det private fellesskapet drives på TING — en konto der gir deg tilgang.
+      </p>
 
       <Panel className="mt-8 p-5">
         <p className="flex items-start gap-2 text-[13px] leading-relaxed text-ink-2">
           <IconMail size={14} className="mt-0.5 shrink-0 text-ink-3" />
-          Invitasjonen er sendt til <span className="font-mono text-ink">{preview.email}</span>.
-          Den gjelder fram til {formatFullDate(preview.expiresAt)} og kan brukes én gang.
+          {preview.autoActivate ? (
+            <>
+              Godkjent for <span className="font-mono text-ink">{preview.email}</span>. Lenken
+              gjelder fram til {formatFullDate(preview.expiresAt)} og kan brukes én gang.
+            </>
+          ) : (
+            <>
+              Invitasjonen er sendt til <span className="font-mono text-ink">{preview.email}</span>.
+              Den gjelder fram til {formatFullDate(preview.expiresAt)} og kan brukes én gang.
+            </>
+          )}
         </p>
       </Panel>
 
@@ -74,8 +104,9 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
         {!user ? (
           <>
             <p className="mb-4 text-[0.9375rem] leading-relaxed text-ink-2">
-              Logg inn med den adressen for å bli med. Har du ingen TING-konto, blir den opprettet
-              når du bruker innloggingslenken.
+              {preview.autoActivate
+                ? "Logg inn eller opprett en TING-konto med den adressen for å få tilgangen som allerede er godkjent."
+                : "Logg inn med den adressen for å bli med. Har du ingen TING-konto, blir den opprettet når du bruker innloggingslenken."}
             </p>
             <Link
               href={`/login?e=${encodeURIComponent(preview.email)}&neste=${encodeURIComponent(`/invitasjon/${token}`)}`}
@@ -85,7 +116,7 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
             </Link>
           </>
         ) : matches ? (
-          <AcceptInvitation token={token} accent={accent} />
+          <AcceptInvitation token={token} accent={accent} auto={preview.autoActivate} />
         ) : (
           <>
             <p className="mb-4 rounded-[5px] border border-rust/25 bg-rust-soft px-3 py-2.5 text-[13px] leading-relaxed text-rust">

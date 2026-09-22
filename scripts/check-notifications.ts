@@ -37,13 +37,20 @@
  * community.
  *
  * Section L does the same for the access request lifecycle added in
- * 20260916200000: a new request notifies the community's administrators and
- * nobody else — not its moderators, who cannot open the queue — and a
- * rejection notifies the applicant when the address belongs to an account.
- * Approval deliberately notifies no one, and that is asserted rather than
- * merely absent. Those cases fail if request generation is removed, if the
- * recipient query stops being scoped to the requested community, or if the
- * rejection notice goes missing or to the wrong person.
+ * 20260916200000 and reshaped by 20260923150000: a new request notifies the
+ * community's administrators and nobody else — not its moderators, who
+ * cannot open the queue — and a rejection notifies the applicant when the
+ * address belongs to an account. Approval notifies conditionally on what it
+ * does: silently mints a claim-link invitation for an address with no usable
+ * account (still asserted as producing no notice), but notifies immediately
+ * when the address already has a confirmed account and approval activates
+ * membership on the spot — the same "Du er nå medlem" notice redemption
+ * writes, just reached by a shorter path. Those cases fail if request
+ * generation is removed, if the recipient query stops being scoped to the
+ * requested community, if the rejection notice goes missing or goes to the
+ * wrong person, if an already-confirmed account stops being activated
+ * directly, or if either activation path's notice goes missing, duplicates on
+ * a retry, or is sent for the wrong path.
  *
  * Whatever it creates it removes again, and every row it touches is put back.
  *
@@ -81,8 +88,14 @@ async function signIn(email: string): Promise<SupabaseClient<Database>> {
     throw new Error(`kunne ikke lage lenke for ${email}: ${error?.message}`);
   }
   const client = createClient<Database>(supabaseUrl(), supabaseAnonKey());
+  // For an address with no account yet, GoTrue mints a signup token rather
+  // than a magiclink one even though `magiclink` is what was asked for —
+  // `verification_type` says which it actually is, and verifying with the
+  // wrong one fails as "expired" regardless of how fresh the link is. This is
+  // what lets this same helper simulate both "log in" for an existing seeded
+  // persona and "create an account by logging in" for a brand new address.
   const { error: verifyError } = await client.auth.verifyOtp({
-    type: "magiclink",
+    type: data.properties.verification_type as "signup" | "magiclink",
     token_hash: data.properties.hashed_token,
   });
   if (verifyError) throw new Error(`kunne ikke logge inn som ${email}: ${verifyError.message}`);
@@ -895,9 +908,10 @@ async function main() {
     1,
   );
 
-  // 8. Approval mints an invitation and deliberately does *not* notify. The
-  //    outcome travels by email, and accept_invitation_token() writes the one
-  //    in-app record when the link is used — see 20260916200000.
+  // 8. Approval of an address with no usable account mints an invitation and
+  //    deliberately does *not* notify. The outcome travels by email, and
+  //    accept_invitation_token() writes the one in-app record when the link
+  //    is used — see 20260916200000 and case 10 below.
   const approvalSeeker = "sjekk.godkjent@example.no";
   await requestAccess(anon, TR, approvalSeeker, "Sjekk Godkjent");
   const approvalRequest = (
@@ -908,9 +922,11 @@ async function main() {
   ).count;
 
   const approved = await lars.rpc("approve_access_request", { p_request_id: approvalRequest.id });
-  expect("administrator kan godkjenne", ((approved.data as { token: string }[]) ?? []).length, 1);
+  const approvedRow = (approved.data as { outcome: string; token: string }[] | null)?.[0];
+  expect("administrator kan godkjenne", (approved.data ?? []).length, 1);
+  expect("utfallet er en invitasjon, ikke en direkte aktivering", approvedRow?.outcome, "invited");
   expect(
-    "godkjenning lager ingen varsler — e-posten og innløsningen dekker det",
+    "godkjenning av en konto-løs adresse lager ingen varsler — e-posten og innløsningen dekker det",
     (await admin.from("notifications").select("*", { count: "exact", head: true })).count,
     notificationsBeforeApproval,
   );
@@ -933,7 +949,82 @@ async function main() {
   );
   void approveAgain;
 
-  // Tidy: every request, invitation and notification this section produced.
+  // 9. Approval of an address that already has a *confirmed* account skips
+  //    the invitation entirely: membership is activated in the same call,
+  //    and — unlike case 8 — this is notified immediately, mirroring the
+  //    "Du er nå medlem" notice accept_invitation_token() writes on
+  //    redemption. Oskar has a UTR membership from the seed but none in
+  //    Tryggere, which is what makes his address usable for this case.
+  const oskarId = await profileId("oskar");
+  const oskarEmail = await emailFor("oskar");
+  const oskarRequested = await requestAccess(anon, TR, oskarEmail, "Sjekk Oskar");
+  expect("forespørselen fra en konto som finnes fra før ble tatt imot", oskarRequested.error, null);
+
+  const { data: oskarRequest } = await admin
+    .from("access_requests")
+    .select("id, community_id, email")
+    .eq("email", oskarEmail)
+    .eq("status", "pending")
+    .single();
+
+  const oskarNotificationsBefore = (
+    await admin.from("notifications").select("id").eq("user_id", oskarId)
+  ).data!.length;
+
+  const oskarApproval = await lars.rpc("approve_access_request", { p_request_id: oskarRequest!.id });
+  const oskarOutcome = (oskarApproval.data as { outcome: string; token: string | null }[] | null)?.[0];
+  expect("administrator kan godkjenne en konto som finnes fra før", oskarOutcome?.outcome, "activated");
+  expect("og godkjenningen gir ingen token — det er ingen invitasjon å sende", oskarOutcome?.token, null);
+
+  const oskarMembership = await admin
+    .from("memberships")
+    .select("status")
+    .eq("user_id", oskarId)
+    .eq("community_id", TR)
+    .maybeSingle();
+  expect("medlemskapet ble opprettet med det samme", oskarMembership.data?.status, "active");
+  expect(
+    "og det ble ikke laget noen invitasjon å vente på",
+    (await admin.from("invitations").select("*", { count: "exact", head: true }).eq("request_id", oskarRequest!.id)).count,
+    0,
+  );
+
+  const { data: oskarNoticesAfterApproval } = await admin
+    .from("notifications")
+    .select("id, kind, community_id, title")
+    .eq("user_id", oskarId);
+  expect(
+    "direkte aktivering varsler med det samme",
+    oskarNoticesAfterApproval!.length,
+    oskarNotificationsBefore + 1,
+  );
+  const oskarNotice = oskarNoticesAfterApproval!.find((n) => n.title.startsWith("Du er nå medlem"));
+  expect("varselet er av typen medlemskap", oskarNotice?.kind, "membership");
+  expect("og hører til fellesskapet forespørselen gjaldt", oskarNotice?.community_id, TR);
+
+  // Re-approving (a retried click) must not create a second membership row or
+  // a second notice — the membership upsert is a no-op and `v_just_approved`
+  // is false the second time through.
+  const oskarApproveAgain = await lars.rpc("approve_access_request", { p_request_id: oskarRequest!.id });
+  const oskarAgainOutcome = (oskarApproveAgain.data as { outcome: string }[] | null)?.[0];
+  expect("en gjentatt godkjenning rapporterer samme utfall", oskarAgainOutcome?.outcome, "activated");
+  expect(
+    "uten å lage et medlemskap til",
+    (await admin.from("memberships").select("*", { count: "exact", head: true }).eq("user_id", oskarId).eq("community_id", TR)).count,
+    1,
+  );
+  expect(
+    "og uten et varsel til",
+    (await admin.from("notifications").select("*", { count: "exact", head: true }).eq("user_id", oskarId)).count,
+    oskarNotificationsBefore + 1,
+  );
+
+  // Undo case 9: the membership, its notice, and the request.
+  if (oskarNotice) await admin.from("notifications").delete().eq("id", oskarNotice.id);
+  await admin.from("memberships").delete().eq("user_id", oskarId).eq("community_id", TR);
+  await admin.from("access_requests").delete().eq("id", oskarRequest!.id);
+
+  // Tidy the requests case 8 and the role-boundary case above produced.
   for (const email of createdRequestEmails) {
     const { data: reqs } = await admin.from("access_requests").select("id").eq("email", email);
     for (const r of reqs ?? []) await admin.from("invitations").delete().eq("request_id", r.id);
@@ -955,60 +1046,85 @@ async function main() {
     seededTotal,
   );
 
-  // ── The one real generator ────────────────────────────────────────────
+  // ── 10. The one real generator, for the address that never gets a shortcut ─
   //
-  // accept_invitation_token() is currently the only thing in the product that
-  // creates a notification. It inserts rather than updates, and runs as the
-  // table owner, so neither new layer should be able to reach it — but that is
-  // an argument, and this is the test.
-  const oskarId = await profileId("oskar");
-  const oskarEmail = await emailFor("oskar");
-  const oskarRequestCreated = await requestAccess(anon, TR, oskarEmail, "Sjekk Oskar");
-  expect("forespørselen for invitasjonssjekken ble tatt imot", oskarRequestCreated.error, null);
+  // accept_invitation_token() is the only thing in the product that creates a
+  // notification by redeeming a token rather than by an administrator's own
+  // action. It inserts rather than updates, and runs as the table owner, so
+  // neither new layer should be able to reach it — but that is an argument,
+  // and this is the test.
+  //
+  // This has to run against an address with no account at all — every seeded
+  // persona already has a confirmed one, and case 9 just proved those are
+  // activated directly and never reach this function. `signIn()` here plays
+  // the part of the person creating that account: `generateLink` +
+  // `verifyOtp` for an address with no prior user is exactly what happens
+  // when someone follows the claim link and logs in for the first time.
+  const freshEmail = "sjekk.nykonto@example.no";
+  const freshRequested = await requestAccess(anon, TR, freshEmail, "Sjekk Ny Konto");
+  expect("forespørselen fra en konto-løs adresse ble tatt imot", freshRequested.error, null);
 
-  const { data: request } = await admin
+  const { data: freshRequest } = await admin
     .from("access_requests")
-    .select("id, community_id, email, status, reviewed_at, reviewed_by")
-    .eq("email", oskarEmail)
+    .select("id, community_id, email")
+    .eq("email", freshEmail)
     .eq("status", "pending")
     .single();
 
-  const approval = await lars.rpc("approve_access_request", { p_request_id: request!.id });
-  const invitationToken = (approval.data as { token: string }[] | null)?.[0]?.token;
-  expect("administrator kunne godkjenne forespørselen", Boolean(invitationToken), true);
+  const freshApproval = await lars.rpc("approve_access_request", { p_request_id: freshRequest!.id });
+  const freshOutcome = (freshApproval.data as { outcome: string; token: string | null }[] | null)?.[0];
+  expect("godkjenning uten konto gir en invitasjon", freshOutcome?.outcome, "invited");
+  const invitationToken = freshOutcome?.token;
+  expect("med en fersk token", Boolean(invitationToken), true);
 
-  const oskarNotificationsBefore = (
-    await admin.from("notifications").select("id").eq("user_id", oskarId)
+  const freshClient = await signIn(freshEmail);
+  const { data: freshUser } = await freshClient.auth.getUser();
+  const freshUserId = freshUser.user!.id;
+
+  const freshNotificationsBefore = (
+    await admin.from("notifications").select("id").eq("user_id", freshUserId)
   ).data!.length;
 
-  const oskar = await signIn(await emailFor("oskar"));
-  const redeemed = await oskar.rpc("accept_invitation_token", { p_token: invitationToken! });
-  const outcome = (redeemed.data as { ok: boolean; reason: string }[] | null)?.[0];
-  expect("invitasjonen kunne løses inn", outcome?.ok, true);
-  expect("og den ga medlemskap", outcome?.reason, "joined");
+  const redeemed = await freshClient.rpc("accept_invitation_token", { p_token: invitationToken! });
+  const redeemOutcome = (redeemed.data as { ok: boolean; reason: string }[] | null)?.[0];
+  expect("invitasjonen kunne løses inn", redeemOutcome?.ok, true);
+  expect("og den ga medlemskap", redeemOutcome?.reason, "joined");
 
-  const { data: oskarNow } = await admin
+  const { data: freshNoticesAfter } = await admin
     .from("notifications")
     .select("id, kind, community_id, title")
-    .eq("user_id", oskarId);
+    .eq("user_id", freshUserId);
   expect(
-    "innløsningen lagde fortsatt et varsel",
-    oskarNow!.length,
-    oskarNotificationsBefore + 1,
+    "innløsningen lagde fortsatt ett varsel",
+    freshNoticesAfter!.length,
+    freshNotificationsBefore + 1,
   );
-  const fresh = oskarNow!.find((n) => n.title.startsWith("Du er nå medlem"));
+  const fresh = freshNoticesAfter!.find((n) => n.title.startsWith("Du er nå medlem"));
   expect("varselet er av riktig type", fresh?.kind, "membership");
-  expect("og hører til riktig fellesskap", fresh?.community_id, request!.community_id);
+  expect("og hører til riktig fellesskap", fresh?.community_id, freshRequest!.community_id);
 
-  // Undo the whole invitation flow, in reverse.
-  await admin.from("notifications").delete().eq("id", fresh!.id);
+  // A second redemption of the same token finds nothing left to consume.
+  const redeemAgain = await freshClient.rpc("accept_invitation_token", { p_token: invitationToken! });
+  const redeemAgainOutcome = (redeemAgain.data as { ok: boolean; reason: string }[] | null)?.[0];
+  expect("gjentatt innløsning gir ingen ny medlemskap", redeemAgainOutcome?.ok, false);
+  expect("og forklarer hvorfor", redeemAgainOutcome?.reason, "already-used");
+  expect(
+    "og lager ikke et varsel til",
+    (await admin.from("notifications").select("*", { count: "exact", head: true }).eq("user_id", freshUserId)).count,
+    freshNotificationsBefore + 1,
+  );
+
+  // Undo the whole thing, in reverse — including the account this case
+  // created, since nothing else in this file creates and deletes auth users.
+  if (fresh) await admin.from("notifications").delete().eq("id", fresh.id);
   await admin
     .from("memberships")
     .delete()
-    .eq("user_id", oskarId)
-    .eq("community_id", request!.community_id);
-  await admin.from("invitations").delete().eq("request_id", request!.id);
-  await admin.from("access_requests").delete().eq("id", request!.id);
+    .eq("user_id", freshUserId)
+    .eq("community_id", freshRequest!.community_id);
+  await admin.from("invitations").delete().eq("request_id", freshRequest!.id);
+  await admin.from("access_requests").delete().eq("id", freshRequest!.id);
+  await admin.auth.admin.deleteUser(freshUserId);
   await admin
     .from("notifications")
     .delete()

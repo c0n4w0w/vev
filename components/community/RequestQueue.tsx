@@ -11,7 +11,7 @@ import { emptyAccessFormState } from "@/lib/access-form";
 import { Badge, EmptyState, Panel } from "@/components/ui/primitives";
 import { IconMail } from "@/components/ui/icons";
 import { formatFullDate, timeUntil } from "@/lib/format";
-import type { AccessRequest, CommunityInvitation } from "@/lib/data";
+import type { AccessRequest, AccessRequestResolution, CommunityInvitation } from "@/lib/data";
 
 function Submit({ label, pendingLabel, className, style }: {
   label: string;
@@ -149,6 +149,34 @@ function InvitationRow({
   );
 }
 
+const RESOLUTION_LABEL: Record<AccessRequestResolution["resolution"], { text: string; tone: "skog" | "neutral" | "rust" }> = {
+  activated: { text: "Aktivt medlem", tone: "skog" },
+  invitation_accepted: { text: "Aktivt medlem", tone: "skog" },
+  invitation_pending: { text: "Venter på innlogging", tone: "neutral" },
+  invitation_expired: { text: "Lenken er utløpt", tone: "rust" },
+  rejected: { text: "Avslått", tone: "rust" },
+};
+
+function HistoryRow({ entry }: { entry: AccessRequestResolution }) {
+  const { text, tone } = RESOLUTION_LABEL[entry.resolution];
+  return (
+    <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
+      <div className="min-w-0 flex-1">
+        {entry.displayName ? (
+          <p className="text-[0.9375rem] font-medium text-ink">{entry.displayName}</p>
+        ) : null}
+        <p className="break-all font-mono text-[13px] text-ink-2">{entry.email}</p>
+        <p className="mt-0.5 text-[11px] text-ink-3">
+          {entry.reviewedAt ? `Behandlet ${formatFullDate(entry.reviewedAt)}` : null}
+        </p>
+      </div>
+      <div className="shrink-0">
+        <Badge tone={tone}>{text}</Badge>
+      </div>
+    </div>
+  );
+}
+
 /**
  * The admin queue.
  *
@@ -161,11 +189,13 @@ export function RequestQueue({
   communityId,
   requests,
   invitations,
+  history,
   accent,
 }: {
   communityId: string;
   requests: AccessRequest[];
   invitations: CommunityInvitation[];
+  history: AccessRequestResolution[];
   accent: string;
 }) {
   return (
@@ -180,7 +210,7 @@ export function RequestQueue({
         {requests.length === 0 ? (
           <EmptyState
             title="Ingen ventende forespørsler"
-            body="Når noen ber om tilgang fra den offentlige siden, havner de her. Godkjenner du, sender TING en invitasjon på e-post — medlemskapet opprettes først når invitasjonen tas i bruk."
+            body="Når noen ber om tilgang fra den offentlige siden, havner de her. Godkjenner du, blir noen med en TING-konto fra før medlem med det samme — andre får en lenke på e-post for å logge inn eller opprette konto."
           />
         ) : (
           <Panel className="divide-y divide-line">
@@ -217,6 +247,17 @@ export function RequestQueue({
           slutter den forrige lenken å virke.
         </p>
       </section>
+
+      {history.length > 0 ? (
+        <section>
+          <h2 className="label mb-3">Nylig behandlet</h2>
+          <Panel className="divide-y divide-line">
+            {history.map((entry) => (
+              <HistoryRow key={entry.id} entry={entry} />
+            ))}
+          </Panel>
+        </section>
+      ) : null}
     </div>
   );
 }

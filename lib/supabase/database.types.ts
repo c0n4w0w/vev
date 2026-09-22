@@ -44,6 +44,7 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["access_request_status"]
+          user_id: string | null
         }
         Insert: {
           community_id: string
@@ -54,6 +55,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["access_request_status"]
+          user_id?: string | null
         }
         Update: {
           community_id?: string
@@ -64,6 +66,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["access_request_status"]
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -76,6 +79,13 @@ export type Database = {
           {
             foreignKeyName: "access_requests_reviewed_by_fkey"
             columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_requests_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1035,6 +1045,18 @@ export type Database = {
           reason: string
         }[]
       }
+      access_request_history: {
+        Args: { p_community_id: string; p_limit?: number }
+        Returns: {
+          created_at: string
+          display_name: string
+          email: string
+          id: string
+          resolution: string
+          reviewed_at: string
+          status: Database["public"]["Enums"]["access_request_status"]
+        }[]
+      }
       administers_pending_membership: {
         Args: { other: string }
         Returns: boolean
@@ -1045,6 +1067,7 @@ export type Database = {
           community_id: string
           email: string
           expires_at: string
+          outcome: string
           token: string
         }[]
       }
@@ -1109,6 +1132,7 @@ export type Database = {
       invitation_preview: {
         Args: { p_token: string }
         Returns: {
+          auto_activate: boolean
           community_id: string
           community_name: string
           community_slug: string
@@ -1446,3 +1470,5 @@ export type InvitationPreviewRow =
   Database["public"]["Functions"]["invitation_preview"]["Returns"][number]
 export type MintedInvitationRow =
   Database["public"]["Functions"]["approve_access_request"]["Returns"][number]
+export type AccessRequestHistoryRow =
+  Database["public"]["Functions"]["access_request_history"]["Returns"][number]

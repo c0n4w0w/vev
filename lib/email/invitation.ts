@@ -1,16 +1,24 @@
 import { getEmailProvider, type EmailResult } from "@/lib/email/provider";
 
 /**
- * The invitation email.
+ * The claim-link email.
  *
- * Two things it is careful about. It names TING as a separate service, because
- * the recipient asked an organisation for access and is about to receive mail
- * from something they have never heard of — and because TING does not manage
- * anyone's formal membership of that organisation and must not imply it does.
+ * Sent only to an address with no usable TING account yet — someone whose
+ * address already has one is activated the moment an administrator approves
+ * their request, and gets no email at all. So this message is careful to say
+ * what is actually true for its one recipient: the request was already
+ * decided. It is a login/account-creation step, not a second decision, and
+ * the copy avoids "invitation" and "accept" for exactly that reason.
  *
- * And it mentions exactly one community: the one being invited to. A person
- * with no TING account should not learn from an email that other communities
- * exist here.
+ * Two other things it is careful about. It names TING as a separate service,
+ * because the recipient asked an organisation for access and is about to
+ * receive mail from something they have never heard of — and because TING
+ * does not manage anyone's formal membership of that organisation and must
+ * not imply it does.
+ *
+ * And it mentions exactly one community: the one access was approved for. A
+ * person with no TING account should not learn from an email that other
+ * communities exist here.
  */
 export interface InvitationEmailInput {
   to: string;
@@ -38,14 +46,16 @@ export function buildInvitationEmail(input: InvitationEmailInput) {
     timeZone: "Europe/Oslo",
   }).format(new Date(input.expiresAt));
 
-  const subject = `Du er invitert til ${input.communityName} på TING`;
+  const subject = `Tilgangen din til ${input.communityName} er godkjent`;
 
   const text = [
-    `Du er invitert til ${input.communityName} på TING.`,
+    `Tilgangen din til ${input.communityName} på TING er godkjent.`,
     "",
     `En administrator i ${input.communityName} har godkjent forespørselen din om tilgang.`,
+    "Det som gjenstår er å logge inn — har du ingen TING-konto ennå, blir den",
+    "opprettet med det samme.",
     "",
-    "Bli med:",
+    "Logg inn:",
     input.acceptUrl,
     "",
     `Lenken virker fram til ${expires}, og kan bare brukes én gang.`,
@@ -66,17 +76,19 @@ export function buildInvitationEmail(input: InvitationEmailInput) {
   <table role="presentation" style="max-width:520px;margin:0 auto;background:#fff;border:1px solid #e4e0d7;border-radius:6px;border-collapse:separate;">
     <tr><td style="height:4px;background:${escapeHtml(input.accent)};border-radius:6px 6px 0 0;"></td></tr>
     <tr><td style="padding:32px;">
-      <p style="margin:0 0 4px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#797e81;">Invitasjon</p>
+      <p style="margin:0 0 4px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#797e81;">Godkjent</p>
       <h1 style="margin:0 0 16px;font-size:22px;line-height:1.25;font-weight:600;">
-        Du er invitert til ${escapeHtml(input.communityName)} på TING
+        Tilgangen din til ${escapeHtml(input.communityName)} er godkjent
       </h1>
       <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#4c5153;">
         En administrator i ${escapeHtml(input.communityName)} har godkjent forespørselen din om tilgang.
+        Det som gjenstår er å logge inn — har du ingen TING-konto ennå, blir den opprettet med det
+        samme.
       </p>
       <p style="margin:0 0 24px;">
         <a href="${escapeHtml(input.acceptUrl)}"
            style="display:inline-block;background:${escapeHtml(input.accent)};color:#fff;text-decoration:none;padding:11px 20px;border-radius:5px;font-size:15px;font-weight:500;">
-          Bli med på TING
+          Logg inn og få tilgang
         </a>
       </p>
       <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:#797e81;">

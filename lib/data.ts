@@ -12,6 +12,7 @@ import type {
   PortalCommunityRow,
   PortalEventRow,
   AcceptInvitationRow,
+  AccessRequestHistoryRow,
   AccessRequestRow,
   CommentRow,
   CommunityEmojiRow,
@@ -1829,19 +1830,59 @@ export async function getInvitations(communityId: string): Promise<CommunityInvi
   }));
 }
 
-export interface MintedInvitation {
-  token: string | null;
+export interface AccessRequestResolution {
+  id: string;
   email: string;
-  communityId: string;
-  expiresAt: string;
+  displayName?: string;
+  status: "approved" | "rejected";
+  createdAt: string;
+  reviewedAt?: string;
+  resolution: "activated" | "invitation_pending" | "invitation_accepted" | "invitation_expired" | "rejected";
 }
 
 /**
- * Approves a request and returns the invitation to send.
+ * What became of a community's recently-decided requests, so the admin queue
+ * can say more than "gone from the pending list" — an administrator who just
+ * approved something should be able to see whether that put someone straight
+ * in or left a claim link outstanding.
+ */
+export async function getAccessRequestHistory(communityId: string): Promise<AccessRequestResolution[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("access_request_history", { p_community_id: communityId });
+  return (data as AccessRequestHistoryRow[] | null ?? []).map((row) => ({
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name ?? undefined,
+    status: row.status as "approved" | "rejected",
+    createdAt: row.created_at,
+    reviewedAt: row.reviewed_at ?? undefined,
+    resolution: row.resolution as AccessRequestResolution["resolution"],
+  }));
+}
+
+export interface MintedInvitation {
+  /**
+   * 'activated' when the requester already had a usable TING account and
+   * approval put them straight into the community — no invitation exists for
+   * this outcome. 'invited' when a claim link is the next step, whether it
+   * was minted just now (`token` set) or already existed (`token` null, a
+   * repeat approval).
+   */
+  outcome: "activated" | "invited";
+  token: string | null;
+  email: string;
+  communityId: string;
+  expiresAt: string | null;
+}
+
+/**
+ * Approves a request. What comes back depends on whether the address already
+ * had a usable account: an immediate activation, or an invitation to send.
  *
- * `token` is null when the request was already approved and a live invitation
- * exists — the caller should not send a second email, and there is no second
- * token to send. That is what makes a double-click harmless.
+ * `token` is null both when the request was already approved with a live
+ * invitation out there (the caller should not send a second email) and when
+ * the outcome is 'activated' (there is no invitation at all). That is what
+ * makes a double-click harmless either way.
  */
 export async function approveAccessRequest(requestId: string): Promise<MintedInvitation | null> {
   const supabase = await createSupabaseServerClient();
@@ -1851,6 +1892,7 @@ export async function approveAccessRequest(requestId: string): Promise<MintedInv
   const row = (data as MintedInvitationRow[] | null)?.[0];
   if (error || !row) return null;
   return {
+    outcome: row.outcome as "activated" | "invited",
     token: row.token,
     email: row.email,
     communityId: row.community_id,
@@ -1875,6 +1917,7 @@ export async function resendInvitation(invitationId: string): Promise<MintedInvi
   const row = (data as MintedInvitationRow[] | null)?.[0];
   if (error || !row) return null;
   return {
+    outcome: "invited",
     token: row.token,
     email: row.email,
     communityId: row.community_id,
@@ -1888,6 +1931,13 @@ export interface InvitationPreview {
   communitySlug: string;
   email: string;
   expiresAt: string;
+  /**
+   * True when this invitation traces back to a request the person already
+   * made. The acceptance page uses it to skip asking for an explicit accept
+   * once the visitor has proven they hold that mailbox — see
+   * `AcceptInvitation`'s `auto` prop.
+   */
+  autoActivate: boolean;
 }
 
 /**
@@ -1906,6 +1956,7 @@ export async function getInvitationPreview(token: string): Promise<InvitationPre
     communitySlug: row.community_slug,
     email: row.email,
     expiresAt: row.expires_at,
+    autoActivate: row.auto_activate,
   };
 }
 
