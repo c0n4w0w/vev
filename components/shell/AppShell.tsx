@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Avatar, CommunityMark, ElevatedRoleBadge, cn } from "@/components/ui/primitives";
 import {
+  IconAttach,
   IconBell,
   IconCalendar,
   IconClose,
@@ -181,6 +182,12 @@ function communityNav(
 function communityAdminNav(id: string) {
   return [
     { href: `/community/${id}/admin/members`, label: "Medlemmer", icon: IconUsers, adminOnly: true },
+    {
+      href: `/community/${id}/organization-links`,
+      label: "Kontokoblinger",
+      icon: IconAttach,
+      adminOnly: true,
+    },
     { href: `/community/${id}/requests`, label: "Forespørsler", icon: IconMail, adminOnly: true },
     { href: `/community/${id}/emojis`, label: "Emojier", icon: IconSmile, staffOnly: true },
     {

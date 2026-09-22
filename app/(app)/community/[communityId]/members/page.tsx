@@ -199,33 +199,6 @@ export default async function MembersPage({
           eyebrow={community.name}
           title="Medlemmer"
           lead="Crew er offentlige roller i kollektivet. Medlemmer er faktiske TING-medlemskap."
-          action={
-            isAdmin ? (
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <ButtonLink
-                  href={`/community/${community.id}/admin/members`}
-                  size="sm"
-                  variant="secondary"
-                >
-                  Administrer medlemmer
-                </ButtonLink>
-                <ButtonLink
-                  href={`/community/${community.id}/requests`}
-                  size="sm"
-                  variant="secondary"
-                >
-                  Medlemsforespørsler
-                </ButtonLink>
-                <ButtonLink
-                  href={`/community/${community.id}/organization-links`}
-                  size="sm"
-                  variant="secondary"
-                >
-                  Administrer kontokoblinger
-                </ButtonLink>
-              </div>
-            ) : undefined
-          }
         />
 
         <div className="space-y-10">
@@ -270,33 +243,6 @@ export default async function MembersPage({
           eyebrow={community.name}
           title="Organisasjonen"
           lead="Offentlig kontaktinformasjon fra organisasjonen. Dette er ikke medlemslisten i TING."
-          action={
-            isAdmin ? (
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <ButtonLink
-                  href={`/community/${community.id}/admin/members`}
-                  size="sm"
-                  variant="secondary"
-                >
-                  Administrer medlemmer
-                </ButtonLink>
-                <ButtonLink
-                  href={`/community/${community.id}/requests`}
-                  size="sm"
-                  variant="secondary"
-                >
-                  Medlemsforespørsler
-                </ButtonLink>
-                <ButtonLink
-                  href={`/community/${community.id}/organization-links`}
-                  size="sm"
-                  variant="secondary"
-                >
-                  Administrer kontokoblinger
-                </ButtonLink>
-              </div>
-            ) : undefined
-          }
         />
 
         {community.id === "tryggere-ungdom" ? (
