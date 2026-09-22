@@ -38,9 +38,19 @@ function SubmitButton({ accent, disabled }: { accent: string; disabled: boolean 
 export function PortalAccess({
   community,
   signedIn,
+  heading = "Er du medlem?",
+  intro = `Er du medlem av ${community.name} og ønsker tilgang til det digitale fellesskapet? Be om tilgang, så tar en administrator stilling til forespørselen.`,
 }: {
   community: CommunityPublic;
   signedIn: boolean;
+  /**
+   * The two lines above the form are the only ones a caller can swap in —
+   * everything else (what a request does, whether it needs an account) stays
+   * fixed, since it is describing the underlying request-to-join mechanism
+   * rather than the community itself.
+   */
+  heading?: string;
+  intro?: string;
 }) {
   const [state, formAction] = useActionState(requestAccessAction, emptyAccessFormState);
   const [email, setEmail] = useState("");
@@ -69,8 +79,10 @@ export function PortalAccess({
           {state.message}
         </p>
         <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-          Blir den godkjent, får du en e-post med en lenke for å bli med. Får du ingen e-post, kan
-          du spørre organisasjonen direkte.
+          Blir den godkjent, får du beskjed. Har du allerede en TING-konto med denne adressen, blir
+          tilgangen aktiv med det samme neste gang du logger inn. Har du det ikke, får du en e-post
+          med en lenke for å logge inn eller opprette konto. Får du ingen e-post, kan du spørre
+          organisasjonen direkte.
         </p>
       </Panel>
     );
@@ -78,11 +90,8 @@ export function PortalAccess({
 
   return (
     <Panel className="p-5">
-      <h2 className="font-display text-lg text-ink">Er du medlem?</h2>
-      <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-        Er du medlem av {community.name} og ønsker tilgang til det digitale fellesskapet? Be om
-        tilgang, så tar en administrator stilling til forespørselen.
-      </p>
+      <h2 className="font-display text-lg text-ink">{heading}</h2>
+      <p className="mt-2 text-[13px] leading-relaxed text-ink-2">{intro}</p>
 
       <form action={formAction} className="mt-4">
         <input type="hidden" name="slug" value={community.slug} />
@@ -132,7 +141,8 @@ export function PortalAccess({
 
       {signedIn ? null : (
         <p className="mt-2 text-[11px] leading-relaxed text-ink-3">
-          Du trenger ingen TING-konto for å spørre. Får du en invitasjon, oppretter du kontoen da.
+          Du trenger ingen TING-konto for å spørre. Blir forespørselen godkjent, kan du logge inn
+          eller opprette kontoen da.
         </p>
       )}
     </Panel>

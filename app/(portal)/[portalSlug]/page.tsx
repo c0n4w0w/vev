@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PortalAccess } from "@/components/community/PortalAccess";
+import { UtrPortal } from "@/components/community/UtrPortal";
 import { Wordmark } from "@/components/shell/Wordmark";
 import {
   Badge,
@@ -51,6 +52,19 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
   const user = await getSessionUser();
   const membership = user ? await getMembership(user.id, community.id) : undefined;
   const accent = community.branding.accent;
+
+  // Under The Rug gets its own editorial layout — see UtrPortal for why. Every
+  // other community keeps the shared template below, untouched.
+  if (community.slug === "under-the-rug") {
+    return (
+      <UtrPortal
+        community={community}
+        publicEvents={publicEvents}
+        user={user}
+        membership={membership}
+      />
+    );
+  }
 
   return (
     <main className="flex min-h-dvh flex-col bg-paper">
