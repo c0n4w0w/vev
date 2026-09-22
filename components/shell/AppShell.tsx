@@ -190,12 +190,19 @@ function communityAdminNav(id: string) {
     },
     { href: `/community/${id}/requests`, label: "Forespørsler", icon: IconMail, adminOnly: true },
     { href: `/community/${id}/emojis`, label: "Emojier", icon: IconSmile, staffOnly: true },
-    {
-      href: `/community/${id}/settings`,
-      label: "Innstillinger",
-      icon: IconSettings,
-      staffOnly: true,
-    },
+    // UTR's own DM policy is already open, so its settings page has nothing
+    // for a member to configure — an informational panel, not a control. Not
+    // worth a nav item there; FTR and TU still have a real setting behind it.
+    ...(id === "under-the-rug"
+      ? []
+      : [
+          {
+            href: `/community/${id}/settings`,
+            label: "Innstillinger",
+            icon: IconSettings,
+            staffOnly: true,
+          },
+        ]),
   ];
 }
 
