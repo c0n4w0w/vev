@@ -94,7 +94,10 @@ function OrganizationRows({
   return (
     <section>
       <SectionHeading>{title}</SectionHeading>
-      <ul className="grid gap-3 sm:grid-cols-2">
+      {/* items-start: a row must not stretch every card to match its tallest
+          neighbour — an enriched Crew card (bio/location/DM) sits next to
+          plain ones without forcing blank space into them. */}
+      <ul className="grid items-start gap-3 sm:grid-cols-2">
         {people.map((person) => {
           const details = linkedDetails?.get(person.id);
           return (
