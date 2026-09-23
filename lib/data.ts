@@ -1796,6 +1796,19 @@ export async function requestCommunityAccess(input: {
   return !error && data === true;
 }
 
+/**
+ * Whether the signed-in caller has an access request waiting in this
+ * community. Answers only for the caller's own identity — a request bound to
+ * their session, or one filed for their own confirmed address — and takes no
+ * address, so it cannot be used to ask about anybody else. False for anyone
+ * who is not signed in.
+ */
+export async function hasPendingAccessRequest(slug: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("has_pending_access_request", { p_slug: slug });
+  return !error && data === true;
+}
+
 /** The pending queue for one community. Empty unless the caller administers it. */
 export async function getAccessRequests(communityId: string): Promise<AccessRequest[]> {
   const supabase = await createSupabaseServerClient();

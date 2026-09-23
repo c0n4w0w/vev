@@ -365,7 +365,12 @@ async function main() {
   );
 
   // ── 15. Privacy of an invite-only / unknown community is unchanged ──────
-  const inviteOnlyAttempt = await requestAccess(anon, "sjekk-ukjent-fellesskap", "sjekk.privat@example.no");
+  const inviteOnlyAttempt = await requestAccess(
+    anon,
+    "sjekk-ukjent-fellesskap",
+    "sjekk.privat@example.no",
+    "Sjekk Privat",
+  );
   expect(
     "15. et ukjent community-slug svarer likt som et akseptert — ingen probe",
     inviteOnlyAttempt.data,
@@ -404,6 +409,7 @@ async function main() {
   const ownAddressSubmission = await claimClient.rpc("request_community_access", {
     p_slug: UTR,
     p_email: claimEmail,
+    p_display_name: "Sjekk Claim",
   });
   expect("signert bruker kan spørre for sin egen adresse", ownAddressSubmission.error, null);
   const ownAddressRequest = await pendingRequestFor(claimEmail);
@@ -418,6 +424,7 @@ async function main() {
   const onBehalfSubmission = await linn.rpc("request_community_access", {
     p_slug: UTR,
     p_email: otherEmail,
+    p_display_name: "Sjekk Annen",
   });
   expect("signert bruker kan også spørre for en annen adresse", onBehalfSubmission.error, null);
   const onBehalfRequest = await pendingRequestFor(otherEmail);
@@ -426,6 +433,118 @@ async function main() {
     onBehalfRequest.user_id,
     null,
   );
+
+  // ── 17. A name or pseudonym is required, at the RPC boundary ─────────────
+  //
+  // These call the function directly with the public anon key, the way anyone
+  // can, so they prove that no path around the form and the server action
+  // leaves the rule unenforced. The same rule holds for every community —
+  // there is no per-organisation exception, so all three are exercised.
+  const TU = "tryggere-ungdom";
+  const rejectedNames: [string, string | undefined][] = [
+    ["ingen navn (utelatt)", undefined],
+    ["tomt navn", ""],
+    ["bare mellomrom", "     "],
+    ["bare tabulator og linjeskift", "\t\n \r\n"],
+    ["bare hardt mellomrom", "\u00a0\u00a0"],
+    ["bare usynlige tegn", "\u200b\u200c\ufeff"],
+    ["81 tegn", "x".repeat(81)],
+    ["81 tegn med mellomrom rundt", `  ${"x".repeat(81)}  `],
+  ];
+
+  for (const [slug, tag] of [[TR, "ftr"], [TU, "tu"], [UTR, "utr"]] as const) {
+    for (const [index, [label, value]] of rejectedNames.entries()) {
+      const email = `sjekk.navn.${tag}.${index}@example.no`;
+      createdAccessRequestEmails.push(email);
+      const attempt = await requestAccess(anon, slug, email, value);
+      expect(`17. ${tag}: ${label} avvises av RPC-et`, attempt.data, false);
+      expect(
+        `17. ${tag}: og ${label} lager ingen forespørsel`,
+        (await admin.from("access_requests").select("*", { count: "exact", head: true }).eq("email", email)).count,
+        0,
+      );
+    }
+
+    // A name that is one character short of the limit, and exactly at it.
+    const atLimitEmail = `sjekk.navn.${tag}.grense@example.no`;
+    createdAccessRequestEmails.push(atLimitEmail);
+    const atLimit = await requestAccess(anon, slug, atLimitEmail, "x".repeat(80));
+    expect(`17. ${tag}: 80 tegn er innenfor grensen`, atLimit.data, true);
+    expect(
+      `17. ${tag}: og lagres uendret`,
+      (await pendingRequestFor(atLimitEmail).then(async (r) =>
+        (await admin.from("access_requests").select("display_name").eq("id", r.id).single()).data!.display_name,
+      ))?.length,
+      80,
+    );
+
+    // A real name and a pseudonym are equally acceptable, and padding is
+    // stripped before storing.
+    const paddedEmail = `sjekk.navn.${tag}.polstret@example.no`;
+    createdAccessRequestEmails.push(paddedEmail);
+    const padded = await requestAccess(anon, slug, paddedEmail, "\u00a0 \t Nattravn  \n");
+    expect(`17. ${tag}: et pseudonym med polstring tas imot`, padded.data, true);
+    const paddedRow = await pendingRequestFor(paddedEmail);
+    expect(
+      `17. ${tag}: og lagres trimmet`,
+      (await admin.from("access_requests").select("display_name").eq("id", paddedRow.id).single()).data!
+        .display_name,
+      "Nattravn",
+    );
+
+    // Idempotency is unchanged: the same address asking again, even under
+    // another name, is absorbed by the pending request that already exists.
+    const again = await requestAccess(anon, slug, paddedEmail, "Et annet navn");
+    expect(`17. ${tag}: en ny forespørsel fra samme adresse er idempotent`, again.data, true);
+    expect(
+      `17. ${tag}: og det finnes fortsatt bare én ventende forespørsel`,
+      (await admin.from("access_requests").select("*", { count: "exact", head: true }).eq("email", paddedEmail).eq("status", "pending")).count,
+      1,
+    );
+    expect(
+      `17. ${tag}: med det første navnet`,
+      (await admin.from("access_requests").select("display_name").eq("id", paddedRow.id).single()).data!
+        .display_name,
+      "Nattravn",
+    );
+  }
+
+  // The rule answers about the input alone. A missing name must come back
+  // identically for a community that exists and one that does not, so it can
+  // never be used to tell them apart.
+  const noNameKnown = await requestAccess(anon, TR, "sjekk.probe.a@example.no");
+  const noNameUnknown = await requestAccess(anon, "sjekk-ukjent-fellesskap", "sjekk.probe.b@example.no");
+  expect("17. manglende navn svarer likt for kjent og ukjent fellesskap", noNameKnown.data, noNameUnknown.data);
+
+  // Requests filed before the rule keep working: an approved request with no
+  // name is still approvable and is not touched by any of the above.
+  const legacyEmail = "sjekk.gammel@example.no";
+  createdAccessRequestEmails.push(legacyEmail);
+  const { error: legacyInsertError } = await admin
+    .from("access_requests")
+    .insert({ community_id: TR, email: legacyEmail, display_name: null });
+  expect("17. eldre forespørsler uten navn kan fortsatt finnes", legacyInsertError, null);
+  const legacyRequest = await pendingRequestFor(legacyEmail);
+  const larsBror = await signIn(await emailFor("larsbror"));
+  const legacyApproval = await larsBror.rpc("approve_access_request", { p_request_id: legacyRequest.id });
+  expect("17. og kan fortsatt godkjennes av en administrator", legacyApproval.error, null);
+
+  // ── 18. A signed-in person can see their own pending request, and only that ──
+  const anonPending = await anon.rpc("has_pending_access_request", { p_slug: UTR });
+  expect("18. anonyme kan ikke kalle funksjonen", anonPending.error !== null, true);
+
+  const ownPending = await claimClient.rpc("has_pending_access_request", { p_slug: UTR });
+  expect("18. innlogget bruker ser sin egen ventende forespørsel", ownPending.data, true);
+  const ownOtherCommunity = await claimClient.rpc("has_pending_access_request", { p_slug: TR });
+  expect("18. men ikke i et fellesskap der hun ikke har spurt", ownOtherCommunity.data, false);
+
+  // Linn asked UTR on behalf of another address above. That request is not
+  // bound to her session and is not for her own address, so it is not hers.
+  const otherPending = await linn.rpc("has_pending_access_request", { p_slug: UTR });
+  expect("18. en forespørsel for en annen adresse er ikke din", otherPending.data, false);
+
+  const unknownSlug = await claimClient.rpc("has_pending_access_request", { p_slug: "sjekk-ukjent-fellesskap" });
+  expect("18. et ukjent fellesskap svarer bare nei", unknownSlug.data, false);
 
   if (failures > 0) {
     console.error(`\n✗ ${failures} av ${checks} kontroller feilet.\n`);

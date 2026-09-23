@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PortalAccess } from "@/components/community/PortalAccess";
+import { TryggerePortal } from "@/components/community/TryggerePortal";
 import { UtrPortal } from "@/components/community/UtrPortal";
 import { Wordmark } from "@/components/shell/Wordmark";
 import {
@@ -20,10 +21,16 @@ import {
   IconMapPin,
   IconUsers,
 } from "@/components/ui/icons";
-import { getMembership, getPortalCommunity, getPortalEvents } from "@/lib/data";
+import {
+  getMembership,
+  getPortalCommunity,
+  getPortalEvents,
+  hasPendingAccessRequest,
+} from "@/lib/data";
 import { formatEventRange, plural } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 import { PUBLIC_HOST } from "@/lib/brand";
+import { getTryggerePortalBrand } from "@/lib/tryggere-portal";
 
 export async function generateMetadata({ params }: PageProps<"/[portalSlug]">) {
   const { portalSlug } = await params;
@@ -53,6 +60,12 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
   const membership = user ? await getMembership(user.id, community.id) : undefined;
   const accent = community.branding.accent;
 
+  // Whether *this signed-in person* already has a request waiting. Decided in
+  // the database from their own session, never from anything typed into the
+  // form, and never available to a visitor who has not signed in.
+  const pending =
+    user && membership?.status !== "active" ? await hasPendingAccessRequest(community.slug) : false;
+
   // Under The Rug gets its own editorial layout — see UtrPortal for why. Every
   // other community keeps the shared template below, untouched.
   if (community.slug === "under-the-rug") {
@@ -62,6 +75,23 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
         publicEvents={publicEvents}
         user={user}
         membership={membership}
+        pending={pending}
+      />
+    );
+  }
+
+  // Foreningen Tryggere Ruspolitikk and Tryggere Ungdom share one portal; only
+  // the brand entry (logo, sibling organisation) and the community record differ.
+  const tryggereBrand = getTryggerePortalBrand(community.slug);
+  if (tryggereBrand) {
+    return (
+      <TryggerePortal
+        community={community}
+        brand={tryggereBrand}
+        publicEvents={publicEvents}
+        user={user}
+        membership={membership}
+        pending={pending}
       />
     );
   }
@@ -209,7 +239,7 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
                 </Link>
               </Panel>
             ) : (
-              <PortalAccess community={community} signedIn={Boolean(user)} />
+              <PortalAccess community={community} signedIn={Boolean(user)} pending={pending} />
             )}
 
             {!user ? (

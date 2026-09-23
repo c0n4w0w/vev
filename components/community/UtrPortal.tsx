@@ -71,11 +71,14 @@ export function UtrPortal({
   publicEvents,
   user,
   membership,
+  pending,
 }: {
   community: CommunityPublic;
   publicEvents: PublicEvent[];
   user: User | null;
   membership: Membership | undefined;
+  /** The signed-in visitor already has a request waiting. */
+  pending: boolean;
 }) {
   const accent = community.branding.accent;
   const isMember = membership?.status === "active";
@@ -278,6 +281,7 @@ export function UtrPortal({
               <PortalAccess
                 community={community}
                 signedIn={Boolean(user)}
+                pending={pending}
                 heading="Vil du inn i fellesskapet?"
                 intro={`Ønsker du tilgang til det digitale fellesskapet rundt ${community.name}? Be om tilgang, så tar en administrator stilling til forespørselen.`}
               />

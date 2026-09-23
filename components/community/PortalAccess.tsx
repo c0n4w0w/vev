@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { requestAccessAction } from "@/app/actions";
-import { emptyAccessFormState } from "@/lib/access-form";
+import { DISPLAY_NAME_MAX, emptyAccessFormState } from "@/lib/access-form";
 import { Badge, Panel } from "@/components/ui/primitives";
 import { IconCheck, IconLock, IconMail } from "@/components/ui/icons";
 import type { CommunityPublic } from "@/lib/types";
@@ -40,6 +40,7 @@ export function PortalAccess({
   signedIn,
   heading = "Er du medlem?",
   intro = `Er du medlem av ${community.name} og ønsker tilgang til det digitale fellesskapet? Be om tilgang, så tar en administrator stilling til forespørselen.`,
+  pending = false,
 }: {
   community: CommunityPublic;
   signedIn: boolean;
@@ -51,9 +52,16 @@ export function PortalAccess({
    */
   heading?: string;
   intro?: string;
+  /**
+   * The signed-in visitor already has a request waiting, as decided by the
+   * database from their own session. Shown instead of the form. Never derived
+   * from an address typed into the form.
+   */
+  pending?: boolean;
 }) {
   const [state, formAction] = useActionState(requestAccessAction, emptyAccessFormState);
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
 
   if (community.accessPolicy === "invite-only") {
     return (
@@ -67,6 +75,15 @@ export function PortalAccess({
           {community.name} tar ikke imot åpne søknader. Nye medlemmer blir invitert av noen som
           allerede er her.
         </p>
+      </Panel>
+    );
+  }
+
+  if (pending && state.status !== "ok") {
+    return (
+      <Panel className="p-5">
+        <p className="label">Forespørsel sendt</p>
+        <p className="mt-3 font-display text-lg text-ink">Forespørselen din er til behandling.</p>
       </Panel>
     );
   }
@@ -112,16 +129,24 @@ export function PortalAccess({
         />
 
         <label htmlFor="displayName" className="label mt-3 block">
-          Navn <span className="font-normal normal-case tracking-normal">(valgfritt)</span>
+          Navn eller pseudonym
         </label>
         <input
           id="displayName"
           name="displayName"
-          autoComplete="name"
-          maxLength={80}
-          placeholder="Så administratoren vet hvem du er"
+          autoComplete="nickname"
+          aria-describedby="displayName-hint"
+          required
+          maxLength={DISPLAY_NAME_MAX}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Navn eller pseudonym"
           className="mt-2 w-full rounded-[5px] border border-line-2 bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-ink-3"
         />
+        <p id="displayName-hint" className="mt-1.5 text-[11px] leading-relaxed text-ink-3">
+          Dette er navnet andre ser når du deltar i samtaler. Du kan bruke ditt eget navn eller et
+          pseudonym.
+        </p>
 
         {state.status === "error" ? (
           <p role="alert" className="mt-3 text-[13px] text-rust">
@@ -129,7 +154,7 @@ export function PortalAccess({
           </p>
         ) : null}
 
-        <SubmitButton accent={community.branding.accent} disabled={!email.trim()} />
+        <SubmitButton accent={community.branding.accent} disabled={!email.trim() || !name.trim()} />
       </form>
 
       <p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-ink-3">

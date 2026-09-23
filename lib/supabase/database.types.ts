@@ -1127,6 +1127,7 @@ export type Database = {
         Returns: boolean
       }
       has_membership_row: { Args: { cid: string }; Returns: boolean }
+      has_pending_access_request: { Args: { p_slug: string }; Returns: boolean }
       hash_invitation_token: { Args: { p_token: string }; Returns: string }
       invitation_lifetime: { Args: never; Returns: string }
       invitation_preview: {

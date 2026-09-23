@@ -39,7 +39,7 @@ import {
 } from "@/lib/data";
 import type { AccessFormState } from "@/lib/access-form";
 import type { NotificationFormState } from "@/lib/notification-form";
-import { REQUEST_SENT_MESSAGE } from "@/lib/access-form";
+import { REQUEST_SENT_MESSAGE, normalizeDisplayName } from "@/lib/access-form";
 import type { CommentFormState } from "@/lib/comment-form";
 import {
   inspectEmojiImage,
@@ -770,9 +770,9 @@ export async function deleteEmojiAction(
 /**
  * The public request form.
  *
- * Answers the same way no matter what the database found. The only distinction
- * it draws is a malformed address, which describes the input rather than any
- * person or community.
+ * Answers the same way no matter what the database found. The only distinctions
+ * it draws are a malformed address and a missing or unusable name, which
+ * describe the input rather than any person or community.
  */
 export async function requestAccessAction(
   _prev: AccessFormState,
@@ -783,15 +783,36 @@ export async function requestAccessAction(
     return { status: "error", message: "Skriv inn en gyldig e-postadresse." };
   }
 
-  await requestCommunityAccess({
+  // A name or pseudonym is required for every community. Empty and
+  // whitespace-only values are rejected here as well as in the form, and the
+  // trimmed value is what gets sent on. `request_community_access()` enforces
+  // the same rule for anyone who bypasses this action entirely. Like the
+  // address check above, this describes the input and nothing about any
+  // community or its members.
+  const name = normalizeDisplayName(String(formData.get("displayName") ?? ""));
+  if (!name.ok) {
+    return { status: "error", message: name.message };
+  }
+
+  const accepted = await requestCommunityAccess({
     slug: String(formData.get("slug") ?? ""),
     email,
-    displayName: String(formData.get("displayName") ?? "") || undefined,
+    displayName: name.value,
   });
 
-  // Note what is *not* branched on: the result. A community that does not take
-  // applications, an address that already belongs to a member and a brand new
-  // request all end here.
+  // `false` only ever means the request was not usable as submitted — input the
+  // database refused, or a failed call — never something about a community or
+  // its members. Every valid submission answers `true`, whatever became of it.
+  if (!accepted) {
+    return {
+      status: "error",
+      message: "Vi kunne ikke sende forespørselen. Sjekk opplysningene og prøv igjen.",
+    };
+  }
+
+  // Note what is *not* branched on: which valid outcome this was. A community
+  // that does not take applications, an address that already belongs to a
+  // member and a brand new request all end here.
   return { status: "ok", message: REQUEST_SENT_MESSAGE };
 }
 
