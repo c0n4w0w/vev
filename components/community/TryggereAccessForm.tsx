@@ -21,7 +21,7 @@ function SubmitButton({ accent, disabled }: { accent: string; disabled: boolean 
       className="mt-5 h-11 w-full rounded-[3px] text-sm font-medium text-white transition-opacity disabled:opacity-30"
       style={{ backgroundColor: accent }}
     >
-      {pending ? "Sender …" : "Få tilgang"}
+      {pending ? "Sender …" : "Be om tilgang"}
     </button>
   );
 }
@@ -36,13 +36,7 @@ function SubmitButton({ accent, disabled }: { accent: string; disabled: boolean 
  * pending or rate-limited is decided in the database and never reaches this
  * component, so nothing here could reveal it.
  */
-export function TryggereAccessForm({
-  community,
-  signedIn,
-}: {
-  community: CommunityPublic;
-  signedIn: boolean;
-}) {
+export function TryggereAccessForm({ community }: { community: CommunityPublic }) {
   const accent = community.branding.accent;
   const [state, formAction] = useActionState(requestAccessAction, emptyAccessFormState);
   const [email, setEmail] = useState("");
@@ -63,7 +57,7 @@ export function TryggereAccessForm({
       <div className="border border-line bg-surface p-5 sm:p-6" role="status">
         <p className="flex items-start gap-2.5 text-[0.9375rem] leading-relaxed text-ink">
           <IconCheck size={17} className="mt-0.5 shrink-0" style={{ color: accent }} />
-          Forespørselen din er sendt. Vi sjekker medlemskapet manuelt, og du får normalt tilgang
+          Forespørselen din er sendt. Vi sjekker medlemskapet manuelt, og du får vanligvis tilgang
           innen 24 timer.
         </p>
       </div>
@@ -95,7 +89,7 @@ export function TryggereAccessForm({
         </p>
 
         <label htmlFor="displayName" className="label mt-4 block">
-          Navn eller pseudonym
+          Visningsnavn
         </label>
         <input
           id="displayName"
@@ -110,7 +104,7 @@ export function TryggereAccessForm({
           className={field}
         />
         <p id="displayName-hint" className={hint}>
-          Dette er navnet andre ser når du deltar i samtaler. Du kan bruke ditt eget navn eller et
+          Navnet andre ser når du deltar i fellesskapet. Du kan bruke ditt eget navn eller et
           pseudonym.
         </p>
 
@@ -125,17 +119,18 @@ export function TryggereAccessForm({
 
       <p className="mt-3 text-center text-[12px] text-ink-3">Vanligvis godkjent innen 24 timer.</p>
 
-      {signedIn ? null : (
-        <p className="mt-3 border-t border-line pt-3 text-center text-[12px] leading-relaxed text-ink-3">
-          Har du allerede en TING-konto?{" "}
-          <Link
-            href={`/login?neste=/${community.slug}`}
-            className="font-medium text-ink underline underline-offset-2"
-          >
-            Logg inn
-          </Link>
-        </p>
-      )}
+      {/* A safeguard, not a second login button: someone who already has access
+          should not file another request. The header's "Logg inn" stays the
+          normal way back in; this goes to the same place, returning here. */}
+      <p className="mt-2 text-center text-[12px] text-ink-3">
+        Har du allerede tilgang til fellesskapet?{" "}
+        <Link
+          href={`/login?neste=/${community.slug}`}
+          className="font-medium text-ink-2 underline underline-offset-2 transition-colors hover:text-ink"
+        >
+          Logg inn
+        </Link>
+      </p>
     </div>
   );
 }

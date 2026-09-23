@@ -5,14 +5,20 @@ import { Wordmark } from "@/components/shell/Wordmark";
 import { Button, Panel, buttonClass } from "@/components/ui/primitives";
 import { IconArrowRight, IconLock, IconMail } from "@/components/ui/icons";
 import { getSessionUser } from "@/lib/session";
-import { PUBLIC_HOST } from "@/lib/brand";
+import { getPortalCommunity } from "@/lib/data";
+import { portalSlugOf, safeInternalPath } from "@/lib/safe-path";
 
 export const metadata: Metadata = { title: "Logg inn" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const params = await searchParams;
   const current = await getSessionUser();
-  const nextPath = typeof params.neste === "string" ? params.neste : "/home";
+  const nextPath = safeInternalPath(typeof params.neste === "string" ? params.neste : undefined);
+  // When the person came from a community's own page, offer a way back to it.
+  // Only a same-site `/slug` that is a real portal qualifies; the name shown
+  // comes from that portal, never from the query string.
+  const returnSlug = portalSlugOf(nextPath);
+  const returnPortal = returnSlug ? await getPortalCommunity(returnSlug) : undefined;
   const sentTo = typeof params.sendt === "string" ? params.sendt : undefined;
   const error = typeof params.feil === "string" ? params.feil : undefined;
   // Prefilled when arriving from an invitation, so the address the invitation
@@ -90,13 +96,16 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <div className="mt-10 flex flex-col gap-4 rounded-[6px] border border-line bg-surface p-5 sm:flex-row sm:items-start">
           <IconLock size={18} className="mt-0.5 shrink-0 text-skog" />
           <div>
-            <h2 className="text-[0.9375rem] font-medium text-ink">Har du fått en invitasjon?</h2>
+            <h2 className="text-[0.9375rem] font-medium text-ink">Skal du inn i et fellesskap?</h2>
             <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">
-              Invitasjoner peker rett til organisasjonens egen side, for eksempel{" "}
-              {PUBLIC_HOST}/tryggere-ruspolitikk. Logg inn først, så tar lenken deg videre dit.
+              Logg inn med e-postadressen din. Hvis du kom fra et fellesskap, sender vi deg tilbake
+              dit etter innlogging.
             </p>
-            <Link href="/" className={`${buttonClass({ variant: "secondary", size: "sm" })} mt-4`}>
-              Tilbake til forsiden
+            <Link
+              href={returnPortal ? `/${returnPortal.slug}` : "/"}
+              className={`${buttonClass({ variant: "secondary", size: "sm" })} mt-4`}
+            >
+              {returnPortal ? `Tilbake til ${returnPortal.name}` : "Tilbake til forsiden"}
             </Link>
           </div>
         </div>

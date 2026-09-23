@@ -4,18 +4,13 @@ import { useEffect, useState } from "react";
 
 const WORDS = [
   "møtene",
+  "arrangementene",
   "aksjonene",
-  "idéene",
   "kampanjene",
-  "samtalene",
   "gjennomslagene",
 ] as const;
 
 const INTERVAL_MS = 2800;
-
-// The widest entry, plus the full stop. Rendered invisibly so the wrapper
-// always reserves enough room and nothing around it moves when the word changes.
-const SIZER = `${WORDS.reduce((a, b) => (b.length > a.length ? b : a))}.`;
 
 /**
  * The rotating last word of the portal headline, with its full stop.
@@ -69,7 +64,16 @@ export function RotatingHeadlineWord() {
     <>
       <span className="sr-only">{WORDS[0]}.</span>
       <span className="relative inline-block whitespace-nowrap" aria-hidden="true">
-        <span className="invisible">{SIZER}</span>
+        {/* Every word, stacked in one grid cell and invisible: the wrapper is as
+            wide as the widest by actual rendered width, not character count, so
+            nothing around it moves when the word changes. */}
+        <span className="invisible inline-grid" aria-hidden="true">
+          {WORDS.map((word) => (
+            <span key={word} className="col-start-1 row-start-1">
+              {word}.
+            </span>
+          ))}
+        </span>
         {previous !== null ? (
           <span key={`out-${previous}`} className="rotating-word-out absolute left-0 top-0">
             {WORDS[previous]}.

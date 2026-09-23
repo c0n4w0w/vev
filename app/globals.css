@@ -130,3 +130,12 @@ body {
     animation: none;
   }
 }
+
+/* Anchor links on pages that opt in (`data-smooth-anchors`) scroll smoothly.
+   Scoped with :has() so no other page changes behaviour, and off entirely for
+   people who ask for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has([data-smooth-anchors]) {
+    scroll-behavior: smooth;
+  }
+}

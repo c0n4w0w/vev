@@ -8,10 +8,8 @@ import {
   IconArrowRight,
   IconCheck,
   IconClock,
-  IconExternal,
   IconFeed,
   IconHash,
-  IconLock,
   IconMapPin,
   IconSend,
   IconUsers,
@@ -41,10 +39,10 @@ type PublicEvent = {
  * their content is fetched or shown on this public page.
  */
 const localGroupPoints = [
-  "Knytt deltakelsen din til lokallaget ditt",
-  "Se innlegg fra lokallaget",
-  "Finn arrangementer som er relevante der du er",
-  "Fortsett å delta i resten av organisasjonen",
+  "Følg lokallaget ditt",
+  "Se innlegg og oppdateringer lokalt",
+  "Finn arrangementer i nærheten",
+  "Delta i resten av organisasjonen også",
 ] as const;
 
 const localGroupPreview = [
@@ -56,23 +54,23 @@ const localGroupPreview = [
 const communityValue = [
   {
     icon: IconFeed,
-    title: "Del og hold deg oppdatert",
-    body: "Feed, kunngjøringer og kanaler gjør det lettere å holde informasjon samlet mellom møter og aktiviteter.",
+    title: "Hold deg oppdatert",
+    body: "Få med deg kunngjøringer, innlegg og det som skjer i organisasjonen – også mellom møter og aktiviteter.",
   },
   {
     icon: IconUsers,
-    title: "Folk i organisasjonen",
-    body: "Finn ansatte, sentralstyret, lokallagsledere og kontaktinformasjonen deres, samlet under Organisasjonen.",
+    title: "Finn folk i organisasjonen",
+    body: "Finn ansatte, tillitsvalgte, lokallagsledere og andre medlemmer på ett sted.",
   },
   {
     icon: IconHash,
-    title: "Prosjekter og samarbeid",
-    body: "Bruk prosjektkanaler til arbeid som går på tvers av lokallag og resten av organisasjonen.",
+    title: "Jobb sammen",
+    body: "Samle prosjekter, arbeidsgrupper og samarbeid på tvers av lokallag og resten av organisasjonen.",
   },
   {
     icon: IconSend,
-    title: "Direkte meldinger",
-    body: "Ta kontakt med relevante personer direkte i fellesskapet.",
+    title: "Snakk direkte",
+    body: "Ta kontakt med andre medlemmer og fortsett samtalen direkte i fellesskapet.",
   },
 ] as const;
 
@@ -113,11 +111,13 @@ export function TryggerePortal({
   const accent = community.branding.accent;
   const isMember = membership?.status === "active";
   const communityHref = `/community/${community.id}`;
-
   return (
-    <main className="flex min-h-dvh flex-col bg-white text-[#14212e]">
-      <header className={`border-b ${rule}`}>
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5 lg:px-10">
+    <main
+      data-smooth-anchors
+      className="flex min-h-dvh flex-col bg-white text-[#14212e]"
+    >
+      <header className={`sticky top-0 z-30 border-b ${rule} bg-white`}>
+        <div className="mx-auto flex min-h-[3.75rem] max-w-6xl items-center justify-between gap-4 px-5 py-3.5 lg:px-10">
           <span className="label">Digitalt fellesskap</span>
           {isMember ? (
             <Link href={communityHref} className={buttonClass({ size: "sm" })}>
@@ -155,10 +155,10 @@ export function TryggerePortal({
               Hele organisasjonen, samlet på ett sted.
             </h1>
             <p className={`mt-5 max-w-xl text-[1.0625rem] leading-relaxed ${ink2}`}>
-              Hold kontakten med lokallaget ditt, få med deg det som skjer, del informasjon og snakk
-              med andre i organisasjonen.
+              Følg med på hva som skjer, delta i samtaler og arrangementer, og finn folk å
+              samarbeide med – lokalt og nasjonalt.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
+            <div className="mt-8">
               {isMember ? (
                 <Link
                   href={communityHref}
@@ -178,17 +178,9 @@ export function TryggerePortal({
                   <IconArrowRight size={16} />
                 </a>
               )}
-              {!user ? (
-                <Link
-                  href={`/login?neste=/${community.slug}`}
-                  className={`text-sm font-medium underline decoration-[#b9c3cd] underline-offset-4 transition-colors hover:decoration-current ${ink}`}
-                >
-                  Logg inn
-                </Link>
-              ) : null}
             </div>
             <p className={`mt-4 text-[13px] leading-relaxed ${ink3}`}>
-              Du bruker samme TING-konto i alle fellesskap du har tilgang til.
+              For medlemmer av {community.name}.
             </p>
           </div>
         </div>
@@ -206,8 +198,9 @@ export function TryggerePortal({
               Lokallaget ditt, med hele organisasjonen rundt.
             </h2>
             <p className={`mt-4 max-w-lg text-base leading-relaxed ${ink2}`}>
-              Hold kontakten lokalt, se hva som skjer og finn relevante arrangementer og samtaler
-              der du er. Velger du lokallag i fellesskapet, samles det lokale på ett sted.
+              Hold kontakten med lokallaget ditt, se hva som skjer der du bor, og finn arrangementer
+              og samtaler i nærheten. Det lokale innholdet samles på ett sted, samtidig som du har
+              tilgang til resten av organisasjonen.
             </p>
             <ul className="mt-7 max-w-lg space-y-3">
               {localGroupPoints.map((point) => (
@@ -218,7 +211,7 @@ export function TryggerePortal({
               ))}
             </ul>
             <p className={`mt-6 max-w-lg text-[13px] leading-relaxed ${ink3}`}>
-              Å velge lokallag er frivillig. Du har tilgang til hele fellesskapet uansett.
+              Det er frivillig å velge lokallag. Du har alltid tilgang til hele fellesskapet.
             </p>
           </div>
 
@@ -282,54 +275,11 @@ export function TryggerePortal({
         </div>
       </section>
 
-      {/* Public vs inside. */}
-      <section className={`border-b ${rule}`} style={{ backgroundColor: `${accent}1a` }}>
-        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 sm:grid-cols-2 sm:gap-16 sm:py-16 lg:px-10">
-          <div>
-            <p className="label" style={{ color: accent }}>
-              Utad
-            </p>
-            <p className={`mt-3 max-w-sm text-base leading-relaxed ${ink}`}>
-              Offentlig informasjon, åpne arrangementer og organisasjonens arbeid.
-            </p>
-            {community.links.length > 0 ? (
-              <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
-                {community.links.map((link) => (
-                  <li key={link.href}>
-                    <a
-                      href={link.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`inline-flex items-center gap-1.5 text-[13px] underline decoration-[#b9c3cd] underline-offset-4 transition-colors hover:decoration-current ${ink2}`}
-                    >
-                      {link.label}
-                      <IconExternal size={13} className={ink3} />
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-          <div>
-            <p className="label" style={{ color: accent }}>
-              I fellesskapet
-            </p>
-            <p className={`mt-3 max-w-sm text-base leading-relaxed ${ink}`}>
-              Lokallag, samtaler, interne arrangementer, prosjekter og samarbeid.
-            </p>
-            <p className={`mt-5 flex items-start gap-2 text-[13px] leading-relaxed ${ink3}`}>
-              <IconLock size={13} className="mt-[3px] shrink-0" />
-              Synlig for folk som har fått tilgang, ikke på denne siden.
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* Access. Compact on purpose: the section holds one explanation and one
           form, and is sized to that. */}
       <section
         id="tilgang"
-        className={`scroll-mt-4 border-b ${rule}`}
+        className={`scroll-mt-16 border-b ${rule}`}
         style={{ backgroundColor: `${accent}2e`, borderTop: `2px solid ${accent}` }}
       >
         <div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-14 lg:px-10 lg:py-[4.5rem]">
@@ -359,7 +309,7 @@ export function TryggerePortal({
                 Vi sjekker medlemskapet ditt.
               </h2>
               <p className={`mt-4 text-base leading-relaxed ${ink2}`}>
-                Forespørselen din er sendt. Vi sjekker medlemskapet manuelt, og du får normalt
+                Forespørselen din er sendt. Vi sjekker medlemskapet manuelt, og du får vanligvis
                 tilgang innen 24 timer.
               </p>
             </div>
@@ -370,19 +320,33 @@ export function TryggerePortal({
                   Få tilgang
                 </p>
                 <h2 className={`mt-3 font-display text-[1.75rem] leading-[1.12] sm:text-[2.25rem] ${ink}`}>
-                  Bli med i det digitale fellesskapet.
+                  Få tilgang til det digitale fellesskapet.
                 </h2>
                 <p className={`mt-4 text-base leading-relaxed ${ink2}`}>
-                  Er du medlem i {community.name}? Bruk e-postadressen knyttet til medlemskapet
-                  ditt. Vi sjekker medlemskapet manuelt, og du får normalt tilgang innen 24 timer.
+                  Er du medlem i {community.name}? Bruk e-postadressen som er knyttet til
+                  medlemskapet ditt. Vi sjekker medlemskapet manuelt, og du får vanligvis tilgang
+                  innen 24 timer.
                 </p>
                 <p className={`mt-3 text-[13px] leading-relaxed ${ink3}`}>
-                  Er du medlem i {brand.otherOrganisation} også, bruker du samme TING-konto i begge
+                  Er du også medlem i {brand.otherOrganisation}, bruker du samme TING-konto i begge
                   fellesskapene.
                 </p>
+                {brand.membershipUrl ? (
+                  <p className={`mt-3 text-[13px] ${ink3}`}>
+                    Ikke medlem ennå?{" "}
+                    <a
+                      href={brand.membershipUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`font-medium underline decoration-[#b9c3cd] underline-offset-4 transition-colors hover:decoration-current ${ink2}`}
+                    >
+                      Bli medlem →
+                    </a>
+                  </p>
+                ) : null}
               </div>
               <div className="max-w-xl">
-                <TryggereAccessForm community={community} signedIn={Boolean(user)} />
+                <TryggereAccessForm community={community} />
               </div>
             </>
           )}
