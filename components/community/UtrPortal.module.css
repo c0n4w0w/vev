@@ -1,0 +1,114 @@
+/*
+ * Under The Rug portal — scoped to that one page.
+ *
+ * Deliberately close to undertherug.no itself: a warm off-white canvas, a
+ * serif for display type, tiny tracked capitals for metadata, thin rules, flat
+ * rectangular photography, and dark brown reserved for the footer. The only
+ * motion is a small nudge of the arrow on links.
+ */
+
+.root {
+  --utr-bone: #f4efe6;
+  --utr-band: #e5e0d3; /* warm grey band, like a Program day */
+  --utr-card: #eeeae0; /* flat surfaces sitting on that band */
+  --utr-card-rule: #d3cbbb;
+  --utr-tint: #e4e4da; /* pale grey-green band */
+  --utr-ink: #2b2419;
+  --utr-ink-2: #4f4536;
+  --utr-muted: #6e6252;
+  --utr-rule: #d9d0c1;
+  --utr-rust: #a3461f; /* index numbers and small accents only */
+  --utr-night: #2d261d; /* the warm brown of the undertherug.no footer */
+  --utr-on-night: #f4efe6;
+  --utr-on-night-2: #b8ad99;
+
+  background: var(--utr-bone);
+  color: var(--utr-ink);
+}
+
+.root ::selection {
+  background: #ead9bf;
+  color: var(--utr-ink);
+}
+
+/* Text fields show focus with their own underline; everything else gets a
+   thin ring in the current text colour (so bone on the dark footer). */
+.root :focus-visible:not(input) {
+  outline: 1.5px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 0;
+}
+
+/* Small tracked capitals, as in the undertherug.no navigation. */
+.tracked {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.serif {
+  font-family: var(--font-utr-serif), var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  /* Cormorant defaults to old-style figures; dates need to scan. */
+  font-variant-numeric: lining-nums;
+}
+
+/* A touch larger and looser than .tracked, for event metadata people read. */
+.meta {
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+}
+
+/* Page-title weight, as in "Program", "Archive", "Webshop". */
+.display {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+/* The site's own call to action: "ENTER EDITION →", "VIEW PIECE →". */
+.textLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  min-height: 2.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--utr-ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.textLink > .label {
+  padding-bottom: 0.4em;
+  border-bottom: 1px solid currentColor;
+}
+.textLink:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.arrow {
+  display: inline-block;
+  transition: transform 200ms ease;
+}
+a:hover .arrow,
+button:hover .arrow {
+  transform: translateX(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrow,
+  a:hover .arrow,
+  button:hover .arrow {
+    transition: none;
+    transform: none;
+  }
+}

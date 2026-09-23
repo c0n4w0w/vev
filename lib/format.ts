@@ -141,12 +141,18 @@ export function formatWeekday(iso: string) {
   return weekdayLong.format(new Date(iso));
 }
 
-/** `{ day: "26", month: "sep." }` for the date blocks on event cards. */
+const weekdayOnly = new Intl.DateTimeFormat(nb, {
+  weekday: "long",
+  timeZone: "Europe/Oslo",
+});
+
+/** `{ day: "26", month: "sep", weekday: "lørdag" }` for the date blocks on event cards. */
 export function formatDateParts(iso: string) {
   const date = new Date(iso);
   return {
     day: dayNumber.format(date),
     month: shortMonth.format(date).replace(".", ""),
+    weekday: weekdayOnly.format(date),
   };
 }
 
