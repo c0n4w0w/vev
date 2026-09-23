@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CommunityMark, ElevatedRoleBadge, cn } from "@/components/ui/primitives";
+import { ElevatedRoleBadge, cn } from "@/components/ui/primitives";
+import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconCheck, IconChevronDown, IconPlus, IconSwitch } from "@/components/ui/icons";
 import { Wordmark } from "@/components/shell/Wordmark";
 import type { ShellCommunity, ShellData } from "@/components/shell/shell-data";
@@ -59,7 +60,7 @@ export function CommunitySwitcher({
       >
         {current ? (
           <>
-            <CommunityMark community={current.community} size="sm" />
+            <CommunityAvatar community={current.community} size="sm" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[0.9375rem] font-medium leading-tight text-ink">
                 {current.community.name}
@@ -115,7 +116,7 @@ export function CommunitySwitcher({
                       onClick={close}
                       className="flex items-center gap-3 px-3 py-2 transition-colors hover:bg-paper-2"
                     >
-                      <CommunityMark community={community} size="xs" />
+                      <CommunityAvatar community={community} size="xs" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm text-ink">{community.name}</span>
                       </span>

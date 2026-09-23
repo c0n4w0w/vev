@@ -62,11 +62,12 @@ export function Avatar({
 
 // ── Community mark ──────────────────────────────────────────────────────
 
-const markSizes = {
+export const markSizes = {
   xs: "h-6 w-6 text-[9px] rounded-[5px]",
   sm: "h-8 w-8 text-[10px] rounded-[6px]",
   md: "h-11 w-11 text-xs rounded-[8px]",
   lg: "h-16 w-16 text-base rounded-[10px]",
+  xl: "h-24 w-24 text-2xl rounded-[12px]",
 } as const;
 
 const markFonts = {
@@ -75,7 +76,13 @@ const markFonts = {
   mono: "font-mono",
 } as const;
 
-/** Each community's square monogram, tinted with its own accent colour. */
+/**
+ * Each community's square monogram, tinted with its own accent colour.
+ *
+ * This is the *public* identity — what a portal and an invitation show. The
+ * signed-in app uses `CommunityAvatar`, which shows the community's uploaded
+ * profile image and falls back to this.
+ */
 export function CommunityMark({
   community,
   size = "md",

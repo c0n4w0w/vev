@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { CommunityAvatarSettings } from "@/components/community/CommunityAvatarSettings";
 import { DmAvailabilityToggle } from "@/components/community/DmAvailabilityToggle";
 import {
   EmptyState,
@@ -23,12 +24,16 @@ export async function generateMetadata({ params }: PageProps<"/community/[commun
 }
 
 /**
- * Your own settings inside one community.
+ * Settings inside one community.
  *
- * Not community administration — nothing here changes the community. These are
- * the choices that belong to one person in one room, which is why a moderator
- * reaches them as readily as an administrator, and why the page never shows
- * anybody else's.
+ * Mostly your own: the choices that belong to one person in one room, which is
+ * why a moderator reaches them as readily as an administrator, and why the
+ * page never shows anybody else's.
+ *
+ * The one exception is the community's profile image, shown to the
+ * administrator alone. That is presentation — the storage policies and the
+ * database function behind it refuse everyone else regardless of what this
+ * page draws.
  */
 export default async function CommunitySettingsPage({
   params,
@@ -50,6 +55,7 @@ export default async function CommunitySettingsPage({
   ]);
 
   const isStaff = membership?.role === "admin" || membership?.role === "moderator";
+  const isAdmin = membership?.role === "admin" && membership.status === "active";
 
   // Ordinary members have nothing to set here yet. Saying so plainly beats an
   // empty page, and beats hiding a control that the database would refuse
@@ -71,8 +77,26 @@ export default async function CommunitySettingsPage({
       <PageHeader
         eyebrow={community.name}
         title="Innstillinger"
-        lead={`Dine egne valg i ${community.name}. De gjelder bare deg, og bare her.`}
+        lead={
+          isAdmin
+            ? `Fellesskapets profil og dine egne valg i ${community.name}.`
+            : `Dine egne valg i ${community.name}. De gjelder bare deg, og bare her.`
+        }
       />
+
+      {isAdmin ? (
+        <section className="mb-10">
+          <SectionHeading>Fellesskapsprofil</SectionHeading>
+          <CommunityAvatarSettings
+            community={{
+              id: community.id,
+              name: community.name,
+              branding: community.branding,
+              avatarUrl: community.avatarUrl,
+            }}
+          />
+        </section>
+      ) : null}
 
       <SectionHeading>Direkte meldinger</SectionHeading>
 

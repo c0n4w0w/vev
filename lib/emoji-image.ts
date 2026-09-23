@@ -12,6 +12,8 @@
  * object in the bucket. This exists to give a person a useful error instead of
  * an opaque storage failure, and to check dimensions, which Storage cannot.
  */
+import { readImageHeader } from "@/lib/image-header";
+
 export const EMOJI_MAX_BYTES = 256 * 1024;
 export const EMOJI_MAX_DIMENSION = 512;
 export const EMOJI_MIN_DIMENSION = 16;
@@ -28,10 +30,6 @@ const extensions: Record<EmojiFormat, string> = {
   "image/webp": "webp",
 };
 
-function startsWith(bytes: Uint8Array, signature: number[], offset = 0): boolean {
-  return signature.every((byte, index) => bytes[offset + index] === byte);
-}
-
 /** Reads the real format and dimensions, or explains why it cannot. */
 export function inspectEmojiImage(bytes: Uint8Array): EmojiImageCheck {
   if (bytes.byteLength === 0) return { ok: false, error: "Filen er tom." };
@@ -39,51 +37,23 @@ export function inspectEmojiImage(bytes: Uint8Array): EmojiImageCheck {
     return { ok: false, error: `Filen er større enn ${Math.round(EMOJI_MAX_BYTES / 1024)} KB.` };
   }
 
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let contentType: EmojiFormat;
-  let width: number;
-  let height: number;
-
-  // PNG: 89 50 4E 47 0D 0A 1A 0A, then an IHDR chunk with 32-bit dimensions.
-  if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
-    if (bytes.byteLength < 24) return { ok: false, error: "PNG-filen er ufullstendig." };
-    contentType = "image/png";
-    width = view.getUint32(16, false);
-    height = view.getUint32(20, false);
-
-    // GIF87a / GIF89a, dimensions little-endian at offset 6.
-  } else if (startsWith(bytes, [0x47, 0x49, 0x46, 0x38])) {
-    if (bytes.byteLength < 10) return { ok: false, error: "GIF-filen er ufullstendig." };
-    contentType = "image/gif";
-    width = view.getUint16(6, true);
-    height = view.getUint16(8, true);
-
-    // RIFF....WEBP, with three possible chunk layouts.
-  } else if (
-    startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) &&
-    startsWith(bytes, [0x57, 0x45, 0x42, 0x50], 8)
-  ) {
-    contentType = "image/webp";
-    const chunk = String.fromCharCode(...bytes.slice(12, 16));
-
-    if (chunk === "VP8X" && bytes.byteLength >= 30) {
-      width = 1 + (bytes[24] | (bytes[25] << 8) | (bytes[26] << 16));
-      height = 1 + (bytes[27] | (bytes[28] << 8) | (bytes[29] << 16));
-    } else if (chunk === "VP8L" && bytes.byteLength >= 25) {
-      const bits = view.getUint32(21, true);
-      width = 1 + (bits & 0x3fff);
-      height = 1 + ((bits >> 14) & 0x3fff);
-    } else if (chunk === "VP8 " && bytes.byteLength >= 30) {
-      width = view.getUint16(26, true) & 0x3fff;
-      height = view.getUint16(28, true) & 0x3fff;
-    } else {
+  const header = readImageHeader(bytes, ["image/png", "image/gif", "image/webp"]);
+  if (!header.ok) {
+    if (header.reason === "incomplete") {
+      return { ok: false, error: `${header.format === "image/gif" ? "GIF" : "PNG"}-filen er ufullstendig.` };
+    }
+    if (header.reason === "unreadable" && header.format === "image/webp") {
       return { ok: false, error: "WebP-varianten støttes ikke." };
     }
-  } else {
+    if (header.reason === "unreadable") {
+      return { ok: false, error: "Klarte ikke lese bildestørrelsen." };
+    }
     return { ok: false, error: "Filen må være PNG, GIF eller WebP." };
   }
 
-  if (!width || !height) return { ok: false, error: "Klarte ikke lese bildestørrelsen." };
+  const { width, height } = header;
+  const contentType = header.contentType as EmojiFormat;
+
   if (width > EMOJI_MAX_DIMENSION || height > EMOJI_MAX_DIMENSION) {
     return {
       ok: false,

@@ -72,6 +72,13 @@ export interface CommunityPublic {
 export interface Community extends CommunityPublic {
   /** Internal description, only visible to members. */
   about: string;
+  /**
+   * The community's profile image inside TING, when its administrator has set
+   * one. Deliberately here and not on `CommunityPublic`: it is part of the
+   * signed-in app, never the public portal, so no portal can pick it up by
+   * accident. Absent means the monogram in `branding` is used.
+   */
+  avatarUrl?: string;
 }
 
 export type MembershipStatus = "active" | "invited" | "requested";

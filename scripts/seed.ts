@@ -154,13 +154,15 @@ async function clearContent() {
   }
 }
 
-/** Empties the emoji bucket, one community prefix at a time. */
+/** Empties the emoji and avatar buckets, one community prefix at a time. */
 async function clearEmojiFiles() {
-  for (const community of communities) {
-    const { data } = await supabase.storage.from("community-emoji").list(community.id);
-    const paths = (data ?? []).map((entry) => `${community.id}/${entry.name}`);
-    if (paths.length > 0) {
-      await supabase.storage.from("community-emoji").remove(paths);
+  for (const bucket of ["community-emoji", "community-avatars"]) {
+    for (const community of communities) {
+      const { data } = await supabase.storage.from(bucket).list(community.id);
+      const paths = (data ?? []).map((entry) => `${community.id}/${entry.name}`);
+      if (paths.length > 0) {
+        await supabase.storage.from(bucket).remove(paths);
+      }
     }
   }
 }
@@ -174,7 +176,8 @@ async function main() {
 
   // Deleting the communities cascades to community_emojis, but nothing
   // cascades into Storage: without this, every re-seed would leave the
-  // previous run's emoji images orphaned in the bucket.
+  // previous run's emoji images and community avatars orphaned in their
+  // buckets.
   await clearEmojiFiles();
 
   const uid = await seedAccounts();

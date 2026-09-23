@@ -91,6 +91,19 @@ function toUser(row: ProfileRow): User {
 
 type LinkList = { label: string; href: string }[];
 
+/**
+ * Where the signed-in app fetches a community's profile image.
+ *
+ * A same-origin route that checks membership and streams the private object,
+ * rather than a signed storage URL: the address is stable, so the browser can
+ * cache it, and it does not expire under a page someone leaves open. `v` is
+ * the object's own name. Every upload gets a new one, so replacing the image
+ * changes the URL and the old cached copy is simply never asked for again.
+ */
+function communityAvatarUrl(communityId: string, avatarPath: string): string {
+  return `/community/${communityId}/avatar?v=${encodeURIComponent(avatarPath.split("/").pop() ?? "")}`;
+}
+
 function toCommunityPublic(row: PortalCommunityRow): CommunityPublic {
   return {
     id: row.id,
@@ -113,7 +126,11 @@ function toCommunityPublic(row: PortalCommunityRow): CommunityPublic {
 }
 
 function toCommunity(row: CommunityRow): Community {
-  return { ...toCommunityPublic(row), about: row.about };
+  return {
+    ...toCommunityPublic(row),
+    about: row.about,
+    avatarUrl: row.avatar_path ? communityAvatarUrl(row.id, row.avatar_path) : undefined,
+  };
 }
 
 /**
@@ -2216,4 +2233,109 @@ export async function markAllNotificationsRead(): Promise<boolean> {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("mark_notifications_read");
   return !error;
+}
+
+// ── Community profile image ─────────────────────────────────────────────
+//
+// The image shown for a community inside the signed-in app. Only the active
+// administrator may change it, and that is enforced in the database twice:
+// the storage policies require is_admin() on the community in the object path,
+// and set_community_avatar() requires it again before touching the reference.
+// Nothing below trusts a role or a user id from the caller.
+
+const AVATAR_BUCKET = "community-avatars";
+
+export type CommunityAvatarResult = { ok: true } | { ok: false; error: string };
+
+const AVATAR_REFUSED = "Bare administratoren kan endre fellesskapets profilbilde.";
+
+/**
+ * Swaps the reference to `nextPath` (null clears it), then tidies up the file
+ * it replaced. The order is the point: the old image is only removed once the
+ * reference no longer names it, and a failed cleanup leaves an unreferenced
+ * file, never a broken avatar.
+ */
+async function swapCommunityAvatar(
+  communityId: string,
+  nextPath: string | null,
+): Promise<CommunityAvatarResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_community_avatar", {
+    p_community_id: communityId,
+    p_path: nextPath as string,
+  });
+  const result = data?.[0];
+
+  if (error || !result?.applied) {
+    return { ok: false, error: error ? "Profilbildet kunne ikke lagres." : AVATAR_REFUSED };
+  }
+
+  const previous = result.previous_path as string | null;
+  if (previous && previous !== nextPath) {
+    // Best effort, and deliberately unreported: the swap has already
+    // succeeded, and nobody can act on a leftover file.
+    await supabase.storage.from(AVATAR_BUCKET).remove([previous]);
+  }
+  return { ok: true };
+}
+
+export async function setCommunityAvatar(input: {
+  communityId: string;
+  bytes: Uint8Array;
+  contentType: string;
+  extension: string;
+}): Promise<CommunityAvatarResult> {
+  const supabase = await createSupabaseServerClient();
+  const path = `${input.communityId}/${crypto.randomUUID()}.${input.extension}`;
+
+  // Upload first. If this is refused — not the administrator, wrong shape,
+  // over the bucket's limits — nothing has changed and the current image
+  // stays as it was.
+  const { error: uploadError } = await supabase.storage
+    .from(AVATAR_BUCKET)
+    .upload(path, input.bytes, { contentType: input.contentType, upsert: false });
+
+  if (uploadError) {
+    const message = uploadError.message.toLowerCase();
+    return {
+      ok: false,
+      error:
+        message.includes("row-level security") || message.includes("unauthorized")
+          ? AVATAR_REFUSED
+          : "Bildet kunne ikke lastes opp. Prøv igjen.",
+    };
+  }
+
+  const swapped = await swapCommunityAvatar(input.communityId, path);
+  if (!swapped.ok) {
+    // The new file never became the avatar; do not leave it behind.
+    await supabase.storage.from(AVATAR_BUCKET).remove([path]);
+  }
+  return swapped;
+}
+
+export async function clearCommunityAvatar(communityId: string): Promise<CommunityAvatarResult> {
+  return swapCommunityAvatar(communityId, null);
+}
+
+/**
+ * Serves a community's profile image to a member of that community.
+ *
+ * Runs as the caller: the row is only visible with a relationship to the
+ * community, and the object only to an active member, so a non-member gets
+ * nothing whether or not an image exists.
+ */
+export async function downloadCommunityAvatar(
+  communityId: string,
+): Promise<{ blob: Blob; path: string } | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data: row } = await supabase
+    .from("communities")
+    .select("avatar_path")
+    .eq("id", communityId)
+    .maybeSingle();
+  if (!row?.avatar_path) return undefined;
+
+  const { data: blob } = await supabase.storage.from(AVATAR_BUCKET).download(row.avatar_path);
+  return blob ? { blob, path: row.avatar_path } : undefined;
 }

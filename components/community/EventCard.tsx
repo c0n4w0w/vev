@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Avatar, Badge, CommunityMark, Panel, cn } from "@/components/ui/primitives";
+import { Avatar, Badge, Panel, cn } from "@/components/ui/primitives";
+import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconClock, IconGlobe, IconLock, IconMapPin } from "@/components/ui/icons";
 import { formatDateParts, formatEventRange, formatTime, plural, timeUntil } from "@/lib/format";
 import type { Community, CommunityEvent, User } from "@/lib/types";
@@ -66,7 +67,7 @@ export function EventCard({
             href={`/community/${community.id}/events`}
             className="mb-2.5 flex items-center gap-1.5 text-[11px] text-ink-3 transition-colors hover:text-ink"
           >
-            <CommunityMark community={community} size="xs" className="h-4 w-4 text-[7px]" />
+            <CommunityAvatar community={community} size="xs" className="h-4 w-4 text-[7px]" />
             {community.name}
           </Link>
         ) : null}
@@ -112,7 +113,7 @@ export function EventCard({
               href={`/community/${community.id}/events`}
               className="mb-1.5 flex items-center gap-1.5 text-xs text-ink-3 transition-colors hover:text-ink"
             >
-              <CommunityMark community={community} size="xs" className="h-4 w-4 text-[7px]" />
+              <CommunityAvatar community={community} size="xs" className="h-4 w-4 text-[7px]" />
               {community.name}
             </Link>
           ) : null}

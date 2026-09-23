@@ -3,13 +3,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   Badge,
-  CommunityMark,
   ElevatedRoleBadge,
   EmptyState,
   Panel,
   PageContainer,
   PageHeader,
 } from "@/components/ui/primitives";
+import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconArrowRight, IconLock, IconUsers } from "@/components/ui/icons";
 import {
   getCommunitiesForUser,
@@ -62,7 +62,7 @@ export default async function CommunitiesPage() {
             return (
               <Panel as="li" key={community.id} className="flex flex-col p-5">
                 <div className="flex items-start gap-3.5">
-                  <CommunityMark community={community} size="md" />
+                  <CommunityAvatar community={community} size="md" />
                   <div className="min-w-0 flex-1">
                     <h2 className="font-display text-lg leading-tight text-ink">
                       {community.name}

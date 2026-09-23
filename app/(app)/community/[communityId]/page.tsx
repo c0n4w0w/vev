@@ -5,7 +5,6 @@ import { PostCard } from "@/components/community/PostCard";
 import {
   Avatar,
   Badge,
-  CommunityMark,
   ElevatedRoleBadge,
   Panel,
   PageContainer,
@@ -13,6 +12,7 @@ import {
   SectionHeading,
   cn,
 } from "@/components/ui/primitives";
+import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import {
   IconArrowRight,
   IconGlobe,
@@ -102,7 +102,7 @@ export default async function CommunityOverviewPage({
       >
         <div className="mx-auto max-w-6xl px-5 py-8 lg:px-10 lg:py-12">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <CommunityMark community={community} size="lg" />
+            <CommunityAvatar community={community} size="lg" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone="neutral">

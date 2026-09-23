@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import {
   Badge,
-  CommunityMark,
   EmptyState,
   Panel,
   PageContainer,
   PageHeader,
   cn,
 } from "@/components/ui/primitives";
+import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import {
   IconBell,
   IconCalendar,
@@ -94,7 +94,7 @@ export default async function NotificationsPage() {
               >
                 <span className="relative mt-0.5 shrink-0">
                   {community ? (
-                    <CommunityMark community={community} size="sm" />
+                    <CommunityAvatar community={community} size="sm" />
                   ) : (
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-[6px] bg-paper-2 text-ink-2">
                       <Icon size={16} />

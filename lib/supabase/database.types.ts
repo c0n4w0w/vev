@@ -213,6 +213,7 @@ export type Database = {
           accent: string
           accent_soft: string
           access_policy: Database["public"]["Enums"]["access_policy"]
+          avatar_path: string | null
           dm_policy: Database["public"]["Enums"]["dm_policy"]
           founded_year: number
           id: string
@@ -232,6 +233,7 @@ export type Database = {
           accent: string
           accent_soft: string
           access_policy?: Database["public"]["Enums"]["access_policy"]
+          avatar_path?: string | null
           dm_policy?: Database["public"]["Enums"]["dm_policy"]
           founded_year: number
           id: string
@@ -251,6 +253,7 @@ export type Database = {
           accent?: string
           accent_soft?: string
           access_policy?: Database["public"]["Enums"]["access_policy"]
+          avatar_path?: string | null
           dm_policy?: Database["public"]["Enums"]["dm_policy"]
           founded_year?: number
           id?: string
@@ -1228,6 +1231,13 @@ export type Database = {
       set_accepts_member_dms: {
         Args: { p_community_id: string; p_value: boolean }
         Returns: boolean
+      }
+      set_community_avatar: {
+        Args: { p_community_id: string; p_path: string }
+        Returns: {
+          applied: boolean
+          previous_path: string
+        }[]
       }
       set_community_person_user: {
         Args: { p_person_id: string; p_user_id: string }

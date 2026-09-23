@@ -6,13 +6,13 @@ import {
   Avatar,
   Button,
   ButtonLink,
-  CommunityMark,
   ElevatedRoleBadge,
   Panel,
   PageContainer,
   PageHeader,
   SectionHeading,
 } from "@/components/ui/primitives";
+import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconLock, IconMapPin, IconShield, IconSwitch } from "@/components/ui/icons";
 import { getCommunitiesForUser, getEventsForUser } from "@/lib/data";
 import { formatFullDate, plural } from "@/lib/format";
@@ -78,7 +78,7 @@ export default async function ProfilePage() {
                 href={`/community/${community.id}/members`}
                 className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-paper-2/60"
               >
-                <CommunityMark community={community} size="sm" />
+                <CommunityAvatar community={community} size="sm" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[0.9375rem] font-medium text-ink">
                     {community.name}

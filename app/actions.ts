@@ -10,11 +10,13 @@ import {
   createEvent,
   createDirectMessage as persistDirectMessage,
   createMessage as persistMessage,
+  clearCommunityAvatar,
   createCommunityEmoji as persistEmoji,
   createPost as persistPost,
   deleteComment as removeComment,
   getCommunityById,
   getLocalGroups,
+  getMembership,
   joinEvent,
   leaveEvent,
   markAllNotificationsRead,
@@ -28,6 +30,7 @@ import {
   startDirectConversation,
   startDirectConversationWithOrganizationPerson,
   setAcceptsMemberDms,
+  setCommunityAvatar,
   setCommunityPersonAccountLink,
   setMembershipRole,
   setLocalGroupActive,
@@ -41,6 +44,7 @@ import type { AccessFormState } from "@/lib/access-form";
 import type { NotificationFormState } from "@/lib/notification-form";
 import { REQUEST_SENT_MESSAGE, normalizeDisplayName } from "@/lib/access-form";
 import type { CommentFormState } from "@/lib/comment-form";
+import { inspectCommunityAvatar } from "@/lib/community-avatar-image";
 import {
   inspectEmojiImage,
   normalizeEmojiName,
@@ -762,6 +766,78 @@ export async function deleteEmojiAction(
   revalidatePath(`/community/${communityId}/emojis`);
   revalidatePosts(communityId);
   return { status: "ok" };
+}
+
+
+// ── Community profile image ─────────────────────────────────────────────
+//
+// The image shown for a community inside the signed-in app. Only the
+// community's active administrator may change it. The check here exists to
+// give a clear answer before any bytes are read; it is not what protects the
+// data — the storage policies and set_community_avatar() each require
+// is_admin() on their own, and the community id a caller sends is only ever an
+// argument to those, never proof of anything.
+
+const AVATAR_ADMIN_ONLY = "Bare administratoren kan endre fellesskapets profilbilde.";
+
+async function isActiveAdmin(userId: string, communityId: string) {
+  const membership = await getMembership(userId, communityId);
+  return membership?.role === "admin" && membership.status === "active";
+}
+
+export async function setCommunityAvatarAction(
+  _prev: CommentFormState,
+  formData: FormData,
+): Promise<CommentFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  if (!(await isActiveAdmin(user.id, communityId))) {
+    return { status: "error", message: AVATAR_ADMIN_ONLY };
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { status: "error", message: "Velg en bildefil." };
+  }
+
+  // Decided from the bytes, never from the filename or the declared type.
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const image = inspectCommunityAvatar(bytes);
+  if (!image.ok) return { status: "error", message: image.error };
+
+  const result = await setCommunityAvatar({
+    communityId,
+    bytes,
+    contentType: image.contentType,
+    extension: image.extension,
+  });
+  if (!result.ok) return { status: "error", message: result.error };
+
+  // The image appears in the shell of every signed-in page, so the whole app
+  // layout is refreshed rather than a list of routes.
+  revalidatePath("/", "layout");
+  return { status: "ok", message: "Profilbildet er oppdatert." };
+}
+
+export async function removeCommunityAvatarAction(
+  _prev: CommentFormState,
+  formData: FormData,
+): Promise<CommentFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  if (!(await isActiveAdmin(user.id, communityId))) {
+    return { status: "error", message: AVATAR_ADMIN_ONLY };
+  }
+
+  const result = await clearCommunityAvatar(communityId);
+  if (!result.ok) return { status: "error", message: result.error };
+
+  revalidatePath("/", "layout");
+  return { status: "ok", message: "Profilbildet er fjernet." };
 }
 
 

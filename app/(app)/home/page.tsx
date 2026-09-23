@@ -5,7 +5,6 @@ import { EventCard } from "@/components/community/EventCard";
 import { PostCard } from "@/components/community/PostCard";
 import {
   ButtonLink,
-  CommunityMark,
   ElevatedRoleBadge,
   EmptyState,
   Panel,
@@ -13,6 +12,7 @@ import {
   PageHeader,
   SectionHeading,
 } from "@/components/ui/primitives";
+import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconArrowRight, IconLock } from "@/components/ui/icons";
 import {
   getCommunitiesForUser,
@@ -175,7 +175,7 @@ export default async function HomePage() {
                     className="block px-4 py-3 transition-colors hover:bg-paper-2/60"
                   >
                     <span className="flex items-center gap-2">
-                      <CommunityMark
+                      <CommunityAvatar
                         community={community}
                         size="xs"
                         className="h-4 w-4 text-[7px]"
@@ -204,7 +204,7 @@ export default async function HomePage() {
                     href={`/community/${community.id}`}
                     className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-paper-2/60"
                   >
-                    <CommunityMark community={community} size="xs" />
+                    <CommunityAvatar community={community} size="xs" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-medium text-ink">
                         {community.name}

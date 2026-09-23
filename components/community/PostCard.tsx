@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Avatar, Badge, CommunityMark, Panel, RichText, cn } from "@/components/ui/primitives";
+import { Avatar, Badge, Panel, RichText, cn } from "@/components/ui/primitives";
+import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconMegaphone, IconPin } from "@/components/ui/icons";
 import { CommentThread } from "@/components/community/CommentThread";
 import { PostActions } from "@/components/community/PostActions";
@@ -68,7 +69,7 @@ export function PostCard({
           href={`/community/${community.id}/feed`}
           className="mb-4 -mt-1 flex items-center gap-2 text-xs text-ink-3 transition-colors hover:text-ink"
         >
-          <CommunityMark community={community} size="xs" />
+          <CommunityAvatar community={community} size="xs" />
           {community.name}
         </Link>
       ) : null}

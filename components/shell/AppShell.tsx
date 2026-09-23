@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Avatar, CommunityMark, ElevatedRoleBadge, cn } from "@/components/ui/primitives";
+import { Avatar, ElevatedRoleBadge, cn } from "@/components/ui/primitives";
+import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import {
   IconAttach,
   IconBell,
@@ -190,19 +191,18 @@ function communityAdminNav(id: string) {
     },
     { href: `/community/${id}/requests`, label: "Forespørsler", icon: IconMail, adminOnly: true },
     { href: `/community/${id}/emojis`, label: "Emojier", icon: IconSmile, staffOnly: true },
-    // UTR's own DM policy is already open, so its settings page has nothing
-    // for a member to configure — an informational panel, not a control. Not
-    // worth a nav item there; FTR and TU still have a real setting behind it.
-    ...(id === "under-the-rug"
-      ? []
-      : [
-          {
-            href: `/community/${id}/settings`,
-            label: "Innstillinger",
-            icon: IconSettings,
-            staffOnly: true,
-          },
-        ]),
+    // Innstillinger holds the community's profile image (administrator only)
+    // and each staff member's own choices. UTR's DM policy is already open, so
+    // there its only *control* is the image: a moderator would find an
+    // informational panel and nothing to change, and does not get the link.
+    // The page itself refuses anyone the database would refuse regardless.
+    {
+      href: `/community/${id}/settings`,
+      label: "Innstillinger",
+      icon: IconSettings,
+      staffOnly: true,
+      adminOnly: id === "under-the-rug",
+    },
   ];
 }
 
@@ -388,7 +388,7 @@ function SidebarContent({
                         onClick={onNavigate}
                         className="flex items-center gap-2.5 rounded-[5px] px-2.5 py-[7px] text-sm text-ink-2 transition-colors hover:bg-paper-2/70 hover:text-ink"
                       >
-                        <CommunityMark community={community} size="xs" />
+                        <CommunityAvatar community={community} size="xs" />
                         <span className="min-w-0 flex-1 truncate">{community.name}</span>
                       </Link>
                     </li>
@@ -514,7 +514,7 @@ export function AppShell({ data, children }: { data: ShellData; children: ReactN
         </button>
         {current ? (
           <span className="flex min-w-0 items-center gap-2">
-            <CommunityMark community={current.community} size="xs" />
+            <CommunityAvatar community={current.community} size="xs" />
             <span className="truncate text-sm font-medium text-ink">
               {current.community.name}
             </span>
