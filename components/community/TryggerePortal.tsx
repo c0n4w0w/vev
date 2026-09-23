@@ -158,17 +158,8 @@ export function TryggerePortal({
               Følg med på hva som skjer, delta i samtaler og arrangementer, og finn folk å
               samarbeide med – lokalt og nasjonalt.
             </p>
-            <div className="mt-8">
-              {isMember ? (
-                <Link
-                  href={communityHref}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-[3px] px-6 text-sm font-medium text-white"
-                  style={{ backgroundColor: accent }}
-                >
-                  Åpne fellesskapet
-                  <IconArrowRight size={16} />
-                </Link>
-              ) : (
+            {isMember ? null : (
+              <div className="mt-8">
                 <a
                   href="#tilgang"
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-[3px] px-6 text-sm font-medium text-white"
@@ -177,9 +168,11 @@ export function TryggerePortal({
                   Få tilgang
                   <IconArrowRight size={16} />
                 </a>
-              )}
-            </div>
-            <p className={`mt-4 text-[13px] leading-relaxed ${ink3}`}>
+              </div>
+            )}
+            <p
+              className={`${isMember ? "mt-6" : "mt-4"} text-[13px] leading-relaxed ${ink3}`}
+            >
               For medlemmer av {community.name}.
             </p>
           </div>
@@ -277,81 +270,66 @@ export function TryggerePortal({
 
       {/* Access. Compact on purpose: the section holds one explanation and one
           form, and is sized to that. */}
-      <section
-        id="tilgang"
-        className={`scroll-mt-16 border-b ${rule}`}
-        style={{ backgroundColor: `${accent}2e`, borderTop: `2px solid ${accent}` }}
-      >
-        <div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-14 lg:px-10 lg:py-[4.5rem]">
-          {isMember ? (
-            <div className="max-w-lg">
-              <p className="label" style={{ color: accent }}>
-                Du har tilgang
-              </p>
-              <p className={`mt-3 text-base leading-relaxed ${ink}`}>
-                Lokallaget ditt, feeden, kanalene og Organisasjonen ligger ett trykk unna.
-              </p>
-              <Link
-                href={communityHref}
-                className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-[3px] px-6 text-sm font-medium text-white"
-                style={{ backgroundColor: accent }}
-              >
-                Åpne fellesskapet
-                <IconArrowRight size={16} />
-              </Link>
-            </div>
-          ) : pending ? (
-            <div className="max-w-lg">
-              <p className="label" style={{ color: accent }}>
-                Forespørsel sendt
-              </p>
-              <h2 className={`mt-3 font-display text-[1.75rem] leading-[1.12] sm:text-[2.25rem] ${ink}`}>
-                Vi sjekker medlemskapet ditt.
-              </h2>
-              <p className={`mt-4 text-base leading-relaxed ${ink2}`}>
-                Forespørselen din er sendt. Vi sjekker medlemskapet manuelt, og du får vanligvis
-                tilgang innen 24 timer.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="max-w-md">
+      {isMember ? null : (
+        <section
+          id="tilgang"
+          className={`scroll-mt-16 border-b ${rule}`}
+          style={{ backgroundColor: `${accent}2e`, borderTop: `2px solid ${accent}` }}
+        >
+          <div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-14 lg:px-10 lg:py-[4.5rem]">
+            {pending ? (
+              <div className="max-w-lg">
                 <p className="label" style={{ color: accent }}>
-                  Få tilgang
+                  Forespørsel sendt
                 </p>
                 <h2 className={`mt-3 font-display text-[1.75rem] leading-[1.12] sm:text-[2.25rem] ${ink}`}>
-                  Få tilgang til det digitale fellesskapet.
+                  Vi sjekker medlemskapet ditt.
                 </h2>
                 <p className={`mt-4 text-base leading-relaxed ${ink2}`}>
-                  Er du medlem i {community.name}? Bruk e-postadressen som er knyttet til
-                  medlemskapet ditt. Vi sjekker medlemskapet manuelt, og du får vanligvis tilgang
-                  innen 24 timer.
+                  Forespørselen din er sendt. Vi sjekker medlemskapet manuelt, og du får vanligvis
+                  tilgang innen 24 timer.
                 </p>
-                <p className={`mt-3 text-[13px] leading-relaxed ${ink3}`}>
-                  Er du også medlem i {brand.otherOrganisation}, bruker du samme TING-konto i begge
-                  fellesskapene.
-                </p>
-                {brand.membershipUrl ? (
-                  <p className={`mt-3 text-[13px] ${ink3}`}>
-                    Ikke medlem ennå?{" "}
-                    <a
-                      href={brand.membershipUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`font-medium underline decoration-[#b9c3cd] underline-offset-4 transition-colors hover:decoration-current ${ink2}`}
-                    >
-                      Bli medlem →
-                    </a>
+              </div>
+            ) : (
+              <>
+                <div className="max-w-md">
+                  <p className="label" style={{ color: accent }}>
+                    Få tilgang
                   </p>
-                ) : null}
-              </div>
-              <div className="max-w-xl">
-                <TryggereAccessForm community={community} />
-              </div>
-            </>
-          )}
-        </div>
-      </section>
+                  <h2 className={`mt-3 font-display text-[1.75rem] leading-[1.12] sm:text-[2.25rem] ${ink}`}>
+                    Få tilgang til det digitale fellesskapet.
+                  </h2>
+                  <p className={`mt-4 text-base leading-relaxed ${ink2}`}>
+                    Er du medlem i {community.name}? Bruk e-postadressen som er knyttet til
+                    medlemskapet ditt. Vi sjekker medlemskapet manuelt, og du får vanligvis tilgang
+                    innen 24 timer.
+                  </p>
+                  <p className={`mt-3 text-[13px] leading-relaxed ${ink3}`}>
+                    Er du også medlem i {brand.otherOrganisation}, bruker du samme TING-konto i begge
+                    fellesskapene.
+                  </p>
+                  {brand.membershipUrl ? (
+                    <p className={`mt-3 text-[13px] ${ink3}`}>
+                      Ikke medlem ennå?{" "}
+                      <a
+                        href={brand.membershipUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`font-medium underline decoration-[#b9c3cd] underline-offset-4 transition-colors hover:decoration-current ${ink2}`}
+                      >
+                        Bli medlem →
+                      </a>
+                    </p>
+                  ) : null}
+                </div>
+                <div className="max-w-xl">
+                  <TryggereAccessForm community={community} />
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Public events — a glimpse of what is going on, not the reason to enter. */}
       <section className="bg-paper">
