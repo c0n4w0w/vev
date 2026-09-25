@@ -31,6 +31,7 @@ export const communities: Community[] = [
       markStyle: "sans",
     },
     accessPolicy: "request-to-join",
+    defaultLocale: "nb",
     memberCount: 214,
     links: [
       { label: "tryggereruspolitikk.no", href: "https://tryggereruspolitikk.no" },
@@ -56,6 +57,7 @@ export const communities: Community[] = [
       markStyle: "sans",
     },
     accessPolicy: "request-to-join",
+    defaultLocale: "nb",
     memberCount: 96,
     links: [
       { label: "tryggereungdom.no", href: "https://tryggereungdom.no" },
@@ -80,6 +82,7 @@ export const communities: Community[] = [
       markStyle: "serif",
     },
     accessPolicy: "request-to-join",
+    defaultLocale: "en",
     memberCount: 58,
     links: [
       { label: "undertherug.no", href: "https://undertherug.no" },

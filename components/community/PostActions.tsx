@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { deletePostAction, setPostPinnedAction, updatePostAction } from "@/app/actions";
 import { IconClose } from "@/components/ui/icons";
+import { useT } from "@/lib/i18n/react";
 import { emptyPostFormState } from "@/lib/post-form";
 import type { Post } from "@/lib/types";
 
@@ -50,6 +51,7 @@ export function PostActions({
   canPin: boolean;
   accent: string;
 }) {
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [editState, editAction] = useActionState(updatePostAction, emptyPostFormState);
@@ -75,7 +77,7 @@ export function PostActions({
           <input
             name="title"
             defaultValue={post.title}
-            placeholder="Overskrift"
+            placeholder={t("post.titlePlaceholder")}
             className="mb-2 w-full rounded-[5px] border border-line-2 bg-surface px-3 py-2 font-display text-lg text-ink outline-none focus:border-ink-3"
           />
         ) : null}
@@ -92,8 +94,8 @@ export function PostActions({
         ) : null}
         <div className="mt-2 flex items-center gap-2">
           <SubmitButton
-            label="Lagre"
-            pendingLabel="Lagrer …"
+            label={t("common.save")}
+            pendingLabel={t("common.saving")}
             className="h-9 rounded-[5px] px-4 text-sm font-medium text-white transition-opacity disabled:opacity-40"
             style={{ backgroundColor: accent }}
           />
@@ -102,7 +104,7 @@ export function PostActions({
             onClick={() => setEditing(false)}
             className="h-9 rounded-[5px] px-3 text-sm text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink"
           >
-            Avbryt
+            {t("common.cancel")}
           </button>
         </div>
       </form>
@@ -117,7 +119,7 @@ export function PostActions({
           onClick={() => setEditing(true)}
           className="text-xs text-ink-3 transition-colors hover:text-ink"
         >
-          Endre
+          {t("common.edit")}
         </button>
       ) : null}
 
@@ -129,8 +131,8 @@ export function PostActions({
               submit button stays unnamed so it cannot collide with this. */}
           <input type="hidden" name="pinned" value={post.pinned ? "0" : "1"} />
           <SubmitButton
-            label={post.pinned ? "Løsne innlegg" : "Fest innlegg"}
-            pendingLabel={post.pinned ? "Løsner …" : "Fester …"}
+            label={post.pinned ? t("post.unpin") : t("post.pin")}
+            pendingLabel={post.pinned ? t("post.unpinning") : t("post.pinning")}
             className="text-xs text-ink-3 transition-colors hover:text-ink disabled:opacity-40"
           />
         </form>
@@ -141,16 +143,16 @@ export function PostActions({
           <form action={deleteAction} className="flex items-center gap-2">
             <input type="hidden" name="postId" value={post.id} />
             <input type="hidden" name="communityId" value={post.communityId} />
-            <span className="text-xs text-ink-2">Slette innlegget?</span>
+            <span className="text-xs text-ink-2">{t("post.confirmDelete")}</span>
             <SubmitButton
-              label="Ja, slett"
-              pendingLabel="Sletter …"
+              label={t("post.confirmYes")}
+              pendingLabel={t("post.deleting")}
               className="text-xs font-medium text-rust transition-opacity hover:opacity-70 disabled:opacity-40"
             />
             <button
               type="button"
               onClick={() => setConfirming(false)}
-              aria-label="Avbryt sletting"
+              aria-label={t("post.cancelDelete")}
               className="text-ink-3 transition-colors hover:text-ink"
             >
               <IconClose size={13} />
@@ -162,7 +164,7 @@ export function PostActions({
             onClick={() => setConfirming(true)}
             className="text-xs text-ink-3 transition-colors hover:text-rust"
           >
-            Slett
+            {t("common.delete")}
           </button>
         )
       ) : null}

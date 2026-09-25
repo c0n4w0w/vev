@@ -7,8 +7,14 @@ import { IconLock, IconMail } from "@/components/ui/icons";
 import { getInvitationPreview, getPortalCommunity } from "@/lib/data";
 import { formatFullDate } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
+import { PLATFORM_LOCALE, translator, type Locale } from "@/lib/i18n";
+import { LocaleProvider } from "@/lib/i18n/react";
 
-export const metadata = { title: "Invitasjon" };
+export async function generateMetadata({ params }: PageProps<"/invitasjon/[token]">) {
+  const { token } = await params;
+  const preview = await getInvitationPreview(token);
+  return { title: translator(preview?.communityLocale ?? PLATFORM_LOCALE)("inv.metaTitle") };
+}
 
 /**
  * Where an invitation link lands.
@@ -26,18 +32,23 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
   const preview = await getInvitationPreview(token);
   const user = await getSessionUser();
 
+  // The page speaks the language of the community the invitation is for. A
+  // token that names nothing (spent, expired, invented) has no community to
+  // borrow one from, and reads in the platform's.
+  const locale = preview?.communityLocale ?? PLATFORM_LOCALE;
+  const t = translator(locale);
+
   if (!preview) {
     return (
-      <Shell>
+      <Shell locale={locale}>
         <h1 className="font-display text-[1.75rem] leading-tight text-ink">
-          Invitasjonen er ikke gyldig
+          {t("inv.invalid.title")}
         </h1>
         <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-2">
-          Lenken kan være brukt, trukket tilbake eller utløpt. Be den som inviterte deg om å sende
-          en ny.
+          {t("inv.invalid.body")}
         </p>
         <Link href="/" className={`${buttonClass({ variant: "secondary" })} mt-8`}>
-          Til forsiden
+          {t("inv.toFront")}
         </Link>
       </Shell>
     );
@@ -55,11 +66,11 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
   // decided when they asked, and an administrator decided when they approved.
   // Logging in here is proof of identity, not a second decision, so the copy
   // and the accept step below both avoid asking "do you want this".
-  const label = preview.autoActivate ? "Tilgang godkjent" : "Invitasjon";
-  const lede = preview.autoActivate ? "Tilgangen din til" : "Du er invitert til";
+  const label = preview.autoActivate ? t("inv.label.approved") : t("inv.label.invitation");
+  const lede = preview.autoActivate ? t("inv.lede.approved") : t("inv.lede.invited");
 
   return (
-    <Shell>
+    <Shell locale={locale}>
       <p className="label">{label}</p>
       <p className="mt-4 text-[0.9375rem] text-ink-2">{lede}</p>
       <div className="mt-3 flex items-center gap-3">
@@ -76,11 +87,11 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
         ) : null}
         <h1 className="font-display text-[2rem] leading-tight text-ink">
           {preview.communityName}
-          {preview.autoActivate ? " er godkjent" : ""}
+          {preview.autoActivate ? t("inv.approvedSuffix") : ""}
         </h1>
       </div>
       <p className="mt-2 text-[0.9375rem] text-ink-2">
-        Det private fellesskapet drives på TING — en konto der gir deg tilgang.
+        {t("inv.runsOnTing")}
       </p>
 
       <Panel className="mt-8 p-5">
@@ -88,13 +99,15 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
           <IconMail size={14} className="mt-0.5 shrink-0 text-ink-3" />
           {preview.autoActivate ? (
             <>
-              Godkjent for <span className="font-mono text-ink">{preview.email}</span>. Lenken
-              gjelder fram til {formatFullDate(preview.expiresAt)} og kan brukes én gang.
+              {t("inv.approvedFor")}
+              <span className="font-mono text-ink">{preview.email}</span>
+              {t("inv.approvedAfter", { date: formatFullDate(preview.expiresAt, locale) })}
             </>
           ) : (
             <>
-              Invitasjonen er sendt til <span className="font-mono text-ink">{preview.email}</span>.
-              Den gjelder fram til {formatFullDate(preview.expiresAt)} og kan brukes én gang.
+              {t("inv.sentTo")}
+              <span className="font-mono text-ink">{preview.email}</span>
+              {t("inv.sentAfter", { date: formatFullDate(preview.expiresAt, locale) })}
             </>
           )}
         </p>
@@ -104,27 +117,26 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
         {!user ? (
           <>
             <p className="mb-4 text-[0.9375rem] leading-relaxed text-ink-2">
-              {preview.autoActivate
-                ? "Logg inn eller opprett en TING-konto med den adressen for å få tilgangen som allerede er godkjent."
-                : "Logg inn med den adressen for å bli med. Har du ingen TING-konto, blir den opprettet når du bruker innloggingslenken."}
+              {preview.autoActivate ? t("inv.signIn.approved") : t("inv.signIn.invited")}
             </p>
             <Link
               href={`/login?e=${encodeURIComponent(preview.email)}&neste=${encodeURIComponent(`/invitasjon/${token}`)}`}
               className={buttonClass()}
             >
-              Fortsett med {preview.email}
+              {t("inv.continueWith", { email: preview.email })}
             </Link>
           </>
         ) : matches ? (
-          <AcceptInvitation token={token} accent={accent} auto={preview.autoActivate} />
+          <LocaleProvider locale={locale}>
+            <AcceptInvitation token={token} accent={accent} auto={preview.autoActivate} />
+          </LocaleProvider>
         ) : (
           <>
             <p className="mb-4 rounded-[5px] border border-rust/25 bg-rust-soft px-3 py-2.5 text-[13px] leading-relaxed text-rust">
-              Du er logget inn som {signedInAs}, men invitasjonen er sendt til {preview.email}. Logg
-              inn med den adressen for å bli med.
+              {t("inv.mismatch", { signedIn: signedInAs ?? "", email: preview.email })}
             </p>
             <Link href="/login" className={buttonClass({ variant: "secondary" })}>
-              Bytt konto
+              {t("inv.switchAccount")}
             </Link>
           </>
         )}
@@ -132,16 +144,15 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
 
       <p className="mt-8 flex items-start gap-2 border-t border-line pt-5 text-[11px] leading-relaxed text-ink-3">
         <IconLock size={13} className="mt-px shrink-0" />
-        TING er en egen digital plattform som organisasjoner bruker til å drive fellesskapet sitt.
-        TING styrer ikke det formelle medlemskapet ditt i {preview.communityName}.
+        {t("inv.footer", { name: preview.communityName })}
       </p>
     </Shell>
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, locale }: { children: React.ReactNode; locale: Locale }) {
   return (
-    <main className="flex min-h-dvh flex-col">
+    <main lang={locale} className="flex min-h-dvh flex-col">
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex max-w-2xl items-center px-5 py-4 lg:px-8">
           <Link href="/">

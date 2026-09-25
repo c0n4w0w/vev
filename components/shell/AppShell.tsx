@@ -26,6 +26,9 @@ import {
 } from "@/components/ui/icons";
 import { CommunitySwitcher } from "@/components/shell/CommunitySwitcher";
 import type { ShellCommunity, ShellData } from "@/components/shell/shell-data";
+import { communityLocale, type Translator } from "@/lib/i18n";
+import { PLATFORM_LOCALE } from "@/lib/i18n/locales";
+import { LocaleProvider, useLocale, useT } from "@/lib/i18n/react";
 
 // ── Nav building blocks ─────────────────────────────────────────────────
 
@@ -48,6 +51,7 @@ function NavLink({
   onNavigate?: () => void;
   accent?: string;
 }) {
+  const t = useT();
   return (
     <Link
       href={href}
@@ -73,7 +77,7 @@ function NavLink({
           {badge}
         </span>
       ) : unread ? (
-        <span className="h-2 w-2 shrink-0 rounded-full bg-rust" aria-label="Ulest" />
+        <span className="h-2 w-2 shrink-0 rounded-full bg-rust" aria-label={t("shell.unread")} />
       ) : null}
     </Link>
   );
@@ -92,6 +96,7 @@ function DirectConversationNavLink({
   onNavigate?: () => void;
   accent?: string;
 }) {
+  const t = useT();
   return (
     <Link
       href={href}
@@ -118,18 +123,18 @@ function DirectConversationNavLink({
         {conversation.otherParticipant.name}
       </span>
       {conversation.unread && !active ? (
-        <span className="h-2 w-2 shrink-0 rounded-full bg-rust" aria-label="Ulest" />
+        <span className="h-2 w-2 shrink-0 rounded-full bg-rust" aria-label={t("shell.unread")} />
       ) : null}
     </Link>
   );
 }
 
 const platformNav = [
-  { href: "/home", label: "Hjem", icon: IconHome },
-  { href: "/communities", label: "Mine fellesskap", icon: IconCommunities },
-  { href: "/events", label: "Arrangementer", icon: IconCalendar },
-  { href: "/notifications", label: "Varsler", icon: IconBell },
-];
+  { href: "/home", label: "shell.platform.home", icon: IconHome },
+  { href: "/communities", label: "shell.platform.communities", icon: IconCommunities },
+  { href: "/events", label: "shell.platform.events", icon: IconCalendar },
+  { href: "/notifications", label: "shell.platform.notifications", icon: IconBell },
+] as const;
 
 /**
  * The community sidebar's primary group: what a member came here to do.
@@ -146,21 +151,25 @@ function communityNav(
   id: string,
   localGroups: ShellCommunity["localGroups"],
   hasOrganizationPeople: boolean,
+  t: Translator,
 ) {
   return [
-    { href: `/community/${id}`, label: "Oversikt", icon: IconOverview, exact: true },
-    { href: `/community/${id}/feed`, label: "Feed", icon: IconFeed },
-    { href: `/community/${id}/events`, label: "Arrangementer", icon: IconCalendar },
+    { href: `/community/${id}`, label: t("shell.nav.overview"), icon: IconOverview, exact: true },
+    { href: `/community/${id}/feed`, label: t("shell.nav.feed"), icon: IconFeed },
+    { href: `/community/${id}/events`, label: t("shell.nav.events"), icon: IconCalendar },
     {
       href: `/community/${id}/members`,
-      label: hasOrganizationPeople && id !== "under-the-rug" ? "Organisasjonen" : "Medlemmer",
+      label:
+        hasOrganizationPeople && id !== "under-the-rug"
+          ? t("shell.nav.organization")
+          : t("shell.nav.members"),
       icon: IconUsers,
     },
     ...(localGroups.usesLocalGroups
       ? [
           {
             href: `/community/${id}/lokallag`,
-            label: "Lokallag",
+            label: t("shell.nav.localGroups"),
             icon: IconMapPin,
           },
         ]
@@ -180,17 +189,27 @@ function communityNav(
  * set and only staff change it, unchanged by this. Hiding a link is tidiness —
  * every page and policy behind these refuses the wrong caller anyway.
  */
-function communityAdminNav(id: string) {
+function communityAdminNav(id: string, t: Translator) {
   return [
-    { href: `/community/${id}/admin/members`, label: "Medlemmer", icon: IconUsers, adminOnly: true },
+    {
+      href: `/community/${id}/admin/members`,
+      label: t("shell.nav.members"),
+      icon: IconUsers,
+      adminOnly: true,
+    },
     {
       href: `/community/${id}/organization-links`,
-      label: "Kontokoblinger",
+      label: t("shell.nav.accountLinks"),
       icon: IconAttach,
       adminOnly: true,
     },
-    { href: `/community/${id}/requests`, label: "Forespørsler", icon: IconMail, adminOnly: true },
-    { href: `/community/${id}/emojis`, label: "Emojier", icon: IconSmile, staffOnly: true },
+    {
+      href: `/community/${id}/requests`,
+      label: t("shell.nav.requests"),
+      icon: IconMail,
+      adminOnly: true,
+    },
+    { href: `/community/${id}/emojis`, label: t("shell.nav.emojis"), icon: IconSmile, staffOnly: true },
     // Innstillinger holds the community's profile image (administrator only)
     // and each staff member's own choices. UTR's DM policy is already open, so
     // there its only *control* is the image: a moderator would find an
@@ -198,7 +217,7 @@ function communityAdminNav(id: string) {
     // The page itself refuses anyone the database would refuse regardless.
     {
       href: `/community/${id}/settings`,
-      label: "Innstillinger",
+      label: t("shell.nav.settings"),
       icon: IconSettings,
       staffOnly: true,
       adminOnly: id === "under-the-rug",
@@ -222,6 +241,8 @@ function SidebarContent({
   /** Leaves room for the drawer's close button next to the switcher. */
   inDrawer?: boolean;
 }) {
+  const t = useT();
+  const locale = current ? communityLocale(current.community) : PLATFORM_LOCALE;
   const accent = current?.community.branding.accent;
   const activeDirectConversation = current?.recentDirectConversations.find(
     (conversation) =>
@@ -240,19 +261,20 @@ function SidebarContent({
         {current ? (
           <>
             <div className="mb-4 flex items-center gap-2 px-2.5">
-              <ElevatedRoleBadge role={current.membership.role} />
+              <ElevatedRoleBadge role={current.membership.role} locale={locale} />
               <span className="inline-flex items-center gap-1 text-[11px] text-ink-3">
                 <IconLock size={12} />
-                Lukket
+                {t("shell.closed")}
               </span>
             </div>
 
-            <p className="label mb-2 px-2.5">Hoved</p>
+            <p className="label mb-2 px-2.5">{t("shell.nav.main")}</p>
             <ul className="space-y-px">
               {communityNav(
                 current.community.id,
                 current.localGroups,
                 current.hasOrganizationPeople,
+                t,
               ).map((item) => (
                 <li key={item.href}>
                   <NavLink
@@ -268,12 +290,12 @@ function SidebarContent({
             </ul>
 
             <div className="mt-6">
-              <p className="label mb-2 px-2.5">Meldinger</p>
+              <p className="label mb-2 px-2.5">{t("shell.nav.messages")}</p>
               <ul className="space-y-px">
                 <li>
                   <NavLink
                     href={`/community/${current.community.id}/messages`}
-                    label="Alle meldinger"
+                    label={t("shell.nav.allMessages")}
                     icon={<IconMail size={17} />}
                     accent={accent}
                     active={pathname === `/community/${current.community.id}/messages`}
@@ -301,7 +323,7 @@ function SidebarContent({
             {(() => {
               // Filtering happens before the heading is drawn, so a member who
               // administers nothing does not get an empty "Administrasjon".
-              const adminItems = communityAdminNav(current.community.id)
+              const adminItems = communityAdminNav(current.community.id, t)
                 .filter((item) => !item.adminOnly || current.membership.role === "admin")
                 .filter(
                   (item) =>
@@ -313,7 +335,7 @@ function SidebarContent({
 
               return (
                 <div className="mt-6">
-                  <p className="label mb-2 px-2.5">Administrasjon</p>
+                  <p className="label mb-2 px-2.5">{t("shell.nav.administration")}</p>
                   <ul className="space-y-px">
                     {adminItems.map((item) => (
                       <li key={item.href}>
@@ -333,7 +355,7 @@ function SidebarContent({
             })()}
 
             <div className="mt-6">
-              <p className="label mb-2 px-2.5">Kanaler</p>
+              <p className="label mb-2 px-2.5">{t("shell.nav.channels")}</p>
               {current.channelGroups.map(({ group, channels }) => (
                 <div key={group.id} className="mt-3 first:mt-0">
                   <p className="mb-1 px-2.5 text-[11px] text-ink-3">{group.label}</p>
@@ -362,7 +384,7 @@ function SidebarContent({
                 <li key={item.href}>
                   <NavLink
                     href={item.href}
-                    label={item.label}
+                    label={t(item.label)}
                     icon={<item.icon size={17} />}
                     active={pathname === item.href}
                     badge={item.href === "/notifications" ? data.unreadCount : undefined}
@@ -373,11 +395,10 @@ function SidebarContent({
             </ul>
 
             <div className="mt-7">
-              <p className="label mb-2 px-2.5">Mine fellesskap</p>
+              <p className="label mb-2 px-2.5">{t("shell.platform.communities")}</p>
               {data.communities.length === 0 ? (
                 <p className="px-2.5 text-[13px] leading-relaxed text-ink-3">
-                  Ingen ennå. Fellesskap på TING finner du gjennom en invitasjon eller en
-                  direktelenke.
+                  {t("shell.platform.noneYet")}
                 </p>
               ) : (
                 <ul className="space-y-px">
@@ -413,7 +434,7 @@ function SidebarContent({
             <Avatar user={current.me} size="sm" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-ink">{current.me.name}</span>
-              <span className="block truncate text-xs text-ink-3">Din profil her</span>
+              <span className="block truncate text-xs text-ink-3">{t("shell.yourProfile")}</span>
             </span>
           </Link>
         ) : (
@@ -437,14 +458,15 @@ function SidebarContent({
 // ── Mobile bottom navigation ────────────────────────────────────────────
 
 const mobileTabs = [
-  { href: "/home", label: "Hjem", icon: IconHome },
-  { href: "/communities", label: "Fellesskap", icon: IconCommunities },
-  { href: "/events", label: "Program", icon: IconCalendar },
-  { href: "/notifications", label: "Varsler", icon: IconBell },
-  { href: "/profile", label: "Profil", icon: IconUser },
-];
+  { href: "/home", label: "shell.tabs.home", icon: IconHome },
+  { href: "/communities", label: "shell.tabs.communities", icon: IconCommunities },
+  { href: "/events", label: "shell.tabs.events", icon: IconCalendar },
+  { href: "/notifications", label: "shell.tabs.notifications", icon: IconBell },
+  { href: "/profile", label: "shell.tabs.profile", icon: IconUser },
+] as const;
 
 function MobileTabBar({ data, pathname }: { data: ShellData; pathname: string }) {
+  const t = useT();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur-sm lg:hidden">
       <ul className="mx-auto flex max-w-lg items-stretch">
@@ -466,7 +488,7 @@ function MobileTabBar({ data, pathname }: { data: ShellData; pathname: string })
                     <span className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-rust ring-2 ring-surface" />
                   ) : null}
                 </span>
-                {tab.label}
+                {t(tab.label)}
               </Link>
             </li>
           );
@@ -478,8 +500,33 @@ function MobileTabBar({ data, pathname }: { data: ShellData; pathname: string })
 
 // ── Shell ───────────────────────────────────────────────────────────────
 
+/**
+ * The signed-in frame.
+ *
+ * Inside a community the whole shell speaks that community's language, and it
+ * follows the route — moving from one community to another changes it with no
+ * reload — because the current community is read from the path. Everywhere else
+ * it uses the platform's. This is the one place a future user preference would
+ * be folded in: `resolveLocale({ user, community })`.
+ */
 export function AppShell({ data, children }: { data: ShellData; children: ReactNode }) {
   const pathname = usePathname();
+  const current = data.communities.find(({ community }) =>
+    pathname.startsWith(`/community/${community.id}`),
+  );
+  const locale = current ? communityLocale(current.community) : PLATFORM_LOCALE;
+
+  return (
+    <LocaleProvider locale={locale}>
+      <ShellFrame data={data}>{children}</ShellFrame>
+    </LocaleProvider>
+  );
+}
+
+function ShellFrame({ data, children }: { data: ShellData; children: ReactNode }) {
+  const pathname = usePathname();
+  const t = useT();
+  const locale = useLocale();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerPath, setDrawerPath] = useState(pathname);
 
@@ -503,6 +550,7 @@ export function AppShell({ data, children }: { data: ShellData; children: ReactN
 
   return (
     <div
+      lang={locale}
       className="min-h-dvh lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]"
       style={
         current
@@ -524,7 +572,7 @@ export function AppShell({ data, children }: { data: ShellData; children: ReactN
           type="button"
           onClick={() => setDrawerOpen(true)}
           className="-ml-1.5 rounded-[5px] p-1.5 text-ink-2 transition-colors hover:bg-paper-2"
-          aria-label="Åpne meny"
+          aria-label={t("shell.openMenu")}
         >
           <IconMenu size={21} />
         </button>
@@ -545,7 +593,7 @@ export function AppShell({ data, children }: { data: ShellData; children: ReactN
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            aria-label="Lukk meny"
+            aria-label={t("shell.closeMenu")}
             onClick={() => setDrawerOpen(false)}
             className="absolute inset-0 bg-ink/25"
           />
@@ -554,7 +602,7 @@ export function AppShell({ data, children }: { data: ShellData; children: ReactN
               type="button"
               onClick={() => setDrawerOpen(false)}
               className="absolute right-2 top-3.5 z-10 rounded-[5px] p-1.5 text-ink-3 transition-colors hover:bg-paper-2 hover:text-ink"
-              aria-label="Lukk meny"
+              aria-label={t("shell.closeMenu")}
             >
               <IconClose size={18} />
             </button>

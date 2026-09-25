@@ -214,6 +214,7 @@ export type Database = {
           accent_soft: string
           access_policy: Database["public"]["Enums"]["access_policy"]
           avatar_path: string | null
+          default_locale: string
           dm_policy: Database["public"]["Enums"]["dm_policy"]
           founded_year: number
           id: string
@@ -234,6 +235,7 @@ export type Database = {
           accent_soft: string
           access_policy?: Database["public"]["Enums"]["access_policy"]
           avatar_path?: string | null
+          default_locale?: string
           dm_policy?: Database["public"]["Enums"]["dm_policy"]
           founded_year: number
           id: string
@@ -254,6 +256,7 @@ export type Database = {
           accent_soft?: string
           access_policy?: Database["public"]["Enums"]["access_policy"]
           avatar_path?: string | null
+          default_locale?: string
           dm_policy?: Database["public"]["Enums"]["dm_policy"]
           founded_year?: number
           id?: string
@@ -1202,6 +1205,7 @@ export type Database = {
         Args: { p_token: string }
         Returns: {
           auto_activate: boolean
+          community_default_locale: string
           community_id: string
           community_name: string
           community_slug: string
@@ -1248,6 +1252,7 @@ export type Database = {
           accent: string
           accent_soft: string
           access_policy: Database["public"]["Enums"]["access_policy"]
+          default_locale: string
           founded_year: number
           id: string
           links: Json

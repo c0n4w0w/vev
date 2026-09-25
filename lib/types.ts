@@ -7,11 +7,13 @@
  * through the query functions there.
  */
 
+import type { Locale } from "@/lib/i18n/locales";
+
 export type RoleId = "member" | "moderator" | "admin";
 
 export interface Role {
   id: RoleId;
-  /** Norwegian label shown in the UI. */
+  /** Label in the platform language. Screens inside a community use `roleLabel()` instead. */
   label: string;
   description: string;
 }
@@ -93,6 +95,11 @@ export interface CommunityPublic {
   branding: CommunityBranding;
   /** How new members get in. Nothing here makes a community discoverable. */
   accessPolicy: "invite-only" | "request-to-join";
+  /**
+   * The language of the interface inside this community and on its portal.
+   * Presentation only — nothing about access or visibility reads it.
+   */
+  defaultLocale: Locale;
   memberCount: number;
   /** Public-facing links shown on the portal. */
   links: { label: string; href: string }[];

@@ -8,6 +8,7 @@ import {
   getInvitations,
   getMembership,
 } from "@/lib/data";
+import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -15,7 +16,8 @@ export async function generateMetadata({
 }: PageProps<"/community/[communityId]/requests">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  return { title: `Medlemsforespørsler · ${community?.name ?? "Fellesskap"}` };
+  const t = communityTranslator(community);
+  return { title: `${t("requests.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
 export default async function AccessRequestsPage({
@@ -27,6 +29,7 @@ export default async function AccessRequestsPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
+  const t = translator(communityLocale(community));
 
   const membership = await getMembership(user.id, community.id);
   const isAdmin = membership?.role === "admin";
@@ -37,10 +40,10 @@ export default async function AccessRequestsPage({
   if (!isAdmin) {
     return (
       <PageContainer width="narrow">
-        <PageHeader eyebrow={community.name} title="Medlemsforespørsler" />
+        <PageHeader eyebrow={community.name} title={t("requests.title")} />
         <EmptyState
-          title="Kun for administratorer"
-          body={`Det er administratorene i ${community.name} som tar stilling til hvem som slipper inn. Som moderator følger du opp samtaler og innhold.`}
+          title={t("common.adminsOnly")}
+          body={t("requests.adminsOnly", { name: community.name })}
         />
       </PageContainer>
     );
@@ -56,8 +59,8 @@ export default async function AccessRequestsPage({
     <PageContainer width="narrow">
       <PageHeader
         eyebrow={community.name}
-        title="Medlemsforespørsler"
-        lead={`Folk som har bedt om tilgang til ${community.name} fra den offentlige siden. Godkjenner du, blir noen med en TING-konto fra før medlem med det samme — andre får en lenke på e-post for å logge inn eller opprette konto.`}
+        title={t("requests.title")}
+        lead={t("requests.lead", { name: community.name })}
       />
       <RequestQueue
         communityId={community.id}

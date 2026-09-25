@@ -7,6 +7,7 @@ import { toggleReactionAction } from "@/app/actions";
 import { emptyCommentFormState, reactionPalette } from "@/lib/comment-form";
 import { IconPlus, IconSearch } from "@/components/ui/icons";
 import { cn } from "@/components/ui/primitives";
+import { useT } from "@/lib/i18n/react";
 import type { CommunityEmoji, Reaction } from "@/lib/types";
 
 /** A custom emoji image, or its name if the signed URL could not be made. */
@@ -40,6 +41,7 @@ function ReactionButton({
   accent: string;
 }) {
   const { pending } = useFormStatus();
+  const t = useT();
   const custom = reaction.emojiId ? emojiById.get(reaction.emojiId) : undefined;
 
   return (
@@ -48,7 +50,7 @@ function ReactionButton({
       disabled={pending}
       aria-pressed={mine}
       aria-label={reaction.emoji ?? `:${reaction.name ?? "emoji"}:`}
-      title={mine ? "Trykk for å fjerne reaksjonen din" : "Reager"}
+      title={mine ? t("reaction.remove") : t("reaction.react")}
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors disabled:opacity-50",
         mine ? "text-ink" : "border-line bg-paper text-ink-2 hover:border-line-2",
@@ -88,6 +90,7 @@ export function ReactionBar({
   viewerId: string;
   accent: string;
 }) {
+  const t = useT();
   const [state, formAction] = useActionState(toggleReactionAction, emptyCommentFormState);
   const [picking, setPicking] = useState(false);
   const [query, setQuery] = useState("");
@@ -132,7 +135,7 @@ export function ReactionBar({
           type="button"
           onClick={() => setPicking((value) => !value)}
           aria-expanded={picking}
-          aria-label="Legg til en reaksjon"
+          aria-label={t("reaction.add")}
           className="inline-flex items-center rounded-full border border-dashed border-line-2 px-2 py-1 text-ink-3 transition-colors hover:text-ink"
         >
           <IconPlus size={12} />
@@ -142,12 +145,12 @@ export function ReactionBar({
           <>
             <button
               type="button"
-              aria-label="Lukk"
+              aria-label={t("common.close")}
               onClick={() => setPicking(false)}
               className="fixed inset-0 z-40 cursor-default"
             />
             <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-64 rounded-[6px] border border-line-2 bg-surface p-3 shadow-[0_12px_32px_-12px_rgba(23,25,26,0.28)]">
-              <p className="label mb-2">Standard</p>
+              <p className="label mb-2">{t("reaction.default")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {unusedBuiltIn.map((emoji) => (
                   <form key={emoji} action={formAction} onSubmit={() => setPicking(false)}>
@@ -162,14 +165,14 @@ export function ReactionBar({
                   </form>
                 ))}
                 {unusedBuiltIn.length === 0 ? (
-                  <span className="text-xs text-ink-3">Alle er i bruk.</span>
+                  <span className="text-xs text-ink-3">{t("reaction.allUsed")}</span>
                 ) : null}
               </div>
 
-              <p className="label mb-2 mt-4">Fellesskapets egne</p>
+              <p className="label mb-2 mt-4">{t("reaction.communityOwn")}</p>
               {customEmojis.length === 0 ? (
                 <p className="text-xs leading-relaxed text-ink-3">
-                  Ingen egne emojier ennå. Moderatorer kan legge til noen under Emojier.
+                  {t("reaction.noneYet")}
                 </p>
               ) : (
                 <>
@@ -178,7 +181,7 @@ export function ReactionBar({
                     <input
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
-                      placeholder="Søk"
+                      placeholder={t("common.search")}
                       className="w-full bg-transparent text-xs text-ink outline-none placeholder:text-ink-3"
                     />
                   </label>
@@ -197,7 +200,7 @@ export function ReactionBar({
                       </form>
                     ))}
                     {matchingCustom.length === 0 ? (
-                      <span className="text-xs text-ink-3">Ingen treff.</span>
+                      <span className="text-xs text-ink-3">{t("reaction.noMatches")}</span>
                     ) : null}
                   </div>
                 </>

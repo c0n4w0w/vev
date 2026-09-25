@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?feil=Lenken+er+brukt+eller+utl%C3%B8pt`);
+  // A code rather than a sentence: the sign-in page words it in the language of
+  // wherever the person was heading, which is why `neste` comes back too.
+  const back = next ? `&neste=${encodeURIComponent(safeRedirect(next))}` : "";
+  return NextResponse.redirect(`${origin}/login?feil=lenke${back}`);
 }
 
 /**

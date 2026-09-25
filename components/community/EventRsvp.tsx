@@ -6,6 +6,8 @@ import { Badge, cn } from "@/components/ui/primitives";
 import { IconCheck } from "@/components/ui/icons";
 import { rsvpEventAction } from "@/app/actions";
 import { emptyRsvpFormState } from "@/lib/event-form";
+import { tn } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/react";
 
 function Submit({
   attending,
@@ -17,6 +19,7 @@ function Submit({
   full: boolean;
 }) {
   const { pending } = useFormStatus();
+  const t = useT();
 
   if (!attending && full) {
     return (
@@ -25,7 +28,7 @@ function Submit({
         disabled
         className="h-10 rounded-[5px] border border-line-2 px-4 text-sm text-ink-3"
       >
-        Fullt
+        {t("events.rsvp.full")}
       </button>
     );
   }
@@ -40,7 +43,11 @@ function Submit({
       )}
       style={attending ? undefined : { backgroundColor: accent }}
     >
-      {pending ? "Lagrer …" : attending ? "Meld deg av" : "Meld deg på"}
+      {pending
+        ? t("common.saving")
+        : attending
+          ? t("events.rsvp.leave")
+          : t("events.rsvp.join")}
     </button>
   );
 }
@@ -69,6 +76,8 @@ export function EventRsvp({
   attendeeCount: number;
   capacity?: number;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [state, formAction] = useActionState(rsvpEventAction, emptyRsvpFormState);
 
   // The server's answer wins as soon as there is one. Tracking the handled
@@ -94,13 +103,18 @@ export function EventRsvp({
       {attending ? (
         <Badge tone="skog">
           <IconCheck size={11} />
-          Påmeldt
+          {t("events.rsvp.badge")}
         </Badge>
       ) : null}
 
       <span className="text-[13px] text-ink-3">
-        {count} {count === 1 ? "påmeldt" : "påmeldte"}
-        {capacity !== undefined ? ` av ${capacity}` : ""}
+        {capacity !== undefined
+          ? t("events.attendanceOf", {
+              attending: tn(locale, "count.attending", count),
+              count,
+              capacity,
+            })
+          : tn(locale, "count.attending", count)}
       </span>
 
       {state.status === "error" ? (

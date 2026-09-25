@@ -11,12 +11,14 @@ import {
   getCommunityPersonas,
   getMembership,
 } from "@/lib/data";
+import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/feed">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  return { title: `Feed · ${community?.name ?? "Fellesskap"}` };
+  const t = communityTranslator(community);
+  return { title: `${t("feed.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
 export default async function CommunityFeedPage({
@@ -28,6 +30,7 @@ export default async function CommunityFeedPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
+  const t = translator(communityLocale(community));
 
   const [membership, feed, groups] = await Promise.all([
     getMembership(user.id, community.id),
@@ -51,8 +54,8 @@ export default async function CommunityFeedPage({
     <PageContainer width="narrow">
       <PageHeader
         eyebrow={community.name}
-        title="Feed"
-        lead={`Alt som skjer i ${community.name} — innlegg og kunngjøringer, nyeste først.`}
+        title={t("feed.title")}
+        lead={t("feed.lead", { name: community.name })}
       />
 
       <Composer

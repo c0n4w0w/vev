@@ -3,6 +3,7 @@ import { startDirectConversationAction } from "@/app/actions";
 import { Avatar, Badge, ButtonLink, Panel, buttonClass } from "@/components/ui/primitives";
 import type { CommunityMember } from "@/lib/data";
 import { formatFullDate } from "@/lib/format";
+import { translator, type Locale } from "@/lib/i18n";
 import { publicMemberTitle } from "@/lib/roles";
 
 /** A member's card in a directory — plain in the member-facing list, with a
@@ -15,6 +16,7 @@ export function MemberCard({
   permissionBadge,
   roleManagement,
   showJoinedDate = true,
+  locale,
 }: {
   member: CommunityMember;
   userId: string;
@@ -28,7 +30,9 @@ export function MemberCard({
    * still wants it, needs no change; the member-facing directory opts out.
    */
   showJoinedDate?: boolean;
+  locale: Locale;
 }) {
+  const t = translator(locale);
   const { persona: person, membership: personMembership } = member;
   const title = publicMemberTitle(personMembership.title);
 
@@ -40,7 +44,7 @@ export function MemberCard({
           <span className="truncate text-[0.9375rem] font-medium text-ink">
             {person.name}
           </span>
-          {person.id === userId ? <Badge tone="skog">Deg</Badge> : null}
+          {person.id === userId ? <Badge tone="skog">{t("common.you")}</Badge> : null}
           {permissionBadge}
         </p>
         {title ? <p className="mt-0.5 text-[13px] text-ink-2">{title}</p> : null}
@@ -51,7 +55,9 @@ export function MemberCard({
         ) : null}
         {showJoinedDate ? (
           <p className="mt-2.5 text-[11px] text-ink-3">
-            Medlem siden {formatFullDate(personMembership.joinedAt)}
+            {t("members.memberSince", {
+              date: formatFullDate(personMembership.joinedAt, locale),
+            })}
           </p>
         ) : null}
         {dmActions.has(person.id) ? (
@@ -62,7 +68,7 @@ export function MemberCard({
                 size="sm"
                 variant="secondary"
               >
-                Send melding
+                {t("common.sendMessage")}
               </ButtonLink>
             ) : (
               <form action={startDirectConversationAction}>
@@ -72,7 +78,7 @@ export function MemberCard({
                   type="submit"
                   className={buttonClass({ variant: "secondary", size: "sm" })}
                 >
-                  Send melding
+                  {t("common.sendMessage")}
                 </button>
               </form>
             )}

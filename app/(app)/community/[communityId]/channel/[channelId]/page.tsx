@@ -8,6 +8,7 @@ import {
   getMessages,
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
+import { communityLocale, communityTranslator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -18,8 +19,9 @@ export async function generateMetadata({
     getChannel(channelId),
     getCommunityById(communityId),
   ]);
+  const t = communityTranslator(community);
   return {
-    title: `#${channel?.name ?? "kanal"} · ${community?.name ?? "Fellesskap"}`,
+    title: `#${channel?.name ?? t("channel.fallbackName")} · ${community?.name ?? t("common.communityFallback")}`,
   };
 }
 
@@ -59,7 +61,9 @@ export default async function ChannelPage({
         membership?.role === "moderator"
       }
       lastActivityLabel={
-        messages.length > 0 ? timeAgo(messages[messages.length - 1].createdAt) : undefined
+        messages.length > 0
+          ? timeAgo(messages[messages.length - 1].createdAt, communityLocale(community))
+          : undefined
       }
     />
   );

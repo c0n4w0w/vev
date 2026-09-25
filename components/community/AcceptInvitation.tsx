@@ -4,9 +4,11 @@ import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { acceptInvitationAction } from "@/app/actions";
 import { emptyAccessFormState } from "@/lib/access-form";
+import { useLocale, useT } from "@/lib/i18n/react";
 
 function Submit({ accent, auto }: { accent: string; auto: boolean }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <button
       type="submit"
@@ -14,7 +16,7 @@ function Submit({ accent, auto }: { accent: string; auto: boolean }) {
       className="h-11 w-full rounded-[5px] text-sm font-medium text-white transition-opacity disabled:opacity-40"
       style={{ backgroundColor: accent }}
     >
-      {pending || auto ? "Aktiverer tilgangen …" : "Fortsett"}
+      {pending || auto ? t("inv.activating") : t("inv.continue")}
     </button>
   );
 }
@@ -43,6 +45,7 @@ export function AcceptInvitation({
   accent: string;
   auto?: boolean;
 }) {
+  const locale = useLocale();
   const [state, formAction] = useActionState(acceptInvitationAction, emptyAccessFormState);
   const formRef = useRef<HTMLFormElement>(null);
   const submittedRef = useRef(false);
@@ -56,6 +59,8 @@ export function AcceptInvitation({
   return (
     <form ref={formRef} action={formAction}>
       <input type="hidden" name="token" value={token} />
+      {/* Presentation only: the language of a refusal. It grants nothing. */}
+      <input type="hidden" name="locale" value={locale} />
       <Submit accent={accent} auto={auto} />
       {state.status === "error" ? (
         <p

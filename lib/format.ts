@@ -1,4 +1,4 @@
-const nb = "nb-NO";
+import { INTL_TAG, PLATFORM_LOCALE, t, tn, type Locale } from "@/lib/i18n";
 
 /**
  * Reference point for relative times.
@@ -69,12 +69,6 @@ export function osloInstant(date: string, time: string): Date | null {
   return new Date(settled);
 }
 
-const time = new Intl.DateTimeFormat(nb, {
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Europe/Oslo",
-});
-
 /**
  * Day key in Oslo time — `2026-10-24`.
  *
@@ -94,128 +88,115 @@ function dayKey(value: string | Date) {
   return osloDay.format(typeof value === "string" ? new Date(value) : value);
 }
 
-const dayMonth = new Intl.DateTimeFormat(nb, {
-  day: "numeric",
-  month: "long",
-  timeZone: "Europe/Oslo",
-});
+/**
+ * The display formatters, built once per locale and shape.
+ *
+ * Every function below takes a `locale` that defaults to the platform one, so
+ * existing Norwegian callers are unchanged. The zone is always Oslo; only the
+ * words, the order and the clock convention follow the locale.
+ */
+const formatters = new Map<string, Intl.DateTimeFormat>();
 
-const dayMonthYear = new Intl.DateTimeFormat(nb, {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "Europe/Oslo",
-});
-
-const weekdayLong = new Intl.DateTimeFormat(nb, {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  timeZone: "Europe/Oslo",
-});
-
-const shortMonth = new Intl.DateTimeFormat(nb, {
-  month: "short",
-  timeZone: "Europe/Oslo",
-});
-
-const dayNumber = new Intl.DateTimeFormat(nb, {
-  day: "numeric",
-  timeZone: "Europe/Oslo",
-});
-
-/** Norwegian clock time uses a period: 19.30, not 19:30. */
-export function formatTime(iso: string) {
-  return time.format(new Date(iso)).replace(":", ".");
+function formatterFor(locale: Locale, shape: string, options: Intl.DateTimeFormatOptions) {
+  const key = `${locale}:${shape}`;
+  let formatter = formatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(INTL_TAG[locale], { ...options, timeZone: COMMUNITY_ZONE });
+    formatters.set(key, formatter);
+  }
+  return formatter;
 }
 
-export function formatDate(iso: string) {
-  return dayMonth.format(new Date(iso));
+const shapes = {
+  time: { hour: "2-digit", minute: "2-digit" },
+  dayMonth: { day: "numeric", month: "long" },
+  dayMonthYear: { day: "numeric", month: "long", year: "numeric" },
+  weekdayLong: { weekday: "long", day: "numeric", month: "long" },
+  shortMonth: { month: "short" },
+  dayNumber: { day: "numeric" },
+  weekdayOnly: { weekday: "long" },
+} as const satisfies Record<string, Intl.DateTimeFormatOptions>;
+
+function format(locale: Locale, shape: keyof typeof shapes, iso: string | Date) {
+  return formatterFor(locale, shape, shapes[shape]).format(
+    typeof iso === "string" ? new Date(iso) : iso,
+  );
 }
 
-export function formatFullDate(iso: string) {
-  return dayMonthYear.format(new Date(iso));
+/** Norwegian clock time uses a period: 19.30, not 19:30. English keeps the colon. */
+export function formatTime(iso: string, locale: Locale = PLATFORM_LOCALE) {
+  const value = format(locale, "time", iso);
+  return locale === "nb" ? value.replace(":", ".") : value;
 }
 
-export function formatWeekday(iso: string) {
-  return weekdayLong.format(new Date(iso));
+export function formatDate(iso: string, locale: Locale = PLATFORM_LOCALE) {
+  return format(locale, "dayMonth", iso);
 }
 
-const weekdayOnly = new Intl.DateTimeFormat(nb, {
-  weekday: "long",
-  timeZone: "Europe/Oslo",
-});
+export function formatFullDate(iso: string, locale: Locale = PLATFORM_LOCALE) {
+  return format(locale, "dayMonthYear", iso);
+}
+
+export function formatWeekday(iso: string, locale: Locale = PLATFORM_LOCALE) {
+  return format(locale, "weekdayLong", iso);
+}
 
 /** `{ day: "26", month: "sep", weekday: "lørdag" }` for the date blocks on event cards. */
-export function formatDateParts(iso: string) {
-  const date = new Date(iso);
+export function formatDateParts(iso: string, locale: Locale = PLATFORM_LOCALE) {
   return {
-    day: dayNumber.format(date),
-    month: shortMonth.format(date).replace(".", ""),
-    weekday: weekdayOnly.format(date),
+    day: format(locale, "dayNumber", iso),
+    month: format(locale, "shortMonth", iso).replace(".", ""),
+    weekday: format(locale, "weekdayOnly", iso),
   };
 }
 
 /** "26. september, 19.00–01.00" — collapses same-day ranges. */
-export function formatEventRange(startsAt: string, endsAt: string) {
-  const head = `${formatWeekday(startsAt)}, ${formatTime(startsAt)}`;
+export function formatEventRange(startsAt: string, endsAt: string, locale: Locale = PLATFORM_LOCALE) {
+  const head = `${formatWeekday(startsAt, locale)}, ${formatTime(startsAt, locale)}`;
   return isSameDay(startsAt, endsAt)
-    ? `${head}–${formatTime(endsAt)}`
-    : `${head} – ${formatDate(endsAt)} ${formatTime(endsAt)}`;
+    ? `${head}–${formatTime(endsAt, locale)}`
+    : `${head} – ${formatDate(endsAt, locale)} ${formatTime(endsAt, locale)}`;
 }
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-/** Norwegian relative time, past tense: "for 3 timer siden". */
-export function timeAgo(iso: string) {
+/** Relative time, past tense: "for 3 timer siden" / "3 hours ago". */
+export function timeAgo(iso: string, locale: Locale = PLATFORM_LOCALE) {
   const diff = now() - Date.parse(iso);
-  if (diff < MINUTE) return "nå nettopp";
-  if (diff < HOUR) {
-    const minutes = Math.round(diff / MINUTE);
-    return `for ${minutes} ${minutes === 1 ? "minutt" : "minutter"} siden`;
-  }
-  if (diff < DAY) {
-    const hours = Math.round(diff / HOUR);
-    return `for ${hours} ${hours === 1 ? "time" : "timer"} siden`;
-  }
+  if (diff < MINUTE) return t(locale, "time.justNow");
+  if (diff < HOUR) return tn(locale, "time.minutesAgo", Math.round(diff / MINUTE));
+  if (diff < DAY) return tn(locale, "time.hoursAgo", Math.round(diff / HOUR));
   const days = Math.round(diff / DAY);
-  if (days === 1) return "i går";
-  if (days < 7) return `for ${days} dager siden`;
-  if (days < 30) {
-    const weeks = Math.round(days / 7);
-    return `for ${weeks} ${weeks === 1 ? "uke" : "uker"} siden`;
-  }
-  return formatFullDate(iso);
+  if (days === 1) return t(locale, "time.yesterday");
+  if (days < 7) return tn(locale, "time.daysAgo", days);
+  if (days < 30) return tn(locale, "time.weeksAgo", Math.round(days / 7));
+  return formatFullDate(iso, locale);
 }
 
-/** Future-facing counterpart: "om 3 dager". */
-export function timeUntil(iso: string) {
+/** Future-facing counterpart: "om 3 dager" / "in 3 days". */
+export function timeUntil(iso: string, locale: Locale = PLATFORM_LOCALE) {
   const diff = Date.parse(iso) - now();
-  if (diff < 0) return "pågår nå";
-  if (diff < HOUR) return `om ${Math.max(1, Math.round(diff / MINUTE))} minutter`;
-  if (diff < DAY) {
-    const hours = Math.round(diff / HOUR);
-    return `om ${hours} ${hours === 1 ? "time" : "timer"}`;
-  }
+  if (diff < 0) return t(locale, "time.ongoing");
+  if (diff < HOUR) return tn(locale, "time.inMinutes", Math.max(1, Math.round(diff / MINUTE)));
+  if (diff < DAY) return tn(locale, "time.inHours", Math.round(diff / HOUR));
   const days = Math.round(diff / DAY);
-  if (days === 1) return "i morgen";
-  if (days < 14) return `om ${days} dager`;
-  const weeks = Math.round(days / 7);
-  return `om ${weeks} uker`;
+  if (days === 1) return t(locale, "time.tomorrow");
+  if (days < 14) return tn(locale, "time.inDays", days);
+  return tn(locale, "time.inWeeks", Math.round(days / 7));
 }
 
 /** Date heading used to separate days in a channel. */
-export function dayHeading(iso: string) {
+export function dayHeading(iso: string, locale: Locale = PLATFORM_LOCALE) {
   const days = Math.round(
     (Date.parse(`${dayKey(new Date(now()))}T00:00:00Z`) -
       Date.parse(`${dayKey(iso)}T00:00:00Z`)) /
       DAY,
   );
-  if (days === 0) return "I dag";
-  if (days === 1) return "I går";
-  return formatFullDate(iso);
+  if (days === 0) return t(locale, "time.today");
+  if (days === 1) return t(locale, "time.yesterdayHeading");
+  return formatFullDate(iso, locale);
 }
 
 export function isSameDay(a: string, b: string) {

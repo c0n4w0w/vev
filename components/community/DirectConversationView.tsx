@@ -7,6 +7,7 @@ import { IconArrowLeft, IconSend } from "@/components/ui/icons";
 import { createDirectMessageAction } from "@/app/actions";
 import { emptyDirectMessageFormState } from "@/lib/direct-message-form";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n/react";
 import type { Community, CommunityPersona, DirectConversation } from "@/lib/types";
 
 export function DirectConversationView({
@@ -19,6 +20,8 @@ export function DirectConversationView({
   /** The viewer as they appear in this conversation's community. */
   currentUser: CommunityPersona;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [messages, setMessages] = useState(conversation.messages);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | undefined>(undefined);
@@ -83,7 +86,7 @@ export function DirectConversationView({
           <Link
             href={`/community/${community.id}/messages`}
             className="-ml-1 rounded-[5px] p-1.5 text-ink-3 transition-colors hover:bg-paper-2 hover:text-ink"
-            aria-label="Tilbake til meldinger"
+            aria-label={t("dm.back")}
           >
             <IconArrowLeft size={18} />
           </Link>
@@ -102,11 +105,10 @@ export function DirectConversationView({
           {messages.length === 0 ? (
             <div className="rounded-[6px] border border-dashed border-line-2 bg-surface/60 px-6 py-12 text-center">
               <h2 className="font-display text-lg text-ink">
-                Start samtalen med {conversation.otherParticipant.name}
+                {t("dm.startWith", { name: conversation.otherParticipant.name })}
               </h2>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-2">
-                Meldingen lagres i {community.name} og er bare synlig for dere to så lenge dere
-                har tilgang til fellesskapet.
+                {t("dm.storedIn", { name: community.name })}
               </p>
             </div>
           ) : (
@@ -126,7 +128,7 @@ export function DirectConversationView({
                     {newDay ? (
                       <div className="flex items-center gap-3 pb-3 pt-6 first:pt-0">
                         <span className="h-px flex-1 bg-line" />
-                        <span className="label">{dayHeading(message.createdAt)}</span>
+                        <span className="label">{dayHeading(message.createdAt, locale)}</span>
                         <span className="h-px flex-1 bg-line" />
                       </div>
                     ) : null}
@@ -146,7 +148,7 @@ export function DirectConversationView({
                               mine && "text-right",
                             )}
                           >
-                            {formatTime(message.createdAt)}
+                            {formatTime(message.createdAt, locale)}
                           </span>
                         ) : author ? (
                           <Avatar user={author} size="sm" />
@@ -162,10 +164,10 @@ export function DirectConversationView({
                             )}
                           >
                             <span className="text-sm font-medium text-ink">
-                              {author?.name ?? "Ukjent"}
+                              {author?.name ?? t("common.unknown")}
                             </span>
                             <span className="text-[11px] text-ink-3">
-                              {formatTime(message.createdAt)}
+                              {formatTime(message.createdAt, locale)}
                             </span>
                           </p>
                         ) : null}
@@ -212,14 +214,14 @@ export function DirectConversationView({
                   send();
                 }
               }}
-              placeholder={`Skriv til ${conversation.otherParticipant.name}`}
+              placeholder={t("dm.placeholder", { name: conversation.otherParticipant.name })}
               className="max-h-44 min-h-[2.25rem] flex-1 resize-none bg-transparent py-2 text-[0.9375rem] leading-6 text-ink outline-none placeholder:text-ink-3"
             />
             <button
               type="button"
               onClick={send}
               disabled={!draft.trim() || pending}
-              aria-label="Send melding"
+              aria-label={t("channel.send")}
               className="mb-0.5 rounded-[5px] p-2 text-white transition-opacity disabled:opacity-30"
               style={{ backgroundColor: community.branding.accent }}
             >
@@ -232,7 +234,7 @@ export function DirectConversationView({
             </p>
           ) : null}
           <p className="mt-2 text-[11px] text-ink-3">
-            Direkte meldinger er beskyttet av tilgangskontroll i TING. De er ikke ende-til-ende-kryptert.
+            {t("dm.notice")}
           </p>
         </div>
       </div>

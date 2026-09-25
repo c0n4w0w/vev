@@ -6,6 +6,7 @@ import { CommentThread } from "@/components/community/CommentThread";
 import { PostActions } from "@/components/community/PostActions";
 import { ReactionBar } from "@/components/community/ReactionBar";
 import { timeAgo } from "@/lib/format";
+import { communityLocale, tn, translator, type Locale } from "@/lib/i18n";
 import type { Comment, Community, CommunityEmoji, CommunityPersona, Post, RoleId } from "@/lib/types";
 
 function Reactions({ reactions }: { reactions: Post["reactions"] }) {
@@ -35,6 +36,7 @@ export function PostCard({
   comments = [],
   commentAuthors = {},
   customEmojis = [],
+  locale: localeOverride,
 }: {
   post: Post;
   author: CommunityPersona;
@@ -50,7 +52,15 @@ export function PostCard({
   commentAuthors?: Record<string, CommunityPersona>;
   /** This community's own custom emojis. Never another community's. */
   customEmojis?: CommunityEmoji[];
+  /**
+   * The language of the screen this card sits on. Defaults to the post's own
+   * community; a page in another language (the home feed) passes its own so a
+   * card never switches language halfway down the page.
+   */
+  locale?: Locale;
 }) {
+  const locale = localeOverride ?? communityLocale(community);
+  const t = translator(locale);
   const isAnnouncement = post.kind === "announcement";
   const isAuthor = viewer !== undefined && viewer.id === post.authorId;
   const canModerate = viewerRole === "admin" || viewerRole === "moderator";
@@ -79,22 +89,22 @@ export function PostCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-sm font-medium text-ink">{author.name}</span>
-            <span className="text-xs text-ink-3">{timeAgo(post.createdAt)}</span>
+            <span className="text-xs text-ink-3">{timeAgo(post.createdAt, locale)}</span>
             {post.editedAt ? (
-              <span className="text-xs text-ink-3" title={`Endret ${timeAgo(post.editedAt)}`}>
-                · endret
+              <span className="text-xs text-ink-3" title={t("post.editedAt", { time: timeAgo(post.editedAt, locale) })}>
+                · {t("common.edited")}
               </span>
             ) : null}
             {isAnnouncement ? (
               <Badge tone="rust">
                 <IconMegaphone size={11} />
-                Kunngjøring
+                {t("post.announcement")}
               </Badge>
             ) : null}
             {post.pinned ? (
               <Badge tone="neutral">
                 <IconPin size={11} />
-                Festet
+                {t("post.pinned")}
               </Badge>
             ) : null}
           </div>
@@ -119,7 +129,7 @@ export function PostCard({
               <>
                 <Reactions reactions={post.reactions} />
                 <span className="text-xs text-ink-3">
-                  {post.commentCount} {post.commentCount === 1 ? "kommentar" : "kommentarer"}
+                  {tn(locale, "count.comments", post.commentCount)}
                 </span>
               </>
             )}

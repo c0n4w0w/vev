@@ -23,7 +23,7 @@ import {
   getOrganizationPersonDmActions,
   type LinkedCrewMemberDetails,
 } from "@/lib/data";
-import { plural } from "@/lib/format";
+import { communityLocale, communityTranslator, tn, translator, type Locale } from "@/lib/i18n";
 import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 import type { CommunityPerson, CommunityPersonSection } from "@/lib/types";
@@ -32,26 +32,29 @@ export async function generateMetadata({ params }: PageProps<"/community/[commun
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
   const people = community ? await getCommunityPeople(community.id) : [];
-  const title = people.length > 0 && community?.id !== "under-the-rug" ? "Organisasjonen" : "Medlemmer";
-  return { title: `${title} · ${community?.name ?? "Fellesskap"}` };
+  const t = communityTranslator(community);
+  const title =
+    people.length > 0 && community?.id !== "under-the-rug"
+      ? t("members.organizationTitle")
+      : t("members.title");
+  return { title: `${title} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
-const organizationSections: { id: CommunityPersonSection; title: string }[] = [
-  { id: "staff", title: "Ansatte" },
-  { id: "board", title: "Sentralstyret" },
-  { id: "local_group_leader", title: "Lokallagsledere" },
-];
+const organizationSections = [
+  { id: "staff", title: "members.section.staff" },
+  { id: "board", title: "members.section.board" },
+  { id: "local_group_leader", title: "members.section.localGroupLeaders" },
+] as const satisfies { id: CommunityPersonSection; title: string }[];
 
-function GeneralContactBlock({ email }: { email: string }) {
+function GeneralContactBlock({ email, locale }: { email: string; locale: Locale }) {
+  const t = translator(locale);
   return (
     <Panel className="mb-8 flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-ink-3">
-          Generell kontakt
+          {t("members.contact.title")}
         </p>
-        <p className="mt-1 text-[13px] text-ink-2">
-          For spørsmål som ikke gjelder én bestemt person.
-        </p>
+        <p className="mt-1 text-[13px] text-ink-2">{t("members.contact.body")}</p>
       </div>
       <a href={`mailto:${email}`} className="text-[13px] font-medium text-fjord hover:text-ink">
         {email}
@@ -80,7 +83,9 @@ function OrganizationRows({
   dmActions,
   leaders = false,
   linkedDetails,
+  locale,
 }: {
+  locale: Locale;
   title: string;
   people: CommunityPerson[];
   communityId: string;
@@ -110,6 +115,7 @@ function OrganizationRows({
                   ? { communityId, conversationId: dmActions.get(person.id) }
                   : undefined
               }
+              locale={locale}
               linkedTitle={linkedTitleFor(person.role, details?.title)}
               bio={details?.bio}
               location={details?.location}
@@ -126,16 +132,18 @@ function FlatMemberDirectory({
   userId,
   communityId,
   dmActions,
+  locale,
 }: {
   members: CommunityMember[];
   userId: string;
   communityId: string;
   dmActions: Map<string, string | undefined>;
+  locale: Locale;
 }) {
   if (members.length === 0) {
     return (
       <Panel className="p-4 text-[13px] text-ink-3">
-        Ingen synlige TING-medlemmer ennå.
+        {translator(locale)("members.noneVisible")}
       </Panel>
     );
   }
@@ -149,6 +157,7 @@ function FlatMemberDirectory({
           userId={userId}
           communityId={communityId}
           dmActions={dmActions}
+          locale={locale}
           showJoinedDate={false}
         />
       ))}
@@ -165,6 +174,8 @@ export default async function MembersPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
+  const locale = communityLocale(community);
+  const t = translator(locale);
 
   const [membership, canViewDirectory, organizationPeople] = await Promise.all([
     getMembership(user.id, community.id),
@@ -197,13 +208,14 @@ export default async function MembersPage({
       <PageContainer>
         <PageHeader
           eyebrow={community.name}
-          title="Medlemmer"
-          lead="Crew er offentlige roller i kollektivet. Medlemmer er faktiske TING-medlemskap."
+          title={t("members.title")}
+          lead={t("members.crewLead")}
         />
 
         <div className="space-y-10">
           <OrganizationRows
-            title="CREW"
+            locale={locale}
+            title={t("members.section.crew")}
             people={crew}
             communityId={community.id}
             dmActions={organizationDmActions}
@@ -212,20 +224,20 @@ export default async function MembersPage({
 
           {canViewDirectory ? (
             <section>
-              <SectionHeading>MEDLEMMER</SectionHeading>
+              <SectionHeading>{t("members.section.members")}</SectionHeading>
               <FlatMemberDirectory
                 members={members}
                 userId={user.id}
                 communityId={community.id}
                 dmActions={memberDmActions}
+                locale={locale}
               />
             </section>
           ) : (
             <Panel className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
               <IconLock size={20} className="mt-0.5 shrink-0 text-skog" />
               <p className="max-w-2xl text-[13px] leading-relaxed text-ink-2">
-                Medlemslisten i {community.name} er privat. Crew-listen viser offentlige
-                roller og er ikke det samme som TING-medlemskap.
+                {t("members.crewPrivate", { name: community.name })}
               </p>
             </Panel>
           )}
@@ -241,12 +253,12 @@ export default async function MembersPage({
       <PageContainer>
         <PageHeader
           eyebrow={community.name}
-          title="Organisasjonen"
-          lead="Offentlig kontaktinformasjon fra organisasjonen. Dette er ikke medlemslisten i TING."
+          title={t("members.organizationTitle")}
+          lead={t("members.organizationLead")}
         />
 
         {community.id === "tryggere-ungdom" ? (
-          <GeneralContactBlock email="tryggereungdom@gmail.com" />
+          <GeneralContactBlock email="tryggereungdom@gmail.com" locale={locale} />
         ) : null}
 
         <div className="space-y-10">
@@ -255,7 +267,8 @@ export default async function MembersPage({
             return (
               <OrganizationRows
                 key={section.id}
-                title={section.title}
+                locale={locale}
+                title={t(section.title)}
                 people={people}
                 communityId={community.id}
                 dmActions={organizationDmActions}
@@ -268,9 +281,7 @@ export default async function MembersPage({
         <Panel className="mt-10 flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
           <IconLock size={20} className="mt-0.5 shrink-0 text-skog" />
           <p className="max-w-2xl text-[13px] leading-relaxed text-ink-2">
-            Medlemslisten i {community.name} er privat. Organisasjonsoversikten her er en
-            separat, offentlig kontaktliste og viser ikke TING-medlemskap, roller,
-            lokallagstilhørighet eller profilinformasjon.
+            {t("members.organizationPrivate", { name: community.name })}
           </p>
         </Panel>
       </PageContainer>
@@ -283,10 +294,10 @@ export default async function MembersPage({
   if (!canViewDirectory) {
     return (
       <PageContainer>
-        <PageHeader eyebrow={community.name} title="Medlemmer" />
+        <PageHeader eyebrow={community.name} title={t("members.title")} />
         <EmptyState
-          title="Medlemslisten er ikke åpen her"
-          body={`${community.name} har valgt at bare administratorer kan se hvem som er medlem. Du ser fortsatt navnet på dem som skriver innlegg, kommentarer og meldinger du har tilgang til.`}
+          title={t("members.closed.title")}
+          body={t("members.closed.body", { name: community.name })}
         />
       </PageContainer>
     );
@@ -301,12 +312,15 @@ export default async function MembersPage({
     <PageContainer>
       <PageHeader
         eyebrow={community.name}
-        title="Medlemmer"
-        lead={`${plural(members.length, "aktiv profil", "aktive profiler")} i dette rommet, av totalt ${community.memberCount} registrerte medlemmer i organisasjonen.`}
+        title={t("members.title")}
+        lead={t("members.flatLead", {
+          profiles: tn(locale, "members.activeProfiles", members.length),
+          total: community.memberCount,
+        })}
         action={
           isAdmin ? (
             <ButtonLink href={`/community/${community.id}/requests`} size="sm" variant="secondary">
-              Medlemsforespørsler
+              {t("members.requestsButton")}
             </ButtonLink>
           ) : undefined
         }
@@ -317,6 +331,7 @@ export default async function MembersPage({
         userId={user.id}
         communityId={community.id}
         dmActions={memberDmActions}
+        locale={locale}
       />
 
       <Panel className="mt-10 flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
@@ -327,8 +342,8 @@ export default async function MembersPage({
         )}
         <p className="max-w-2xl text-[13px] leading-relaxed text-ink-2">
           {isAdmin
-            ? `Som administrator i ${community.name} kan du invitere nye medlemmer, behandle forespørsler og endre roller. Medlemslisten deles aldri utenfor fellesskapet.`
-            : `Medlemslisten er kun synlig for medlemmer av ${community.name}, og vises verken på den offentlige siden eller andre steder på TING.`}
+            ? t("members.noteAdmin", { name: community.name })
+            : t("members.noteMember", { name: community.name })}
         </p>
       </Panel>
     </PageContainer>

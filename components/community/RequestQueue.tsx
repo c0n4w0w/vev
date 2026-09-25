@@ -11,6 +11,8 @@ import { emptyAccessFormState } from "@/lib/access-form";
 import { Badge, EmptyState, Panel } from "@/components/ui/primitives";
 import { IconMail } from "@/components/ui/icons";
 import { formatFullDate, timeUntil } from "@/lib/format";
+import { tn, type MessageKey } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/react";
 import type { AccessRequest, AccessRequestResolution, CommunityInvitation } from "@/lib/data";
 
 function Submit({ label, pendingLabel, className, style }: {
@@ -36,6 +38,8 @@ function RequestRow({
   communityId: string;
   accent: string;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [approveState, approve] = useActionState(approveRequestAction, emptyAccessFormState);
   const [rejectState, reject] = useActionState(rejectRequestAction, emptyAccessFormState);
   const [confirmingReject, setConfirmingReject] = useState(false);
@@ -49,7 +53,7 @@ function RequestRow({
         ) : null}
         <p className="break-all font-mono text-[13px] text-ink-2">{request.email}</p>
         <p className="mt-0.5 text-[11px] text-ink-3">
-          Sendt {formatFullDate(request.createdAt)}
+          {t("requests.sent", { date: formatFullDate(request.createdAt, locale) })}
         </p>
         {state.status !== "idle" && state.message ? (
           <p
@@ -67,7 +71,7 @@ function RequestRow({
             <input type="hidden" name="requestId" value={request.id} />
             <input type="hidden" name="communityId" value={communityId} />
             <Submit
-              label="Ja, avslå"
+              label={t("requests.rejectYes")}
               pendingLabel="…"
               className="h-9 rounded-[5px] px-3 text-sm font-medium text-rust transition-opacity hover:opacity-70"
             />
@@ -76,7 +80,7 @@ function RequestRow({
               onClick={() => setConfirmingReject(false)}
               className="h-9 px-2 text-sm text-ink-3 transition-colors hover:text-ink"
             >
-              Avbryt
+              {t("common.cancel")}
             </button>
           </form>
         ) : (
@@ -86,14 +90,14 @@ function RequestRow({
               onClick={() => setConfirmingReject(true)}
               className="h-9 rounded-[5px] border border-line-2 bg-surface px-3 text-sm text-ink-2 transition-colors hover:bg-paper-2"
             >
-              Avslå
+              {t("requests.reject")}
             </button>
             <form action={approve}>
               <input type="hidden" name="requestId" value={request.id} />
               <input type="hidden" name="communityId" value={communityId} />
               <Submit
-                label="Godkjenn"
-                pendingLabel="Sender …"
+                label={t("requests.approve")}
+                pendingLabel={t("common.sending")}
                 className="h-9 rounded-[5px] px-4 text-sm font-medium text-white transition-opacity disabled:opacity-40"
                 style={{ backgroundColor: accent }}
               />
@@ -112,6 +116,8 @@ function InvitationRow({
   invitation: CommunityInvitation;
   communityId: string;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [state, resend] = useActionState(resendInvitationAction, emptyAccessFormState);
   // Server-decided; the browser's clock has no say in whether a token is live.
   const expired = invitation.expired;
@@ -121,8 +127,10 @@ function InvitationRow({
       <div className="min-w-0 flex-1">
         <p className="break-all font-mono text-[13px] text-ink-2">{invitation.email}</p>
         <p className="mt-0.5 text-[11px] text-ink-3">
-          {expired ? "Utløpt" : `Utløper ${timeUntil(invitation.expiresAt)}`} · sendt{" "}
-          {formatFullDate(invitation.createdAt)}
+          {expired
+            ? t("requests.expired")
+            : t("requests.expires", { when: timeUntil(invitation.expiresAt, locale) })}{" "}
+          · {t("requests.sentLower", { date: formatFullDate(invitation.createdAt, locale) })}
         </p>
         {state.status !== "idle" && state.message ? (
           <p
@@ -134,13 +142,17 @@ function InvitationRow({
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {expired ? <Badge tone="rust">Utløpt</Badge> : <Badge tone="neutral">Venter</Badge>}
+        {expired ? (
+          <Badge tone="rust">{t("requests.expired")}</Badge>
+        ) : (
+          <Badge tone="neutral">{t("requests.pending")}</Badge>
+        )}
         <form action={resend}>
           <input type="hidden" name="invitationId" value={invitation.id} />
           <input type="hidden" name="communityId" value={communityId} />
           <Submit
-            label="Send på nytt"
-            pendingLabel="Sender …"
+            label={t("requests.resend")}
+            pendingLabel={t("common.sending")}
             className="h-8 rounded-[5px] border border-line-2 bg-surface px-3 text-[13px] text-ink-2 transition-colors hover:bg-paper-2"
           />
         </form>
@@ -149,15 +161,20 @@ function InvitationRow({
   );
 }
 
-const RESOLUTION_LABEL: Record<AccessRequestResolution["resolution"], { text: string; tone: "skog" | "neutral" | "rust" }> = {
-  activated: { text: "Aktivt medlem", tone: "skog" },
-  invitation_accepted: { text: "Aktivt medlem", tone: "skog" },
-  invitation_pending: { text: "Venter på innlogging", tone: "neutral" },
-  invitation_expired: { text: "Lenken er utløpt", tone: "rust" },
-  rejected: { text: "Avslått", tone: "rust" },
+const RESOLUTION_LABEL: Record<
+  AccessRequestResolution["resolution"],
+  { text: MessageKey; tone: "skog" | "neutral" | "rust" }
+> = {
+  activated: { text: "requests.status.active", tone: "skog" },
+  invitation_accepted: { text: "requests.status.active", tone: "skog" },
+  invitation_pending: { text: "requests.status.awaitingLogin", tone: "neutral" },
+  invitation_expired: { text: "requests.status.linkExpired", tone: "rust" },
+  rejected: { text: "requests.status.rejected", tone: "rust" },
 };
 
 function HistoryRow({ entry }: { entry: AccessRequestResolution }) {
+  const t = useT();
+  const locale = useLocale();
   const { text, tone } = RESOLUTION_LABEL[entry.resolution];
   return (
     <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
@@ -167,11 +184,13 @@ function HistoryRow({ entry }: { entry: AccessRequestResolution }) {
         ) : null}
         <p className="break-all font-mono text-[13px] text-ink-2">{entry.email}</p>
         <p className="mt-0.5 text-[11px] text-ink-3">
-          {entry.reviewedAt ? `Behandlet ${formatFullDate(entry.reviewedAt)}` : null}
+          {entry.reviewedAt
+            ? t("requests.reviewed", { date: formatFullDate(entry.reviewedAt, locale) })
+            : null}
         </p>
       </div>
       <div className="shrink-0">
-        <Badge tone={tone}>{text}</Badge>
+        <Badge tone={tone}>{t(text)}</Badge>
       </div>
     </div>
   );
@@ -198,19 +217,21 @@ export function RequestQueue({
   history: AccessRequestResolution[];
   accent: string;
 }) {
+  const t = useT();
+  const locale = useLocale();
   return (
     <div className="space-y-10">
       <section>
         <h2 className="label mb-3">
           {requests.length === 0
-            ? "Ingen forespørsler"
-            : `${requests.length} ${requests.length === 1 ? "forespørsel" : "forespørsler"} venter`}
+            ? t("requests.noneHeading")
+            : tn(locale, "requests.waiting", requests.length)}
         </h2>
 
         {requests.length === 0 ? (
           <EmptyState
-            title="Ingen ventende forespørsler"
-            body="Når noen ber om tilgang fra den offentlige siden, havner de her. Godkjenner du, blir noen med en TING-konto fra før medlem med det samme — andre får en lenke på e-post for å logge inn eller opprette konto."
+            title={t("requests.empty.title")}
+            body={t("requests.empty.body")}
           />
         ) : (
           <Panel className="divide-y divide-line">
@@ -227,9 +248,9 @@ export function RequestQueue({
       </section>
 
       <section>
-        <h2 className="label mb-3">Utsendte invitasjoner</h2>
+        <h2 className="label mb-3">{t("requests.invitations")}</h2>
         {invitations.length === 0 ? (
-          <p className="text-sm text-ink-3">Ingen invitasjoner venter på å bli tatt i bruk.</p>
+          <p className="text-sm text-ink-3">{t("requests.noInvitations")}</p>
         ) : (
           <Panel className="divide-y divide-line">
             {invitations.map((invitation) => (
@@ -243,14 +264,13 @@ export function RequestQueue({
         )}
         <p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-ink-3">
           <IconMail size={13} className="mt-px shrink-0" />
-          En invitasjon gjelder én e-postadresse, ett fellesskap og én gang. Sender du på nytt,
-          slutter den forrige lenken å virke.
+          {t("requests.invitationNote")}
         </p>
       </section>
 
       {history.length > 0 ? (
         <section>
-          <h2 className="label mb-3">Nylig behandlet</h2>
+          <h2 className="label mb-3">{t("requests.recent")}</h2>
           <Panel className="divide-y divide-line">
             {history.map((entry) => (
               <HistoryRow key={entry.id} entry={entry} />

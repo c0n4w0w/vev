@@ -33,14 +33,15 @@ import {
   getCommunityPersonas,
 } from "@/lib/data";
 import { PUBLIC_HOST } from "@/lib/brand";
-import { plural, timeAgo } from "@/lib/format";
+import { timeAgo } from "@/lib/format";
+import { communityLocale, communityTranslator, tn, translator } from "@/lib/i18n";
 import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  return { title: community?.name ?? "Fellesskap" };
+  return { title: community?.name ?? communityTranslator(community)("common.communityFallback") };
 }
 
 export default async function CommunityOverviewPage({
@@ -52,6 +53,8 @@ export default async function CommunityOverviewPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
+  const locale = communityLocale(community);
+  const t = translator(locale);
 
   const [membership, members, announcements, allPosts, upcoming, groups] = await Promise.all([
     getMembership(user.id, community.id),
@@ -104,10 +107,10 @@ export default async function CommunityOverviewPage({
                 <Badge tone="neutral">
                   <IconLock size={11} />
                   {community.accessPolicy === "invite-only"
-                    ? "Lukket · kun ved invitasjon"
-                    : "Lukket · tar imot søknader"}
+                    ? t("overview.access.inviteOnly")
+                    : t("overview.access.requests")}
                 </Badge>
-                {membership ? <ElevatedRoleBadge role={membership.role} /> : null}
+                {membership ? <ElevatedRoleBadge role={membership.role} locale={locale} /> : null}
                 {membershipTitle ? <Badge tone="outline">{membershipTitle}</Badge> : null}
               </div>
               <h1 className="mt-3 font-display text-[2rem] leading-tight text-ink sm:text-[2.5rem]">
@@ -116,17 +119,17 @@ export default async function CommunityOverviewPage({
               <p className="mt-1.5 text-[0.9375rem] text-ink-2">{community.tagline}</p>
               <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-ink-2">
                 <div className="flex items-center gap-1.5">
-                  <dt className="sr-only">Sted</dt>
+                  <dt className="sr-only">{t("overview.location")}</dt>
                   <IconMapPin size={14} className="text-ink-3" />
                   <dd>{community.location}</dd>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <dt className="sr-only">Medlemmer</dt>
+                  <dt className="sr-only">{t("overview.members")}</dt>
                   <IconUsers size={14} className="text-ink-3" />
-                  <dd>{plural(community.memberCount, "medlem", "medlemmer")}</dd>
+                  <dd>{tn(locale, "count.members", community.memberCount)}</dd>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <dt className="sr-only">Offentlig portal</dt>
+                  <dt className="sr-only">{t("overview.publicPortal")}</dt>
                   <IconGlobe size={14} className="text-ink-3" />
                   <dd>
                     <Link
@@ -138,8 +141,8 @@ export default async function CommunityOverviewPage({
                   </dd>
                 </div>
                 <div>
-                  <dt className="sr-only">Stiftet</dt>
-                  <dd>Siden {community.foundedYear}</dd>
+                  <dt className="sr-only">{t("overview.founded")}</dt>
+                  <dd>{t("overview.since", { year: community.foundedYear })}</dd>
                 </div>
               </dl>
             </div>
@@ -161,7 +164,7 @@ export default async function CommunityOverviewPage({
         <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12">
           <div className="space-y-10">
             <section>
-              <SectionHeading>Om fellesskapet</SectionHeading>
+              <SectionHeading>{t("overview.about")}</SectionHeading>
               <Panel className="p-5 sm:p-6">
                 <RichText body={community.about} />
               </Panel>
@@ -175,12 +178,12 @@ export default async function CommunityOverviewPage({
                       href={`/community/${community.id}/feed`}
                       className="inline-flex items-center gap-1 text-xs text-ink-2 transition-colors hover:text-ink"
                     >
-                      Åpne feeden
+                      {t("overview.openFeed")}
                       <IconArrowRight size={13} />
                     </Link>
                   }
                 >
-                  Festet kunngjøring
+                  {t("overview.pinnedAnnouncement")}
                 </SectionHeading>
                 <PostCard
                   post={pinned}
@@ -197,12 +200,12 @@ export default async function CommunityOverviewPage({
                     href={`/community/${community.id}/feed`}
                     className="inline-flex items-center gap-1 text-xs text-ink-2 transition-colors hover:text-ink"
                   >
-                    Hele feeden
+                    {t("overview.fullFeed")}
                     <IconArrowRight size={13} />
                   </Link>
                 }
               >
-                Siste aktivitet
+                {t("overview.recentActivity")}
               </SectionHeading>
               <div className="space-y-4">
                 {feed.map((post) => (
@@ -225,14 +228,14 @@ export default async function CommunityOverviewPage({
                     href={`/community/${community.id}/events`}
                     className="text-xs text-ink-2 transition-colors hover:text-ink"
                   >
-                    Alle
+                    {t("common.all")}
                   </Link>
                 }
               >
-                Neste arrangementer
+                {t("overview.upcomingEvents")}
               </SectionHeading>
               {events.length === 0 ? (
-                <p className="text-sm text-ink-3">Ingenting planlagt akkurat nå.</p>
+                <p className="text-sm text-ink-3">{t("overview.nothingPlanned")}</p>
               ) : (
                 <div className="space-y-3">
                   {events.map((event) => (
@@ -250,7 +253,7 @@ export default async function CommunityOverviewPage({
             </section>
 
             <section>
-              <SectionHeading>Kanaler</SectionHeading>
+              <SectionHeading>{t("overview.channels")}</SectionHeading>
               <Panel className="divide-y divide-line">
                 {groups.flatMap(({ channels }) =>
                   channels.map((channel) => {
@@ -268,7 +271,7 @@ export default async function CommunityOverviewPage({
                           </span>
                           {latestAt ? (
                             <span className="ml-auto shrink-0 text-[11px] text-ink-3">
-                              {timeAgo(latestAt)}
+                              {timeAgo(latestAt, locale)}
                             </span>
                           ) : null}
                         </span>
@@ -295,11 +298,11 @@ export default async function CommunityOverviewPage({
                     href={`/community/${community.id}/members`}
                     className="text-xs text-ink-2 transition-colors hover:text-ink"
                   >
-                    Alle
+                    {t("common.all")}
                   </Link>
                 }
               >
-                Kontaktpersoner
+                {t("overview.contacts")}
               </SectionHeading>
               <Panel className="divide-y divide-line">
                 {leaders.map(({ persona: person, membership: personMembership }) => (
@@ -327,8 +330,10 @@ export default async function CommunityOverviewPage({
               )}
             >
               <IconLock size={13} className="mt-px shrink-0" />
-              Innholdet her er kun synlig for medlemmer. Den offentlige siden på {PUBLIC_HOST}/
-              {community.slug} viser bare det {community.name} selv velger å dele.
+              {t("overview.privacyNote", {
+                url: `${PUBLIC_HOST}/${community.slug}`,
+                name: community.name,
+              })}
             </p>
           </aside>
         </div>

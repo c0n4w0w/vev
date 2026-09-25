@@ -1,4 +1,6 @@
 import { getEmailProvider, type EmailResult } from "@/lib/email/provider";
+import { formatFullDate } from "@/lib/format";
+import { PLATFORM_LOCALE, translator, type Locale } from "@/lib/i18n";
 
 /**
  * The claim-link email.
@@ -28,6 +30,12 @@ export interface InvitationEmailInput {
   expiresAt: string;
   /** The community's accent, used sparingly so the mail looks like theirs. */
   accent: string;
+  /**
+   * The language the message is written in: the community's own, since the
+   * mail is about that one community. The wording lives in the shared
+   * dictionaries (`email.invitation.*`).
+   */
+  locale?: Locale;
 }
 
 function escapeHtml(value: string): string {
@@ -39,70 +47,58 @@ function escapeHtml(value: string): string {
 }
 
 export function buildInvitationEmail(input: InvitationEmailInput) {
-  const expires = new Intl.DateTimeFormat("nb-NO", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/Oslo",
-  }).format(new Date(input.expiresAt));
+  const locale = input.locale ?? PLATFORM_LOCALE;
+  const t = translator(locale);
+  const community = input.communityName;
+  const expires = formatFullDate(input.expiresAt, locale);
 
-  const subject = `Tilgangen din til ${input.communityName} er godkjent`;
+  const subject = t("email.invitation.subject", { community });
 
   const text = [
-    `Tilgangen din til ${input.communityName} på TING er godkjent.`,
+    t("email.invitation.intro", { community }),
     "",
-    `En administrator i ${input.communityName} har godkjent forespørselen din om tilgang.`,
-    "Det som gjenstår er å logge inn — har du ingen TING-konto ennå, blir den",
-    "opprettet med det samme.",
+    t("email.invitation.body", { community }),
     "",
-    "Logg inn:",
+    t("email.invitation.loginLabel"),
     input.acceptUrl,
     "",
-    `Lenken virker fram til ${expires}, og kan bare brukes én gang.`,
+    t("email.invitation.expires", { date: expires }),
     "",
     "— — —",
     "",
-    "TING er en egen digital plattform som organisasjoner bruker til å drive",
-    `fellesskapet sitt. TING er ikke det samme som ${input.communityName}, og`,
-    "styrer ikke det formelle medlemskapet ditt i organisasjonen.",
+    t("email.invitation.about", { community }),
     "",
-    "Har du ikke bedt om dette, kan du se bort fra e-posten. Da skjer det",
-    "ingenting, og ingen konto blir opprettet.",
+    t("email.invitation.ignore"),
   ].join("\n");
 
   const html = `<!doctype html>
-<html lang="nb"><head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
+<html lang="${locale}"><head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
 <body style="margin:0;padding:32px 16px;background:#f6f4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#17191a;">
   <table role="presentation" style="max-width:520px;margin:0 auto;background:#fff;border:1px solid #e4e0d7;border-radius:6px;border-collapse:separate;">
     <tr><td style="height:4px;background:${escapeHtml(input.accent)};border-radius:6px 6px 0 0;"></td></tr>
     <tr><td style="padding:32px;">
-      <p style="margin:0 0 4px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#797e81;">Godkjent</p>
+      <p style="margin:0 0 4px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#797e81;">${escapeHtml(t("email.invitation.badge"))}</p>
       <h1 style="margin:0 0 16px;font-size:22px;line-height:1.25;font-weight:600;">
-        Tilgangen din til ${escapeHtml(input.communityName)} er godkjent
+        ${escapeHtml(subject)}
       </h1>
       <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#4c5153;">
-        En administrator i ${escapeHtml(input.communityName)} har godkjent forespørselen din om tilgang.
-        Det som gjenstår er å logge inn — har du ingen TING-konto ennå, blir den opprettet med det
-        samme.
+        ${escapeHtml(t("email.invitation.body", { community }))}
       </p>
       <p style="margin:0 0 24px;">
         <a href="${escapeHtml(input.acceptUrl)}"
            style="display:inline-block;background:${escapeHtml(input.accent)};color:#fff;text-decoration:none;padding:11px 20px;border-radius:5px;font-size:15px;font-weight:500;">
-          Logg inn og få tilgang
+          ${escapeHtml(t("email.invitation.button"))}
         </a>
       </p>
       <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:#797e81;">
-        Lenken virker fram til ${escapeHtml(expires)}, og kan bare brukes én gang.
+        ${escapeHtml(t("email.invitation.expires", { date: expires }))}
       </p>
       <hr style="border:0;border-top:1px solid #e4e0d7;margin:0 0 20px;">
       <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#797e81;">
-        TING er en egen digital plattform som organisasjoner bruker til å drive fellesskapet sitt.
-        TING er ikke det samme som ${escapeHtml(input.communityName)}, og styrer ikke det formelle
-        medlemskapet ditt i organisasjonen.
+        ${escapeHtml(t("email.invitation.about", { community }))}
       </p>
       <p style="margin:0;font-size:13px;line-height:1.6;color:#797e81;">
-        Har du ikke bedt om dette, kan du se bort fra e-posten. Da skjer det ingenting,
-        og ingen konto blir opprettet.
+        ${escapeHtml(t("email.invitation.ignore"))}
       </p>
     </td></tr>
   </table>

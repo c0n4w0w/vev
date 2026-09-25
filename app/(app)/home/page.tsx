@@ -27,6 +27,7 @@ import {
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
 import { publicMemberTitle } from "@/lib/roles";
+import { PLATFORM_LOCALE } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 import { PUBLIC_HOST } from "@/lib/brand";
 
@@ -35,6 +36,14 @@ export const metadata: Metadata = { title: "Hjem" };
 function greeting(name: string) {
   return `God ettermiddag, ${name.split(" ")[0]}`;
 }
+
+/**
+ * Account-level pages are in the platform's language for now, whichever
+ * community an item on them belongs to — a home feed that switched language
+ * from one card to the next would be unreadable. A user language preference
+ * would replace this with `resolveLocale({ user })`.
+ */
+const pageLocale = PLATFORM_LOCALE;
 
 export default async function HomePage() {
   const user = await getSessionUser();
@@ -135,6 +144,7 @@ export default async function HomePage() {
                     author={author}
                     community={community}
                     showCommunity
+                    locale={pageLocale}
                   />
                 );
               })}
@@ -157,6 +167,7 @@ export default async function HomePage() {
                       attending={event.attendeeIds.includes(user.id)}
                       variant="compact"
                       showCommunity
+                      locale={pageLocale}
                     />
                   ))}
                 </div>
@@ -181,7 +192,7 @@ export default async function HomePage() {
                         #{channel.name}
                       </span>
                       <span className="ml-auto shrink-0 text-[11px] text-ink-3">
-                        {timeAgo(latest.createdAt)}
+                        {timeAgo(latest.createdAt, pageLocale)}
                       </span>
                     </span>
                     <span className="mt-1 line-clamp-2 block text-[13px] leading-relaxed text-ink-2">

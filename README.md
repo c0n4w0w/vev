@@ -127,6 +127,31 @@ fellesskapet, ikke brukeren.
 
 ---
 
+## Språk
+
+Grensesnittet finnes på norsk bokmål (`nb`) og engelsk (`en`). Hvert fellesskap
+har et standardspråk i `communities.default_locale` (begrenset til de to; ikke
+fritekst): Tryggere Ruspolitikk og Tryggere Ungdom er `nb`, Under The Rug er `en`.
+
+- Ordbøkene ligger i `lib/i18n/nb/` (kilden — nøklene defineres her) og
+  `lib/i18n/en/`. `en` er typet mot `nb`, så en manglende oversettelse er en
+  typefeil.
+- Serverkomponenter bruker `communityLocale(community)` og `translator(locale)`;
+  klientkomponenter bruker `useT()` / `useLocale()`. `AppShell` legger språket i
+  en `LocaleProvider` ut fra hvilket fellesskap ruten tilhører, så språket
+  skifter ved vanlig navigasjon.
+- Språk er presentasjon, ikke tilgang: ingen policy eller funksjon leser det.
+- Bare grensesnittet oversettes. Innlegg, biografier, meldinger, kanalnavn og
+  arrangementstekster vises nøyaktig slik noen skrev dem.
+- Kontonivå-sidene (hjem, mine fellesskap, varsler, profil) er norske foreløpig.
+  `resolveLocale({ user, community })` er skjøten der en brukerpreferanse kan
+  komme inn senere: eksplisitt valg → fellesskapets standard → plattformens (`nb`).
+
+Å legge til et språk: en ordbok, en oppføring i `LOCALES`, og en utvidelse av
+sjekken `communities_default_locale_allowed`.
+
+---
+
 ## Personvernmodellen
 
 Dette er den viktigste designbeslutningen i produktet, og den er nå håndhevet i
@@ -182,7 +207,8 @@ lib/
   data.ts                   Eneste skjøt mot databasen
   session.ts                Innlogget konto
   roles.ts                  Rolledefinisjoner (brukes også av klientkomponenter)
-  format.ts                 Norsk dato- og tidsformatering
+  format.ts                 Dato- og tidsformatering (følger språket)
+  i18n/                     Språk: ordbøker (nb, en), t()/tn(), useT()
   supabase/                 Klienter, miljøvariabler, databasetyper
   mock/                     Innhold til seed-skriptet. Ikke i bruk i appen
 supabase/

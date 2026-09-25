@@ -7,6 +7,9 @@ import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconCheck, IconChevronDown, IconPlus, IconSwitch } from "@/components/ui/icons";
 import { Wordmark } from "@/components/shell/Wordmark";
 import type { ShellCommunity, ShellData } from "@/components/shell/shell-data";
+import { communityLocale } from "@/lib/i18n";
+import { PLATFORM_LOCALE } from "@/lib/i18n/locales";
+import { useT } from "@/lib/i18n/react";
 
 /**
  * Context switcher at the top of the sidebar. It shows where you are — the
@@ -22,6 +25,8 @@ export function CommunitySwitcher({
   current?: ShellCommunity;
   onNavigate?: () => void;
 }) {
+  const t = useT();
+  const locale = current ? communityLocale(current.community) : PLATFORM_LOCALE;
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -93,17 +98,17 @@ export function CommunitySwitcher({
               className="flex items-center gap-2.5 border-b border-line px-3 py-2.5 text-sm text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink"
             >
               <IconSwitch size={16} className="text-ink-3" />
-              Tilbake til TING
+              {t("shell.switcher.backToTing")}
             </Link>
           ) : null}
 
           <div className="px-3 pb-1.5 pt-3">
-            <p className="label">Mine fellesskap</p>
+            <p className="label">{t("shell.switcher.myCommunities")}</p>
           </div>
 
           {data.communities.length === 0 ? (
             <p className="px-3 pb-3 text-sm leading-relaxed text-ink-3">
-              Du er ikke medlem av noe fellesskap ennå.
+              {t("shell.switcher.none")}
             </p>
           ) : (
             <ul className="pb-1.5">
@@ -123,7 +128,7 @@ export function CommunitySwitcher({
                       {active ? (
                         <IconCheck size={15} className="shrink-0 text-skog" />
                       ) : (
-                        <ElevatedRoleBadge role={membership.role} />
+                        <ElevatedRoleBadge role={membership.role} locale={locale} />
                       )}
                     </Link>
                   </li>
@@ -138,7 +143,7 @@ export function CommunitySwitcher({
             className="flex items-center gap-2.5 border-t border-line px-3 py-2.5 text-sm text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink"
           >
             <IconPlus size={16} className="text-ink-3" />
-            Bli med i et fellesskap
+            {t("shell.switcher.join")}
           </Link>
         </div>
       ) : null}

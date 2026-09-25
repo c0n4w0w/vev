@@ -15,14 +15,15 @@ import {
   getPastCommunityEvents,
   getUpcomingCommunityEvents,
 } from "@/lib/data";
-import { plural } from "@/lib/format";
+import { communityLocale, communityTranslator, tn, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 import { PUBLIC_HOST } from "@/lib/brand";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/events">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  return { title: `Arrangementer · ${community?.name ?? "Fellesskap"}` };
+  const t = communityTranslator(community);
+  return { title: `${t("events.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
 export default async function CommunityEventsPage({
@@ -34,6 +35,8 @@ export default async function CommunityEventsPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
+  const locale = communityLocale(community);
+  const t = translator(locale);
 
   const [upcoming, past, membership, groups] = await Promise.all([
     getUpcomingCommunityEvents(community.id),
@@ -53,8 +56,12 @@ export default async function CommunityEventsPage({
     <PageContainer width="narrow">
       <PageHeader
         eyebrow={community.name}
-        title="Arrangementer"
-        lead={`${plural(upcoming.length, "kommende arrangement", "kommende arrangementer")}. ${publicCount} av dem vises også på den offentlige siden ${PUBLIC_HOST}/${community.slug}.`}
+        title={t("events.title")}
+        lead={t("events.lead", {
+          upcoming: tn(locale, "events.upcomingCount", upcoming.length),
+          public: publicCount,
+          url: `${PUBLIC_HOST}/${community.slug}`,
+        })}
       />
 
       {isAdmin ? (
@@ -68,12 +75,8 @@ export default async function CommunityEventsPage({
 
       {upcoming.length === 0 ? (
         <EmptyState
-          title="Ingen kommende arrangementer"
-          body={
-            isAdmin
-              ? "Møter, vakter og andre samlinger legges inn her. Opprett det første over."
-              : "Møter, vakter og andre samlinger legges inn her av administratorene i fellesskapet."
-          }
+          title={t("events.empty.title")}
+          body={isAdmin ? t("events.empty.admin") : t("events.empty.member")}
         />
       ) : (
         <div className="space-y-4">
@@ -91,7 +94,7 @@ export default async function CommunityEventsPage({
 
       {past.length > 0 ? (
         <section className="mt-12">
-          <SectionHeading>Tidligere</SectionHeading>
+          <SectionHeading>{t("events.past")}</SectionHeading>
           <div className="space-y-4 opacity-70">
             {past.map((event) => (
               <EventCard

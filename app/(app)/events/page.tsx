@@ -15,6 +15,7 @@ import {
   personaKey,
 } from "@/lib/data";
 import { formatFullDate } from "@/lib/format";
+import { PLATFORM_LOCALE } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 import type { CommunityEvent } from "@/lib/types";
 
@@ -85,6 +86,7 @@ export default async function EventsPage() {
                     host={hosts.get(personaKey(event.communityId, event.hostId))}
                     attending={event.attendeeIds.includes(user.id)}
                     showCommunity
+                    locale={PLATFORM_LOCALE}
                   />
                 ))}
               </div>

@@ -3,9 +3,18 @@ import { startOrganizationPersonConversationAction } from "@/app/actions";
 import { Avatar, Panel, buttonClass, cn } from "@/components/ui/primitives";
 import { IconMail, IconMapPin, IconSend } from "@/components/ui/icons";
 import { initialsFor } from "@/lib/format";
+import { translator, type Locale } from "@/lib/i18n";
 import type { CommunityPerson } from "@/lib/types";
 
-function PersonEmail({ email, compact = false }: { email?: string; compact?: boolean }) {
+function PersonEmail({
+  email,
+  label,
+  compact = false,
+}: {
+  email?: string;
+  label: string;
+  compact?: boolean;
+}) {
   if (!email) return null;
   return (
     <a
@@ -16,7 +25,7 @@ function PersonEmail({ email, compact = false }: { email?: string; compact?: boo
       )}
     >
       <IconMail size={14} />
-      E-post
+      {label}
     </a>
   );
 }
@@ -29,6 +38,7 @@ export function OrganizationPersonCard({
   linkedTitle,
   bio,
   location,
+  locale,
 }: {
   person: CommunityPerson;
   localGroupName?: string;
@@ -44,7 +54,9 @@ export function OrganizationPersonCard({
   bio?: string;
   /** Location from an explicitly linked TING account. */
   location?: string;
+  locale: Locale;
 }) {
+  const t = translator(locale);
   return (
     <Panel as="li" className="flex gap-3.5 p-4">
       <Avatar user={{ id: person.id, name: person.name, initials: initialsFor(person.name) }} size="md" />
@@ -80,7 +92,7 @@ export function OrganizationPersonCard({
                   className={buttonClass({ variant: "primary", size: "sm" })}
                 >
                   <IconSend size={14} />
-                  Send melding
+                  {t("common.sendMessage")}
                 </Link>
               ) : (
                 <form action={startOrganizationPersonConversationAction}>
@@ -88,12 +100,12 @@ export function OrganizationPersonCard({
                   <input type="hidden" name="personId" value={person.id} />
                   <button type="submit" className={buttonClass({ variant: "primary", size: "sm" })}>
                     <IconSend size={14} />
-                    Send melding
+                    {t("common.sendMessage")}
                   </button>
                 </form>
               )
             ) : null}
-            <PersonEmail email={person.email} compact={compact} />
+            <PersonEmail email={person.email} label={t("common.email")} compact={compact} />
           </div>
         ) : null}
       </div>

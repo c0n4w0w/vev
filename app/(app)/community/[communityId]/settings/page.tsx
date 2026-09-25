@@ -15,12 +15,14 @@ import {
   getMembership,
   myAcceptsMemberDms,
 } from "@/lib/data";
+import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/settings">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  return { title: `Innstillinger · ${community?.name ?? "Fellesskap"}` };
+  const t = communityTranslator(community);
+  return { title: `${t("settings.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
 /**
@@ -44,6 +46,7 @@ export default async function CommunitySettingsPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
+  const t = translator(communityLocale(community));
 
   // The setting is read through its own function, not off the membership row:
   // the column is not readable by clients, so there is no version of this page
@@ -63,10 +66,10 @@ export default async function CommunitySettingsPage({
   if (!isStaff) {
     return (
       <PageContainer>
-        <PageHeader eyebrow={community.name} title="Innstillinger" />
+        <PageHeader eyebrow={community.name} title={t("settings.title")} />
         <EmptyState
-          title="Ingen innstillinger for deg her ennå"
-          body={`Innstillingene på denne siden gjelder administratorer og moderatorer i ${community.name}.`}
+          title={t("settings.none.title")}
+          body={t("settings.none.body", { name: community.name })}
         />
       </PageContainer>
     );
@@ -76,17 +79,17 @@ export default async function CommunitySettingsPage({
     <PageContainer>
       <PageHeader
         eyebrow={community.name}
-        title="Innstillinger"
+        title={t("settings.title")}
         lead={
           isAdmin
-            ? `Fellesskapets profil og dine egne valg i ${community.name}.`
-            : `Dine egne valg i ${community.name}. De gjelder bare deg, og bare her.`
+            ? t("settings.lead.admin", { name: community.name })
+            : t("settings.lead.staff", { name: community.name })
         }
       />
 
       {isAdmin ? (
         <section className="mb-10">
-          <SectionHeading>Fellesskapsprofil</SectionHeading>
+          <SectionHeading>{t("settings.communityProfile")}</SectionHeading>
           <CommunityAvatarSettings
             community={{
               id: community.id,
@@ -98,14 +101,12 @@ export default async function CommunitySettingsPage({
         </section>
       ) : null}
 
-      <SectionHeading>Direkte meldinger</SectionHeading>
+      <SectionHeading>{t("settings.directMessages")}</SectionHeading>
 
       {dmPolicy === "staff_only" ? (
         <>
           <p className="-mt-2 mb-4 max-w-2xl text-[13px] leading-relaxed text-ink-3">
-            {community.name} har slått av direkte meldinger mellom medlemmer. Som standard kan
-            medlemmer heller ikke skrive til administratorer og moderatorer — hver enkelt av oss
-            velger selv om vi vil være tilgjengelige.
+            {t("settings.dm.staffOnly", { name: community.name })}
           </p>
           <Panel className="overflow-hidden">
             <DmAvailabilityToggle
@@ -120,8 +121,7 @@ export default async function CommunitySettingsPage({
         <Panel className="flex gap-4 p-5">
           <IconLock size={20} className="mt-0.5 shrink-0 text-skog" />
           <p className="max-w-2xl text-[13px] leading-relaxed text-ink-2">
-            {community.name} lar medlemmer sende direkte meldinger til hverandre. Da er du allerede
-            tilgjengelig for medlemmene her, og det er ingenting å slå på.
+            {t("settings.dm.open", { name: community.name })}
           </p>
         </Panel>
       )}

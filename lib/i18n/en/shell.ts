@@ -1,0 +1,41 @@
+import type { shell as nb } from "../nb/shell";
+
+export const shell: Record<keyof typeof nb, string> = {
+  "shell.nav.main": "Main",
+  "shell.nav.overview": "Overview",
+  "shell.nav.feed": "Feed",
+  "shell.nav.events": "Events",
+  "shell.nav.members": "Members",
+  "shell.nav.organization": "Organization",
+  "shell.nav.localGroups": "Local groups",
+  "shell.nav.messages": "Messages",
+  "shell.nav.allMessages": "All messages",
+  "shell.nav.administration": "Administration",
+  "shell.nav.accountLinks": "Account links",
+  "shell.nav.requests": "Requests",
+  "shell.nav.emojis": "Emojis",
+  "shell.nav.settings": "Settings",
+  "shell.nav.channels": "Channels",
+  "shell.closed": "Private",
+  "shell.unread": "Unread",
+  "shell.yourProfile": "Your profile here",
+  "shell.openMenu": "Open menu",
+  "shell.closeMenu": "Close menu",
+
+  "shell.platform.home": "Home",
+  "shell.platform.communities": "My communities",
+  "shell.platform.events": "Events",
+  "shell.platform.notifications": "Notifications",
+  "shell.platform.noneYet":
+    "None yet. Communities on TING are reached through an invitation or a direct link.",
+  "shell.tabs.home": "Home",
+  "shell.tabs.communities": "Communities",
+  "shell.tabs.events": "Schedule",
+  "shell.tabs.notifications": "Alerts",
+  "shell.tabs.profile": "Profile",
+
+  "shell.switcher.backToTing": "Back to TING",
+  "shell.switcher.myCommunities": "My communities",
+  "shell.switcher.none": "You're not a member of any community yet.",
+  "shell.switcher.join": "Join a community",
+};

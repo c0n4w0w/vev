@@ -19,8 +19,9 @@ import {
   getCommunityPeople,
   getCommunityPersonAccountLinks,
   getMembership,
-  getRole,
 } from "@/lib/data";
+import { communityLocale, communityTranslator, translator, type Locale, type Translator } from "@/lib/i18n";
+import { roleLabel } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 import type { CommunityPerson } from "@/lib/types";
 
@@ -31,7 +32,8 @@ export async function generateMetadata({
 }) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  return { title: `Kontokoblinger · ${community?.name ?? "Fellesskap"}` };
+  const t = communityTranslator(community);
+  return { title: `${t("links.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
 function personSubtitle(person: CommunityPerson) {
@@ -45,11 +47,11 @@ function personSubtitle(person: CommunityPerson) {
  */
 type LinkCandidate = CommunityMember & { account?: { handle: string; email: string } };
 
-function memberOptionLabel({ persona, membership, account }: LinkCandidate) {
+function memberOptionLabel({ persona, membership, account }: LinkCandidate, locale: Locale) {
   return [
     persona.name,
     account ? `@${account.handle}` : undefined,
-    membership.title ?? getRole(membership.role).label,
+    membership.title ?? roleLabel(membership.role, locale),
     account?.email,
   ]
     .filter(Boolean)
@@ -59,15 +61,16 @@ function memberOptionLabel({ persona, membership, account }: LinkCandidate) {
 function linkedLabel(
   link: CommunityPersonAccountLink | undefined,
   membersById: Map<string, LinkCandidate>,
+  t: Translator,
 ) {
-  if (!link) return "Ikke koblet";
+  if (!link) return t("links.unlinked");
   const member = membersById.get(link.userId);
   if (member) {
     return member.account
       ? `${member.persona.name} / @${member.account.handle}`
       : member.persona.name;
   }
-  return "Koblet konto er ikke aktiv i dette fellesskapet";
+  return t("links.inactive");
 }
 
 function AccountPicker({
@@ -76,13 +79,16 @@ function AccountPicker({
   communityId,
   link,
   submitLabel,
+  locale,
 }: {
   person: CommunityPerson;
   members: LinkCandidate[];
   communityId: string;
   link?: CommunityPersonAccountLink;
   submitLabel: string;
+  locale: Locale;
 }) {
+  const t = translator(locale);
   return (
     <form
       action={setCommunityPersonAccountLinkAction}
@@ -94,12 +100,12 @@ function AccountPicker({
         name="userId"
         defaultValue={link?.userId ?? ""}
         className="h-9 min-w-0 rounded-[5px] border border-line-2 bg-surface px-2 text-[13px] text-ink outline-none focus:border-ink-3 sm:w-80"
-        aria-label={`TING-konto for ${person.name}`}
+        aria-label={t("links.accountFor", { name: person.name })}
       >
-        <option value="">Velg aktivt medlem</option>
+        <option value="">{t("links.chooseMember")}</option>
         {members.map((member) => (
           <option key={member.persona.id} value={member.persona.id}>
-            {memberOptionLabel(member)}
+            {memberOptionLabel(member, locale)}
           </option>
         ))}
       </select>
@@ -115,12 +121,15 @@ function LinkRow({
   members,
   communityId,
   link,
+  locale,
 }: {
   person: CommunityPerson;
   members: LinkCandidate[];
   communityId: string;
   link?: CommunityPersonAccountLink;
+  locale: Locale;
 }) {
+  const t = translator(locale);
   const membersById = new Map(members.map((member) => [member.persona.id, member]));
   const isLinked = Boolean(link);
 
@@ -132,9 +141,9 @@ function LinkRow({
           <p className="mt-0.5 text-[13px] text-ink-2">{personSubtitle(person)}</p>
           <p className="mt-2 text-[13px] text-ink-3">
             <span className="font-medium text-ink-2">
-              {isLinked ? "Koblet til" : "TING-konto"}
+              {isLinked ? t("links.linkedTo") : t("links.tingAccount")}
             </span>{" "}
-            {linkedLabel(link, membersById)}
+            {linkedLabel(link, membersById, t)}
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:items-end">
@@ -145,14 +154,15 @@ function LinkRow({
                 "w-fit cursor-pointer list-none [&::-webkit-details-marker]:hidden",
               )}
             >
-              {isLinked ? "Bytt konto" : "Koble til konto"}
+              {isLinked ? t("links.switch") : t("links.link")}
             </summary>
             <AccountPicker
               person={person}
               members={members}
               communityId={communityId}
               link={link}
-              submitLabel={isLinked ? "Lagre bytte" : "Koble til"}
+              locale={locale}
+              submitLabel={isLinked ? t("links.saveSwitch") : t("links.submitLink")}
             />
           </details>
           {isLinked ? (
@@ -161,7 +171,7 @@ function LinkRow({
               <input type="hidden" name="personId" value={person.id} />
               <input type="hidden" name="userId" value="" />
               <button type="submit" className={buttonClass({ variant: "quiet", size: "sm" })}>
-                Fjern kobling
+                {t("links.remove")}
               </button>
             </form>
           ) : null}
@@ -178,7 +188,9 @@ function LinkGroup({
   links,
   members,
   communityId,
+  locale,
 }: {
+  locale: Locale;
   title: string;
   empty: string;
   people: CommunityPerson[];
@@ -198,6 +210,7 @@ function LinkGroup({
               members={members}
               communityId={communityId}
               link={links.get(person.id)}
+              locale={locale}
             />
           ))}
         </ul>
@@ -219,6 +232,8 @@ export default async function OrganizationLinksPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
+  const locale = communityLocale(community);
+  const t = translator(locale);
 
   const [membership, people] = await Promise.all([
     getMembership(user.id, community.id),
@@ -230,10 +245,10 @@ export default async function OrganizationLinksPage({
   if (membership?.role !== "admin") {
     return (
       <PageContainer width="narrow">
-        <PageHeader eyebrow={community.name} title="Kontokoblinger" />
+        <PageHeader eyebrow={community.name} title={t("links.title")} />
         <EmptyState
-          title="Kun for administratorer"
-          body={`Det er administratorene i ${community.name} som kobler offentlige organisasjonskontakter til TING-kontoer.`}
+          title={t("common.adminsOnly")}
+          body={t("links.adminsOnly", { name: community.name })}
         />
       </PageContainer>
     );
@@ -255,27 +270,34 @@ export default async function OrganizationLinksPage({
     <PageContainer>
       <PageHeader
         eyebrow={community.name}
-        title="Kontokoblinger"
-        lead="Koble offentlige organisasjonskontakter til eksisterende TING-kontoer for funksjoner som direkte meldinger."
+        title={t("links.title")}
+        lead={t("links.lead")}
         action={
           <ButtonLink href={`/community/${community.id}/members`} size="sm" variant="secondary">
-            Tilbake til {community.id === "under-the-rug" ? "Medlemmer" : "Organisasjonen"}
+            {t("links.backTo", {
+              target:
+                community.id === "under-the-rug"
+                  ? t("members.title")
+                  : t("members.organizationTitle"),
+            })}
           </ButtonLink>
         }
       />
 
       <div className="space-y-10">
         <LinkGroup
-          title="Ikke koblet"
-          empty="Alle organisasjonskontakter er koblet."
+          locale={locale}
+          title={t("links.unlinked")}
+          empty={t("links.allLinked")}
           people={unlinked}
           links={links}
           members={members}
           communityId={community.id}
         />
         <LinkGroup
-          title="Koblet"
-          empty="Ingen organisasjonskontakter er koblet ennå."
+          locale={locale}
+          title={t("links.linked")}
+          empty={t("links.noneLinked")}
           people={linked}
           links={links}
           members={members}

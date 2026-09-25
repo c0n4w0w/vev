@@ -5,6 +5,7 @@ import { Avatar, Badge, cn } from "@/components/ui/primitives";
 import { IconAttach, IconHash, IconLock, IconSend } from "@/components/ui/icons";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
 import { createMessageAction } from "@/app/actions";
+import { useLocale, useT } from "@/lib/i18n/react";
 import { emptyMessageFormState } from "@/lib/message-form";
 import type { Channel, Community, CommunityPersona, Message } from "@/lib/types";
 
@@ -42,6 +43,8 @@ export function ChannelView({
    */
   lastActivityLabel?: string;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | undefined>(undefined);
@@ -110,7 +113,7 @@ export function ChannelView({
           {channel.readOnly ? (
             <Badge tone="neutral">
               <IconLock size={11} />
-              Kun kunngjøringer
+              {t("channel.announcementsOnly")}
             </Badge>
           ) : null}
           <p className="w-full text-[13px] text-ink-3 sm:w-auto sm:flex-1 sm:truncate">
@@ -126,11 +129,11 @@ export function ChannelView({
             style={{ backgroundColor: `${community.branding.accent}0a` }}
           >
             <h2 className="font-display text-lg text-ink">
-              Dette er starten på #{channel.name}
+              {t("channel.start", { name: channel.name })}
             </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-ink-2">{channel.purpose}</p>
             <p className="mt-3 text-xs text-ink-3">
-              Samtalen er kun synlig for medlemmer av {community.name}.
+              {t("channel.membersOnly", { name: community.name })}
             </p>
           </div>
 
@@ -149,7 +152,7 @@ export function ChannelView({
                   {newDay ? (
                     <div className="flex items-center gap-3 pb-3 pt-6 first:pt-0">
                       <span className="h-px flex-1 bg-line" />
-                      <span className="label">{dayHeading(message.createdAt)}</span>
+                      <span className="label">{dayHeading(message.createdAt, locale)}</span>
                       <span className="h-px flex-1 bg-line" />
                     </div>
                   ) : null}
@@ -158,7 +161,7 @@ export function ChannelView({
                     <div className="w-9 shrink-0">
                       {grouped ? (
                         <span className="mt-1 hidden justify-end pr-0.5 text-[10px] tabular-nums text-ink-3 group-hover:flex">
-                          {formatTime(message.createdAt)}
+                          {formatTime(message.createdAt, locale)}
                         </span>
                       ) : author ? (
                         <Avatar user={author} size="sm" />
@@ -169,10 +172,10 @@ export function ChannelView({
                       {!grouped ? (
                         <p className="mb-0.5 flex items-baseline gap-2">
                           <span className="text-sm font-medium text-ink">
-                            {author?.name ?? "Ukjent"}
+                            {author?.name ?? t("common.unknown")}
                           </span>
                           <span className="text-[11px] text-ink-3">
-                            {formatTime(message.createdAt)}
+                            {formatTime(message.createdAt, locale)}
                           </span>
                         </p>
                       ) : null}
@@ -239,14 +242,14 @@ export function ChannelView({
                     send();
                   }
                 }}
-                placeholder={`Skriv i #${channel.name}`}
+                placeholder={t("channel.placeholder", { name: channel.name })}
                 className="max-h-44 min-h-[2.25rem] flex-1 resize-none bg-transparent py-2 text-[0.9375rem] leading-6 text-ink outline-none placeholder:text-ink-3"
               />
               <button
                 type="button"
                 onClick={send}
                 disabled={!draft.trim() || pending}
-                aria-label="Send melding"
+                aria-label={t("channel.send")}
                 className="mb-0.5 rounded-[5px] p-2 text-white transition-opacity disabled:opacity-30"
                 style={{ backgroundColor: community.branding.accent }}
               >
@@ -256,7 +259,7 @@ export function ChannelView({
           ) : (
             <p className="flex items-center justify-center gap-2 rounded-[6px] border border-dashed border-line-2 px-4 py-3.5 text-[13px] text-ink-3">
               <IconLock size={14} />
-              Bare moderatorer og administratorer kan skrive i denne kanalen.
+              {t("channel.readOnly")}
             </p>
           )}
           {error ? (
@@ -265,8 +268,8 @@ export function ChannelView({
             </p>
           ) : null}
           <p className="mt-2 text-[11px] text-ink-3">
-            Meldinger er kun synlige for medlemmer av {community.name}.
-            {lastActivityLabel ? ` Siste aktivitet ${lastActivityLabel}.` : ""}
+            {t("channel.footer", { name: community.name })}
+            {lastActivityLabel ? ` ${t("channel.lastActivity", { when: lastActivityLabel })}` : ""}
           </p>
         </div>
       </div>

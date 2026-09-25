@@ -6,6 +6,7 @@ import {
   getDirectConversation,
   markDirectConversationRead,
 } from "@/lib/data";
+import { communityTranslator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -20,8 +21,9 @@ export async function generateMetadata({
       ])
     : [undefined, undefined];
 
+  const t = communityTranslator(community);
   return {
-    title: `${conversation?.otherParticipant.name ?? "Samtale"} · ${community?.name ?? "Fellesskap"}`,
+    title: `${conversation?.otherParticipant.name ?? t("dm.fallbackTitle")} · ${community?.name ?? t("common.communityFallback")}`,
   };
 }
 

@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { requestAccessAction } from "@/app/actions";
 import { DISPLAY_NAME_MAX, emptyAccessFormState } from "@/lib/access-form";
+import { translator, type Locale, type Translator } from "@/lib/i18n";
 import type { CommunityPublic } from "@/lib/types";
 import styles from "./UtrPortal.module.css";
 
@@ -18,12 +19,12 @@ const label = `${styles.tracked} block text-(--utr-muted)`;
  * are filled — the browser's `required` check and the server action catch
  * anything missing; it only locks while in flight.
  */
-function SubmitButton() {
+function SubmitButton({ t }: { t: Translator }) {
   const { pending } = useFormStatus();
   return (
     <button type="submit" disabled={pending} className={styles.textLink}>
       <span className={styles.label}>
-        {pending ? "Sender …" : "Be om tilgang"}{" "}
+        {pending ? t("utr.form.sending") : t("utr.form.submit")}{" "}
         <span aria-hidden="true" className={styles.arrow}>
           →
         </span>
@@ -46,12 +47,16 @@ export function UtrAccessForm({
   community,
   signedIn,
   pending = false,
+  locale,
 }: {
   community: CommunityPublic;
   signedIn: boolean;
+  /** The portal's language. The form is rendered on the server for it. */
+  locale: Locale;
   /** The signed-in visitor already has a request waiting (decided server-side). */
   pending?: boolean;
 }) {
+  const t = translator(locale);
   const [state, formAction] = useActionState(requestAccessAction, emptyAccessFormState);
   // Controlled so the values survive an error response.
   const [email, setEmail] = useState("");
@@ -60,8 +65,7 @@ export function UtrAccessForm({
   if (community.accessPolicy === "invite-only") {
     return (
       <p className="max-w-md text-[1.0625rem] leading-relaxed text-(--utr-ink-2)">
-        Akkurat nå kommer man inn ved invitasjon fra noen som allerede er der. Kjenner du noen, spør
-        dem.
+        {t("utr.form.inviteOnly")}
       </p>
     );
   }
@@ -70,15 +74,13 @@ export function UtrAccessForm({
     return (
       <div role="status" className="max-w-md border-t border-(--utr-rule) pt-6">
         <p className={`${styles.serif} text-[1.75rem] leading-tight italic`}>
-          {state.status === "ok" ? "Takk. Vi har fått den." : "Vi har forespørselen din."}
+          {state.status === "ok" ? t("utr.form.thanks") : t("utr.form.haveRequest")}
         </p>
         <p className="mt-3 text-[1rem] leading-relaxed text-(--utr-ink-2)">
-          Noen fra Under The Rug ser på den, og du får beskjed når du er inne.
+          {t("utr.form.lookAt")}
         </p>
         <p className="mt-5 text-[0.8125rem] leading-relaxed text-(--utr-muted)">
-          Har du allerede en TING-konto med denne adressen, blir tilgangen aktiv neste gang du
-          logger inn. Har du ikke det, får du en e-post med en lenke for å logge inn eller opprette
-          konto. Hører du ingenting, kan du spørre oss direkte.
+          {t("utr.form.accountNote")}
         </p>
       </div>
     );
@@ -91,7 +93,7 @@ export function UtrAccessForm({
 
         <div>
           <label htmlFor="displayName" className={label}>
-            Navn / pseudonym
+            {t("utr.form.displayName")}
           </label>
           <input
             id="displayName"
@@ -105,13 +107,13 @@ export function UtrAccessForm({
             className={field}
           />
           <p id="displayName-hint" className="mt-2 text-[0.8125rem] text-(--utr-muted)">
-            Det andre ser deg som der inne.
+            {t("utr.form.displayNameHint")}
           </p>
         </div>
 
         <div>
           <label htmlFor="email" className={label}>
-            E-post
+            {t("utr.form.email")}
           </label>
           <input
             id="email"
@@ -133,34 +135,29 @@ export function UtrAccessForm({
         ) : null}
 
         <div>
-          <SubmitButton />
+          <SubmitButton t={t} />
           <p className={`${styles.serif} mt-6 max-w-sm text-[1.125rem] leading-snug italic text-(--utr-ink-2)`}>
-            Ingen medlemsavgift. Ingen feed å holde tritt med. Bare et sted for folk, idéer og ting
-            som skjer.
+            {t("utr.form.tagline")}
           </p>
         </div>
       </form>
 
       {signedIn ? null : (
         <p className="mt-10 text-[0.9375rem] text-(--utr-ink-2)">
-          Har du allerede konto?{" "}
+          {t("utr.form.haveAccount")}{" "}
           <Link
             href={`/login?neste=/${community.slug}`}
             className="text-(--utr-ink) underline decoration-(--utr-rule) underline-offset-4 transition-colors hover:decoration-(--utr-ink)"
           >
-            Logg inn <span aria-hidden="true">→</span>
+            {t("utr.form.login")} <span aria-hidden="true">→</span>
           </Link>
         </p>
       )}
 
       {/* The account and membership small print — present, but last. */}
       <p className="mt-10 max-w-md text-[0.75rem] leading-relaxed text-(--utr-muted)">
-        Å be om tilgang oppretter ikke medlemskap, og noen fra {community.name} godkjenner hver
-        forespørsel. Fellesskapet ligger på TING, en separat tjeneste som ikke påvirker et formelt
-        medlemskap i {community.name}.
-        {signedIn
-          ? null
-          : " Du trenger ingen konto for å spørre — blir du godkjent, logger du inn eller oppretter konto da."}
+        {t("utr.form.smallPrint", { name: community.name })}
+        {signedIn ? null : t("utr.form.smallPrintNoAccount")}
       </p>
     </div>
   );

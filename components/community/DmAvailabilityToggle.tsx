@@ -5,16 +5,18 @@ import { useFormStatus } from "react-dom";
 import { cn } from "@/components/ui/primitives";
 import { setAcceptsMemberDmsAction } from "@/app/actions";
 import { emptyDmSettingFormState } from "@/lib/dm-settings-form";
+import { useT } from "@/lib/i18n/react";
 
 function SubmitSwitch({ on, accent }: { on: boolean; accent: string }) {
   const { pending } = useFormStatus();
+  const t = useT();
 
   return (
     <button
       type="submit"
       role="switch"
       aria-checked={on}
-      aria-label="Tillat meldinger fra medlemmer"
+      aria-label={t("settings.dm.toggle")}
       disabled={pending}
       className={cn(
         "relative h-6 w-11 shrink-0 rounded-full border transition-colors disabled:opacity-40",
@@ -51,6 +53,7 @@ export function DmAvailabilityToggle({
   accent: string;
   initial: boolean;
 }) {
+  const t = useT();
   const [state, formAction] = useActionState(setAcceptsMemberDmsAction, emptyDmSettingFormState);
 
   // The stored value wins as soon as the server reports one. Tracking the
@@ -70,14 +73,12 @@ export function DmAvailabilityToggle({
 
       <div className="flex items-start justify-between gap-5 p-5">
         <div className="min-w-0">
-          <p className="text-[0.9375rem] font-medium text-ink">Tillat meldinger fra medlemmer</p>
+          <p className="text-[0.9375rem] font-medium text-ink">{t("settings.dm.toggle")}</p>
           <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-ink-2">
-            Når dette er aktivert, kan medlemmer av dette fellesskapet starte en direkte melding
-            med deg.
+            {t("settings.dm.toggleHelp")}
           </p>
           <p className="mt-2 text-[11px] text-ink-3">
-            Innstillingen gjelder kun {communityName}. Er du med i flere fellesskap, styrer du
-            hvert av dem for seg.
+            {t("settings.dm.scope", { name: communityName })}
           </p>
         </div>
         <SubmitSwitch on={on} accent={accent} />

@@ -2,33 +2,32 @@ import { setMembershipRoleAction } from "@/app/actions";
 import { MemberCard } from "@/components/community/MemberCard";
 import { SectionHeading, buttonClass } from "@/components/ui/primitives";
 import type { CommunityMember } from "@/lib/data";
-import { getRole } from "@/lib/roles";
+import { translator, type Locale } from "@/lib/i18n";
+import { roleAccessLabel, roleDescription } from "@/lib/roles";
 import type { RoleId } from "@/lib/types";
 
 const roleOrder: RoleId[] = ["admin", "moderator", "member"];
-const adminPermissionLabels: Record<RoleId, string> = {
-  admin: "Administrator",
-  moderator: "Moderator",
-  member: "Normal tilgang",
-};
 
 function RoleManagementControl({
   member,
   communityId,
+  locale,
 }: {
   member: CommunityMember;
   communityId: string;
+  locale: Locale;
 }) {
+  const t = translator(locale);
   const { membership } = member;
 
   if (membership.role === "admin") {
     return (
       <div className="mt-3 border-t border-line pt-3">
         <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
-          Tilgang
+          {t("role.access.label")}
         </p>
-        <p className="mt-1 text-[13px] font-medium text-ink">Administrator</p>
-        <p className="mt-0.5 text-[12px] text-ink-3">Full administrasjonstilgang</p>
+        <p className="mt-1 text-[13px] font-medium text-ink">{t("role.access.admin")}</p>
+        <p className="mt-0.5 text-[12px] text-ink-3">{t("role.access.adminDetail")}</p>
       </div>
     );
   }
@@ -42,19 +41,19 @@ function RoleManagementControl({
       <input type="hidden" name="membershipId" value={membership.id ?? ""} />
       <label className="min-w-0 flex-1">
         <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
-          Tilgang
+          {t("role.access.label")}
         </span>
         <select
           name="role"
           defaultValue={membership.role}
           className="mt-1 h-9 w-full rounded-[5px] border border-line-2 bg-surface px-2 text-[13px] text-ink outline-none focus:border-ink-3"
         >
-          <option value="member">Normal tilgang</option>
-          <option value="moderator">Moderator</option>
+          <option value="member">{t("role.access.member")}</option>
+          <option value="moderator">{t("role.access.moderator")}</option>
         </select>
       </label>
       <button type="submit" className={buttonClass({ variant: "secondary", size: "sm" })}>
-        Lagre
+        {t("common.save")}
       </button>
     </form>
   );
@@ -70,26 +69,27 @@ export function MemberAdministration({
   userId,
   communityId,
   dmActions,
+  locale,
 }: {
   members: CommunityMember[];
   userId: string;
   communityId: string;
   dmActions: Map<string, string | undefined>;
+  locale: Locale;
 }) {
   return (
     <div className="space-y-10">
       {roleOrder.map((roleId) => {
         const group = members.filter((entry) => entry.membership.role === roleId);
         if (group.length === 0) return null;
-        const role = getRole(roleId);
-        const label = adminPermissionLabels[roleId];
+        const label = roleAccessLabel(roleId, locale);
 
         return (
           <section key={roleId}>
             <SectionHeading>
               {label} · {group.length}
             </SectionHeading>
-            <p className="-mt-2 mb-4 text-[13px] text-ink-3">{role.description}</p>
+            <p className="-mt-2 mb-4 text-[13px] text-ink-3">{roleDescription(roleId, locale)}</p>
             <ul className="grid gap-3 sm:grid-cols-2">
               {group.map(({ persona: person, membership: personMembership }) => (
                 <MemberCard
@@ -98,10 +98,12 @@ export function MemberAdministration({
                   userId={userId}
                   communityId={communityId}
                   dmActions={dmActions}
+                  locale={locale}
                   roleManagement={
                     <RoleManagementControl
                       member={{ persona: person, membership: personMembership }}
                       communityId={communityId}
+                      locale={locale}
                     />
                   }
                 />

@@ -5,14 +5,18 @@ import { Avatar, Badge, PageContainer, Panel } from "@/components/ui/primitives"
 import { IconArrowLeft, IconClock, IconGlobe, IconLock, IconMapPin } from "@/components/ui/icons";
 import { getCommunityById, getCommunityPersona, getEvent, now } from "@/lib/data";
 import { formatEventRange, timeUntil } from "@/lib/format";
+import { communityLocale, communityTranslator, tn, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
   params,
 }: PageProps<"/community/[communityId]/events/[eventId]">) {
-  const { eventId } = await params;
-  const event = await getEvent(eventId);
-  return { title: event ? `${event.title} · Arrangement` : "Arrangement" };
+  const { communityId, eventId } = await params;
+  const [community, event] = await Promise.all([getCommunityById(communityId), getEvent(eventId)]);
+  const t = communityTranslator(community);
+  return {
+    title: event ? t("events.detailTitle", { title: event.title }) : t("events.detailFallback"),
+  };
 }
 
 /**
@@ -33,6 +37,8 @@ export default async function EventDetailPage({
 
   const [community, event] = await Promise.all([getCommunityById(communityId), getEvent(eventId)]);
   if (!community || !event || event.communityId !== community.id) notFound();
+  const locale = communityLocale(community);
+  const t = translator(locale);
 
   const host = event.hostId ? await getCommunityPersona(community.id, event.hostId) : undefined;
   const attending = event.attendeeIds.includes(user.id);
@@ -46,7 +52,7 @@ export default async function EventDetailPage({
         className="mb-6 inline-flex items-center gap-1.5 text-[13px] text-ink-2 transition-colors hover:text-ink"
       >
         <IconArrowLeft size={14} />
-        Alle arrangementer
+        {t("events.all")}
       </Link>
 
       <p className="label mb-2">{community.name}</p>
@@ -57,21 +63,23 @@ export default async function EventDetailPage({
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Badge tone={event.isPublic ? "fjord" : "neutral"}>
           {event.isPublic ? <IconGlobe size={11} /> : <IconLock size={11} />}
-          {event.isPublic ? "Åpent arrangement" : "Kun for medlemmer"}
+          {event.isPublic ? t("events.public") : t("events.membersOnly")}
         </Badge>
-        <Badge tone="outline">{past ? "Gjennomført" : timeUntil(event.startsAt)}</Badge>
+        <Badge tone="outline">
+          {past ? t("events.completed") : timeUntil(event.startsAt, locale)}
+        </Badge>
       </div>
 
       <dl className="mt-6 space-y-2.5 text-[0.9375rem] text-ink-2">
         <div className="flex items-start gap-2">
-          <dt className="sr-only">Tidspunkt</dt>
+          <dt className="sr-only">{t("events.time")}</dt>
           <IconClock size={16} className="mt-[3px] shrink-0 text-ink-3" />
           <dd className="first-letter:uppercase">
-            {formatEventRange(event.startsAt, event.endsAt)}
+            {formatEventRange(event.startsAt, event.endsAt, locale)}
           </dd>
         </div>
         <div className="flex items-start gap-2">
-          <dt className="sr-only">Sted</dt>
+          <dt className="sr-only">{t("events.place")}</dt>
           <IconMapPin size={16} className="mt-[3px] shrink-0 text-ink-3" />
           <dd>{event.location}</dd>
         </div>
@@ -86,9 +94,7 @@ export default async function EventDetailPage({
       <Panel className="mt-8 p-5">
         {past ? (
           <p className="text-[13px] text-ink-3">
-            Dette arrangementet er gjennomført.{" "}
-            {event.attendeeIds.length}{" "}
-            {event.attendeeIds.length === 1 ? "var påmeldt" : "var påmeldte"}.
+            {tn(locale, "events.pastNote", event.attendeeIds.length)}
           </p>
         ) : (
           <EventRsvp
@@ -104,13 +110,13 @@ export default async function EventDetailPage({
 
       <div className="mt-6 flex items-center gap-2.5 text-[13px] text-ink-3">
         {host ? <Avatar user={host} size="xs" /> : null}
-        <span>{host ? `Vert: ${host.name}` : "Vert kommer"}</span>
+        <span>{host ? t("events.host", { name: host.name }) : t("events.hostTbd")}</span>
       </div>
 
       <p className="mt-8 border-t border-line pt-4 text-[12px] leading-relaxed text-ink-3">
         {event.isPublic
-          ? `Tid, sted og beskrivelse vises også på den offentlige siden. Hvem som er påmeldt vises kun her, for medlemmer av ${community.name}.`
-          : `Dette arrangementet vises ikke utenfor ${community.name}.`}
+          ? t("events.publicNote", { name: community.name })
+          : t("events.privateNote", { name: community.name })}
       </p>
     </PageContainer>
   );

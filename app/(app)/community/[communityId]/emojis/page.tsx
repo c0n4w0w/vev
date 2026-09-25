@@ -7,6 +7,7 @@ import {
   getCommunityPersonas,
   getMembership,
 } from "@/lib/data";
+import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -14,7 +15,8 @@ export async function generateMetadata({
 }: PageProps<"/community/[communityId]/emojis">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  return { title: `Emojier · ${community?.name ?? "Fellesskap"}` };
+  const t = communityTranslator(community);
+  return { title: `${t("emoji.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
 export default async function CommunityEmojisPage({
@@ -26,6 +28,7 @@ export default async function CommunityEmojisPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
+  const t = translator(communityLocale(community));
 
   const [membership, emojis] = await Promise.all([
     getMembership(user.id, community.id),
@@ -42,8 +45,8 @@ export default async function CommunityEmojisPage({
     <PageContainer width="narrow">
       <PageHeader
         eyebrow={community.name}
-        title="Emojier"
-        lead={`Egne emojier for ${community.name}. De finnes bare her — et annet fellesskap kan verken se dem eller bruke dem, og to fellesskap kan trygt ha hver sin :party:.`}
+        title={t("emoji.title")}
+        lead={t("emoji.lead", { name: community.name })}
       />
       <EmojiManager
         communityId={community.id}

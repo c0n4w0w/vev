@@ -215,6 +215,7 @@ async function main() {
           monogram: community.branding.monogram,
           mark_style: community.branding.markStyle,
           access_policy: community.accessPolicy,
+          default_locale: community.defaultLocale,
           member_count: community.memberCount,
           links: community.links,
         })),

@@ -12,6 +12,7 @@
  * object in the bucket. This exists to give a person a useful error instead of
  * an opaque storage failure, and to check dimensions, which Storage cannot.
  */
+import { PLATFORM_LOCALE, translator, type Translator } from "@/lib/i18n";
 import { readImageHeader } from "@/lib/image-header";
 
 export const EMOJI_MAX_BYTES = 256 * 1024;
@@ -31,24 +32,35 @@ const extensions: Record<EmojiFormat, string> = {
 };
 
 /** Reads the real format and dimensions, or explains why it cannot. */
-export function inspectEmojiImage(bytes: Uint8Array): EmojiImageCheck {
-  if (bytes.byteLength === 0) return { ok: false, error: "Filen er tom." };
+export function inspectEmojiImage(
+  bytes: Uint8Array,
+  t: Translator = translator(PLATFORM_LOCALE),
+): EmojiImageCheck {
+  if (bytes.byteLength === 0) return { ok: false, error: t("err.fileEmpty") };
   if (bytes.byteLength > EMOJI_MAX_BYTES) {
-    return { ok: false, error: `Filen er større enn ${Math.round(EMOJI_MAX_BYTES / 1024)} KB.` };
+    return {
+      ok: false,
+      error: t("err.fileTooLarge", { kb: Math.round(EMOJI_MAX_BYTES / 1024) }),
+    };
   }
 
   const header = readImageHeader(bytes, ["image/png", "image/gif", "image/webp"]);
   if (!header.ok) {
     if (header.reason === "incomplete") {
-      return { ok: false, error: `${header.format === "image/gif" ? "GIF" : "PNG"}-filen er ufullstendig.` };
+      return {
+        ok: false,
+        error: t("err.imageFileIncomplete", {
+          format: header.format === "image/gif" ? "GIF" : "PNG",
+        }),
+      };
     }
     if (header.reason === "unreadable" && header.format === "image/webp") {
-      return { ok: false, error: "WebP-varianten støttes ikke." };
+      return { ok: false, error: t("err.webpVariant") };
     }
     if (header.reason === "unreadable") {
-      return { ok: false, error: "Klarte ikke lese bildestørrelsen." };
+      return { ok: false, error: t("err.imageSizeUnreadable") };
     }
-    return { ok: false, error: "Filen må være PNG, GIF eller WebP." };
+    return { ok: false, error: t("err.emojiFormat") };
   }
 
   const { width, height } = header;
@@ -57,11 +69,11 @@ export function inspectEmojiImage(bytes: Uint8Array): EmojiImageCheck {
   if (width > EMOJI_MAX_DIMENSION || height > EMOJI_MAX_DIMENSION) {
     return {
       ok: false,
-      error: `Bildet er ${width}×${height}. Maks ${EMOJI_MAX_DIMENSION}×${EMOJI_MAX_DIMENSION} piksler.`,
+      error: t("err.imageTooLarge", { width, height, max: EMOJI_MAX_DIMENSION }),
     };
   }
   if (width < EMOJI_MIN_DIMENSION || height < EMOJI_MIN_DIMENSION) {
-    return { ok: false, error: `Bildet er for lite. Minst ${EMOJI_MIN_DIMENSION} piksler.` };
+    return { ok: false, error: t("err.emojiTooSmall", { min: EMOJI_MIN_DIMENSION }) };
   }
 
   return { ok: true, contentType, width, height, extension: extensions[contentType] };
@@ -72,9 +84,12 @@ export function normalizeEmojiName(raw: string): string {
   return raw.trim().replace(/^:+|:+$/g, "").toLowerCase();
 }
 
-export function validateEmojiName(name: string): string | null {
+export function validateEmojiName(
+  name: string,
+  t: Translator = translator(PLATFORM_LOCALE),
+): string | null {
   if (!/^[a-z0-9][a-z0-9_-]{1,31}$/.test(name)) {
-    return "Navnet må være 2–32 tegn: små bokstaver, tall, bindestrek eller understrek.";
+    return t("err.emojiName");
   }
   return null;
 }

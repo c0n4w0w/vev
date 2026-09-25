@@ -5,11 +5,13 @@ import { useFormStatus } from "react-dom";
 import { Avatar, Panel, cn } from "@/components/ui/primitives";
 import { IconMegaphone } from "@/components/ui/icons";
 import { createPostAction } from "@/app/actions";
+import { useT } from "@/lib/i18n/react";
 import { emptyPostFormState } from "@/lib/post-form";
 import type { Community, CommunityPersona, LocalGroup } from "@/lib/types";
 
 function PublishButton({ accent, disabled }: { accent: string; disabled: boolean }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <button
       type="submit"
@@ -17,7 +19,7 @@ function PublishButton({ accent, disabled }: { accent: string; disabled: boolean
       className="h-9 rounded-[5px] px-4 text-sm font-medium text-white transition-opacity disabled:opacity-30"
       style={{ backgroundColor: accent }}
     >
-      {pending ? "Publiserer …" : "Publiser"}
+      {pending ? t("composer.publishing") : t("composer.publish")}
     </button>
   );
 }
@@ -42,6 +44,7 @@ export function Composer({
   canAnnounce: boolean;
   localGroups?: LocalGroup[];
 }) {
+  const t = useT();
   const [state, formAction] = useActionState(createPostAction, emptyPostFormState);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -73,7 +76,7 @@ export function Composer({
               value={draft}
               onFocus={() => setOpen(true)}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder={`Del noe med ${community.name}`}
+              placeholder={t("composer.placeholder", { name: community.name })}
               className="w-full resize-none bg-transparent py-1.5 text-[0.9375rem] leading-6 text-ink outline-none placeholder:text-ink-3"
             />
 
@@ -91,12 +94,12 @@ export function Composer({
                 <div className="flex flex-wrap items-center gap-2">
                   {localGroups.length > 0 ? (
                     <label className="flex items-center gap-2 text-[13px] text-ink-3">
-                      <span>Synlighet / område</span>
+                      <span>{t("composer.visibility")}</span>
                       <select
                         name="localGroupId"
                         className="h-8 rounded-[5px] border border-line-2 bg-surface px-2 text-[13px] text-ink outline-none focus:border-ink-3"
                       >
-                        <option value="">Hele fellesskapet</option>
+                        <option value="">{t("composer.wholeCommunity")}</option>
                         {localGroups.map((group) => (
                           <option key={group.id} value={group.id}>
                             {group.name}
@@ -105,7 +108,7 @@ export function Composer({
                       </select>
                     </label>
                   ) : (
-                    <span className="text-[13px] text-ink-3">Synlig for alle medlemmer</span>
+                    <span className="text-[13px] text-ink-3">{t("composer.visibleToAll")}</span>
                   )}
 
                   {canAnnounce ? (
@@ -125,7 +128,7 @@ export function Composer({
                         className="sr-only"
                       />
                       <IconMegaphone size={14} />
-                      Publiser som kunngjøring
+                      {t("composer.asAnnouncement")}
                     </label>
                   ) : null}
                 </div>
@@ -140,7 +143,7 @@ export function Composer({
                     }}
                     className="h-9 rounded-[5px] px-3 text-sm text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink"
                   >
-                    Avbryt
+                    {t("common.cancel")}
                   </button>
                   <PublishButton accent={community.branding.accent} disabled={!draft.trim()} />
                 </div>

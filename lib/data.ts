@@ -51,8 +51,8 @@ import type {
   DirectMessage,
 } from "@/lib/types";
 import { initialsFor } from "@/lib/format";
+import { parseLocale, type Locale, type MessageKey } from "@/lib/i18n";
 
-export { getRole, roles } from "@/lib/roles";
 
 /**
  * The single seam between the UI and the database.
@@ -123,6 +123,7 @@ function toCommunityPublic(row: PortalCommunityRow): CommunityPublic {
       markStyle: (row.mark_style as CommunityPublic["branding"]["markStyle"]) ?? "sans",
     },
     accessPolicy: row.access_policy,
+    defaultLocale: parseLocale(row.default_locale),
     memberCount: row.member_count,
     links: (row.links as LinkList) ?? [],
   };
@@ -936,7 +937,7 @@ export async function getLatestMessage(channelId: string): Promise<Message | und
 
 export type MessageWriteResult =
   | { ok: true; message: Message }
-  | { ok: false; error: string };
+  | { ok: false; error: MessageKey };
 
 /**
  * Writes one message to a channel.
@@ -953,7 +954,7 @@ export async function createMessage(input: {
   body: string;
 }): Promise<MessageWriteResult> {
   const body = input.body.trim();
-  if (!body) return { ok: false, error: "Meldingen kan ikke være tom." };
+  if (!body) return { ok: false, error: "err.messageEmpty" };
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -966,11 +967,11 @@ export async function createMessage(input: {
   return { ok: true, message: toMessage(data) };
 }
 
-function messageWriteError(message: string): string {
+function messageWriteError(message: string): MessageKey {
   if (message.includes("row-level security")) {
-    return "Du har ikke tilgang til å skrive i denne kanalen.";
+    return "err.channelWriteDenied";
   }
-  return "Meldingen kunne ikke sendes. Prøv igjen.";
+  return "err.messageSendFailed";
 }
 
 // ── Direct messages ────────────────────────────────────────────────────
@@ -1180,14 +1181,14 @@ export async function getDirectConversation(
 export async function startDirectConversation(input: {
   communityId: string;
   recipientId: string;
-}): Promise<{ ok: true; conversationId: string } | { ok: false; error: string }> {
+}): Promise<{ ok: true; conversationId: string } | { ok: false; error: MessageKey }> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("start_direct_conversation", {
     p_community_id: input.communityId,
     p_recipient_id: input.recipientId,
   });
 
-  if (error || !data) return { ok: false, error: directConversationError(error?.message) };
+  if (error || !data) return { ok: false, error: directConversationError() };
   return { ok: true, conversationId: data };
 }
 
@@ -1195,7 +1196,7 @@ export async function startDirectConversationWithOrganizationPerson(
   personId: string,
 ): Promise<
   | { ok: true; conversationId: string; communityId: string }
-  | { ok: false; error: string }
+  | { ok: false; error: MessageKey }
 > {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc(
@@ -1204,7 +1205,7 @@ export async function startDirectConversationWithOrganizationPerson(
   );
   const row = rows(data)[0];
 
-  if (error || !row) return { ok: false, error: directConversationError(error?.message) };
+  if (error || !row) return { ok: false, error: directConversationError() };
   return { ok: true, conversationId: row.conversation_id, communityId: row.community_id };
 }
 
@@ -1296,15 +1297,15 @@ export async function getUnreadDirectConversationCount(communityId: string): Pro
 
 export type DirectMessageWriteResult =
   | { ok: true; message: DirectMessage }
-  | { ok: false; error: string };
+  | { ok: false; error: MessageKey };
 
 export async function createDirectMessage(input: {
   conversationId: string;
   body: string;
 }): Promise<DirectMessageWriteResult> {
   const body = input.body.trim();
-  if (!body) return { ok: false, error: "Meldingen kan ikke være tom." };
-  if (body.length > 4000) return { ok: false, error: "Meldingen kan være høyst 4000 tegn." };
+  if (!body) return { ok: false, error: "err.messageEmpty" };
+  if (body.length > 4000) return { ok: false, error: "err.messageTooLong" };
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -1317,19 +1318,23 @@ export async function createDirectMessage(input: {
   return { ok: true, message: toDirectMessage(data) };
 }
 
-function directConversationError(message?: string): string {
-  if (message?.includes("direkte melding") || message?.includes("mot")) return message;
-  return "Samtalen kunne ikke åpnes. Prøv igjen.";
+/**
+ * The database's own wording for a refused conversation is Norwegian and is not
+ * for showing to anyone, so every failure reads the same in the caller's
+ * language. The action redirects rather than displaying it in any case.
+ */
+function directConversationError(): MessageKey {
+  return "err.conversationOpenFailed";
 }
 
-function directMessageWriteError(message: string): string {
+function directMessageWriteError(message: string): MessageKey {
   if (message.includes("row-level security") || message.includes("tilgang")) {
-    return "Du har ikke tilgang til å skrive i denne samtalen.";
+    return "err.conversationWriteDenied";
   }
   if (message.includes("direct_messages_body_present")) {
-    return "Meldingen kan være mellom 1 og 4000 tegn.";
+    return "err.messageLength";
   }
-  return "Meldingen kunne ikke sendes. Prøv igjen.";
+  return "err.messageSendFailed";
 }
 
 // ── Posts ───────────────────────────────────────────────────────────────
@@ -1415,7 +1420,7 @@ export async function getHomeFeed(_userId: string, limit = 8): Promise<Post[]> {
 // Note what is *not* passed in: author_id. The database takes it from the
 // authenticated session, so a caller cannot supply one.
 
-export type PostWriteResult = { ok: true; id: string } | { ok: false; error: string };
+export type PostWriteResult = { ok: true; id: string } | { ok: false; error: MessageKey };
 
 export async function createPost(input: {
   communityId: string;
@@ -1425,7 +1430,7 @@ export async function createPost(input: {
   announcement?: boolean;
 }): Promise<PostWriteResult> {
   const body = input.body.trim();
-  if (!body) return { ok: false, error: "Innlegget kan ikke være tomt." };
+  if (!body) return { ok: false, error: "err.postEmpty" };
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -1452,7 +1457,7 @@ export async function updatePost(
   input: { body: string; title?: string },
 ): Promise<PostWriteResult> {
   const body = input.body.trim();
-  if (!body) return { ok: false, error: "Innlegget kan ikke være tomt." };
+  if (!body) return { ok: false, error: "err.postEmpty" };
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -1465,7 +1470,7 @@ export async function updatePost(
   if (error) return { ok: false, error: postWriteError(error.message) };
   // No error and no row means row level security matched nothing — the caller
   // is not the author, or cannot see the post at all.
-  if (!data) return { ok: false, error: "Du kan bare endre dine egne innlegg." };
+  if (!data) return { ok: false, error: "err.postEditOwn" };
   return { ok: true, id: data.id };
 }
 
@@ -1479,7 +1484,7 @@ export async function deletePost(postId: string): Promise<PostWriteResult> {
     .maybeSingle();
 
   if (error) return { ok: false, error: postWriteError(error.message) };
-  if (!data) return { ok: false, error: "Du har ikke tilgang til å slette dette innlegget." };
+  if (!data) return { ok: false, error: "err.postDeleteDenied" };
   return { ok: true, id: data.id };
 }
 
@@ -1512,17 +1517,17 @@ export async function setPostPinned(
   // Null is the function's single answer to every refusal — not a moderator,
   // wrong community, no such post — so there is nothing to tell apart here.
   if (data === null) {
-    return { ok: false, error: "Du har ikke tilgang til å feste innlegg her." };
+    return { ok: false, error: "err.pinDenied" };
   }
   return { ok: true, id: postId };
 }
 
 /** Turns a Postgres message into something worth showing a person. */
-function postWriteError(message: string): string {
+function postWriteError(message: string): MessageKey {
   if (message.includes("row-level security")) {
-    return "Du har ikke tilgang til å publisere dette her.";
+    return "err.publishDenied";
   }
-  return "Innlegget kunne ikke lagres. Prøv igjen.";
+  return "err.postSaveFailed";
 }
 
 // ── Comments ────────────────────────────────────────────────────────────
@@ -1576,7 +1581,7 @@ export async function getCommentsForPosts(
   return grouped;
 }
 
-export type CommentWriteResult = { ok: true; id: string } | { ok: false; error: string };
+export type CommentWriteResult = { ok: true; id: string } | { ok: false; error: MessageKey };
 
 export async function createComment(input: {
   postId: string;
@@ -1584,7 +1589,7 @@ export async function createComment(input: {
   parentId?: string;
 }): Promise<CommentWriteResult> {
   const body = input.body.trim();
-  if (!body) return { ok: false, error: "Kommentaren kan ikke være tom." };
+  if (!body) return { ok: false, error: "err.commentEmpty" };
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -1608,7 +1613,7 @@ export async function updateComment(
   body: string,
 ): Promise<CommentWriteResult> {
   const trimmed = body.trim();
-  if (!trimmed) return { ok: false, error: "Kommentaren kan ikke være tom." };
+  if (!trimmed) return { ok: false, error: "err.commentEmpty" };
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -1619,7 +1624,7 @@ export async function updateComment(
     .maybeSingle();
 
   if (error) return { ok: false, error: commentWriteError(error.message) };
-  if (!data) return { ok: false, error: "Du kan bare endre dine egne kommentarer." };
+  if (!data) return { ok: false, error: "err.commentEditOwn" };
   return { ok: true, id: data.id };
 }
 
@@ -1633,18 +1638,18 @@ export async function deleteComment(commentId: string): Promise<CommentWriteResu
     .maybeSingle();
 
   if (error) return { ok: false, error: commentWriteError(error.message) };
-  if (!data) return { ok: false, error: "Du har ikke tilgang til å slette denne kommentaren." };
+  if (!data) return { ok: false, error: "err.commentDeleteDenied" };
   return { ok: true, id: data.id };
 }
 
-function commentWriteError(message: string): string {
+function commentWriteError(message: string): MessageKey {
   if (message.includes("row-level security")) {
-    return "Du har ikke tilgang til å kommentere her.";
+    return "err.commentDenied";
   }
   if (message.includes("svare på et svar")) {
-    return "Det går ikke an å svare på et svar.";
+    return "err.replyToReply";
   }
-  return "Kommentaren kunne ikke lagres. Prøv igjen.";
+  return "err.commentSaveFailed";
 }
 
 // ── Reactions ───────────────────────────────────────────────────────────
@@ -1653,7 +1658,7 @@ function commentWriteError(message: string): string {
 // double reaction impossible. The count on a post is recomputed by a trigger,
 // so nothing here ever writes an aggregate.
 
-export type ReactionResult = { ok: true; reacted: boolean } | { ok: false; error: string };
+export type ReactionResult = { ok: true; reacted: boolean } | { ok: false; error: MessageKey };
 
 /**
  * Adds the caller's reaction, or withdraws it if it is already there.
@@ -1671,7 +1676,7 @@ export async function toggleReaction(
 
   // Exactly one kind, matching the database's own check constraint.
   if ((emoji === undefined) === (emojiId === undefined)) {
-    return { ok: false, error: "Ugyldig reaksjon." };
+    return { ok: false, error: "err.reactionInvalid" };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -1693,18 +1698,18 @@ export async function toggleReaction(
       .select("id")
       .maybeSingle();
 
-    if (deleteError) return { ok: false, error: "Reaksjonen kunne ikke fjernes." };
+    if (deleteError) return { ok: false, error: "err.reactionRemoveFailed" };
     return { ok: true, reacted: !removed };
   }
 
   if (error.message.includes("row-level security")) {
-    return { ok: false, error: "Du har ikke tilgang til å reagere her." };
+    return { ok: false, error: "err.reactionDenied" };
   }
   // Raised by post_reactions_guard when the emoji belongs elsewhere.
   if (error.message.includes("annet fellesskap")) {
-    return { ok: false, error: "Denne emojien hører til et annet fellesskap." };
+    return { ok: false, error: "err.reactionOtherCommunity" };
   }
-  return { ok: false, error: "Reaksjonen kunne ikke lagres." };
+  return { ok: false, error: "err.reactionSaveFailed" };
 }
 
 // ── Custom emojis ───────────────────────────────────────────────────────
@@ -1764,7 +1769,7 @@ export async function getEmojisForCommunities(
   return grouped;
 }
 
-export type EmojiWriteResult = { ok: true; id: string } | { ok: false; error: string };
+export type EmojiWriteResult = { ok: true; id: string } | { ok: false; error: MessageKey };
 
 /**
  * Uploads the image, then records the metadata.
@@ -1793,8 +1798,8 @@ export async function createCommunityEmoji(input: {
     return {
       ok: false,
       error: uploadError.message.toLowerCase().includes("row-level security")
-        ? "Du har ikke tilgang til å legge til emojier her."
-        : "Bildet kunne ikke lastes opp.",
+        ? "err.emojiAddDenied"
+        : "err.imageUploadFailed",
     };
   }
 
@@ -1816,12 +1821,12 @@ export async function createCommunityEmoji(input: {
   if (error) {
     await supabase.storage.from(EMOJI_BUCKET).remove([storagePath]);
     if (error.code === "23505") {
-      return { ok: false, error: `:${input.name}: finnes allerede i dette fellesskapet.` };
+      return { ok: false, error: "err.emojiExists" };
     }
     if (error.message.includes("row-level security")) {
-      return { ok: false, error: "Du har ikke tilgang til å legge til emojier her." };
+      return { ok: false, error: "err.emojiAddDenied" };
     }
-    return { ok: false, error: "Emojien kunne ikke lagres." };
+    return { ok: false, error: "err.emojiSaveFailed" };
   }
   return { ok: true, id: data.id };
 }
@@ -1841,7 +1846,7 @@ export async function deleteCommunityEmoji(emojiId: string): Promise<EmojiWriteR
   // community the caller is not in. Both get the same answer, which is also
   // what stops an id from another community being probed for existence.
   if (!existing) {
-    return { ok: false, error: "Du har ikke tilgang til å slette denne emojien." };
+    return { ok: false, error: "err.emojiDeleteDenied" };
   }
 
   // The file goes first, deliberately.
@@ -1860,8 +1865,8 @@ export async function deleteCommunityEmoji(emojiId: string): Promise<EmojiWriteR
     return {
       ok: false,
       error: storageError.message.toLowerCase().includes("unauthorized")
-        ? "Du har ikke tilgang til å slette denne emojien."
-        : "Emojibildet kunne ikke fjernes. Prøv igjen.",
+        ? "err.emojiDeleteDenied"
+        : "err.emojiImageRemoveFailed",
     };
   }
 
@@ -1873,7 +1878,7 @@ export async function deleteCommunityEmoji(emojiId: string): Promise<EmojiWriteR
     .maybeSingle();
 
   if (error || !data) {
-    return { ok: false, error: "Emojien kunne ikke slettes." };
+    return { ok: false, error: "err.emojiDeleteFailed" };
   }
   return { ok: true, id: data.id };
 }
@@ -2098,6 +2103,8 @@ export interface InvitationPreview {
    * `AcceptInvitation`'s `auto` prop.
    */
   autoActivate: boolean;
+  /** The language the community works in — decides which words the page uses. */
+  communityLocale: Locale;
 }
 
 /**
@@ -2117,7 +2124,36 @@ export async function getInvitationPreview(token: string): Promise<InvitationPre
     email: row.email,
     expiresAt: row.expires_at,
     autoActivate: row.auto_activate,
+    communityLocale: parseLocale(row.community_default_locale),
   };
+}
+
+/**
+ * The language of wherever a sign-in is heading, when that place is a
+ * community's portal, invitation or private area — and nothing otherwise.
+ *
+ * The sign-in page is not itself part of any community, so it borrows the
+ * language of the one the person is on their way to. `path` has already been
+ * through `safeInternalPath`; this only reads it, and only through the public
+ * one-community-at-a-time functions, so it cannot be used to discover
+ * communities or to test tokens any more than the pages it mirrors can.
+ */
+export async function getLocaleForDestination(path: string): Promise<Locale | undefined> {
+  const pathname = path.split(/[?#]/)[0];
+
+  const invitation = /^\/invitasjon\/([^/]+)$/.exec(pathname);
+  if (invitation) return (await getInvitationPreview(invitation[1]))?.communityLocale;
+
+  const inCommunity = /^\/community\/([^/]+)/.exec(pathname);
+  if (inCommunity) {
+    const slug = await getPortalSlugForCommunity(inCommunity[1]);
+    return slug ? (await getPortalCommunity(slug))?.defaultLocale : undefined;
+  }
+
+  const portal = /^\/([a-z0-9][a-z0-9-]{0,62})$/.exec(pathname);
+  if (portal) return (await getPortalCommunity(portal[1]))?.defaultLocale;
+
+  return undefined;
 }
 
 export type AcceptInvitationResult =
@@ -2375,9 +2411,9 @@ export async function markAllNotificationsRead(): Promise<boolean> {
 
 const AVATAR_BUCKET = "community-avatars";
 
-export type CommunityAvatarResult = { ok: true } | { ok: false; error: string };
+export type CommunityAvatarResult = { ok: true } | { ok: false; error: MessageKey };
 
-const AVATAR_REFUSED = "Bare administratoren kan endre fellesskapets profilbilde.";
+const AVATAR_REFUSED = "err.avatarAdminOnly" as const;
 
 /**
  * Swaps the reference to `nextPath` (null clears it), then tidies up the file
@@ -2397,7 +2433,7 @@ async function swapCommunityAvatar(
   const result = data?.[0];
 
   if (error || !result?.applied) {
-    return { ok: false, error: error ? "Profilbildet kunne ikke lagres." : AVATAR_REFUSED };
+    return { ok: false, error: error ? "err.avatarSaveFailed" : AVATAR_REFUSED };
   }
 
   const previous = result.previous_path as string | null;
@@ -2432,7 +2468,7 @@ export async function setCommunityAvatar(input: {
       error:
         message.includes("row-level security") || message.includes("unauthorized")
           ? AVATAR_REFUSED
-          : "Bildet kunne ikke lastes opp. Prøv igjen.",
+          : "err.imageUploadRetry",
     };
   }
 
@@ -2479,9 +2515,9 @@ export async function downloadCommunityAvatar(
 
 const MEMBER_AVATAR_BUCKET = "member-avatars";
 
-export type CommunityProfileResult = { ok: true } | { ok: false; error: string };
+export type CommunityProfileResult = { ok: true } | { ok: false; error: MessageKey };
 
-const PROFILE_REFUSED = "Du kan bare endre din egen profil i fellesskap du er aktivt medlem av.";
+const PROFILE_REFUSED = "err.profileOwnOnly" as const;
 
 export async function updateMyCommunityProfile(input: {
   communityId: string;
@@ -2494,7 +2530,7 @@ export async function updateMyCommunityProfile(input: {
     p_display_name: input.displayName,
     p_bio: input.bio,
   });
-  if (error) return { ok: false, error: "Profilen kunne ikke lagres. Prøv igjen." };
+  if (error) return { ok: false, error: "err.profileSaveFailed" };
   return data === true ? { ok: true } : { ok: false, error: PROFILE_REFUSED };
 }
 
@@ -2511,7 +2547,7 @@ async function swapMyCommunityAvatar(
   const result = data?.[0];
 
   if (error || !result?.applied) {
-    return { ok: false, error: error ? "Profilbildet kunne ikke lagres." : PROFILE_REFUSED };
+    return { ok: false, error: error ? "err.avatarSaveFailed" : PROFILE_REFUSED };
   }
 
   const previous = result.previous_path as string | null;
@@ -2544,7 +2580,7 @@ export async function setMyCommunityAvatar(input: {
       error:
         message.includes("row-level security") || message.includes("unauthorized")
           ? PROFILE_REFUSED
-          : "Bildet kunne ikke lastes opp. Prøv igjen.",
+          : "err.imageUploadRetry",
     };
   }
 

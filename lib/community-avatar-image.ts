@@ -13,6 +13,7 @@
  * No cropping and no re-encoding: the image is stored as sent and displayed
  * `object-fit: cover` in a square.
  */
+import { PLATFORM_LOCALE, translator, type Translator } from "@/lib/i18n";
 import { readImageHeader } from "@/lib/image-header";
 
 export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
@@ -30,42 +31,49 @@ const extensions: Record<AvatarFormat, string> = {
   "image/webp": "webp",
 };
 
-const TYPE_ERROR = "Bildet må være PNG, JPEG eller WebP.";
-const SIZE_ERROR = `Bildet er for stort. Maks ${AVATAR_MAX_BYTES / (1024 * 1024)} MB.`;
+function sizeError(t: Translator) {
+  return t("err.avatarTooBig", { max: AVATAR_MAX_BYTES / (1024 * 1024) });
+}
 
 export type AvatarCheck =
   | { ok: true; contentType: AvatarFormat; width: number; height: number; extension: string }
   | { ok: false; error: string };
 
 /** Browser-side, for UX only. Returns an error message, or null when it looks fine. */
-export function checkAvatarFileHint(file: { type: string; size: number }): string | null {
-  if (file.size === 0) return "Filen er tom.";
-  if (!Object.keys(extensions).includes(file.type)) return TYPE_ERROR;
-  if (file.size > AVATAR_MAX_BYTES) return SIZE_ERROR;
+export function checkAvatarFileHint(
+  file: { type: string; size: number },
+  t: Translator = translator(PLATFORM_LOCALE),
+): string | null {
+  if (file.size === 0) return t("err.fileEmpty");
+  if (!Object.keys(extensions).includes(file.type)) return t("err.avatarFormat");
+  if (file.size > AVATAR_MAX_BYTES) return sizeError(t);
   return null;
 }
 
 /** Server-side. Decides from the bytes, or explains why it cannot. */
-export function inspectCommunityAvatar(bytes: Uint8Array): AvatarCheck {
-  if (bytes.byteLength === 0) return { ok: false, error: "Filen er tom." };
-  if (bytes.byteLength > AVATAR_MAX_BYTES) return { ok: false, error: SIZE_ERROR };
+export function inspectCommunityAvatar(
+  bytes: Uint8Array,
+  t: Translator = translator(PLATFORM_LOCALE),
+): AvatarCheck {
+  if (bytes.byteLength === 0) return { ok: false, error: t("err.fileEmpty") };
+  if (bytes.byteLength > AVATAR_MAX_BYTES) return { ok: false, error: sizeError(t) };
 
   const header = readImageHeader(bytes, ["image/png", "image/jpeg", "image/webp"]);
   if (!header.ok) {
-    if (header.reason === "unsupported") return { ok: false, error: TYPE_ERROR };
-    if (header.reason === "incomplete") return { ok: false, error: "Bildefilen er ufullstendig." };
-    return { ok: false, error: "Klarte ikke lese bildet. Prøv en annen fil." };
+    if (header.reason === "unsupported") return { ok: false, error: t("err.avatarFormat") };
+    if (header.reason === "incomplete") return { ok: false, error: t("err.avatarIncomplete") };
+    return { ok: false, error: t("err.avatarUnreadable") };
   }
 
   const { width, height } = header;
   if (width > AVATAR_MAX_DIMENSION || height > AVATAR_MAX_DIMENSION) {
     return {
       ok: false,
-      error: `Bildet er ${width}×${height}. Maks ${AVATAR_MAX_DIMENSION}×${AVATAR_MAX_DIMENSION} piksler.`,
+      error: t("err.imageTooLarge", { width, height, max: AVATAR_MAX_DIMENSION }),
     };
   }
   if (width < AVATAR_MIN_DIMENSION || height < AVATAR_MIN_DIMENSION) {
-    return { ok: false, error: `Bildet er for lite. Minst ${AVATAR_MIN_DIMENSION} piksler på hver side.` };
+    return { ok: false, error: t("err.avatarTooSmall", { min: AVATAR_MIN_DIMENSION }) };
   }
 
   const contentType = header.contentType as AvatarFormat;

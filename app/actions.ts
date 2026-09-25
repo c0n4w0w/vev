@@ -17,6 +17,7 @@ import {
   deleteComment as removeComment,
   getCommunityById,
   getLocalGroups,
+  getPortalCommunity,
   getMembership,
   joinEvent,
   leaveEvent,
@@ -45,7 +46,7 @@ import {
 } from "@/lib/data";
 import type { AccessFormState } from "@/lib/access-form";
 import type { NotificationFormState } from "@/lib/notification-form";
-import { REQUEST_SENT_MESSAGE, normalizeDisplayName } from "@/lib/access-form";
+import { REQUEST_SENT_KEY, normalizeDisplayName } from "@/lib/access-form";
 import type { CommentFormState } from "@/lib/comment-form";
 import { normalizeBio, type CommunityProfileFormState } from "@/lib/community-profile-form";
 import { inspectCommunityAvatar } from "@/lib/community-avatar-image";
@@ -72,9 +73,34 @@ import type { MessageFormState } from "@/lib/message-form";
 import type { PostFormState } from "@/lib/post-form";
 import { sendInvitationEmail } from "@/lib/email/invitation";
 import { osloInstant } from "@/lib/format";
+import {
+  communityLocale,
+  communityTranslator,
+  parseLocale,
+  PLATFORM_LOCALE,
+  translator,
+  type MessageKey,
+  type Translator,
+} from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
+import { safeInternalPath } from "@/lib/safe-path";
 import { siteOrigin } from "@/lib/site-url";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+/**
+ * Words for the person who just submitted a form, in the language of the
+ * community the action is about.
+ *
+ * The community id comes from the form, so a tampered one only changes which
+ * language the reply is written in — it is looked up through the same
+ * membership-scoped read as everything else, and an unknown or hidden
+ * community simply falls back to the platform's language. Locale is
+ * presentation; nothing is decided by it.
+ */
+async function translatorFor(communityId: string): Promise<Translator> {
+  const community = communityId ? await getCommunityById(communityId) : undefined;
+  return communityTranslator(community);
+}
 
 // ── Authentication ──────────────────────────────────────────────────────
 
@@ -85,7 +111,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export async function sendMagicLink(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const next = String(formData.get("next") || "/home");
-  if (!email) redirect(`/login?feil=e-post`);
+  // Carried back to the sign-in page so it keeps speaking the language of the
+  // place the person is heading to. Only ever a same-site path.
+  const back = `neste=${encodeURIComponent(safeInternalPath(next))}`;
+  if (!email) redirect(`/login?feil=e-post&${back}`);
 
   const origin = await siteOrigin();
   const supabase = await createSupabaseServerClient();
@@ -99,7 +128,7 @@ export async function sendMagicLink(formData: FormData) {
   // The same response either way: whether an address has an account here is
   // exactly the kind of thing this platform should not confirm to a stranger.
   if (error) console.error("Kunne ikke sende innloggingslenke:", error.message);
-  redirect(`/login?sendt=${encodeURIComponent(email)}`);
+  redirect(`/login?sendt=${encodeURIComponent(email)}&${back}`);
 }
 
 export async function signOut() {
@@ -144,7 +173,9 @@ export async function createPostAction(
     announcement: formData.get("announcement") === "on",
   });
 
-  if (!result.ok) return { status: "error", message: result.error };
+  if (!result.ok) {
+    return { status: "error", message: (await translatorFor(communityId))(result.error) };
+  }
   revalidatePosts(communityId);
   return { status: "ok" };
 }
@@ -162,7 +193,9 @@ export async function updatePostAction(
     title: String(formData.get("title") ?? ""),
   });
 
-  if (!result.ok) return { status: "error", message: result.error };
+  if (!result.ok) {
+    return { status: "error", message: (await translatorFor(communityId))(result.error) };
+  }
   revalidatePosts(communityId);
   return { status: "ok" };
 }
@@ -177,7 +210,9 @@ export async function deletePostAction(
   const communityId = String(formData.get("communityId") ?? "");
   const result = await removePost(String(formData.get("postId") ?? ""));
 
-  if (!result.ok) return { status: "error", message: result.error };
+  if (!result.ok) {
+    return { status: "error", message: (await translatorFor(communityId))(result.error) };
+  }
   revalidatePosts(communityId);
   return { status: "ok" };
 }
@@ -204,7 +239,9 @@ export async function setPostPinnedAction(
     formData.get("pinned") === "1",
   );
 
-  if (!result.ok) return { status: "error", message: result.error };
+  if (!result.ok) {
+    return { status: "error", message: (await translatorFor(communityId))(result.error) };
+  }
   revalidatePosts(communityId);
   return { status: "ok" };
 }
@@ -258,7 +295,12 @@ export async function markAllNotificationsReadAction(
   if (!user) redirect("/login");
 
   const ok = await markAllNotificationsRead();
-  if (!ok) return { status: "error", message: "Varslene kunne ikke merkes som lest. Prøv igjen." };
+  if (!ok) {
+    return {
+      status: "error",
+      message: translator(PLATFORM_LOCALE)("err.notificationsFailed"),
+    };
+  }
 
   revalidateNotifications();
   return { status: "ok" };
@@ -288,9 +330,11 @@ export async function createMessageAction(
     body: String(formData.get("body") ?? ""),
   });
 
-  if (!result.ok) return { status: "error", error: result.error };
-
   const communityId = String(formData.get("communityId") ?? "");
+  if (!result.ok) {
+    return { status: "error", error: (await translatorFor(communityId))(result.error) };
+  }
+
   revalidatePath(`/community/${communityId}/channel/${channelId}`);
   revalidatePath(`/community/${communityId}`);
   return { status: "ok", message: result.message };
@@ -347,7 +391,9 @@ export async function createDirectMessageAction(
     body: String(formData.get("body") ?? ""),
   });
 
-  if (!result.ok) return { status: "error", error: result.error };
+  if (!result.ok) {
+    return { status: "error", error: (await translatorFor(communityId))(result.error) };
+  }
   revalidateDirectMessages(communityId, conversationId);
   return { status: "ok", message: result.message };
 }
@@ -407,8 +453,11 @@ export async function createCommentAction(
     parentId: parentId || undefined,
   });
 
-  if (!result.ok) return { status: "error", message: result.error };
-  revalidatePosts(String(formData.get("communityId") ?? ""));
+  const communityId = String(formData.get("communityId") ?? "");
+  if (!result.ok) {
+    return { status: "error", message: (await translatorFor(communityId))(result.error) };
+  }
+  revalidatePosts(communityId);
   return { status: "ok" };
 }
 
@@ -424,8 +473,11 @@ export async function updateCommentAction(
     String(formData.get("body") ?? ""),
   );
 
-  if (!result.ok) return { status: "error", message: result.error };
-  revalidatePosts(String(formData.get("communityId") ?? ""));
+  const communityId = String(formData.get("communityId") ?? "");
+  if (!result.ok) {
+    return { status: "error", message: (await translatorFor(communityId))(result.error) };
+  }
+  revalidatePosts(communityId);
   return { status: "ok" };
 }
 
@@ -438,8 +490,11 @@ export async function deleteCommentAction(
 
   const result = await removeComment(String(formData.get("commentId") ?? ""));
 
-  if (!result.ok) return { status: "error", message: result.error };
-  revalidatePosts(String(formData.get("communityId") ?? ""));
+  const communityId = String(formData.get("communityId") ?? "");
+  if (!result.ok) {
+    return { status: "error", message: (await translatorFor(communityId))(result.error) };
+  }
+  revalidatePosts(communityId);
   return { status: "ok" };
 }
 
@@ -457,8 +512,11 @@ export async function toggleReactionAction(
     emojiId: String(formData.get("emojiId") ?? "") || undefined,
   });
 
-  if (!result.ok) return { status: "error", message: result.error };
-  revalidatePosts(String(formData.get("communityId") ?? ""));
+  const communityId = String(formData.get("communityId") ?? "");
+  if (!result.ok) {
+    return { status: "error", message: (await translatorFor(communityId))(result.error) };
+  }
+  revalidatePosts(communityId);
   return { status: "ok" };
 }
 
@@ -489,10 +547,7 @@ export async function setAcceptsMemberDmsAction(
   // The function reports what is stored, so a refusal shows up as the value
   // not having moved rather than as an exception.
   if (stored !== value) {
-    return {
-      status: "error",
-      error: "Innstillingen kunne ikke endres. Bare administratorer og moderatorer kan endre denne.",
-    };
+    return { status: "error", error: (await translatorFor(communityId))("err.dmSettingFailed") };
   }
 
   revalidatePath(`/community/${communityId}/settings`);
@@ -538,7 +593,8 @@ export async function rsvpEventAction(
   const result = leaving ? await leaveEvent(eventId) : await joinEvent(eventId);
 
   if (!result.ok) {
-    return { status: "error", error: result.error === "full" ? EVENT_FULL : RSVP_REFUSED };
+    const t = await translatorFor(communityId);
+    return { status: "error", error: t(result.error === "full" ? EVENT_FULL : RSVP_REFUSED) };
   }
 
   revalidateEvents(communityId, eventId);
@@ -568,15 +624,17 @@ export async function createEventAction(
   const startTime = String(formData.get("startTime") ?? "");
   const endTime = String(formData.get("endTime") ?? "");
 
-  if (!title) return { status: "error", error: "Arrangementet må ha en tittel." };
-  if (title.length > 120) return { status: "error", error: "Tittelen kan være høyst 120 tegn." };
-  if (!location) return { status: "error", error: "Legg inn et sted." };
-  if (location.length > 120) return { status: "error", error: "Stedet kan være høyst 120 tegn." };
+  const t = await translatorFor(communityId);
+
+  if (!title) return { status: "error", error: t("err.eventTitleRequired") };
+  if (title.length > 120) return { status: "error", error: t("err.eventTitleTooLong") };
+  if (!location) return { status: "error", error: t("err.eventLocationRequired") };
+  if (location.length > 120) return { status: "error", error: t("err.eventLocationTooLong") };
   if (description.length > 4000) {
-    return { status: "error", error: "Beskrivelsen kan være høyst 4000 tegn." };
+    return { status: "error", error: t("err.eventDescriptionTooLong") };
   }
   if (!date || !startTime || !endTime) {
-    return { status: "error", error: "Fyll inn dato, start og slutt." };
+    return { status: "error", error: t("err.eventDatesRequired") };
   }
 
   // Resolved against the community's own zone rather than the server's, so
@@ -585,16 +643,16 @@ export async function createEventAction(
   const endsAt = osloInstant(date, endTime);
 
   if (!startsAt || !endsAt) {
-    return { status: "error", error: "Dato eller klokkeslett kunne ikke leses." };
+    return { status: "error", error: t("err.eventDatesUnreadable") };
   }
   if (endsAt <= startsAt) {
-    return { status: "error", error: "Arrangementet må slutte etter at det har begynt." };
+    return { status: "error", error: t("err.eventEndsBeforeStart") };
   }
 
   const rawCapacity = String(formData.get("capacity") ?? "").trim();
   const capacity = rawCapacity ? Number(rawCapacity) : undefined;
   if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1)) {
-    return { status: "error", error: "Antall plasser må være et helt tall, eller stå tomt." };
+    return { status: "error", error: t("err.eventCapacityInvalid") };
   }
 
   const result = await createEvent({
@@ -609,7 +667,7 @@ export async function createEventAction(
     capacity,
   });
 
-  if (!result.ok) return { status: "error", error: EVENT_CREATE_REFUSED };
+  if (!result.ok) return { status: "error", error: t(EVENT_CREATE_REFUSED) };
 
   revalidateEvents(communityId, result.id);
   return { status: "ok" };
@@ -649,7 +707,7 @@ export async function setMyLocalGroupAction(
   const raw = clearing ? "" : String(formData.get("localGroupId") ?? "");
 
   const ok = await setMyLocalGroup(communityId, raw || null);
-  if (!ok) return { status: "error", error: SELECTION_REFUSED };
+  if (!ok) return { status: "error", error: (await translatorFor(communityId))(SELECTION_REFUSED) };
 
   revalidateLocalGroups(communityId);
   return { status: "ok" };
@@ -663,11 +721,12 @@ export async function createLocalGroupAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { status: "error", error: "Lokallaget må ha et navn." };
+  if (!name) return { status: "error", error: t("err.localGroupNameRequired") };
 
   const ok = await createLocalGroup(communityId, name);
-  if (!ok) return { status: "error", error: ADMIN_REFUSED };
+  if (!ok) return { status: "error", error: t(ADMIN_REFUSED) };
 
   revalidateLocalGroups(communityId);
   return { status: "ok" };
@@ -680,13 +739,15 @@ export async function renameLocalGroupAction(
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
+  const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { status: "error", error: "Lokallaget må ha et navn." };
+  if (!name) return { status: "error", error: t("err.localGroupNameRequired") };
 
   const ok = await renameLocalGroup(String(formData.get("localGroupId") ?? ""), name);
-  if (!ok) return { status: "error", error: ADMIN_REFUSED };
+  if (!ok) return { status: "error", error: t(ADMIN_REFUSED) };
 
-  revalidateLocalGroups(String(formData.get("communityId") ?? ""));
+  revalidateLocalGroups(communityId);
   return { status: "ok" };
 }
 
@@ -701,13 +762,14 @@ export async function setLocalGroupActiveAction(
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
+  const communityId = String(formData.get("communityId") ?? "");
   const ok = await setLocalGroupActive(
     String(formData.get("localGroupId") ?? ""),
     formData.get("active") === "on",
   );
-  if (!ok) return { status: "error", error: ADMIN_REFUSED };
+  if (!ok) return { status: "error", error: (await translatorFor(communityId))(ADMIN_REFUSED) };
 
-  revalidateLocalGroups(String(formData.get("communityId") ?? ""));
+  revalidateLocalGroups(communityId);
   return { status: "ok" };
 }
 
@@ -728,18 +790,19 @@ export async function createEmojiAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
   const name = normalizeEmojiName(String(formData.get("name") ?? ""));
-  const nameError = validateEmojiName(name);
+  const nameError = validateEmojiName(name, t);
   if (nameError) return { status: "error", message: nameError };
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { status: "error", message: "Velg en bildefil." };
+    return { status: "error", message: t("err.chooseFile") };
   }
 
   // Decided from the bytes, never from the filename or the declared type.
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const image = inspectEmojiImage(bytes);
+  const image = inspectEmojiImage(bytes, t);
   if (!image.ok) return { status: "error", message: image.error };
 
   const result = await persistEmoji({
@@ -750,7 +813,7 @@ export async function createEmojiAction(
     extension: image.extension,
   });
 
-  if (!result.ok) return { status: "error", message: result.error };
+  if (!result.ok) return { status: "error", message: t(result.error, { name }) };
   revalidatePath(`/community/${communityId}/emojis`);
   revalidatePosts(communityId);
   return { status: "ok" };
@@ -766,7 +829,9 @@ export async function deleteEmojiAction(
   const communityId = String(formData.get("communityId") ?? "");
   const result = await removeEmoji(String(formData.get("emojiId") ?? ""));
 
-  if (!result.ok) return { status: "error", message: result.error };
+  if (!result.ok) {
+    return { status: "error", message: (await translatorFor(communityId))(result.error) };
+  }
   revalidatePath(`/community/${communityId}/emojis`);
   revalidatePosts(communityId);
   return { status: "ok" };
@@ -782,7 +847,7 @@ export async function deleteEmojiAction(
 // is_admin() on their own, and the community id a caller sends is only ever an
 // argument to those, never proof of anything.
 
-const AVATAR_ADMIN_ONLY = "Bare administratoren kan endre fellesskapets profilbilde.";
+const AVATAR_ADMIN_ONLY = "err.avatarAdminOnly" as const;
 
 async function isActiveAdmin(userId: string, communityId: string) {
   const membership = await getMembership(userId, communityId);
@@ -797,18 +862,19 @@ export async function setCommunityAvatarAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
   if (!(await isActiveAdmin(user.id, communityId))) {
-    return { status: "error", message: AVATAR_ADMIN_ONLY };
+    return { status: "error", message: t(AVATAR_ADMIN_ONLY) };
   }
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { status: "error", message: "Velg en bildefil." };
+    return { status: "error", message: t("err.chooseFile") };
   }
 
   // Decided from the bytes, never from the filename or the declared type.
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const image = inspectCommunityAvatar(bytes);
+  const image = inspectCommunityAvatar(bytes, t);
   if (!image.ok) return { status: "error", message: image.error };
 
   const result = await setCommunityAvatar({
@@ -817,12 +883,12 @@ export async function setCommunityAvatarAction(
     contentType: image.contentType,
     extension: image.extension,
   });
-  if (!result.ok) return { status: "error", message: result.error };
+  if (!result.ok) return { status: "error", message: t(result.error) };
 
   // The image appears in the shell of every signed-in page, so the whole app
   // layout is refreshed rather than a list of routes.
   revalidatePath("/", "layout");
-  return { status: "ok", message: "Profilbildet er oppdatert." };
+  return { status: "ok", message: t("ok.avatarUpdated") };
 }
 
 export async function removeCommunityAvatarAction(
@@ -833,15 +899,16 @@ export async function removeCommunityAvatarAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
   if (!(await isActiveAdmin(user.id, communityId))) {
-    return { status: "error", message: AVATAR_ADMIN_ONLY };
+    return { status: "error", message: t(AVATAR_ADMIN_ONLY) };
   }
 
   const result = await clearCommunityAvatar(communityId);
-  if (!result.ok) return { status: "error", message: result.error };
+  if (!result.ok) return { status: "error", message: t(result.error) };
 
   revalidatePath("/", "layout");
-  return { status: "ok", message: "Profilbildet er fjernet." };
+  return { status: "ok", message: t("ok.avatarRemoved") };
 }
 
 // ── Your profile in a community ─────────────────────────────────────────
@@ -853,7 +920,7 @@ export async function removeCommunityAvatarAction(
 // these forms, so nobody — an administrator included — can aim one at
 // somebody else's profile.
 
-const PROFILE_INACTIVE = "Du kan bare endre profilen din i fellesskap du er aktivt medlem av.";
+const PROFILE_INACTIVE = "err.profileInactive" as const;
 
 async function isActiveMember(userId: string, communityId: string) {
   return (await getMembership(userId, communityId))?.status === "active";
@@ -867,13 +934,14 @@ export async function updateCommunityProfileAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
   if (!(await isActiveMember(user.id, communityId))) {
-    return { status: "error", message: PROFILE_INACTIVE };
+    return { status: "error", message: t(PROFILE_INACTIVE) };
   }
 
-  const name = normalizeDisplayName(String(formData.get("displayName") ?? ""));
+  const name = normalizeDisplayName(String(formData.get("displayName") ?? ""), t);
   if (!name.ok) return { status: "error", message: name.message };
-  const bio = normalizeBio(String(formData.get("bio") ?? ""));
+  const bio = normalizeBio(String(formData.get("bio") ?? ""), t);
   if (!bio.ok) return { status: "error", message: bio.message };
 
   const result = await updateMyCommunityProfile({
@@ -881,11 +949,11 @@ export async function updateCommunityProfileAction(
     displayName: name.value,
     bio: bio.value,
   });
-  if (!result.ok) return { status: "error", message: result.error };
+  if (!result.ok) return { status: "error", message: t(result.error) };
 
   // The name appears on every screen of the community and in the shell.
   revalidatePath("/", "layout");
-  return { status: "ok", message: "Profilen er lagret." };
+  return { status: "ok", message: t("ok.profileSaved") };
 }
 
 export async function setMyCommunityAvatarAction(
@@ -896,18 +964,19 @@ export async function setMyCommunityAvatarAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
   if (!(await isActiveMember(user.id, communityId))) {
-    return { status: "error", message: PROFILE_INACTIVE };
+    return { status: "error", message: t(PROFILE_INACTIVE) };
   }
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { status: "error", message: "Velg en bildefil." };
+    return { status: "error", message: t("err.chooseFile") };
   }
 
   // Same validator as the community image: decided from the bytes.
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const image = inspectCommunityAvatar(bytes);
+  const image = inspectCommunityAvatar(bytes, t);
   if (!image.ok) return { status: "error", message: image.error };
 
   const result = await setMyCommunityAvatar({
@@ -917,10 +986,10 @@ export async function setMyCommunityAvatarAction(
     contentType: image.contentType,
     extension: image.extension,
   });
-  if (!result.ok) return { status: "error", message: result.error };
+  if (!result.ok) return { status: "error", message: t(result.error) };
 
   revalidatePath("/", "layout");
-  return { status: "ok", message: "Profilbildet er oppdatert." };
+  return { status: "ok", message: t("ok.avatarUpdated") };
 }
 
 export async function removeMyCommunityAvatarAction(
@@ -931,15 +1000,16 @@ export async function removeMyCommunityAvatarAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
   if (!(await isActiveMember(user.id, communityId))) {
-    return { status: "error", message: PROFILE_INACTIVE };
+    return { status: "error", message: t(PROFILE_INACTIVE) };
   }
 
   const result = await clearMyCommunityAvatar(communityId);
-  if (!result.ok) return { status: "error", message: result.error };
+  if (!result.ok) return { status: "error", message: t(result.error) };
 
   revalidatePath("/", "layout");
-  return { status: "ok", message: "Profilbildet er fjernet. Initialene dine vises igjen." };
+  return { status: "ok", message: t("ok.avatarRemovedInitials") };
 }
 
 // ── Access requests and invitations ─────────────────────────────────────
@@ -955,9 +1025,15 @@ export async function requestAccessAction(
   _prev: AccessFormState,
   formData: FormData,
 ): Promise<AccessFormState> {
+  // The reply is written in the language of the portal being asked. A portal's
+  // slug is public, so this reveals nothing the page itself does not.
+  const slug = String(formData.get("slug") ?? "");
+  const portal = slug ? await getPortalCommunity(slug) : undefined;
+  const t = communityTranslator(portal);
+
   const email = String(formData.get("email") ?? "").trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 254) {
-    return { status: "error", message: "Skriv inn en gyldig e-postadresse." };
+    return { status: "error", message: t("err.emailInvalid") };
   }
 
   // A name or pseudonym is required for every community. Empty and
@@ -966,13 +1042,13 @@ export async function requestAccessAction(
   // the same rule for anyone who bypasses this action entirely. Like the
   // address check above, this describes the input and nothing about any
   // community or its members.
-  const name = normalizeDisplayName(String(formData.get("displayName") ?? ""));
+  const name = normalizeDisplayName(String(formData.get("displayName") ?? ""), t);
   if (!name.ok) {
     return { status: "error", message: name.message };
   }
 
   const accepted = await requestCommunityAccess({
-    slug: String(formData.get("slug") ?? ""),
+    slug,
     email,
     displayName: name.value,
   });
@@ -981,16 +1057,13 @@ export async function requestAccessAction(
   // database refused, or a failed call — never something about a community or
   // its members. Every valid submission answers `true`, whatever became of it.
   if (!accepted) {
-    return {
-      status: "error",
-      message: "Vi kunne ikke sende forespørselen. Sjekk opplysningene og prøv igjen.",
-    };
+    return { status: "error", message: t("err.requestFailed") };
   }
 
   // Note what is *not* branched on: which valid outcome this was. A community
   // that does not take applications, an address that already belongs to a
   // member and a brand new request all end here.
-  return { status: "ok", message: REQUEST_SENT_MESSAGE };
+  return { status: "ok", message: t(REQUEST_SENT_KEY) };
 }
 
 /**
@@ -1010,10 +1083,11 @@ export async function approveRequestAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
   const minted = await approveAccessRequest(String(formData.get("requestId") ?? ""));
 
   if (!minted) {
-    return { status: "error", message: "Forespørselen kunne ikke godkjennes." };
+    return { status: "error", message: t("err.approveFailed") };
   }
 
   revalidatePath(`/community/${communityId}/requests`);
@@ -1021,17 +1095,17 @@ export async function approveRequestAction(
   if (minted.outcome === "activated") {
     return {
       status: "ok",
-      message: `Godkjent. ${minted.email} hadde allerede en TING-konto, så tilgangen er aktiv med det samme.`,
+      message: t("ok.approvedActivated", { email: minted.email }),
     };
   }
 
   if (!minted.token) {
-    return { status: "ok", message: "Forespørselen var allerede godkjent. Lenken for å logge inn står ved lag." };
+    return { status: "ok", message: t("ok.approvedAlready") };
   }
 
-  const sent = await deliverInvitation(minted);
+  const sent = await deliverInvitation(minted, t);
   return sent.ok
-    ? { status: "ok", message: `Godkjent. En lenke for å logge inn er sendt til ${minted.email}.` }
+    ? { status: "ok", message: t("ok.approvedSent", { email: minted.email }) }
     : { status: "error", message: sent.message };
 }
 
@@ -1043,12 +1117,13 @@ export async function rejectRequestAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
   const ok = await rejectAccessRequest(String(formData.get("requestId") ?? ""));
   revalidatePath(`/community/${communityId}/requests`);
 
   return ok
-    ? { status: "ok", message: "Forespørselen er avslått." }
-    : { status: "error", message: "Forespørselen kunne ikke avslås." };
+    ? { status: "ok", message: t("ok.rejected") }
+    : { status: "error", message: t("err.rejectFailed") };
 }
 
 export async function resendInvitationAction(
@@ -1059,37 +1134,46 @@ export async function resendInvitationAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
   const minted = await resendInvitation(String(formData.get("invitationId") ?? ""));
   revalidatePath(`/community/${communityId}/requests`);
 
   if (!minted?.token) {
-    return { status: "error", message: "Invitasjonen kunne ikke sendes på nytt." };
+    return { status: "error", message: t("err.resendFailed") };
   }
 
-  const sent = await deliverInvitation(minted);
+  const sent = await deliverInvitation(minted, t);
   return sent.ok
-    ? { status: "ok", message: `Ny invitasjon sendt til ${minted.email}.` }
+    ? { status: "ok", message: t("ok.resent", { email: minted.email }) }
     : { status: "error", message: sent.message };
 }
 
-/** Builds the absolute accept URL and hands the message to the provider. */
-async function deliverInvitation(minted: {
-  token: string | null;
-  email: string;
-  communityId: string;
-  expiresAt: string | null;
-}): Promise<{ ok: true } | { ok: false; message: string }> {
+/**
+ * Builds the absolute accept URL and hands the message to the provider. The
+ * email is written in the community's language — it is about one community
+ * and nothing else.
+ */
+async function deliverInvitation(
+  minted: {
+    token: string | null;
+    email: string;
+    communityId: string;
+    expiresAt: string | null;
+  },
+  t: Translator,
+): Promise<{ ok: true } | { ok: false; message: string }> {
   // `expiresAt` is only ever null alongside a null token (the 'activated'
   // outcome, which never reaches this function, and an idempotent replay
   // with no fresh token to send).
-  if (!minted.token || !minted.expiresAt) return { ok: false, message: "Ingen invitasjon å sende." };
+  if (!minted.token || !minted.expiresAt) return { ok: false, message: t("err.noInvitation") };
 
   const community = await getCommunityById(minted.communityId);
   const origin = await siteOrigin();
 
   const result = await sendInvitationEmail({
     to: minted.email,
-    communityName: community?.name ?? "fellesskapet",
+    communityName: community?.name ?? t("common.theCommunity"),
+    locale: community ? communityLocale(community) : PLATFORM_LOCALE,
     acceptUrl: `${origin}/invitasjon/${minted.token}`,
     expiresAt: minted.expiresAt,
     accent: community?.branding.accent ?? "#1f4a3d",
@@ -1099,7 +1183,7 @@ async function deliverInvitation(minted: {
   // an admin resend rather than wonder whether the approval took.
   return result.ok
     ? { ok: true }
-    : { ok: false, message: `Invitasjonen er opprettet, men e-posten kunne ikke sendes: ${result.error}` };
+    : { ok: false, message: t("err.emailNotSent", { error: result.error }) };
 }
 
 /** Redeems a token for the signed-in account. */
@@ -1110,9 +1194,13 @@ export async function acceptInvitationAction(
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
+  // The invitation page tells the form which language it is in. It only
+  // chooses the words of a refusal; the token and the address match are what
+  // decide whether anything is granted.
+  const t = translator(parseLocale(formData.get("locale")));
   const result = await acceptInvitationToken(String(formData.get("token") ?? ""));
   if (!result.ok) {
-    return { status: "error", message: invitationFailure(result.reason) };
+    return { status: "error", message: t(invitationFailure(result.reason)) };
   }
 
   revalidatePath("/home");
@@ -1130,17 +1218,17 @@ export async function acceptInvitationAction(
   redirect(`/community/${result.communityId}`);
 }
 
-function invitationFailure(reason: string): string {
+function invitationFailure(reason: string): MessageKey {
   switch (reason) {
     case "email-mismatch":
-      return "Invitasjonen er sendt til en annen e-postadresse enn den du er logget inn med. Logg inn med adressen invitasjonen ble sendt til.";
+      return "err.invitation.mismatch";
     case "already-used":
-      return "Denne invitasjonen er allerede brukt.";
+      return "err.invitation.used";
     case "expired":
-      return "Invitasjonen er utløpt. Be en administrator om å sende en ny.";
+      return "err.invitation.expired";
     case "revoked":
-      return "Invitasjonen er erstattet av en nyere. Bruk den siste lenken du fikk.";
+      return "err.invitation.revoked";
     default:
-      return "Invitasjonen er ikke gyldig.";
+      return "err.invitation.invalid";
   }
 }

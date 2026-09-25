@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Cormorant_Garamond } from "next/font/google";
 import { UtrAccessForm } from "@/components/community/UtrAccessForm";
 import { Wordmark } from "@/components/shell/Wordmark";
+import { communityLocale, translator, type Locale } from "@/lib/i18n";
 import type { CommunityPublic, Membership, User } from "@/lib/types";
 import {
   formatDate,
@@ -37,23 +38,12 @@ type PublicEvent = {
   location: string;
 };
 
+/** Message keys for the four reasons to join; the words live in the dictionaries. */
 const reasons = [
-  {
-    title: "Oppdag det som skjer mellom de store kveldene.",
-    body: "Små konserter, lyttesesjoner, workshops, middager, arbeidsmøter og spontane ting som ikke nødvendigvis havner på den offentlige siden.",
-  },
-  {
-    title: "Finn menneskene bak og rundt UTR.",
-    body: "Musikere, kunstnere, designere, teknikere, frivillige og andre nysgjerrige folk i miljøet.",
-  },
-  {
-    title: "Start noe.",
-    body: "Del en idé, finn noen å samarbeide med, spør om hjelp eller bli med i et prosjekt som allerede er på vei.",
-  },
-  {
-    title: "Kom nærmere prosessen.",
-    body: "Følg ting mens de blir til — nye steder, kunstnere, installasjoner, samarbeid og eksperimenter før de blir ferdige programmer.",
-  },
+  { title: "utr.reason1.title", body: "utr.reason1.body" },
+  { title: "utr.reason2.title", body: "utr.reason2.body" },
+  { title: "utr.reason3.title", body: "utr.reason3.body" },
+  { title: "utr.reason4.title", body: "utr.reason4.body" },
 ] as const;
 
 const tracked = styles.tracked;
@@ -67,7 +57,16 @@ const lede = `${serif} text-[1.25rem] leading-[1.5] italic text-(--utr-ink-2) sm
 const heroLede = `${serif} text-[1.3125rem] leading-[1.5] italic text-(--utr-ink-2) sm:text-[1.4375rem]`;
 
 /** "BLI EN DEL AV FELLESSKAPET →" — the site's own link language. */
-function TextLink({ href, children }: { href: string; children: ReactNode }) {
+function TextLink({
+  href,
+  children,
+  newTab,
+}: {
+  href: string;
+  children: ReactNode;
+  /** The screen-reader note for a link that opens elsewhere, in the page's language. */
+  newTab: string;
+}) {
   const external = href.startsWith("http");
   return (
     <a
@@ -80,33 +79,36 @@ function TextLink({ href, children }: { href: string; children: ReactNode }) {
         <span aria-hidden="true" className={styles.arrow}>
           →
         </span>
-        {external ? <span className="sr-only"> (åpnes i ny fane)</span> : null}
+        {external ? <span className="sr-only"> {newTab}</span> : null}
       </span>
     </a>
   );
 }
 
-/** Three things of the kind that get shared inside, set like Program cards. */
+/**
+ * Three things of the kind that get shared inside, set like Program cards.
+ * The copy is ours — demonstration text, not anyone's post — so it is
+ * translated with the rest of the page.
+ */
 const glimpses = [
   {
-    category: "Prosjekter",
+    category: "utr.glimpse1.category",
     dash: "bg-(--utr-rust)",
-    text: "Ser etter noen å bygge en installasjon med til oktober.",
-    meta: "Ines · 4 svar",
+    text: "utr.glimpse1.text",
+    meta: "utr.glimpse1.meta",
   },
   {
-    category: "Visuelt",
+    category: "utr.glimpse2.category",
     dash: "bg-[#5d6b93]",
-    // Non-breaking hyphen, so the compound never splits across lines.
-    text: "João deler visual\u2011systemet fra forrige UTR.",
-    meta: "18 filer",
+    text: "utr.glimpse2.text",
+    meta: "utr.glimpse2.meta",
     photo: true,
   },
   {
-    category: "Lyttesesjon",
+    category: "utr.glimpse3.category",
     dash: "bg-(--utr-rust)",
-    text: "Listening session torsdag — 12 plasser.",
-    meta: "Tors 19.00 · 9 av 12 tatt",
+    text: "utr.glimpse3.text",
+    meta: "utr.glimpse3.meta",
   },
 ] as const;
 
@@ -135,6 +137,8 @@ export function UtrPortal({
   /** The signed-in visitor already has a request waiting. */
   pending: boolean;
 }) {
+  const locale = communityLocale(community);
+  const t = translator(locale);
   const isMember = membership?.status === "active";
   const communityHref = `/community/${community.id}`;
   const loginHref = `/login?neste=/${community.slug}`;
@@ -142,6 +146,7 @@ export function UtrPortal({
 
   return (
     <main
+      lang={locale}
       data-smooth-anchors
       className={`${cormorant.variable} ${styles.root} flex min-h-dvh flex-col`}
     >
@@ -161,18 +166,18 @@ export function UtrPortal({
               href={communityHref}
               className={`${tracked} py-2 underline decoration-(--utr-rule) underline-offset-8 hover:decoration-(--utr-ink)`}
             >
-              Åpne fellesskapet
+              {t("utr.header.open")}
             </Link>
           ) : user ? (
             <span className={`${tracked} text-(--utr-muted)`}>
-              Innlogget som {user.name.split(" ")[0]}
+              {t("utr.header.signedInAs", { name: user.name.split(" ")[0] })}
             </span>
           ) : (
             <Link
               href={loginHref}
               className={`${tracked} py-2 underline decoration-(--utr-rule) underline-offset-8 transition-colors hover:decoration-(--utr-ink)`}
             >
-              Logg inn
+              {t("utr.header.login")}
             </Link>
           )}
         </div>
@@ -180,39 +185,35 @@ export function UtrPortal({
 
       {/* 2 · Hero — a page title at full confidence, then copy beside one photograph. */}
       <section className={`${frame} pb-20 pt-10 sm:pt-14 lg:pb-28 lg:pt-14`}>
-        <p className={`${tracked} text-(--utr-muted)`}>— Fellesskapet rundt Under The Rug</p>
+        <p className={`${tracked} text-(--utr-muted)`}>{t("utr.hero.eyebrow")}</p>
         <h1
           className={`${display} mt-6 text-[clamp(3rem,7.8vw,7.25rem)] leading-[0.95] lg:mt-8`}
         >
-          <span className="block">{"Under\u00a0The\u00a0Rug"} fortsetter</span>
-          <em className="block text-balance italic">mellom arrangementene.</em>
+          <span className="block">{t("utr.hero.line1", { name: "Under\u00a0The\u00a0Rug" })}</span>
+          <em className="block text-balance italic">{t("utr.hero.line2")}</em>
         </h1>
 
         <div className="mt-10 grid gap-12 lg:mt-14 lg:grid-cols-12 lg:gap-12">
           <div className="lg:col-span-5">
             <div className={`${heroLede} max-w-[30rem] space-y-4`}>
-              <p>
-                Et digitalt rom for menneskene rundt {"UTR\u00a0—"} kunstnere, musikere,
-                frivillige, samarbeidspartnere og folk som bare vil være tettere på det som skjer.
-              </p>
-              <p>
-                Finn mindre arrangementer, nye prosjekter, folk å lage ting med og ting som ennå
-                ikke har blitt offentliggjort.
-              </p>
+              <p>{t("utr.hero.p1")}</p>
+              <p>{t("utr.hero.p2")}</p>
             </div>
             {isMember ? null : (
               <div className="mt-9">
-                <TextLink href="#tilgang">Bli en del av fellesskapet</TextLink>
+                <TextLink href="#tilgang" newTab={t("utr.newTab")}>
+                  {t("utr.hero.cta")}
+                </TextLink>
               </div>
             )}
             {nextEvent ? (
               <p className={`${tracked} mt-10 border-t border-(--utr-rule) pt-5 text-(--utr-muted)`}>
-                Neste åpne kveld
+                {t("utr.hero.nextEvent")}
                 <a
                   href="#program"
                   className="mt-2 block w-fit text-(--utr-ink) underline decoration-(--utr-rule) underline-offset-4 hover:decoration-(--utr-ink)"
                 >
-                  {formatDate(nextEvent.startsAt)} · {nextEvent.title}
+                  {formatDate(nextEvent.startsAt, locale)} · {nextEvent.title}
                 </a>
               </p>
             ) : null}
@@ -221,7 +222,7 @@ export function UtrPortal({
           <div className="relative aspect-[4/3] overflow-hidden bg-(--utr-rule) lg:col-span-7 lg:col-start-6">
             <Image
               src={liveProjection}
-              alt="To musikere spiller under en stor lerretsprojeksjon i et mørkt industrilokale."
+              alt={t("utr.hero.photoAlt")}
               fill
               preload
               placeholder="blur"
@@ -236,19 +237,19 @@ export function UtrPortal({
       <section aria-labelledby="akkurat-na" className="bg-(--utr-band)">
         <div className={`${frame} py-20 lg:py-28`}>
           <h2 id="akkurat-na" className={sectionHeading}>
-            Akkurat nå i
+            {t("utr.now.title1")}
             <br />
-            fellesskapet
+            {t("utr.now.title2")}
           </h2>
           <p className={`${serif} mt-3 text-[1.1875rem] italic text-(--utr-ink-2)`}>
-            Et lite innblikk i hva som kan dukke opp innenfor.
+            {t("utr.now.lede")}
           </p>
           <p className="mt-4 max-w-md text-[0.9375rem] leading-relaxed text-(--utr-muted)">
-            Selve samtalene er bare synlige for folk i fellesskapet.
+            {t("utr.now.note")}
           </p>
 
           <ul
-            aria-label="Eksempler på oppslag i fellesskapet"
+            aria-label={t("utr.now.listLabel")}
             className="mt-10 grid gap-3 border-t border-(--utr-card-rule) pt-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4"
           >
             {glimpses.map((item) => (
@@ -257,12 +258,12 @@ export function UtrPortal({
                 className="flex flex-col border border-(--utr-card-rule) bg-(--utr-card) p-5 lg:p-6"
               >
                 <span aria-hidden="true" className={`block h-px w-5 ${item.dash}`} />
-                <p className={`${tracked} mt-3 text-(--utr-muted)`}>{item.category}</p>
+                <p className={`${tracked} mt-3 text-(--utr-muted)`}>{t(item.category)}</p>
                 {"photo" in item ? (
                   <div className="relative mt-5 aspect-[3/2] overflow-hidden bg-(--utr-night)">
                     <Image
                       src={eyeProjection}
-                      alt="Et blått, projisert øye over scenen, med en laserstråle på skrå gjennom rommet."
+                      alt={t("utr.glimpse2.photoAlt")}
                       fill
                       placeholder="blur"
                       sizes="(min-width: 1024px) 24vw, (min-width: 640px) 45vw, 100vw"
@@ -271,10 +272,10 @@ export function UtrPortal({
                   </div>
                 ) : null}
                 <p className={`${serif} mb-8 mt-4 text-balance text-[1.5rem] leading-[1.18]`}>
-                  {item.text}
+                  {t(item.text)}
                 </p>
                 <p className={`${tracked} mt-auto border-t border-(--utr-card-rule) pt-3 text-(--utr-muted)`}>
-                  {item.meta}
+                  {t(item.meta)}
                 </p>
               </li>
             ))}
@@ -284,10 +285,10 @@ export function UtrPortal({
 
       {/* 4 · Why join — four reasons, set as an index. */}
       <section aria-labelledby="hvorfor" className={`${frame} pb-20 pt-24 lg:pb-28 lg:pt-36`}>
-        <p className={`${tracked} text-(--utr-muted)`}>— Hvorfor være med?</p>
+        <p className={`${tracked} text-(--utr-muted)`}>{t("utr.why.eyebrow")}</p>
         <h2 id="hvorfor" className={`${serif} mt-6 text-[clamp(2.75rem,6.2vw,6rem)] leading-[0.98]`}>
-          <span className="block text-balance">Ikke bare følg med.</span>
-          <em className="block italic">Ta del.</em>
+          <span className="block text-balance">{t("utr.why.line1")}</span>
+          <em className="block italic">{t("utr.why.line2")}</em>
         </h2>
 
         <ol className="mt-14 grid gap-x-12 gap-y-12 sm:grid-cols-2 lg:mt-20 lg:gap-x-20 lg:gap-y-16">
@@ -297,10 +298,10 @@ export function UtrPortal({
                 {String(index + 1).padStart(2, "0")}
               </span>
               <h3 className={`${serif} mt-4 max-w-md text-balance text-[1.75rem] leading-[1.12]`}>
-                {reason.title}
+                {t(reason.title)}
               </h3>
               <p className="mt-3 max-w-md text-[1rem] leading-relaxed text-(--utr-ink-2)">
-                {reason.body}
+                {t(reason.body)}
               </p>
             </li>
           ))}
@@ -313,7 +314,7 @@ export function UtrPortal({
           <div className="relative aspect-[4/3] overflow-hidden bg-(--utr-rule) lg:col-span-8 lg:col-start-5">
             <Image
               src={candleRoom}
-              alt="Et telt, tepper og levende lys på gulvet i et mørkt rom, satt opp for en mindre samling."
+              alt={t("utr.candlePhotoAlt")}
               fill
               placeholder="blur"
               sizes="(min-width: 1344px) 52rem, (min-width: 1024px) 64vw, 100vw"
@@ -330,12 +331,11 @@ export function UtrPortal({
             id="innenfor"
             className={`${serif} text-[clamp(2.75rem,6.2vw,6rem)] leading-[1]`}
           >
-            <span className="block text-balance">Noe er åpent for alle.</span>
-            <em className="block text-balance italic">Resten skjer innenfor.</em>
+            <span className="block text-balance">{t("utr.inside.line1")}</span>
+            <em className="block text-balance italic">{t("utr.inside.line2")}</em>
           </h2>
           <p className="mt-8 max-w-xl text-[1.0625rem] leading-relaxed text-(--utr-ink-2) lg:mt-12">
-            På denne siden finner du åpne arrangementer. Inne i fellesskapet finner du samtalene,
-            mindre samlinger, prosjektene og menneskene rundt Under The Rug.
+            {t("utr.inside.body")}
           </p>
         </div>
       </section>
@@ -346,22 +346,22 @@ export function UtrPortal({
         aria-labelledby="apent"
         className={`${frame} scroll-mt-6 pb-20 pt-24 lg:pb-28 lg:pt-32`}
       >
-        <p className={`${tracked} text-(--utr-muted)`}>— Åpent for alle</p>
+        <p className={`${tracked} text-(--utr-muted)`}>{t("utr.events.eyebrow")}</p>
         <h2 id="apent" className={`${sectionHeading} mt-5`}>
-          Neste åpne arrangementer
+          {t("utr.events.title")}
         </h2>
 
         {publicEvents.length === 0 ? (
           <div className="mt-10 border-t border-(--utr-ink) pt-8">
-            <p className={lede}>Ingenting annonsert akkurat nå.</p>
+            <p className={lede}>{t("utr.events.none")}</p>
             <p className="mt-2 max-w-md text-[0.9375rem] leading-relaxed text-(--utr-muted)">
-              Nye åpne arrangementer dukker opp her så snart de er klare.
+              {t("utr.events.noneNote")}
             </p>
           </div>
         ) : (
           <ol className="mt-10 border-t border-(--utr-ink) lg:mt-12">
             {publicEvents.map((event) => {
-              const date = formatDateParts(event.startsAt);
+              const date = formatDateParts(event.startsAt, locale);
               return (
                 <li
                   key={event.id}
@@ -384,11 +384,11 @@ export function UtrPortal({
                     </p>
                   </div>
                   <dl className="grid content-start gap-1.5 sm:col-start-2 lg:col-span-4 lg:col-start-auto lg:pt-2 lg:text-right">
-                    <dt className="sr-only">Tid</dt>
+                    <dt className="sr-only">{t("utr.events.time")}</dt>
                     <dd className="text-[1rem] text-(--utr-ink) first-letter:uppercase">
-                      {eventTime(event)}
+                      {eventTime(event, locale)}
                     </dd>
-                    <dt className="sr-only">Sted</dt>
+                    <dt className="sr-only">{t("utr.events.place")}</dt>
                     <dd className={`${tracked} ${styles.meta} text-(--utr-muted)`}>{event.location}</dd>
                   </dl>
                 </li>
@@ -401,7 +401,9 @@ export function UtrPortal({
           <ul className="mt-8 flex flex-wrap gap-x-10 gap-y-2">
             {community.links.map((link) => (
               <li key={link.href}>
-                <TextLink href={link.href}>{link.label}</TextLink>
+                <TextLink href={link.href} newTab={t("utr.newTab")}>
+                  {link.label}
+                </TextLink>
               </li>
             ))}
           </ul>
@@ -421,12 +423,13 @@ export function UtrPortal({
                 id="vaere-med"
                 className={`${serif} text-[clamp(2.75rem,5.6vw,5.25rem)] leading-[0.98]`}
               >
-                Vil du være <em className="italic">med?</em>
+                {t("utr.access.titlePre")}
+                <em className="italic">{t("utr.access.titleEm")}</em>
               </h2>
               <div className="relative mt-12 hidden aspect-[4/3] w-[82%] overflow-hidden bg-(--utr-rule) lg:block">
                 <Image
                   src={performerGreen}
-                  alt="En performer bøyer seg over et bord med utstyr foran en grønn projeksjon."
+                  alt={t("utr.access.photoAlt")}
                   fill
                   placeholder="blur"
                   sizes="(min-width: 1344px) 26rem, 32vw"
@@ -437,19 +440,18 @@ export function UtrPortal({
 
             <div className="lg:col-span-6 lg:col-start-7 lg:pt-4">
               <div className={`${lede} max-w-[30rem] space-y-4`}>
-                <p>
-                  Fellesskapet er for folk som vil være litt tettere på det som skjer rundt Under
-                  The Rug.
-                </p>
-                <p>
-                  Kunstnere, frivillige, samarbeidspartnere, publikum og andre nysgjerrige folk er
-                  velkomne.
-                </p>
+                <p>{t("utr.access.p1")}</p>
+                <p>{t("utr.access.p2")}</p>
               </div>
               <p className="mb-12 mt-6 max-w-md text-[1rem] leading-relaxed text-(--utr-ink-2)">
-                Fortell oss hvem du er, så sender vi deg tilgang.
+                {t("utr.access.tell")}
               </p>
-              <UtrAccessForm community={community} signedIn={Boolean(user)} pending={pending} />
+              <UtrAccessForm
+                community={community}
+                signedIn={Boolean(user)}
+                pending={pending}
+                locale={locale}
+              />
             </div>
           </div>
         </section>
@@ -479,12 +481,14 @@ export function UtrPortal({
                 Under The Rug
               </p>
               <p className="mt-4 max-w-[16rem] text-[0.8125rem] leading-relaxed text-(--utr-on-night-2)">
-                Fellesskapet rundt Under The Rug. {community.location}, siden{" "}
-                {community.foundedYear}.
+                {t("utr.footer.about", {
+                  location: community.location,
+                  year: community.foundedYear,
+                })}
               </p>
             </div>
             <div>
-              <p className={`${tracked} text-(--utr-on-night-2)/70`}>Fellesskapet</p>
+              <p className={`${tracked} text-(--utr-on-night-2)/70`}>{t("utr.footer.community")}</p>
               <ul className="mt-4 grid gap-2.5">
                 {isMember ? null : (
                   <li>
@@ -492,7 +496,7 @@ export function UtrPortal({
                       href="#tilgang"
                       className={`${tracked} text-(--utr-on-night) hover:text-(--utr-on-night-2)`}
                     >
-                      Be om tilgang
+                      {t("utr.footer.request")}
                     </a>
                   </li>
                 )}
@@ -502,7 +506,7 @@ export function UtrPortal({
                       href={loginHref}
                       className={`${tracked} text-(--utr-on-night) hover:text-(--utr-on-night-2)`}
                     >
-                      Logg inn
+                      {t("utr.footer.login")}
                     </Link>
                   </li>
                 )}
@@ -511,7 +515,7 @@ export function UtrPortal({
                     href="#program"
                     className={`${tracked} text-(--utr-on-night) hover:text-(--utr-on-night-2)`}
                   >
-                    Åpne arrangementer
+                    {t("utr.footer.events")}
                   </a>
                 </li>
               </ul>
@@ -529,7 +533,7 @@ export function UtrPortal({
                         className={`${tracked} text-(--utr-on-night) hover:text-(--utr-on-night-2)`}
                       >
                         {link.label} <span aria-hidden="true">↗</span>
-                        <span className="sr-only"> (åpnes i ny fane)</span>
+                        <span className="sr-only"> {t("utr.newTab")}</span>
                       </a>
                     </li>
                   ))}
@@ -539,13 +543,13 @@ export function UtrPortal({
           </div>
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-(--utr-on-night)/15 py-6">
             <p className={`${tracked} text-(--utr-on-night-2)`}>
-              Under The Rug · {community.location} · Norge
+              {t("utr.footer.line", { location: community.location })}
             </p>
             <Link
               href="/"
               className={`${tracked} inline-flex items-center gap-2 text-(--utr-on-night-2) transition-colors hover:text-(--utr-on-night)`}
             >
-              Drevet av
+              {t("utr.footer.poweredBy")}
               <Wordmark className="text-(--utr-on-night)! normal-case tracking-normal" />
             </Link>
           </div>
@@ -556,13 +560,14 @@ export function UtrPortal({
 }
 
 /**
- * "lørdag 10. oktober, 19.00–01.00". A night that runs past midnight still
- * reads as one evening; anything longer falls back to the full range.
+ * "lørdag 10. oktober, 19.00–01.00" (or "Saturday 10 October, 19:00–01:00"). A
+ * night that runs past midnight still reads as one evening; anything longer
+ * falls back to the full range.
  */
-function eventTime(event: PublicEvent) {
+function eventTime(event: PublicEvent, locale: Locale) {
   const hours = (Date.parse(event.endsAt) - Date.parse(event.startsAt)) / 3_600_000;
   if (hours > 0 && hours < 14) {
-    return `${formatWeekday(event.startsAt)}, ${formatTime(event.startsAt)}–${formatTime(event.endsAt)}`;
+    return `${formatWeekday(event.startsAt, locale)}, ${formatTime(event.startsAt, locale)}–${formatTime(event.endsAt, locale)}`;
   }
-  return formatEventRange(event.startsAt, event.endsAt);
+  return formatEventRange(event.startsAt, event.endsAt, locale);
 }

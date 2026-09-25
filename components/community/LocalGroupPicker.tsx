@@ -5,11 +5,14 @@ import { useFormStatus } from "react-dom";
 import { cn } from "@/components/ui/primitives";
 import { IconCheck } from "@/components/ui/icons";
 import { setMyLocalGroupAction } from "@/app/actions";
+import { tn } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/react";
 import { emptyLocalGroupFormState } from "@/lib/local-group-form";
 import type { LocalGroup } from "@/lib/types";
 
 function Save({ accent, label }: { accent: string; label: string }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <button
       type="submit"
@@ -17,7 +20,7 @@ function Save({ accent, label }: { accent: string; label: string }) {
       className="h-10 rounded-[5px] px-4 text-sm font-medium text-white transition-opacity disabled:opacity-40"
       style={{ backgroundColor: accent }}
     >
-      {pending ? "Lagrer …" : label}
+      {pending ? t("common.saving") : label}
     </button>
   );
 }
@@ -74,6 +77,8 @@ export function LocalGroupPicker({
   /** First visit straight after joining. */
   welcome?: boolean;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [state, formAction] = useActionState(setMyLocalGroupAction, emptyLocalGroupFormState);
   const [choice, setChoice] = useState<string>(selectedId ?? "");
 
@@ -116,7 +121,7 @@ export function LocalGroupPicker({
                   <span className="block truncate text-[0.9375rem] text-ink">{group.name}</span>
                   {count !== undefined ? (
                     <span className="block text-[12px] text-ink-3">
-                      {count} {count === 1 ? "medlem" : "medlemmer"}
+                      {tn(locale, "count.members", count)}
                     </span>
                   ) : null}
                 </span>
@@ -127,13 +132,16 @@ export function LocalGroupPicker({
       </ul>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        <Save accent={accent} label={selectedId ? "Lagre endring" : "Lagre lokallag"} />
-        <Skip label={selectedId ? "Fjern lokallag" : "Jeg vil ikke velge lokallag nå"} />
+        <Save
+          accent={accent}
+          label={selectedId ? t("lokallag.saveChange") : t("lokallag.saveGroup")}
+        />
+        <Skip label={selectedId ? t("lokallag.clear") : t("lokallag.skip")} />
       </div>
 
       <p className="mt-3 text-[12px] text-ink-3">
-        Du kan velge eller endre lokallag senere.
-        {welcome ? " Du er allerede medlem — dette er kun et tillegg." : ""}
+        {t("lokallag.later")}
+        {welcome ? t("lokallag.alreadyMember") : ""}
       </p>
 
       {state.status === "error" ? (

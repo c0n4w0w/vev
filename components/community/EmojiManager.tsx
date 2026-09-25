@@ -9,6 +9,8 @@ import { EMOJI_MAX_DIMENSION, normalizeEmojiName } from "@/lib/emoji-image";
 import { EmptyState, Panel } from "@/components/ui/primitives";
 import { IconClose } from "@/components/ui/icons";
 import { formatFullDate } from "@/lib/format";
+import { tn } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/react";
 import type { CommunityEmoji, CommunityPersona } from "@/lib/types";
 
 function Submit({ label, pendingLabel, className, style, disabled }: {
@@ -27,6 +29,7 @@ function Submit({ label, pendingLabel, className, style, disabled }: {
 }
 
 function DeleteEmoji({ emoji, communityId }: { emoji: CommunityEmoji; communityId: string }) {
+  const t = useT();
   const [state, action] = useActionState(deleteEmojiAction, emptyCommentFormState);
   const [confirming, setConfirming] = useState(false);
 
@@ -37,7 +40,7 @@ function DeleteEmoji({ emoji, communityId }: { emoji: CommunityEmoji; communityI
         onClick={() => setConfirming(true)}
         className="text-xs text-ink-3 transition-colors hover:text-rust"
       >
-        Slett
+        {t("common.delete")}
       </button>
     );
   }
@@ -46,14 +49,14 @@ function DeleteEmoji({ emoji, communityId }: { emoji: CommunityEmoji; communityI
       <input type="hidden" name="emojiId" value={emoji.id} />
       <input type="hidden" name="communityId" value={communityId} />
       <Submit
-        label="Ja, slett"
-        pendingLabel="Sletter …"
+        label={t("post.confirmYes")}
+        pendingLabel={t("post.deleting")}
         className="text-xs font-medium text-rust transition-opacity hover:opacity-70"
       />
       <button
         type="button"
         onClick={() => setConfirming(false)}
-        aria-label="Avbryt"
+        aria-label={t("common.cancel")}
         className="text-ink-3 transition-colors hover:text-ink"
       >
         <IconClose size={12} />
@@ -87,6 +90,8 @@ export function EmojiManager({
   canManage: boolean;
   accent: string;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [state, formAction] = useActionState(createEmojiAction, emptyCommentFormState);
   const [name, setName] = useState("");
   const [fileName, setFileName] = useState("");
@@ -106,10 +111,9 @@ export function EmojiManager({
     <div className="space-y-8">
       {canManage ? (
         <Panel className="p-5">
-          <h2 className="font-display text-lg text-ink">Legg til en emoji</h2>
+          <h2 className="font-display text-lg text-ink">{t("emoji.addTitle")}</h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">
-            PNG, GIF eller WebP, maks {EMOJI_MAX_DIMENSION}×{EMOJI_MAX_DIMENSION} piksler og 256 KB.
-            Emojien er kun synlig for medlemmer av dette fellesskapet.
+            {t("emoji.addHelp", { size: EMOJI_MAX_DIMENSION })}
           </p>
 
           <form action={formAction} className="mt-4 space-y-3">
@@ -117,14 +121,14 @@ export function EmojiManager({
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="flex-1">
-                <span className="label">Navn</span>
+                <span className="label">{t("emoji.name")}</span>
                 <span className="mt-1.5 flex items-center rounded-[5px] border border-line-2 bg-surface px-3 focus-within:border-ink-3">
                   <span className="text-sm text-ink-3">:</span>
                   <input
                     name="name"
                     value={name}
                     onChange={(event) => setName(event.target.value)}
-                    placeholder="emojinavn"
+                    placeholder={t("emoji.namePlaceholder")}
                     className="w-full bg-transparent py-2 text-sm text-ink outline-none placeholder:text-ink-3"
                   />
                   <span className="text-sm text-ink-3">:</span>
@@ -132,7 +136,7 @@ export function EmojiManager({
               </label>
 
               <label className="flex-1">
-                <span className="label">Bilde</span>
+                <span className="label">{t("emoji.image")}</span>
                 <input
                   type="file"
                   name="file"
@@ -154,15 +158,16 @@ export function EmojiManager({
 
             <div className="flex items-center gap-3">
               <Submit
-                label="Legg til"
-                pendingLabel="Laster opp …"
+                label={t("emoji.add")}
+                pendingLabel={t("common.uploading")}
                 disabled={!preview || !fileName}
                 className="h-9 rounded-[5px] px-4 text-sm font-medium text-white transition-opacity disabled:opacity-30"
                 style={{ backgroundColor: accent }}
               />
               {preview ? (
                 <span className="text-[13px] text-ink-3">
-                  Blir tilgjengelig som <span className="text-ink">:{preview}:</span>
+                  {t("emoji.willBe")}{" "}
+                  <span className="text-ink">:{preview}:</span>
                 </span>
               ) : null}
             </div>
@@ -172,17 +177,13 @@ export function EmojiManager({
 
       <section>
         <h2 className="label mb-4">
-          {emojis.length} {emojis.length === 1 ? "egen emoji" : "egne emojier"}
+          {tn(locale, "emoji.count", emojis.length)}
         </h2>
 
         {emojis.length === 0 ? (
           <EmptyState
-            title="Ingen egne emojier ennå"
-            body={
-              canManage
-                ? "Legg til den første over. Den blir umiddelbart tilgjengelig i reaksjonsvelgeren for alle medlemmer her."
-                : "Moderatorer og administratorer kan legge til emojier for dette fellesskapet."
-            }
+            title={t("emoji.empty.title")}
+            body={canManage ? t("emoji.empty.manage") : t("emoji.empty.readonly")}
           />
         ) : (
           <Panel className="divide-y divide-line">
@@ -208,8 +209,10 @@ export function EmojiManager({
                     :{emoji.name}:
                   </span>
                   <span className="block truncate text-[11px] text-ink-3">
-                    Lagt til av {authors[emoji.createdBy]?.name ?? "et medlem"} ·{" "}
-                    {formatFullDate(emoji.createdAt)}
+                    {t("emoji.addedBy", {
+                      name: authors[emoji.createdBy]?.name ?? t("emoji.aMember"),
+                      date: formatFullDate(emoji.createdAt, locale),
+                    })}
                   </span>
                 </span>
                 {canManage ? <DeleteEmoji emoji={emoji} communityId={communityId} /> : null}

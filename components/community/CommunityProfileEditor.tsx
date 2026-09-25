@@ -14,6 +14,7 @@ import {
   emptyCommunityProfileFormState,
   type CommunityProfileFormState,
 } from "@/lib/community-profile-form";
+import { useT } from "@/lib/i18n/react";
 import type { CommunityPersona } from "@/lib/types";
 
 const field =
@@ -57,6 +58,7 @@ export function CommunityProfileEditor({
   persona: CommunityPersona;
   communityName: string;
 }) {
+  const t = useT();
   const [profileState, profileAction, saving] = useActionState(
     updateCommunityProfileAction,
     emptyCommunityProfileFormState,
@@ -81,7 +83,7 @@ export function CommunityProfileEditor({
   function onFileChosen(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const problem = checkAvatarFileHint(file);
+    const problem = checkAvatarFileHint(file, t);
     if (problem) {
       setClientError(problem);
       event.target.value = "";
@@ -98,13 +100,12 @@ export function CommunityProfileEditor({
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
           <Avatar user={persona} size="xl" className="self-start" />
           <div className="min-w-0 flex-1">
-            <h2 className="font-display text-lg text-ink">Profilbilde</h2>
+            <h2 className="font-display text-lg text-ink">{t("avatar.title")}</h2>
             <p className="mt-1 max-w-md text-[13px] leading-relaxed text-ink-2">
-              Vises bare i {communityName}. Uten bilde vises initialene dine.
+              {t("profile.photoHelp", { name: communityName })}
             </p>
             <p className="mt-1 max-w-md text-xs leading-relaxed text-ink-3">
-              PNG, JPEG eller WebP, maks 5 MB. Vises rundt, og beskjæres om bildet ikke er
-              kvadratisk.
+              {t("profile.photoFormats")}
             </p>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -118,7 +119,7 @@ export function CommunityProfileEditor({
                   onChange={onFileChosen}
                   className="sr-only"
                   tabIndex={-1}
-                  aria-label="Velg profilbilde"
+                  aria-label={t("profile.choosePhoto")}
                   disabled={photoBusy}
                 />
                 <Button
@@ -128,7 +129,11 @@ export function CommunityProfileEditor({
                   disabled={photoBusy}
                   onClick={() => fileRef.current?.click()}
                 >
-                  {uploading ? "Laster opp …" : hasPhoto ? "Bytt bilde" : "Last opp bilde"}
+                  {uploading
+                    ? t("common.uploading")
+                    : hasPhoto
+                      ? t("avatar.change")
+                      : t("avatar.upload")}
                 </Button>
               </form>
 
@@ -136,7 +141,7 @@ export function CommunityProfileEditor({
                 <form action={removeAction} onSubmit={() => setLastPhoto("remove")}>
                   <input type="hidden" name="communityId" value={persona.communityId} />
                   <Button type="submit" variant="quiet" size="sm" disabled={photoBusy}>
-                    {removing ? "Fjerner …" : "Fjern bilde"}
+                    {removing ? t("common.removing") : t("avatar.remove")}
                   </Button>
                 </form>
               ) : null}
@@ -156,7 +161,7 @@ export function CommunityProfileEditor({
 
           <div>
             <label htmlFor="profile-display-name" className="label mb-1.5 block">
-              Visningsnavn
+              {t("profile.displayName")}
             </label>
             <input
               id="profile-display-name"
@@ -168,14 +173,14 @@ export function CommunityProfileEditor({
               className={field}
             />
             <p className="mt-1.5 text-xs leading-relaxed text-ink-3">
-              Ditt eget navn eller et pseudonym. Andre medlemmer av {communityName} ser dette navnet.
+              {t("profile.displayNameHelp", { name: communityName })}
             </p>
           </div>
 
           <div>
             <div className="mb-1.5 flex items-baseline justify-between gap-3">
               <label htmlFor="profile-bio" className="label block">
-                Bio
+                {t("profile.bio")}
               </label>
               <span className="text-[11px] tabular-nums text-ink-3">
                 {bioLength}/{BIO_MAX}
@@ -188,14 +193,14 @@ export function CommunityProfileEditor({
               maxLength={BIO_MAX}
               defaultValue={persona.bio}
               onChange={(event) => setBioLength(Array.from(event.target.value).length)}
-              placeholder="Valgfritt. Et par setninger om deg, slik du vil presentere deg her."
+              placeholder={t("profile.bioPlaceholder")}
               className="w-full rounded-[5px] border border-line-2 bg-surface px-3 py-2 text-sm leading-relaxed text-ink outline-none placeholder:text-ink-3 focus:border-ink-3"
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" disabled={saving}>
-              {saving ? "Lagrer …" : "Lagre endringer"}
+              {saving ? t("common.saving") : t("profile.saveChanges")}
             </Button>
           </div>
           <Feedback state={profileState} />

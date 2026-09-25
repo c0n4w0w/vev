@@ -4,6 +4,7 @@ import { CommunityProfileEditor } from "@/components/community/CommunityProfileE
 import { IconArrowLeft } from "@/components/ui/icons";
 import { PageContainer, PageHeader } from "@/components/ui/primitives";
 import { getCommunityById, getCommunityPersona } from "@/lib/data";
+import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -11,7 +12,10 @@ export async function generateMetadata({
 }: PageProps<"/community/[communityId]/profile/edit">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  return { title: `Profilen din · ${community?.name ?? "Fellesskap"}` };
+  const t = communityTranslator(community);
+  return {
+    title: t("profile.metaTitle", { name: community?.name ?? t("common.communityFallback") }),
+  };
 }
 
 /**
@@ -31,6 +35,7 @@ export default async function EditCommunityProfilePage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
+  const t = translator(communityLocale(community));
 
   const persona = await getCommunityPersona(community.id, user.id);
 
@@ -41,12 +46,12 @@ export default async function EditCommunityProfilePage({
         className="mb-6 inline-flex items-center gap-1.5 text-[13px] text-ink-2 transition-colors hover:text-ink"
       >
         <IconArrowLeft size={14} />
-        Kontoen din
+        {t("profile.account")}
       </Link>
       <PageHeader
         eyebrow={community.name}
-        title="Profilen din her"
-        lead={`Slik vises du for andre i ${community.name}. Endringer her påvirker ikke profilene dine i andre fellesskap.`}
+        title={t("profile.title")}
+        lead={t("profile.lead", { name: community.name })}
       />
       <CommunityProfileEditor persona={persona} communityName={community.name} />
     </PageContainer>

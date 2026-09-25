@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { ComponentProps, HTMLAttributes, ReactNode } from "react";
 import type { CommunityPublic, RoleId, User } from "@/lib/types";
-import { roles } from "@/lib/roles";
+import { PLATFORM_LOCALE, type Locale } from "@/lib/i18n/locales";
+import { roleDescription, roleLabel } from "@/lib/roles";
 import { AvatarPhoto } from "@/components/ui/AvatarPhoto";
 
 export function cn(...parts: (string | false | null | undefined)[]) {
@@ -175,17 +176,38 @@ const roleTone: Record<RoleId, keyof typeof badgeTones> = {
   member: "outline",
 };
 
-export function RoleBadge({ role, className }: { role: RoleId; className?: string }) {
+export function RoleBadge({
+  role,
+  className,
+  locale = PLATFORM_LOCALE,
+}: {
+  role: RoleId;
+  className?: string;
+  /** The language of the screen it appears on. Defaults to the platform's. */
+  locale?: Locale;
+}) {
   return (
-    <Badge tone={roleTone[role]} className={className} title={roles[role].description}>
-      {roles[role].label}
+    <Badge
+      tone={roleTone[role]}
+      className={className}
+      title={roleDescription(role, locale)}
+    >
+      {roleLabel(role, locale)}
     </Badge>
   );
 }
 
-export function ElevatedRoleBadge({ role, className }: { role: RoleId; className?: string }) {
+export function ElevatedRoleBadge({
+  role,
+  className,
+  locale,
+}: {
+  role: RoleId;
+  className?: string;
+  locale?: Locale;
+}) {
   if (role === "member") return null;
-  return <RoleBadge role={role} className={className} />;
+  return <RoleBadge role={role} className={className} locale={locale} />;
 }
 
 // ── Buttons ─────────────────────────────────────────────────────────────

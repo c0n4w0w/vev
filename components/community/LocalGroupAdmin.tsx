@@ -8,6 +8,8 @@ import {
   renameLocalGroupAction,
   setLocalGroupActiveAction,
 } from "@/app/actions";
+import { tn } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/react";
 import { emptyLocalGroupFormState } from "@/lib/local-group-form";
 import type { LocalGroup } from "@/lib/types";
 
@@ -37,6 +39,8 @@ export function LocalGroupAdmin({
   groups: LocalGroup[];
   memberCounts: Map<string, number>;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [createState, createAction] = useActionState(
     createLocalGroupAction,
     emptyLocalGroupFormState,
@@ -67,14 +71,14 @@ export function LocalGroupAdmin({
                     className="h-9 min-w-0 flex-1 rounded-[5px] border border-line-2 bg-surface px-3 text-sm text-ink outline-none focus:border-ink-3"
                   />
                   <button type="submit" className="h-9 rounded-[5px] border border-line-2 px-3 text-[13px] text-ink-2">
-                    <Pending>Lagre</Pending>
+                    <Pending>{t("common.save")}</Pending>
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditing(undefined)}
                     className="h-9 rounded-[5px] px-3 text-[13px] text-ink-3"
                   >
-                    Avbryt
+                    {t("common.cancel")}
                   </button>
                 </form>
               ) : (
@@ -82,18 +86,18 @@ export function LocalGroupAdmin({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[0.9375rem] text-ink">{group.name}</span>
                     <span className="block text-[12px] text-ink-3">
-                      {count} {count === 1 ? "medlem" : "medlemmer"}
+                      {tn(locale, "count.members", count)}
                     </span>
                   </span>
 
-                  {group.active ? null : <Badge tone="neutral">Avviklet</Badge>}
+                  {group.active ? null : <Badge tone="neutral">{t("lokallag.retiredBadge")}</Badge>}
 
                   <button
                     type="button"
                     onClick={() => setEditing(group.id)}
                     className="h-9 rounded-[5px] border border-line-2 px-3 text-[13px] text-ink-2 transition-colors hover:border-ink-3"
                   >
-                    Endre navn
+                    {t("lokallag.rename")}
                   </button>
 
                   <form action={activeAction}>
@@ -104,7 +108,7 @@ export function LocalGroupAdmin({
                       type="submit"
                       className="h-9 rounded-[5px] border border-line-2 px-3 text-[13px] text-ink-2 transition-colors hover:border-ink-3"
                     >
-                      <Pending>{group.active ? "Avvikle" : "Gjenopprett"}</Pending>
+                      <Pending>{group.active ? t("lokallag.retire") : t("lokallag.restore")}</Pending>
                     </button>
                   </form>
                 </>
@@ -124,7 +128,7 @@ export function LocalGroupAdmin({
         <input type="hidden" name="communityId" value={communityId} />
         <input
           name="name"
-          placeholder="Nytt lokallag"
+          placeholder={t("lokallag.newPlaceholder")}
           maxLength={80}
           className="h-10 min-w-0 flex-1 rounded-[5px] border border-line-2 bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-ink-3"
         />
@@ -132,7 +136,7 @@ export function LocalGroupAdmin({
           type="submit"
           className="h-10 rounded-[5px] border border-line-2 px-4 text-sm text-ink-2 transition-colors hover:border-ink-3"
         >
-          <Pending>Legg til</Pending>
+          <Pending>{t("lokallag.add")}</Pending>
         </button>
       </form>
 
@@ -143,8 +147,7 @@ export function LocalGroupAdmin({
       ) : null}
 
       <p className="text-[12px] leading-relaxed text-ink-3">
-        Et avviklet lokallag kan ikke velges av nye medlemmer, men de som allerede er tilknyttet
-        beholder det. Lokallag slettes ikke.
+        {t("lokallag.retiredNote")}
       </p>
     </div>
   );

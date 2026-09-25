@@ -12,9 +12,7 @@ export type LocalGroupFormState =
 export const emptyLocalGroupFormState: LocalGroupFormState = { status: "idle" };
 
 /** Shown when the database declines a selection. */
-export const SELECTION_REFUSED =
-  "Lokallaget kunne ikke velges. Det kan være avviklet, eller høre til et annet fellesskap.";
+export const SELECTION_REFUSED = "err.localGroupSelectionRefused" as const;
 
 /** Shown when the database declines an administrator's change. */
-export const ADMIN_REFUSED =
-  "Endringen ble ikke utført. Bare administratorer i dette fellesskapet kan endre lokallag.";
+export const ADMIN_REFUSED = "err.localGroupAdminRefused" as const;

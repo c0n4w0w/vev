@@ -6,10 +6,12 @@ import { Panel } from "@/components/ui/primitives";
 import { IconPlus } from "@/components/ui/icons";
 import { createEventAction } from "@/app/actions";
 import { emptyEventFormState } from "@/lib/event-form";
+import { useT } from "@/lib/i18n/react";
 import type { LocalGroup } from "@/lib/types";
 
 function Save({ accent }: { accent: string }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <button
       type="submit"
@@ -17,7 +19,7 @@ function Save({ accent }: { accent: string }) {
       className="h-10 rounded-[5px] px-4 text-sm font-medium text-white transition-opacity disabled:opacity-40"
       style={{ backgroundColor: accent }}
     >
-      {pending ? "Oppretter …" : "Opprett arrangement"}
+      {pending ? t("events.compose.creating") : t("events.compose.open")}
     </button>
   );
 }
@@ -48,6 +50,7 @@ export function EventComposer({
   accent: string;
   localGroups?: LocalGroup[];
 }) {
+  const t = useT();
   const [state, formAction] = useActionState(createEventAction, emptyEventFormState);
   const [open, setOpen] = useState(false);
 
@@ -67,7 +70,7 @@ export function EventComposer({
         className="mb-6 inline-flex h-10 items-center gap-2 rounded-[5px] border border-line-2 px-4 text-sm text-ink-2 transition-colors hover:border-ink-3 hover:text-ink"
       >
         <IconPlus size={15} />
-        Opprett arrangement
+        {t("events.compose.open")}
       </button>
     );
   }
@@ -79,7 +82,7 @@ export function EventComposer({
 
         <div>
           <label htmlFor="event-title" className="label mb-1.5 block">
-            Tittel
+            {t("events.compose.title")}
           </label>
           <input id="event-title" name="title" maxLength={120} autoFocus className={field} />
         </div>
@@ -87,19 +90,19 @@ export function EventComposer({
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <label htmlFor="event-date" className="label mb-1.5 block">
-              Dato
+              {t("events.compose.date")}
             </label>
             <input id="event-date" name="date" type="date" required className={field} />
           </div>
           <div>
             <label htmlFor="event-start" className="label mb-1.5 block">
-              Fra
+              {t("events.compose.from")}
             </label>
             <input id="event-start" name="startTime" type="time" required className={field} />
           </div>
           <div>
             <label htmlFor="event-end" className="label mb-1.5 block">
-              Til
+              {t("events.compose.to")}
             </label>
             <input id="event-end" name="endTime" type="time" required className={field} />
           </div>
@@ -107,7 +110,7 @@ export function EventComposer({
 
         <div>
           <label htmlFor="event-location" className="label mb-1.5 block">
-            Sted
+            {t("events.compose.location")}
           </label>
           <input id="event-location" name="location" maxLength={120} className={field} />
         </div>
@@ -115,10 +118,10 @@ export function EventComposer({
         {localGroups.length > 0 ? (
           <div>
             <label htmlFor="event-local-group" className="label mb-1.5 block">
-              Synlighet / område
+              {t("events.compose.visibility")}
             </label>
             <select id="event-local-group" name="localGroupId" className={field}>
-              <option value="">Hele fellesskapet</option>
+              <option value="">{t("composer.wholeCommunity")}</option>
               {localGroups.map((group) => (
                 <option key={group.id} value={group.id}>
                   {group.name}
@@ -130,7 +133,7 @@ export function EventComposer({
 
         <div>
           <label htmlFor="event-description" className="label mb-1.5 block">
-            Beskrivelse
+            {t("events.compose.description")}
           </label>
           <textarea
             id="event-description"
@@ -144,22 +147,21 @@ export function EventComposer({
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="event-capacity" className="label mb-1.5 block">
-              Plasser (valgfritt)
+              {t("events.compose.capacity")}
             </label>
             <input
               id="event-capacity"
               name="capacity"
               type="number"
               min={1}
-              placeholder="Ubegrenset"
+              placeholder={t("events.compose.unlimited")}
               className={field}
             />
           </div>
           <label className="flex cursor-pointer items-start gap-2.5 pt-6 text-[13px] leading-snug text-ink-2">
             <input type="checkbox" name="isPublic" className="mt-0.5" />
             <span>
-              Vis på den offentlige siden til {communityName}. Uten dette er arrangementet kun
-              synlig for medlemmer.
+              {t("events.compose.public", { name: communityName })}
             </span>
           </label>
         </div>
@@ -177,7 +179,7 @@ export function EventComposer({
             onClick={() => setOpen(false)}
             className="h-10 rounded-[5px] px-3 text-sm text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink"
           >
-            Avbryt
+            {t("common.cancel")}
           </button>
         </div>
       </form>

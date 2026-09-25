@@ -25,13 +25,17 @@ import {
   getCommunityPersonas,
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
+import { communityLocale, communityTranslator, translator, type Locale } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 import type { Community, CommunityPersona, Post } from "@/lib/types";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/lokallag">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  return { title: `Mitt lokallag · ${community?.name ?? "Fellesskap"}` };
+  const t = communityTranslator(community);
+  return {
+    title: t("lokallag.metaTitle", { name: community?.name ?? t("common.communityFallback") }),
+  };
 }
 
 function excerpt(body: string) {
@@ -43,17 +47,20 @@ function LocalPostPreview({
   post,
   author,
   community,
+  locale,
 }: {
   post: Post;
   author?: CommunityPersona;
   community: Community;
+  locale: Locale;
 }) {
+  const t = translator(locale);
   return (
     <Panel as="li" className="p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[12px] text-ink-3">
-            {author?.name ?? "Medlem"} · {timeAgo(post.createdAt)}
+            {author?.name ?? t("lokallag.memberFallback")} · {timeAgo(post.createdAt, locale)}
           </p>
           <h3 className="mt-1 font-display text-[1rem] leading-snug text-ink">
             <Link href={`/community/${community.id}/feed#post-${post.id}`} className="hover:text-ink-2">
@@ -67,7 +74,7 @@ function LocalPostPreview({
         <Link
           href={`/community/${community.id}/feed#post-${post.id}`}
           className="mt-1 shrink-0 text-ink-3 transition-colors hover:text-ink"
-          aria-label="Åpne innlegg"
+          aria-label={t("lokallag.openPost")}
         >
           <IconArrowRight size={16} />
         </Link>
@@ -95,6 +102,8 @@ export default async function LocalGroupsPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
+  const locale = communityLocale(community);
+  const t = translator(locale);
 
   const [membership, groups, memberCounts] = await Promise.all([
     getMembership(user.id, community.id),
@@ -107,10 +116,10 @@ export default async function LocalGroupsPage({
   if (groups.length === 0) {
     return (
       <PageContainer>
-        <PageHeader eyebrow={community.name} title="Lokallag" />
+        <PageHeader eyebrow={community.name} title={t("lokallag.title")} />
         <EmptyState
-          title="Dette fellesskapet bruker ikke lokallag"
-          body={`${community.name} har ikke opprettet lokallag. Du er medlem av fellesskapet som helhet.`}
+          title={t("lokallag.unused.title")}
+          body={t("lokallag.unused.body", { name: community.name })}
         />
       </PageContainer>
     );
@@ -145,13 +154,13 @@ export default async function LocalGroupsPage({
     <PageContainer>
       <PageHeader
         eyebrow={community.name}
-        title="Mitt lokallag"
+        title={t("lokallag.mine")}
         lead={
           selected
-            ? `Lokale aktiviteter og innlegg fra lokallaget ditt i ${community.name}.`
+            ? t("lokallag.lead.selected", { name: community.name })
             : welcome
-              ? `Du er nå medlem av ${community.name}. Hvis du er tilknyttet et lokallag, kan du velge det her.`
-              : `Velg et lokallag for å få fram aktivitet som er mest relevant for deg.`
+              ? t("lokallag.lead.welcome", { name: community.name })
+              : t("lokallag.lead.choose")
         }
       />
 
@@ -167,18 +176,17 @@ export default async function LocalGroupsPage({
                   <IconMapPin size={19} />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[13px] text-ink-3">Du er tilknyttet</p>
+                  <p className="text-[13px] text-ink-3">{t("lokallag.affiliated")}</p>
                   <h2 className="font-display text-2xl leading-tight text-ink">{selected.name}</h2>
                   {selected.active ? null : (
                     <p className="mt-1 text-[12px] text-ink-3">
-                      Dette lokallaget er avviklet. Du beholder tilknytningen, men den kan ikke
-                      velges på nytt.
+                      {t("lokallag.retired")}
                     </p>
                   )}
                 </div>
               </div>
               <a href="#endre-lokallag" className={buttonClass({ variant: "secondary", size: "sm" })}>
-                Endre lokallag
+                {t("lokallag.change")}
               </a>
             </div>
 
@@ -186,12 +194,12 @@ export default async function LocalGroupsPage({
               action={
                 localEvents.length > 1 ? (
                   <Link href={`/community/${community.id}/events`} className="text-xs text-ink-3 hover:text-ink">
-                    Alle arrangementer
+                    {t("events.all")}
                   </Link>
                 ) : null
               }
             >
-              Neste aktivitet
+              {t("lokallag.nextActivity")}
             </SectionHeading>
             {localEvents.length > 0 ? (
               <div className="space-y-3">
@@ -208,8 +216,8 @@ export default async function LocalGroupsPage({
               </div>
             ) : (
               <EmptyState
-                title="Ingen lokale arrangementer akkurat nå"
-                body="Det er ingen lokale arrangementer planlagt for dette lokallaget ennå."
+                title={t("lokallag.noEvents.title")}
+                body={t("lokallag.noEvents.body")}
               />
             )}
           </section>
@@ -219,12 +227,12 @@ export default async function LocalGroupsPage({
               action={
                 localPosts.length > 0 ? (
                   <Link href={`/community/${community.id}/feed`} className="text-xs text-ink-3 hover:text-ink">
-                    Åpne feed
+                    {t("lokallag.openFeed")}
                   </Link>
                 ) : null
               }
             >
-              Fra lokallaget
+              {t("lokallag.fromGroup")}
             </SectionHeading>
             {localPosts.length > 0 ? (
               <ul className="space-y-3">
@@ -234,24 +242,26 @@ export default async function LocalGroupsPage({
                     post={post}
                     author={localPeople.get(post.authorId)}
                     community={community}
+                    locale={locale}
                   />
                 ))}
               </ul>
             ) : (
               <EmptyState
-                title="Ingen innlegg fra lokallaget ennå"
-                body="Når noen publiserer et innlegg med dette lokallaget som område, vises det her."
+                title={t("lokallag.noPosts.title")}
+                body={t("lokallag.noPosts.body")}
               />
             )}
           </section>
 
           {localLeader ? (
             <section className="mb-10">
-              <SectionHeading>Kontakt</SectionHeading>
+              <SectionHeading>{t("lokallag.contact")}</SectionHeading>
               <ul className="max-w-xl">
                 <OrganizationPersonCard
                   person={localLeader}
                   localGroupName={selected.name}
+                  locale={locale}
                   compact
                   dmAction={
                     organizationDmActions.has(localLeader.id)
@@ -267,10 +277,11 @@ export default async function LocalGroupsPage({
           ) : null}
 
           <details id="endre-lokallag" className="mb-8 rounded-[6px] border border-line bg-surface p-5">
-            <summary className="cursor-pointer text-sm font-medium text-ink">Endre lokallag</summary>
+            <summary className="cursor-pointer text-sm font-medium text-ink">
+              {t("lokallag.change")}
+            </summary>
             <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-ink-3">
-              Du kan bytte lokallag eller fjerne valget. Det påvirker ikke medlemskapet ditt i{" "}
-              {community.name}.
+              {t("lokallag.changeHelp", { name: community.name })}
             </p>
             <div className="mt-4">
               <LocalGroupPicker
@@ -287,20 +298,19 @@ export default async function LocalGroupsPage({
       ) : (
         <>
           <EmptyState
-            title="Du har ikke valgt et lokallag ennå."
-            body={`Å velge lokallag gjør det lettere å se lokal aktivitet i ${community.name}. Det er helt valgfritt, og du er medlem av fellesskapet uansett.`}
+            title={t("lokallag.none.title")}
+            body={t("lokallag.none.body", { name: community.name })}
             action={
               <a href="#velg-lokallag" className={buttonClass({ variant: "primary", size: "md" })}>
-                Velg lokallag
+                {t("lokallag.choose")}
               </a>
             }
           />
 
           <section id="velg-lokallag" className="mt-8 scroll-mt-6">
-            <SectionHeading>Velg lokallag</SectionHeading>
+            <SectionHeading>{t("lokallag.choose")}</SectionHeading>
             <p className="mb-4 max-w-2xl text-[13px] leading-relaxed text-ink-3">
-              Velg lokallaget du er tilknyttet. Hører du ikke til noe lokallag, lar du det stå tomt
-              — det påvirker ikke medlemskapet ditt i {community.name}.
+              {t("lokallag.chooseHelp", { name: community.name })}
             </p>
             <LocalGroupPicker
               communityId={community.id}
@@ -315,10 +325,9 @@ export default async function LocalGroupsPage({
 
       {isAdmin ? (
         <div className="mt-12 border-t border-line pt-8">
-          <SectionHeading>Administrer lokallag</SectionHeading>
+          <SectionHeading>{t("lokallag.manage")}</SectionHeading>
           <p className="-mt-2 mb-4 max-w-2xl text-[13px] leading-relaxed text-ink-3">
-            Som administrator i {community.name} bestemmer du hvilke lokallag medlemmene kan velge
-            mellom.
+            {t("lokallag.manageHelp", { name: community.name })}
           </p>
           <LocalGroupAdmin
             communityId={community.id}

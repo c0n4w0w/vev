@@ -10,6 +10,8 @@ import {
 import { emptyCommentFormState } from "@/lib/comment-form";
 import { Avatar, cn } from "@/components/ui/primitives";
 import { timeAgo } from "@/lib/format";
+import { tn } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/react";
 import type { Comment, CommunityPersona } from "@/lib/types";
 
 function Submit({
@@ -52,6 +54,7 @@ function CommentComposer({
   onDone?: () => void;
   autoFocus?: boolean;
 }) {
+  const t = useT();
   const [state, formAction] = useActionState(createCommentAction, emptyCommentFormState);
   const [draft, setDraft] = useState("");
 
@@ -88,8 +91,8 @@ function CommentComposer({
         ) : null}
         <div className="mt-1.5 flex items-center gap-2">
           <Submit
-            label="Kommenter"
-            pendingLabel="Lagrer …"
+            label={t("comment.submit")}
+            pendingLabel={t("common.saving")}
             disabled={!draft.trim()}
             className="h-8 rounded-[5px] px-3 text-[13px] font-medium text-white transition-opacity disabled:opacity-30"
             style={{ backgroundColor: accent }}
@@ -100,7 +103,7 @@ function CommentComposer({
               onClick={onDone}
               className="h-8 rounded-[5px] px-2 text-[13px] text-ink-3 transition-colors hover:text-ink"
             >
-              Avbryt
+              {t("common.cancel")}
             </button>
           ) : null}
         </div>
@@ -128,6 +131,8 @@ function CommentRow({
   onReply?: () => void;
   isReply?: boolean;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [editState, editAction] = useActionState(updateCommentAction, emptyCommentFormState);
@@ -146,9 +151,9 @@ function CommentRow({
       {author ? <Avatar user={author} size="xs" className="mt-0.5" /> : null}
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-[13px] font-medium text-ink">{author?.name ?? "Ukjent"}</span>
-          <span className="text-[11px] text-ink-3">{timeAgo(comment.createdAt)}</span>
-          {comment.editedAt ? <span className="text-[11px] text-ink-3">· endret</span> : null}
+          <span className="text-[13px] font-medium text-ink">{author?.name ?? t("common.unknown")}</span>
+          <span className="text-[11px] text-ink-3">{timeAgo(comment.createdAt, locale)}</span>
+          {comment.editedAt ? <span className="text-[11px] text-ink-3">· {t("common.edited")}</span> : null}
         </p>
 
         {editing ? (
@@ -168,8 +173,8 @@ function CommentRow({
             ) : null}
             <div className="mt-1.5 flex items-center gap-2">
               <Submit
-                label="Lagre"
-                pendingLabel="Lagrer …"
+                label={t("common.save")}
+                pendingLabel={t("common.saving")}
                 className="h-8 rounded-[5px] px-3 text-[13px] font-medium text-white"
                 style={{ backgroundColor: accent }}
               />
@@ -178,7 +183,7 @@ function CommentRow({
                 onClick={() => setEditing(false)}
                 className="h-8 px-2 text-[13px] text-ink-3 transition-colors hover:text-ink"
               >
-                Avbryt
+                {t("common.cancel")}
               </button>
             </div>
           </form>
@@ -196,7 +201,7 @@ function CommentRow({
                 onClick={onReply}
                 className="text-[11px] text-ink-3 transition-colors hover:text-ink"
               >
-                Svar
+                {t("common.reply")}
               </button>
             ) : null}
             {isAuthor ? (
@@ -205,7 +210,7 @@ function CommentRow({
                 onClick={() => setEditing(true)}
                 className="text-[11px] text-ink-3 transition-colors hover:text-ink"
               >
-                Endre
+                {t("common.edit")}
               </button>
             ) : null}
             {isAuthor || canModerate ? (
@@ -213,9 +218,9 @@ function CommentRow({
                 <form action={deleteAction} className="flex items-center gap-2">
                   <input type="hidden" name="commentId" value={comment.id} />
                   <input type="hidden" name="communityId" value={communityId} />
-                  <span className="text-[11px] text-ink-2">Slette?</span>
+                  <span className="text-[11px] text-ink-2">{t("comment.confirmDelete")}</span>
                   <Submit
-                    label="Ja"
+                    label={t("common.yes")}
                     pendingLabel="…"
                     className="text-[11px] font-medium text-rust transition-opacity hover:opacity-70"
                   />
@@ -224,7 +229,7 @@ function CommentRow({
                     onClick={() => setConfirming(false)}
                     className="text-[11px] text-ink-3 transition-colors hover:text-ink"
                   >
-                    Nei
+                    {t("common.no")}
                   </button>
                 </form>
               ) : (
@@ -233,7 +238,7 @@ function CommentRow({
                   onClick={() => setConfirming(true)}
                   className="text-[11px] text-ink-3 transition-colors hover:text-rust"
                 >
-                  Slett
+                  {t("common.delete")}
                 </button>
               )
             ) : null}
@@ -275,6 +280,8 @@ export function CommentThread({
   canModerate: boolean;
   accent: string;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
 
@@ -290,8 +297,8 @@ export function CommentThread({
         className="text-xs text-ink-3 transition-colors hover:text-ink"
       >
         {commentCount === 0
-          ? "Skriv den første kommentaren"
-          : `${commentCount} ${commentCount === 1 ? "kommentar" : "kommentarer"}`}
+          ? t("comment.writeFirst")
+          : tn(locale, "count.comments", commentCount)}
       </button>
 
       {open ? (
@@ -334,7 +341,9 @@ export function CommentThread({
                         parentId={comment.id}
                         author={viewer}
                         accent={accent}
-                        placeholder={`Svar ${authors[comment.authorId]?.name.split(" ")[0] ?? ""}`}
+                        placeholder={t("comment.replyTo", {
+                          name: authors[comment.authorId]?.name.split(" ")[0] ?? "",
+                        })}
                         onDone={() => setReplyingTo(null)}
                         autoFocus
                       />
@@ -350,7 +359,7 @@ export function CommentThread({
             communityId={communityId}
             author={viewer}
             accent={accent}
-            placeholder="Skriv en kommentar"
+            placeholder={t("comment.write")}
           />
         </div>
       ) : null}

@@ -7,6 +7,7 @@ import {
   getMemberDmActions,
   getMembership,
 } from "@/lib/data";
+import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -14,7 +15,12 @@ export async function generateMetadata({
 }: PageProps<"/community/[communityId]/admin/members">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  return { title: `Medlemmer · Administrasjon · ${community?.name ?? "Fellesskap"}` };
+  const t = communityTranslator(community);
+  return {
+    title: t("admin.members.metaTitle", {
+      name: community?.name ?? t("common.communityFallback"),
+    }),
+  };
 }
 
 export default async function AdminMembersPage({
@@ -26,6 +32,8 @@ export default async function AdminMembersPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
+  const locale = communityLocale(community);
+  const t = translator(locale);
 
   const membership = await getMembership(user.id, community.id);
   const isAdmin = membership?.role === "admin";
@@ -36,10 +44,10 @@ export default async function AdminMembersPage({
   if (!isAdmin) {
     return (
       <PageContainer width="narrow">
-        <PageHeader eyebrow="Administrasjon" title="Medlemmer" />
+        <PageHeader eyebrow={t("admin.eyebrow")} title={t("members.title")} />
         <EmptyState
-          title="Kun for administratorer"
-          body={`Det er administratorene i ${community.name} som endrer tilgang og moderatorrettigheter. Som moderator følger du opp samtaler og innhold.`}
+          title={t("common.adminsOnly")}
+          body={t("admin.members.adminsOnly", { name: community.name })}
         />
       </PageContainer>
     );
@@ -53,12 +61,12 @@ export default async function AdminMembersPage({
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Administrasjon"
-        title="Medlemmer"
-        lead="Administrer tilgang og moderatorrettigheter i fellesskapet."
+        eyebrow={t("admin.eyebrow")}
+        title={t("members.title")}
+        lead={t("admin.members.lead")}
         action={
           <ButtonLink href={`/community/${community.id}/requests`} size="sm" variant="secondary">
-            Medlemsforespørsler
+            {t("members.requestsButton")}
           </ButtonLink>
         }
       />
@@ -67,6 +75,7 @@ export default async function AdminMembersPage({
         userId={user.id}
         communityId={community.id}
         dmActions={dmActions}
+        locale={locale}
       />
     </PageContainer>
   );

@@ -6,6 +6,7 @@ import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { Button, Panel } from "@/components/ui/primitives";
 import { emptyCommentFormState } from "@/lib/comment-form";
 import { AVATAR_ACCEPT, checkAvatarFileHint } from "@/lib/community-avatar-image";
+import { useT } from "@/lib/i18n/react";
 import type { Community } from "@/lib/types";
 
 /**
@@ -24,6 +25,7 @@ export function CommunityAvatarSettings({
 }: {
   community: Pick<Community, "id" | "name" | "branding" | "avatarUrl">;
 }) {
+  const t = useT();
   const [uploadState, uploadAction, uploading] = useActionState(
     setCommunityAvatarAction,
     emptyCommentFormState,
@@ -45,7 +47,7 @@ export function CommunityAvatarSettings({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const problem = checkAvatarFileHint(file);
+    const problem = checkAvatarFileHint(file, t);
     if (problem) {
       setClientError(problem);
       event.target.value = "";
@@ -70,13 +72,12 @@ export function CommunityAvatarSettings({
         <CommunityAvatar community={community} size="xl" className="self-start" />
 
         <div className="min-w-0 flex-1">
-          <h3 className="font-display text-lg text-ink">Profilbilde</h3>
+          <h3 className="font-display text-lg text-ink">{t("avatar.title")}</h3>
           <p className="mt-1 max-w-md text-[13px] leading-relaxed text-ink-2">
-            Bildet brukes som fellesskapets profilbilde inne i TING.
+            {t("avatar.communityHelp")}
           </p>
           <p className="mt-1 max-w-md text-xs leading-relaxed text-ink-3">
-            PNG, JPEG eller WebP, maks 5 MB. Vises som en firkant, og beskjæres om bildet ikke er
-            kvadratisk.
+            {t("avatar.communityFormats")}
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -90,7 +91,7 @@ export function CommunityAvatarSettings({
                 onChange={onFileChosen}
                 className="sr-only"
                 tabIndex={-1}
-                aria-label="Velg bilde"
+                aria-label={t("avatar.chooseImage")}
                 disabled={busy}
               />
               <Button
@@ -100,7 +101,11 @@ export function CommunityAvatarSettings({
                 disabled={busy}
                 onClick={() => fileRef.current?.click()}
               >
-                {uploading ? "Laster opp …" : hasImage ? "Bytt bilde" : "Last opp bilde"}
+                {uploading
+                  ? t("common.uploading")
+                  : hasImage
+                    ? t("avatar.change")
+                    : t("avatar.upload")}
               </Button>
             </form>
 
@@ -108,7 +113,7 @@ export function CommunityAvatarSettings({
               <form action={removeAction} onSubmit={() => setLast("remove")}>
                 <input type="hidden" name="communityId" value={community.id} />
                 <Button type="submit" variant="quiet" size="sm" disabled={busy}>
-                  {removing ? "Fjerner …" : "Fjern bilde"}
+                  {removing ? t("common.removing") : t("avatar.remove")}
                 </Button>
               </form>
             ) : null}
