@@ -91,16 +91,16 @@ export function MemberAdministration({
             </SectionHeading>
             <p className="-mt-2 mb-4 text-[13px] text-ink-3">{role.description}</p>
             <ul className="grid gap-3 sm:grid-cols-2">
-              {group.map(({ user: person, membership: personMembership }) => (
+              {group.map(({ persona: person, membership: personMembership }) => (
                 <MemberCard
                   key={person.id}
-                  member={{ user: person, membership: personMembership }}
+                  member={{ persona: person, membership: personMembership }}
                   userId={userId}
                   communityId={communityId}
                   dmActions={dmActions}
                   roleManagement={
                     <RoleManagementControl
-                      member={{ user: person, membership: personMembership }}
+                      member={{ persona: person, membership: personMembership }}
                       communityId={communityId}
                     />
                   }

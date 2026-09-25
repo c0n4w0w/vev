@@ -22,11 +22,11 @@ import {
   getOrganizationPersonDmActions,
   getRecentLocalGroupPosts,
   getUpcomingLocalGroupEvents,
-  getUsers,
+  getCommunityPersonas,
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
-import type { Community, Post, User } from "@/lib/types";
+import type { Community, CommunityPersona, Post } from "@/lib/types";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/lokallag">) {
   const { communityId } = await params;
@@ -45,7 +45,7 @@ function LocalPostPreview({
   community,
 }: {
   post: Post;
-  author?: User;
+  author?: CommunityPersona;
   community: Community;
 }) {
   return (
@@ -132,18 +132,14 @@ export default async function LocalGroupsPage({
   const organizationDmActions = localLeader
     ? await getOrganizationPersonDmActions(community.id)
     : new Map<string, string | undefined>();
-  const localPeople = new Map(
-    selected
-      ? (
-          await getUsers([
-            ...new Set([
-              ...localPosts.map((post) => post.authorId),
-              ...localEvents.map((event) => event.hostId),
-            ]),
-          ])
-        ).map((u) => [u.id, u])
-      : [],
-  );
+  const localPeople = selected
+    ? await getCommunityPersonas(community.id, [
+        ...new Set([
+          ...localPosts.map((post) => post.authorId),
+          ...localEvents.map((event) => event.hostId).filter(Boolean),
+        ]),
+      ])
+    : new Map<string, CommunityPersona>();
 
   return (
     <PageContainer>

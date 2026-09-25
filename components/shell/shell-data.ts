@@ -1,6 +1,7 @@
 import {
   getCommunitiesForUser,
   getCommunityPeople,
+  getCommunityPersona,
   getGroupedChannels,
   getLocalGroups,
   getRecentDirectConversations,
@@ -11,6 +12,7 @@ import type {
   Channel,
   ChannelGroup,
   Community,
+  CommunityPersona,
   DirectConversationSummary,
   Membership,
   User,
@@ -28,6 +30,8 @@ import type {
 export interface ShellCommunity {
   community: Community;
   membership: Membership;
+  /** The signed-in person as they appear in this community. */
+  me: CommunityPersona;
   channelGroups: { group: ChannelGroup; channels: Channel[] }[];
   /**
    * Enough to label the sidebar entry, and nothing more.
@@ -57,8 +61,9 @@ export async function buildShellData(user: User): Promise<ShellData> {
 
   const communities = await Promise.all(
     memberships.map(async ({ community, membership }) => {
-      const [channelGroups, groups, people, unreadDirectCount, recentDirectConversations] =
+      const [me, channelGroups, groups, people, unreadDirectCount, recentDirectConversations] =
         await Promise.all([
+          getCommunityPersona(community.id, user.id),
           getGroupedChannels(community.id),
           getLocalGroups(community.id),
           getCommunityPeople(community.id),
@@ -69,6 +74,7 @@ export async function buildShellData(user: User): Promise<ShellData> {
       return {
         community,
         membership,
+        me,
         channelGroups,
         unreadDirectCount,
         recentDirectConversations,

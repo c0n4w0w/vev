@@ -23,6 +23,7 @@ import type {
   ProfileRow,
   LocalGroupRow,
   CommunityPersonRow,
+  CommunityProfileRow,
   DirectConversationReadRow,
   DirectConversationRow,
   DirectMessageRow,
@@ -44,10 +45,12 @@ import type {
   User,
   LocalGroup,
   CommunityPerson,
+  CommunityPersona,
   DirectConversation,
   DirectConversationSummary,
   DirectMessage,
 } from "@/lib/types";
+import { initialsFor } from "@/lib/format";
 
 export { getRole, roles } from "@/lib/roles";
 
@@ -58,10 +61,10 @@ export { getRole, roles } from "@/lib/roles";
  * so row level security — not this file — decides what comes back; the code
  * here shapes rows into the domain types the components already expect.
  *
- * Reads that a single render repeats (profiles, the caller's memberships) are
- * wrapped in React's `cache`, which dedupes them for the duration of one
- * request. That is what keeps a feed of twenty posts from issuing twenty
- * author lookups.
+ * Reads that a single render repeats (a community's profiles, the caller's
+ * memberships) are wrapped in React's `cache`, which dedupes them for the
+ * duration of one request. That is what keeps a feed of twenty posts from
+ * issuing twenty author lookups.
  */
 
 // ── Row → domain mapping ────────────────────────────────────────────────
@@ -246,33 +249,145 @@ function toNotification(row: NotificationRow): Notification {
 }
 
 // ── People ──────────────────────────────────────────────────────────────
+//
+// Two different things, kept apart on purpose.
+//
+// The *account* (`profiles`) is readable by its owner and nobody else — row
+// level security says so. `getUser` is therefore only ever the signed-in
+// person's own record, and is what the session and /profile use.
+//
+// Everyone else, and the signed-in person too wherever they appear *inside* a
+// community, is a `CommunityPersona`: that community's profile of them. It is
+// resolved per community and never falls back to the account, so a
+// pseudonym in one community cannot be undone by a lookup that reaches for
+// the account name, and one community's persona never stands in for another's.
 
-/**
- * Every profile the caller is allowed to see — themselves, people they share a
- * community with, and anyone who invited them. Row level security draws that
- * line; here it is one query per request instead of one per author.
- */
-const loadProfiles = cache(async (): Promise<Map<string, User>> => {
+const loadAccount = cache(async (userId: string): Promise<User | undefined> => {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.from("profiles").select("*");
-  return new Map(rows(data).map((row) => [row.id, toUser(row)]));
+  const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+  return data ? toUser(data) : undefined;
 });
 
+/** The signed-in person's own account. Row level security returns nothing for anyone else. */
 export async function getUser(userId: string): Promise<User | undefined> {
-  return (await loadProfiles()).get(userId);
+  return loadAccount(userId);
 }
 
-export async function requireUser(userId: string): Promise<User> {
-  const user = await getUser(userId);
-  if (!user) throw new Error(`Ukjent bruker: ${userId}`);
-  return user;
+/**
+ * Where the signed-in app fetches a member's profile photo in one community.
+ * Same pattern as `communityAvatarUrl`: a stable same-origin route that checks
+ * access on every request, with `v` changing whenever the photo does.
+ */
+function memberAvatarUrl(communityId: string, userId: string, avatarPath: string): string {
+  return `/community/${communityId}/member-avatar/${userId}?v=${encodeURIComponent(avatarPath.split("/").pop() ?? "")}`;
 }
 
-export async function getUsers(userIds: string[]): Promise<User[]> {
-  const profiles = await loadProfiles();
-  return userIds
-    .map((id) => profiles.get(id))
-    .filter((user): user is User => Boolean(user));
+function toPersona(row: CommunityProfileRow): CommunityPersona {
+  return {
+    id: row.user_id,
+    communityId: row.community_id,
+    name: row.display_name,
+    initials: initialsFor(row.display_name),
+    bio: row.bio,
+    avatarUrl: row.avatar_path
+      ? memberAvatarUrl(row.community_id, row.user_id, row.avatar_path)
+      : undefined,
+  };
+}
+
+/**
+ * The deliberate answer for someone whose profile in this community the
+ * caller may not see, or who has none. Never the account, never another
+ * community's persona.
+ */
+function unknownPersona(communityId: string, userId: string): CommunityPersona {
+  return { id: userId, communityId, name: "Ukjent", initials: "?", bio: "" };
+}
+
+/**
+ * Every profile in one community the caller may see. Row level security
+ * (`can_view_community_profile`) draws that line: your own, people in an
+ * open registry, and people whose content or conversation you can already
+ * see there. One query per community per request.
+ */
+const loadCommunityPersonas = cache(
+  async (communityId: string): Promise<Map<string, CommunityPersona>> => {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase
+      .from("community_profiles")
+      .select("*")
+      .eq("community_id", communityId);
+    return new Map(rows(data).map((row) => [row.user_id, toPersona(row)]));
+  },
+);
+
+/** One person as they appear in one community. */
+export async function getCommunityPersona(
+  communityId: string,
+  userId: string,
+): Promise<CommunityPersona> {
+  return (await loadCommunityPersonas(communityId)).get(userId) ?? unknownPersona(communityId, userId);
+}
+
+/**
+ * Several people as they appear in one community, keyed by user id. Every id
+ * asked for gets an entry; one the caller may not see is "Ukjent".
+ */
+export async function getCommunityPersonas(
+  communityId: string,
+  userIds: string[],
+): Promise<Map<string, CommunityPersona>> {
+  const personas = await loadCommunityPersonas(communityId);
+  return new Map(
+    userIds.map((id) => [id, personas.get(id) ?? unknownPersona(communityId, id)]),
+  );
+}
+
+/** Key for `getPersonasAcrossCommunities`. */
+export function personaKey(communityId: string, userId: string): string {
+  return `${communityId}|${userId}`;
+}
+
+/**
+ * For pages that list content from several communities at once — the home
+ * feed, the combined calendar. Each item is resolved in *its own* community,
+ * so the same person can appear under two different names on one page, which
+ * is exactly how they appear inside each of those communities. Keyed by
+ * `personaKey(communityId, userId)`.
+ */
+export async function getPersonasAcrossCommunities(
+  entries: { communityId: string; userId: string }[],
+): Promise<Map<string, CommunityPersona>> {
+  const result = new Map<string, CommunityPersona>();
+  const byCommunity = new Map<string, Set<string>>();
+  for (const { communityId, userId } of entries) {
+    if (!userId) continue;
+    byCommunity.set(communityId, (byCommunity.get(communityId) ?? new Set()).add(userId));
+  }
+  await Promise.all(
+    [...byCommunity].map(async ([communityId, ids]) => {
+      for (const [userId, persona] of await getCommunityPersonas(communityId, [...ids])) {
+        result.set(personaKey(communityId, userId), persona);
+      }
+    }),
+  );
+  return result;
+}
+
+/**
+ * The caller's own profiles, keyed by community. Only their own rows are
+ * read, so this is safe to show together on /profile — the one page where a
+ * person sees all of their communities side by side.
+ */
+export async function getMyCommunityPersonas(
+  userId: string,
+): Promise<Map<string, CommunityPersona>> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("community_profiles")
+    .select("*")
+    .eq("user_id", userId);
+  return new Map(rows(data).map((row) => [row.community_id, toPersona(row)]));
 }
 
 // ── Communities and membership ──────────────────────────────────────────
@@ -387,7 +502,8 @@ export function getCommunitiesForUser(userId: string) {
 }
 
 export interface CommunityMember {
-  user: User;
+  /** As they appear in this community. */
+  persona: CommunityPersona;
   membership: Membership;
 }
 
@@ -658,18 +774,18 @@ export async function setLocalGroupActive(
 }
 
 export async function getCommunityMembers(communityId: string): Promise<CommunityMember[]> {
-  const [memberships, profiles] = await Promise.all([
+  const [memberships, personas] = await Promise.all([
     loadCommunityMemberships(communityId),
-    loadProfiles(),
+    loadCommunityPersonas(communityId),
   ]);
   return memberships
     .filter((membership) => membership.status === "active")
-    .map((membership) => ({ user: profiles.get(membership.userId)!, membership }))
-    .filter((entry) => Boolean(entry.user))
+    .map((membership) => ({ persona: personas.get(membership.userId)!, membership }))
+    .filter((entry) => Boolean(entry.persona))
     .sort(
       (a, b) =>
         roleWeight[a.membership.role] - roleWeight[b.membership.role] ||
-        a.user.name.localeCompare(b.user.name, "nb"),
+        a.persona.name.localeCompare(b.persona.name, "nb"),
     );
 }
 
@@ -697,6 +813,22 @@ export async function getCommunityPersonAccountLinks(
       },
     ]),
   );
+}
+
+/**
+ * Account identifiers (handle, email) for a community's active members, for
+ * its administrator's account-link picker only. Empty for anyone else — the
+ * function checks is_admin() itself.
+ */
+export async function getCommunityMemberAccounts(
+  communityId: string,
+): Promise<Map<string, { handle: string; email: string }>> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("community_member_accounts", {
+    p_community_id: communityId,
+  });
+  if (error) return new Map();
+  return new Map(rows(data).map((row) => [row.user_id, { handle: row.handle, email: row.email }]));
 }
 
 export async function setCommunityPersonAccountLink(input: {
@@ -918,12 +1050,11 @@ export async function getDirectConversations(
   const conversations = rows(data);
   const conversationIds = conversations.map((conversation) => conversation.id);
   const otherIds = conversations.map((conversation) => otherParticipantId(conversation, userId));
-  const [people, latest, reads] = await Promise.all([
-    getUsers([...new Set(otherIds)]),
+  const [users, latest, reads] = await Promise.all([
+    getCommunityPersonas(communityId, [...new Set(otherIds)]),
     latestDirectMessages(conversationIds),
     directReadState(conversationIds),
   ]);
-  const users = new Map(people.map((person) => [person.id, person]));
 
   return conversations
     .map((conversation) => {
@@ -968,12 +1099,11 @@ export async function getRecentDirectConversations(
   const conversations = rows(data);
   const conversationIds = conversations.map((conversation) => conversation.id);
   const otherIds = conversations.map((conversation) => otherParticipantId(conversation, userId));
-  const [people, latest, reads] = await Promise.all([
-    getUsers([...new Set(otherIds)]),
+  const [users, latest, reads] = await Promise.all([
+    getCommunityPersonas(communityId, [...new Set(otherIds)]),
     latestDirectMessageMeta(conversationIds),
     directReadState(conversationIds),
   ]);
-  const users = new Map(people.map((person) => [person.id, person]));
 
   return conversations
     .map((conversation) => {
@@ -1021,10 +1151,10 @@ export async function getDirectConversation(
       .eq("conversation_id", conversation.id)
       .order("created_at", { ascending: true }),
     directReadState([conversation.id]),
-    getUser(otherParticipantId(conversation, userId)),
+    // The other participant as they appear in this conversation's own
+    // community — the only identity this conversation has ever known them by.
+    getCommunityPersona(conversation.community_id, otherParticipantId(conversation, userId)),
   ]);
-
-  if (!other) return undefined;
 
   const messages = rows(messageRows).map(toDirectMessage);
   const last = messages[messages.length - 1];
@@ -2337,5 +2467,117 @@ export async function downloadCommunityAvatar(
   if (!row?.avatar_path) return undefined;
 
   const { data: blob } = await supabase.storage.from(AVATAR_BUCKET).download(row.avatar_path);
+  return blob ? { blob, path: row.avatar_path } : undefined;
+}
+
+// ── Your profile in a community ─────────────────────────────────────────
+//
+// Display name, bio and photo for one community. Every write names only the
+// community: whose profile changes is auth.uid() inside the database, so
+// there is no user id here for anyone — an administrator included — to aim
+// at somebody else. An inactive membership is refused there too.
+
+const MEMBER_AVATAR_BUCKET = "member-avatars";
+
+export type CommunityProfileResult = { ok: true } | { ok: false; error: string };
+
+const PROFILE_REFUSED = "Du kan bare endre din egen profil i fellesskap du er aktivt medlem av.";
+
+export async function updateMyCommunityProfile(input: {
+  communityId: string;
+  displayName: string;
+  bio: string;
+}): Promise<CommunityProfileResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("update_my_community_profile", {
+    p_community_id: input.communityId,
+    p_display_name: input.displayName,
+    p_bio: input.bio,
+  });
+  if (error) return { ok: false, error: "Profilen kunne ikke lagres. Prøv igjen." };
+  return data === true ? { ok: true } : { ok: false, error: PROFILE_REFUSED };
+}
+
+/** Same order as `swapCommunityAvatar`: swap the reference, then tidy up. */
+async function swapMyCommunityAvatar(
+  communityId: string,
+  nextPath: string | null,
+): Promise<CommunityProfileResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_my_community_avatar", {
+    p_community_id: communityId,
+    p_path: nextPath as string,
+  });
+  const result = data?.[0];
+
+  if (error || !result?.applied) {
+    return { ok: false, error: error ? "Profilbildet kunne ikke lagres." : PROFILE_REFUSED };
+  }
+
+  const previous = result.previous_path as string | null;
+  if (previous && previous !== nextPath) {
+    await supabase.storage.from(MEMBER_AVATAR_BUCKET).remove([previous]);
+  }
+  return { ok: true };
+}
+
+export async function setMyCommunityAvatar(input: {
+  communityId: string;
+  userId: string;
+  bytes: Uint8Array;
+  contentType: string;
+  extension: string;
+}): Promise<CommunityProfileResult> {
+  const supabase = await createSupabaseServerClient();
+  // The user id only builds the folder name. The storage policy requires it
+  // to be the caller's own, and set_my_community_avatar() checks it again.
+  const path = `${input.communityId}/${input.userId}/${crypto.randomUUID()}.${input.extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(MEMBER_AVATAR_BUCKET)
+    .upload(path, input.bytes, { contentType: input.contentType, upsert: false });
+
+  if (uploadError) {
+    const message = uploadError.message.toLowerCase();
+    return {
+      ok: false,
+      error:
+        message.includes("row-level security") || message.includes("unauthorized")
+          ? PROFILE_REFUSED
+          : "Bildet kunne ikke lastes opp. Prøv igjen.",
+    };
+  }
+
+  const swapped = await swapMyCommunityAvatar(input.communityId, path);
+  if (!swapped.ok) {
+    await supabase.storage.from(MEMBER_AVATAR_BUCKET).remove([path]);
+  }
+  return swapped;
+}
+
+export async function clearMyCommunityAvatar(communityId: string): Promise<CommunityProfileResult> {
+  return swapMyCommunityAvatar(communityId, null);
+}
+
+/**
+ * Serves one member's photo in one community, to someone allowed to see that
+ * profile. Runs as the caller: the profile row is only readable through
+ * `can_view_community_profile`, and the object only through the matching
+ * storage policy, so anyone else gets nothing whether or not a photo exists.
+ */
+export async function downloadMemberAvatar(
+  communityId: string,
+  userId: string,
+): Promise<{ blob: Blob; path: string } | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data: row } = await supabase
+    .from("community_profiles")
+    .select("avatar_path")
+    .eq("community_id", communityId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!row?.avatar_path) return undefined;
+
+  const { data: blob } = await supabase.storage.from(MEMBER_AVATAR_BUCKET).download(row.avatar_path);
   return blob ? { blob, path: row.avatar_path } : undefined;
 }

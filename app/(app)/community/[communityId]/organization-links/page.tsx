@@ -14,6 +14,7 @@ import {
   type CommunityMember,
   type CommunityPersonAccountLink,
   getCommunityById,
+  getCommunityMemberAccounts,
   getCommunityMembers,
   getCommunityPeople,
   getCommunityPersonAccountLinks,
@@ -37,22 +38,35 @@ function personSubtitle(person: CommunityPerson) {
   return [person.role, person.localGroupName].filter(Boolean).join(" · ");
 }
 
-function memberOptionLabel({ user, membership }: CommunityMember) {
+/**
+ * A candidate in the account picker: the member as this community knows them,
+ * plus the account identifiers an administrator needs to tell two similar
+ * names apart.
+ */
+type LinkCandidate = CommunityMember & { account?: { handle: string; email: string } };
+
+function memberOptionLabel({ persona, membership, account }: LinkCandidate) {
   return [
-    user.name,
-    `@${user.handle}`,
+    persona.name,
+    account ? `@${account.handle}` : undefined,
     membership.title ?? getRole(membership.role).label,
-    user.email,
-  ].join(" · ");
+    account?.email,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function linkedLabel(
   link: CommunityPersonAccountLink | undefined,
-  membersById: Map<string, CommunityMember>,
+  membersById: Map<string, LinkCandidate>,
 ) {
   if (!link) return "Ikke koblet";
   const member = membersById.get(link.userId);
-  if (member) return `${member.user.name} / @${member.user.handle}`;
+  if (member) {
+    return member.account
+      ? `${member.persona.name} / @${member.account.handle}`
+      : member.persona.name;
+  }
   return "Koblet konto er ikke aktiv i dette fellesskapet";
 }
 
@@ -64,7 +78,7 @@ function AccountPicker({
   submitLabel,
 }: {
   person: CommunityPerson;
-  members: CommunityMember[];
+  members: LinkCandidate[];
   communityId: string;
   link?: CommunityPersonAccountLink;
   submitLabel: string;
@@ -84,7 +98,7 @@ function AccountPicker({
       >
         <option value="">Velg aktivt medlem</option>
         {members.map((member) => (
-          <option key={member.user.id} value={member.user.id}>
+          <option key={member.persona.id} value={member.persona.id}>
             {memberOptionLabel(member)}
           </option>
         ))}
@@ -103,11 +117,11 @@ function LinkRow({
   link,
 }: {
   person: CommunityPerson;
-  members: CommunityMember[];
+  members: LinkCandidate[];
   communityId: string;
   link?: CommunityPersonAccountLink;
 }) {
-  const membersById = new Map(members.map((member) => [member.user.id, member]));
+  const membersById = new Map(members.map((member) => [member.persona.id, member]));
   const isLinked = Boolean(link);
 
   return (
@@ -169,7 +183,7 @@ function LinkGroup({
   empty: string;
   people: CommunityPerson[];
   links: Map<string, CommunityPersonAccountLink>;
-  members: CommunityMember[];
+  members: LinkCandidate[];
   communityId: string;
 }) {
   return (
@@ -225,10 +239,15 @@ export default async function OrganizationLinksPage({
     );
   }
 
-  const [members, links] = await Promise.all([
+  const [communityMembers, accounts, links] = await Promise.all([
     getCommunityMembers(community.id),
+    getCommunityMemberAccounts(community.id),
     getCommunityPersonAccountLinks(community.id),
   ]);
+  const members: LinkCandidate[] = communityMembers.map((member) => ({
+    ...member,
+    account: accounts.get(member.persona.id),
+  }));
   const linked = people.filter((person) => links.has(person.id));
   const unlinked = people.filter((person) => !links.has(person.id));
 

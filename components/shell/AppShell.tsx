@@ -402,17 +402,33 @@ function SidebarContent({
       </nav>
 
       <div className="border-t border-line p-3">
-        <Link
-          href="/profile"
-          onClick={onNavigate}
-          className="flex items-center gap-2.5 rounded-[5px] px-2 py-2 transition-colors hover:bg-paper-2"
-        >
-          <Avatar user={data.user} size="sm" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-ink">{data.user.name}</span>
-            <span className="block truncate text-xs text-ink-3">@{data.user.handle}</span>
-          </span>
-        </Link>
+        {/* Inside a community, you are shown as that community sees you, and
+            the link edits that profile. Outside one, it is the account. */}
+        {current ? (
+          <Link
+            href={`/community/${current.community.id}/profile/edit`}
+            onClick={onNavigate}
+            className="flex items-center gap-2.5 rounded-[5px] px-2 py-2 transition-colors hover:bg-paper-2"
+          >
+            <Avatar user={current.me} size="sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-ink">{current.me.name}</span>
+              <span className="block truncate text-xs text-ink-3">Din profil her</span>
+            </span>
+          </Link>
+        ) : (
+          <Link
+            href="/profile"
+            onClick={onNavigate}
+            className="flex items-center gap-2.5 rounded-[5px] px-2 py-2 transition-colors hover:bg-paper-2"
+          >
+            <Avatar user={data.user} size="sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-ink">{data.user.name}</span>
+              <span className="block truncate text-xs text-ink-3">@{data.user.handle}</span>
+            </span>
+          </Link>
+        )}
       </div>
     </div>
   );

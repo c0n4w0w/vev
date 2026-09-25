@@ -2,17 +2,8 @@ import Link from "next/link";
 import { startOrganizationPersonConversationAction } from "@/app/actions";
 import { Avatar, Panel, buttonClass, cn } from "@/components/ui/primitives";
 import { IconMail, IconMapPin, IconSend } from "@/components/ui/icons";
+import { initialsFor } from "@/lib/format";
 import type { CommunityPerson } from "@/lib/types";
-
-function initialsFor(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
 
 function PersonEmail({ email, compact = false }: { email?: string; compact?: boolean }) {
   if (!email) return null;

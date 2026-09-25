@@ -11,6 +11,7 @@ import {
   createDirectMessage as persistDirectMessage,
   createMessage as persistMessage,
   clearCommunityAvatar,
+  clearMyCommunityAvatar,
   createCommunityEmoji as persistEmoji,
   createPost as persistPost,
   deleteComment as removeComment,
@@ -31,6 +32,7 @@ import {
   startDirectConversationWithOrganizationPerson,
   setAcceptsMemberDms,
   setCommunityAvatar,
+  setMyCommunityAvatar,
   setCommunityPersonAccountLink,
   setMembershipRole,
   setLocalGroupActive,
@@ -38,12 +40,14 @@ import {
   setPostPinned,
   toggleReaction as togglePostReaction,
   updateComment as editComment,
+  updateMyCommunityProfile,
   updatePost as editPost,
 } from "@/lib/data";
 import type { AccessFormState } from "@/lib/access-form";
 import type { NotificationFormState } from "@/lib/notification-form";
 import { REQUEST_SENT_MESSAGE, normalizeDisplayName } from "@/lib/access-form";
 import type { CommentFormState } from "@/lib/comment-form";
+import { normalizeBio, type CommunityProfileFormState } from "@/lib/community-profile-form";
 import { inspectCommunityAvatar } from "@/lib/community-avatar-image";
 import {
   inspectEmojiImage,
@@ -840,6 +844,103 @@ export async function removeCommunityAvatarAction(
   return { status: "ok", message: "Profilbildet er fjernet." };
 }
 
+// ── Your profile in a community ─────────────────────────────────────────
+//
+// Name, bio and photo for one community. The membership check here only
+// gives a clear answer early; what actually protects the data is that the
+// database functions and storage policies take the person from auth.uid()
+// and require an active membership themselves. There is no user id in any of
+// these forms, so nobody — an administrator included — can aim one at
+// somebody else's profile.
+
+const PROFILE_INACTIVE = "Du kan bare endre profilen din i fellesskap du er aktivt medlem av.";
+
+async function isActiveMember(userId: string, communityId: string) {
+  return (await getMembership(userId, communityId))?.status === "active";
+}
+
+export async function updateCommunityProfileAction(
+  _prev: CommunityProfileFormState,
+  formData: FormData,
+): Promise<CommunityProfileFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  if (!(await isActiveMember(user.id, communityId))) {
+    return { status: "error", message: PROFILE_INACTIVE };
+  }
+
+  const name = normalizeDisplayName(String(formData.get("displayName") ?? ""));
+  if (!name.ok) return { status: "error", message: name.message };
+  const bio = normalizeBio(String(formData.get("bio") ?? ""));
+  if (!bio.ok) return { status: "error", message: bio.message };
+
+  const result = await updateMyCommunityProfile({
+    communityId,
+    displayName: name.value,
+    bio: bio.value,
+  });
+  if (!result.ok) return { status: "error", message: result.error };
+
+  // The name appears on every screen of the community and in the shell.
+  revalidatePath("/", "layout");
+  return { status: "ok", message: "Profilen er lagret." };
+}
+
+export async function setMyCommunityAvatarAction(
+  _prev: CommunityProfileFormState,
+  formData: FormData,
+): Promise<CommunityProfileFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  if (!(await isActiveMember(user.id, communityId))) {
+    return { status: "error", message: PROFILE_INACTIVE };
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { status: "error", message: "Velg en bildefil." };
+  }
+
+  // Same validator as the community image: decided from the bytes.
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const image = inspectCommunityAvatar(bytes);
+  if (!image.ok) return { status: "error", message: image.error };
+
+  const result = await setMyCommunityAvatar({
+    communityId,
+    userId: user.id,
+    bytes,
+    contentType: image.contentType,
+    extension: image.extension,
+  });
+  if (!result.ok) return { status: "error", message: result.error };
+
+  revalidatePath("/", "layout");
+  return { status: "ok", message: "Profilbildet er oppdatert." };
+}
+
+export async function removeMyCommunityAvatarAction(
+  _prev: CommunityProfileFormState,
+  formData: FormData,
+): Promise<CommunityProfileFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  if (!(await isActiveMember(user.id, communityId))) {
+    return { status: "error", message: PROFILE_INACTIVE };
+  }
+
+  const result = await clearMyCommunityAvatar(communityId);
+  if (!result.ok) return { status: "error", message: result.error };
+
+  revalidatePath("/", "layout");
+  return { status: "ok", message: "Profilbildet er fjernet. Initialene dine vises igjen." };
+}
 
 // ── Access requests and invitations ─────────────────────────────────────
 

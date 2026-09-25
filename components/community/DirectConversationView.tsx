@@ -7,7 +7,7 @@ import { IconArrowLeft, IconSend } from "@/components/ui/icons";
 import { createDirectMessageAction } from "@/app/actions";
 import { emptyDirectMessageFormState } from "@/lib/direct-message-form";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
-import type { Community, DirectConversation, User } from "@/lib/types";
+import type { Community, CommunityPersona, DirectConversation } from "@/lib/types";
 
 export function DirectConversationView({
   conversation,
@@ -16,7 +16,8 @@ export function DirectConversationView({
 }: {
   conversation: DirectConversation;
   community: Community;
-  currentUser: User;
+  /** The viewer as they appear in this conversation's community. */
+  currentUser: CommunityPersona;
 }) {
   const [messages, setMessages] = useState(conversation.messages);
   const [draft, setDraft] = useState("");

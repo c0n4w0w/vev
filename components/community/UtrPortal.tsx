@@ -200,11 +200,11 @@ export function UtrPortal({
                 ikke har blitt offentliggjort.
               </p>
             </div>
-            <div className="mt-9">
-              <TextLink href={isMember ? communityHref : "#tilgang"}>
-                {isMember ? "Åpne fellesskapet" : "Bli en del av fellesskapet"}
-              </TextLink>
-            </div>
+            {isMember ? null : (
+              <div className="mt-9">
+                <TextLink href="#tilgang">Bli en del av fellesskapet</TextLink>
+              </div>
+            )}
             {nextEvent ? (
               <p className={`${tracked} mt-10 border-t border-(--utr-rule) pt-5 text-(--utr-muted)`}>
                 Neste åpne kveld
@@ -409,63 +409,51 @@ export function UtrPortal({
       </section>
 
       {/* 8 · The way in — heading and a smaller photograph, beside the invitation. */}
-      <section
-        id="tilgang"
-        aria-labelledby="vaere-med"
-        className={`${frame} scroll-mt-6 pb-24 pt-6 lg:pb-36 lg:pt-24`}
-      >
-        <div className="grid gap-10 border-t border-(--utr-rule) pt-10 lg:grid-cols-12 lg:gap-12 lg:pt-14">
-          <div className="lg:col-span-5">
-            <h2
-              id="vaere-med"
-              className={`${serif} text-[clamp(2.75rem,5.6vw,5.25rem)] leading-[0.98]`}
-            >
-              {isMember ? (
-                <>
-                  Du er allerede <em className="italic">innenfor.</em>
-                </>
-              ) : (
-                <>
-                  Vil du være <em className="italic">med?</em>
-                </>
-              )}
-            </h2>
-            <div className="relative mt-12 hidden aspect-[4/3] w-[82%] overflow-hidden bg-(--utr-rule) lg:block">
-              <Image
-                src={performerGreen}
-                alt="En performer bøyer seg over et bord med utstyr foran en grønn projeksjon."
-                fill
-                placeholder="blur"
-                sizes="(min-width: 1344px) 26rem, 32vw"
-                className="object-cover object-[35%_50%]"
-              />
+      {isMember ? null : (
+        <section
+          id="tilgang"
+          aria-labelledby="vaere-med"
+          className={`${frame} scroll-mt-6 pb-24 pt-6 lg:pb-36 lg:pt-24`}
+        >
+          <div className="grid gap-10 border-t border-(--utr-rule) pt-10 lg:grid-cols-12 lg:gap-12 lg:pt-14">
+            <div className="lg:col-span-5">
+              <h2
+                id="vaere-med"
+                className={`${serif} text-[clamp(2.75rem,5.6vw,5.25rem)] leading-[0.98]`}
+              >
+                Vil du være <em className="italic">med?</em>
+              </h2>
+              <div className="relative mt-12 hidden aspect-[4/3] w-[82%] overflow-hidden bg-(--utr-rule) lg:block">
+                <Image
+                  src={performerGreen}
+                  alt="En performer bøyer seg over et bord med utstyr foran en grønn projeksjon."
+                  fill
+                  placeholder="blur"
+                  sizes="(min-width: 1344px) 26rem, 32vw"
+                  className="object-cover object-[35%_50%]"
+                />
+              </div>
+            </div>
+
+            <div className="lg:col-span-6 lg:col-start-7 lg:pt-4">
+              <div className={`${lede} max-w-[30rem] space-y-4`}>
+                <p>
+                  Fellesskapet er for folk som vil være litt tettere på det som skjer rundt Under
+                  The Rug.
+                </p>
+                <p>
+                  Kunstnere, frivillige, samarbeidspartnere, publikum og andre nysgjerrige folk er
+                  velkomne.
+                </p>
+              </div>
+              <p className="mb-12 mt-6 max-w-md text-[1rem] leading-relaxed text-(--utr-ink-2)">
+                Fortell oss hvem du er, så sender vi deg tilgang.
+              </p>
+              <UtrAccessForm community={community} signedIn={Boolean(user)} pending={pending} />
             </div>
           </div>
-
-          <div className="lg:col-span-6 lg:col-start-7 lg:pt-4">
-            {isMember ? (
-              <TextLink href={communityHref}>Åpne fellesskapet</TextLink>
-            ) : (
-              <>
-                <div className={`${lede} max-w-[30rem] space-y-4`}>
-                  <p>
-                    Fellesskapet er for folk som vil være litt tettere på det som skjer rundt Under
-                    The Rug.
-                  </p>
-                  <p>
-                    Kunstnere, frivillige, samarbeidspartnere, publikum og andre nysgjerrige folk er
-                    velkomne.
-                  </p>
-                </div>
-                <p className="mb-12 mt-6 max-w-md text-[1rem] leading-relaxed text-(--utr-ink-2)">
-                  Fortell oss hvem du er, så sender vi deg tilgang.
-                </p>
-                <UtrAccessForm community={community} signedIn={Boolean(user)} pending={pending} />
-              </>
-            )}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 9 · Footer — the one dark band, in undertherug.no's own arrangement. */}
       <footer className="relative mt-auto overflow-hidden bg-(--utr-night) text-(--utr-on-night)">
@@ -498,14 +486,16 @@ export function UtrPortal({
             <div>
               <p className={`${tracked} text-(--utr-on-night-2)/70`}>Fellesskapet</p>
               <ul className="mt-4 grid gap-2.5">
-                <li>
-                  <a
-                    href={isMember ? communityHref : "#tilgang"}
-                    className={`${tracked} text-(--utr-on-night) hover:text-(--utr-on-night-2)`}
-                  >
-                    {isMember ? "Åpne fellesskapet" : "Be om tilgang"}
-                  </a>
-                </li>
+                {isMember ? null : (
+                  <li>
+                    <a
+                      href="#tilgang"
+                      className={`${tracked} text-(--utr-on-night) hover:text-(--utr-on-night-2)`}
+                    >
+                      Be om tilgang
+                    </a>
+                  </li>
+                )}
                 {user ? null : (
                   <li>
                     <Link

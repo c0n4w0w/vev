@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { startDirectConversationAction } from "@/app/actions";
 import { Avatar, Badge, ButtonLink, Panel, buttonClass } from "@/components/ui/primitives";
-import { IconMapPin } from "@/components/ui/icons";
 import type { CommunityMember } from "@/lib/data";
 import { formatFullDate } from "@/lib/format";
 import { publicMemberTitle } from "@/lib/roles";
@@ -30,7 +29,7 @@ export function MemberCard({
    */
   showJoinedDate?: boolean;
 }) {
-  const { user: person, membership: personMembership } = member;
+  const { persona: person, membership: personMembership } = member;
   const title = publicMemberTitle(personMembership.title);
 
   return (
@@ -45,18 +44,16 @@ export function MemberCard({
           {permissionBadge}
         </p>
         {title ? <p className="mt-0.5 text-[13px] text-ink-2">{title}</p> : null}
-        <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-ink-3">
-          {person.bio}
-        </p>
-        <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-3">
-          <span className="inline-flex items-center gap-1">
-            <IconMapPin size={12} />
-            {person.location}
-          </span>
-          {showJoinedDate ? (
-            <span>Medlem siden {formatFullDate(personMembership.joinedAt)}</span>
-          ) : null}
-        </p>
+        {person.bio ? (
+          <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-ink-3">
+            {person.bio}
+          </p>
+        ) : null}
+        {showJoinedDate ? (
+          <p className="mt-2.5 text-[11px] text-ink-3">
+            Medlem siden {formatFullDate(personMembership.joinedAt)}
+          </p>
+        ) : null}
         {dmActions.has(person.id) ? (
           <div className="mt-3">
             {dmActions.get(person.id) ? (

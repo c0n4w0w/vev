@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { DirectConversationView } from "@/components/community/DirectConversationView";
 import {
   getCommunityById,
+  getCommunityPersona,
   getDirectConversation,
   markDirectConversationRead,
 } from "@/lib/data";
@@ -45,7 +46,7 @@ export default async function DirectConversationPage({
       key={conversation.id}
       conversation={conversation}
       community={community}
-      currentUser={user}
+      currentUser={await getCommunityPersona(community.id, user.id)}
     />
   );
 }

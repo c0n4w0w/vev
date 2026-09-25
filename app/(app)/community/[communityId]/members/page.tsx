@@ -144,7 +144,7 @@ function FlatMemberDirectory({
     <ul className="grid gap-3 sm:grid-cols-2">
       {members.map((member) => (
         <MemberCard
-          key={member.user.id}
+          key={member.persona.id}
           member={member}
           userId={userId}
           communityId={communityId}
@@ -191,7 +191,7 @@ export default async function MembersPage({
     // membership card below it — same product rule as elsewhere on this page:
     // one card per person. Their membership itself is unchanged; this is
     // presentation only, and only for whoever has an explicit Crew link.
-    const members = allMembers.filter((member) => !crewLinkedMemberIds.has(member.user.id));
+    const members = allMembers.filter((member) => !crewLinkedMemberIds.has(member.persona.id));
 
     return (
       <PageContainer>

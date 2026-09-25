@@ -7,7 +7,13 @@ import {
   PageHeader,
   SectionHeading,
 } from "@/components/ui/primitives";
-import { getCommunityById, getEventsForUser, getUsers, now } from "@/lib/data";
+import {
+  getCommunityById,
+  getEventsForUser,
+  getPersonasAcrossCommunities,
+  now,
+  personaKey,
+} from "@/lib/data";
 import { formatFullDate } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 import type { CommunityEvent } from "@/lib/types";
@@ -43,8 +49,9 @@ export default async function EventsPage() {
       .filter((c) => Boolean(c))
       .map((c) => [c!.id, c!]),
   );
-  const hosts = new Map(
-    (await getUsers([...new Set(events.map((e) => e.hostId))])).map((u) => [u.id, u]),
+  // Each host as they appear in the event's own community.
+  const hosts = await getPersonasAcrossCommunities(
+    events.map((e) => ({ communityId: e.communityId, userId: e.hostId })),
   );
 
   return (
@@ -75,7 +82,7 @@ export default async function EventsPage() {
                     key={event.id}
                     event={event}
                     community={communities.get(event.communityId)!}
-                    host={hosts.get(event.hostId)}
+                    host={hosts.get(personaKey(event.communityId, event.hostId))}
                     attending={event.attendeeIds.includes(user.id)}
                     showCommunity
                   />

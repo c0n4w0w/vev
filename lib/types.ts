@@ -16,10 +16,18 @@ export interface Role {
   description: string;
 }
 
+/**
+ * The account: one per person, across all of TING.
+ *
+ * Only ever the signed-in person's own. Other people are never seen through
+ * this type — inside a community they are a `CommunityPersona`, which carries
+ * nothing from the account.
+ */
 export interface User {
   id: string;
+  /** The account name. The default a new community profile may start from. */
   name: string;
-  /** Short handle, unique across the platform. */
+  /** Short handle, unique across the platform. Account identity, shown only to its owner. */
   handle: string;
   /** Two-letter monogram used when there is no photo. */
   initials: string;
@@ -29,6 +37,28 @@ export interface User {
   bio: string;
   /** ISO date the account was created. */
   joinedAt: string;
+}
+
+/**
+ * How one person appears inside one community.
+ *
+ * The same account can be "Kari Moen" in one community and a pseudonym in
+ * another, and neither community learns the other's. Everything that shows a
+ * person inside a community — authors, DM participants, member cards, the
+ * viewer's own avatar in a composer — uses this, resolved for *that*
+ * community. There is deliberately no handle, email, location or account name
+ * here: those belong to the account, not to the persona.
+ */
+export interface CommunityPersona {
+  /** The account id. Used for keys and "is this me", never displayed. */
+  id: string;
+  communityId: string;
+  /** The display name chosen for this community. */
+  name: string;
+  initials: string;
+  bio: string;
+  /** Same-origin URL of the profile photo in this community, when there is one. */
+  avatarUrl?: string;
 }
 
 export interface CommunityBranding {
@@ -154,7 +184,8 @@ export interface DirectConversationSummary {
   id: string;
   communityId: string;
   participantIds: [string, string];
-  otherParticipant: User;
+  /** As they appear in this conversation's community. */
+  otherParticipant: CommunityPersona;
   latestMessage?: DirectMessage;
   lastMessageAt: string;
   unread: boolean;
@@ -164,7 +195,8 @@ export interface DirectConversation {
   id: string;
   communityId: string;
   participantIds: [string, string];
-  otherParticipant: User;
+  /** As they appear in this conversation's community. */
+  otherParticipant: CommunityPersona;
   messages: DirectMessage[];
   unread: boolean;
 }

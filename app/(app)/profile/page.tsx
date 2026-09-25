@@ -13,8 +13,8 @@ import {
   SectionHeading,
 } from "@/components/ui/primitives";
 import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
-import { IconLock, IconMapPin, IconShield, IconSwitch } from "@/components/ui/icons";
-import { getCommunitiesForUser, getEventsForUser } from "@/lib/data";
+import { IconLock, IconShield, IconSwitch } from "@/components/ui/icons";
+import { getCommunitiesForUser, getEventsForUser, getMyCommunityPersonas } from "@/lib/data";
 import { formatFullDate, plural } from "@/lib/format";
 import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
@@ -25,78 +25,113 @@ export default async function ProfilePage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const [communities, events] = await Promise.all([
+  const [communities, events, personas] = await Promise.all([
     getCommunitiesForUser(user.id),
     getEventsForUser(user.id),
+    getMyCommunityPersonas(user.id),
   ]);
 
   return (
     <PageContainer>
-      <PageHeader eyebrow="Profil" title="Kontoen din" />
+      <PageHeader
+        eyebrow="Profil"
+        title="Kontoen din"
+        lead="Én TING-konto, og en egen profil i hvert fellesskap du er med i."
+      />
 
-      <Panel className="p-6 sm:p-8">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-          <Avatar user={user} size="xl" />
+      {/* The account: what signs in, not what anyone else sees. */}
+      <Panel className="p-5 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <Avatar user={user} size="lg" />
           <div className="min-w-0 flex-1">
-            <h2 className="font-display text-2xl leading-tight text-ink">{user.name}</h2>
-            <p className="mt-1 text-sm text-ink-3">
-              @{user.handle} · {user.pronoun}
-            </p>
-            <p className="mt-4 max-w-xl text-[0.9375rem] leading-relaxed text-ink-2">{user.bio}</p>
-            <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-ink-2">
-              <div className="flex items-center gap-1.5">
-                <dt className="sr-only">Sted</dt>
-                <IconMapPin size={14} className="text-ink-3" />
-                <dd>{user.location}</dd>
+            <h2 className="truncate font-display text-xl leading-tight text-ink">{user.name}</h2>
+            <p className="mt-1 truncate text-sm text-ink-3">@{user.handle}</p>
+            <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1.5 text-[13px] text-ink-2">
+              <div className="min-w-0">
+                <dt className="sr-only">E-post</dt>
+                <dd className="truncate">{user.email}</dd>
               </div>
               <div>
-                <dt className="sr-only">Medlem siden</dt>
+                <dt className="sr-only">Konto opprettet</dt>
                 <dd>Konto på TING siden {formatFullDate(user.joinedAt)}</dd>
               </div>
             </dl>
           </div>
-          <Button variant="secondary" size="sm" className="shrink-0" disabled>
-            Rediger profil
-          </Button>
         </div>
+        <p className="mt-4 flex items-start gap-2 border-t border-line pt-4 text-xs leading-relaxed text-ink-3">
+          <IconLock size={13} className="mt-px shrink-0" />
+          Kontoen er bare synlig for deg. Andre ser deg gjennom profilen du har i fellesskapet dere
+          deler.
+        </p>
       </Panel>
 
       <section className="mt-10">
-        <SectionHeading>Én profil, ulike roller</SectionHeading>
+        <SectionHeading>Én konto, ulike profiler</SectionHeading>
         {communities.length === 0 ? (
           <Panel className="p-5">
             <p className="text-sm leading-relaxed text-ink-2">
-              Du har ingen medlemskap ennå. Profilen din er ikke synlig for noen før du blir med i
-              et fellesskap, og den vises da kun for medlemmene der.
+              Du har ingen medlemskap ennå. Når du blir med i et fellesskap, får du en egen profil der
+              — med navnet du oppga da du ba om tilgang.
             </p>
           </Panel>
         ) : (
-          <Panel className="divide-y divide-line">
-            {communities.map(({ community, membership }) => (
-              <Link
-                key={community.id}
-                href={`/community/${community.id}/members`}
-                className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-paper-2/60"
-              >
-                <CommunityAvatar community={community} size="sm" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[0.9375rem] font-medium text-ink">
-                    {community.name}
-                  </span>
-                  <span className="mt-0.5 block truncate text-[13px] text-ink-3">
-                    {publicMemberTitle(membership.title)
-                      ? `${publicMemberTitle(membership.title)} · siden ${formatFullDate(membership.joinedAt)}`
-                      : `Siden ${formatFullDate(membership.joinedAt)}`}
-                  </span>
-                </span>
-                <ElevatedRoleBadge role={membership.role} />
-              </Link>
-            ))}
-          </Panel>
+          <ul className="grid gap-4 md:grid-cols-2">
+            {communities.map(({ community, membership }) => {
+              const persona = personas.get(community.id);
+              const title = publicMemberTitle(membership.title);
+              return (
+                <Panel as="li" key={community.id} className="flex flex-col">
+                  <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+                    <CommunityAvatar community={community} size="xs" />
+                    <Link
+                      href={`/community/${community.id}`}
+                      className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink hover:underline"
+                    >
+                      {community.name}
+                    </Link>
+                    <ElevatedRoleBadge role={membership.role} />
+                  </div>
+                  <div className="flex flex-1 gap-3.5 px-4 py-4">
+                    {persona ? <Avatar user={persona} size="lg" /> : null}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[0.9375rem] font-medium text-ink">
+                        {persona?.name ?? "Profilen er ikke satt opp"}
+                      </p>
+                      {title ? (
+                        <p className="mt-0.5 truncate text-[13px] text-ink-2">{title}</p>
+                      ) : null}
+                      <p
+                        className={
+                          persona?.bio
+                            ? "mt-2 line-clamp-3 text-[13px] leading-relaxed text-ink-2"
+                            : "mt-2 text-[13px] leading-relaxed text-ink-3"
+                        }
+                      >
+                        {persona?.bio || "Ingen bio her ennå."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 px-4 pb-4">
+                    <span className="text-[11px] text-ink-3">
+                      Medlem siden {formatFullDate(membership.joinedAt)}
+                    </span>
+                    <ButtonLink
+                      href={`/community/${community.id}/profile/edit`}
+                      variant="secondary"
+                      size="sm"
+                      aria-label={`Rediger profil i ${community.name}`}
+                    >
+                      Rediger profil
+                    </ButtonLink>
+                  </div>
+                </Panel>
+              );
+            })}
+          </ul>
         )}
         <p className="mt-3 text-xs leading-relaxed text-ink-3">
-          Du har én konto, men opptrer med ulik rolle i hvert fellesskap. Medlemmer i ett fellesskap
-          ser ikke hvilke andre fellesskap du er med i.
+          Hvert fellesskap ser bare profilen du har der. Navn, bilde og bio fra ett fellesskap vises
+          aldri i et annet, og medlemmer ser ikke hvilke andre fellesskap du er med i.
         </p>
       </section>
 
@@ -130,7 +165,7 @@ export default async function ProfilePage() {
           <ul className="space-y-2.5 text-[13px] leading-relaxed text-ink-2">
             <li className="flex gap-2.5">
               <IconLock size={15} className="mt-0.5 shrink-0 text-skog" />
-              Profilen din vises bare for medlemmer i fellesskap du selv er med i.
+              Hver profil vises bare for medlemmer av det fellesskapet den hører til.
             </li>
             <li className="flex gap-2.5">
               <IconShield size={15} className="mt-0.5 shrink-0 text-skog" />

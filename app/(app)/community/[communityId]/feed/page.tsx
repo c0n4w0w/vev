@@ -8,8 +8,8 @@ import {
   getCommunityById,
   getFeed,
   getLocalGroups,
+  getCommunityPersonas,
   getMembership,
-  getUsers,
 } from "@/lib/data";
 import { getSessionUser } from "@/lib/session";
 
@@ -36,13 +36,16 @@ export default async function CommunityFeedPage({
   ]);
   const customEmojis = await getCommunityEmojis(community.id);
   const commentsByPost = await getCommentsForPosts(feed.map((post) => post.id));
+  // Everyone as they appear in this community — the viewer included, so the
+  // composer and their own posts carry the same name and photo as everyone
+  // else sees.
   const participantIds = new Set([
+    user.id,
     ...feed.map((post) => post.authorId),
     ...[...commentsByPost.values()].flat().map((comment) => comment.authorId),
   ]);
-  const authors = new Map(
-    (await getUsers([...participantIds])).map((u) => [u.id, u]),
-  );
+  const authors = await getCommunityPersonas(community.id, [...participantIds]);
+  const me = authors.get(user.id)!;
 
   return (
     <PageContainer width="narrow">
@@ -53,7 +56,7 @@ export default async function CommunityFeedPage({
       />
 
       <Composer
-        user={user}
+        user={me}
         community={community}
         canAnnounce={membership?.role === "admin" || membership?.role === "moderator"}
         localGroups={groups.filter((group) => group.active)}
@@ -66,7 +69,7 @@ export default async function CommunityFeedPage({
             post={post}
             author={authors.get(post.authorId)!}
             community={community}
-            viewer={user}
+            viewer={me}
               comments={commentsByPost.get(post.id) ?? []}
               commentAuthors={Object.fromEntries(authors)}
               customEmojis={customEmojis}

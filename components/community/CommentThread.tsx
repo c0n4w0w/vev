@@ -10,7 +10,7 @@ import {
 import { emptyCommentFormState } from "@/lib/comment-form";
 import { Avatar, cn } from "@/components/ui/primitives";
 import { timeAgo } from "@/lib/format";
-import type { Comment, User } from "@/lib/types";
+import type { Comment, CommunityPersona } from "@/lib/types";
 
 function Submit({
   label,
@@ -46,7 +46,7 @@ function CommentComposer({
   postId: string;
   communityId: string;
   parentId?: string;
-  author: User;
+  author: CommunityPersona;
   accent: string;
   placeholder: string;
   onDone?: () => void;
@@ -120,7 +120,7 @@ function CommentRow({
   isReply,
 }: {
   comment: Comment;
-  author?: User;
+  author?: CommunityPersona;
   communityId: string;
   viewerId: string;
   canModerate: boolean;
@@ -270,8 +270,8 @@ export function CommentThread({
   communityId: string;
   commentCount: number;
   comments: Comment[];
-  authors: Record<string, User>;
-  viewer: User;
+  authors: Record<string, CommunityPersona>;
+  viewer: CommunityPersona;
   canModerate: boolean;
   accent: string;
 }) {

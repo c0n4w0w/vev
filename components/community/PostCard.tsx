@@ -6,7 +6,7 @@ import { CommentThread } from "@/components/community/CommentThread";
 import { PostActions } from "@/components/community/PostActions";
 import { ReactionBar } from "@/components/community/ReactionBar";
 import { timeAgo } from "@/lib/format";
-import type { Comment, Community, CommunityEmoji, Post, RoleId, User } from "@/lib/types";
+import type { Comment, Community, CommunityEmoji, CommunityPersona, Post, RoleId } from "@/lib/types";
 
 function Reactions({ reactions }: { reactions: Post["reactions"] }) {
   if (reactions.length === 0) return null;
@@ -37,17 +37,17 @@ export function PostCard({
   customEmojis = [],
 }: {
   post: Post;
-  author: User;
+  author: CommunityPersona;
   community: Community;
   showCommunity?: boolean;
   /**
    * Who is looking. Omitted on screens that only read, such as the home feed,
    * where the card renders reactions and counts without controls.
    */
-  viewer?: User;
+  viewer?: CommunityPersona;
   viewerRole?: RoleId;
   comments?: Comment[];
-  commentAuthors?: Record<string, User>;
+  commentAuthors?: Record<string, CommunityPersona>;
   /** This community's own custom emojis. Never another community's. */
   customEmojis?: CommunityEmoji[];
 }) {

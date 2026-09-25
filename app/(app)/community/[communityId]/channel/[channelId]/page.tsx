@@ -3,13 +3,12 @@ import { ChannelView } from "@/components/community/ChannelView";
 import {
   getChannel,
   getCommunityById,
+  getCommunityPersonas,
   getMembership,
   getMessages,
-  getUsers,
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
-import type { User } from "@/lib/types";
 
 export async function generateMetadata({
   params,
@@ -41,9 +40,10 @@ export default async function ChannelPage({
     getMembership(user.id, community.id),
     getMessages(channel.id),
   ]);
-  const authors = (
-    await getUsers([...new Set(messages.map((message) => message.authorId))])
-  ).reduce<Record<string, User>>((all, person) => ({ ...all, [person.id]: person }), {});
+  const personas = await getCommunityPersonas(community.id, [
+    ...new Set([user.id, ...messages.map((message) => message.authorId)]),
+  ]);
+  const authors = Object.fromEntries(personas);
 
   return (
     <ChannelView
@@ -52,7 +52,7 @@ export default async function ChannelPage({
       community={community}
       initialMessages={messages}
       authors={authors}
-      currentUser={user}
+      currentUser={personas.get(user.id)!}
       canPost={
         !channel.readOnly ||
         membership?.role === "admin" ||

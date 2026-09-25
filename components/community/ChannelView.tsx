@@ -6,7 +6,7 @@ import { IconAttach, IconHash, IconLock, IconSend } from "@/components/ui/icons"
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
 import { createMessageAction } from "@/app/actions";
 import { emptyMessageFormState } from "@/lib/message-form";
-import type { Channel, Community, Message, User } from "@/lib/types";
+import type { Channel, Community, CommunityPersona, Message } from "@/lib/types";
 
 /**
  * Channel conversation.
@@ -32,8 +32,9 @@ export function ChannelView({
   channel: Channel;
   community: Community;
   initialMessages: Message[];
-  authors: Record<string, User>;
-  currentUser: User;
+  authors: Record<string, CommunityPersona>;
+  /** The viewer as they appear in this community. */
+  currentUser: CommunityPersona;
   canPost: boolean;
   /**
    * Rendered on the server. Computing a relative time in the browser as well

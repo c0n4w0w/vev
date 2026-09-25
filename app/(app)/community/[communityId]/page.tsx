@@ -30,7 +30,7 @@ import {
   getLatestMessage,
   getMembership,
   getUpcomingCommunityEvents,
-  getUsers,
+  getCommunityPersonas,
 } from "@/lib/data";
 import { PUBLIC_HOST } from "@/lib/brand";
 import { plural, timeAgo } from "@/lib/format";
@@ -69,17 +69,13 @@ export default async function CommunityOverviewPage({
   const accent = community.branding.accent;
   const membershipTitle = publicMemberTitle(membership?.title);
 
-  const people = new Map(
-    (
-      await getUsers([
-        ...new Set([
-          ...feed.map((post) => post.authorId),
-          ...events.map((event) => event.hostId),
-          ...(pinned ? [pinned.authorId] : []),
-        ]),
-      ])
-    ).map((person) => [person.id, person]),
-  );
+  const people = await getCommunityPersonas(community.id, [
+    ...new Set([
+      ...feed.map((post) => post.authorId),
+      ...events.map((event) => event.hostId).filter(Boolean),
+      ...(pinned ? [pinned.authorId] : []),
+    ]),
+  ]);
 
   // Last activity per channel, for the sidebar list.
   const channelActivity = new Map(
@@ -306,7 +302,7 @@ export default async function CommunityOverviewPage({
                 Kontaktpersoner
               </SectionHeading>
               <Panel className="divide-y divide-line">
-                {leaders.map(({ user: person, membership: personMembership }) => (
+                {leaders.map(({ persona: person, membership: personMembership }) => (
                   <div key={person.id} className="flex items-center gap-3 px-4 py-3">
                     <Avatar user={person} size="sm" />
                     <span className="min-w-0 flex-1">

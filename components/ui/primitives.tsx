@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ComponentProps, HTMLAttributes, ReactNode } from "react";
 import type { CommunityPublic, RoleId, User } from "@/lib/types";
 import { roles } from "@/lib/roles";
+import { AvatarPhoto } from "@/components/ui/AvatarPhoto";
 
 export function cn(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");
@@ -18,8 +19,10 @@ const avatarSizes = {
 } as const;
 
 /**
- * Monogram avatars. The tint is derived from the user id so a person keeps the
- * same colour everywhere without storing one.
+ * Monogram avatars. The tint is derived from the user id — and, for a
+ * community profile, the community too — so a person keeps the same colour
+ * within a community without storing one, while their profiles in different
+ * communities do not share a colour that would tie them together.
  */
 const tints = [
   "bg-[#e6ece7] text-[#28503f]",
@@ -36,21 +39,30 @@ function tintFor(id: string) {
   return tints[sum % tints.length];
 }
 
+/** The same circles in pixels, for a photo's outer box. Keep in step with `avatarSizes`. */
+const avatarPixels = { xs: 24, sm: 32, md: 40, lg: 56, xl: 80 } as const;
+
+/**
+ * A person: their profile photo when they have one in this context, otherwise
+ * the monogram. Takes whatever identity the caller resolved — inside a
+ * community that is always the persona for that community, so the photo and
+ * the name can never come from two different places.
+ */
 export function Avatar({
   user,
   size = "md",
   className,
 }: {
-  user: Pick<User, "id" | "initials" | "name">;
+  user: Pick<User, "id" | "initials" | "name"> & { avatarUrl?: string; communityId?: string };
   size?: keyof typeof avatarSizes;
   className?: string;
 }) {
-  return (
+  const monogram = (
     <span
       className={cn(
         "inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold tracking-wide",
         avatarSizes[size],
-        tintFor(user.id),
+        tintFor(user.communityId ? `${user.communityId}:${user.id}` : user.id),
         className,
       )}
       title={user.name}
@@ -58,17 +70,36 @@ export function Avatar({
       {user.initials}
     </span>
   );
+
+  if (!user.avatarUrl) return monogram;
+
+  return (
+    <AvatarPhoto
+      url={user.avatarUrl}
+      px={avatarPixels[size]}
+      label={user.name}
+      className={className}
+      fallback={monogram}
+    />
+  );
 }
 
 // ── Community mark ──────────────────────────────────────────────────────
 
 export const markSizes = {
+  "2xs": "h-4 w-4 text-[7px] rounded-[5px]",
   xs: "h-6 w-6 text-[9px] rounded-[5px]",
   sm: "h-8 w-8 text-[10px] rounded-[6px]",
   md: "h-11 w-11 text-xs rounded-[8px]",
   lg: "h-16 w-16 text-base rounded-[10px]",
   xl: "h-24 w-24 text-2xl rounded-[12px]",
 } as const;
+
+/**
+ * The same squares in pixels, for the one place that must not depend on the
+ * stylesheet: an uploaded image's outer box. Keep in step with `markSizes`.
+ */
+export const markPixels = { "2xs": 16, xs: 24, sm: 32, md: 44, lg: 64, xl: 96 } as const;
 
 const markFonts = {
   serif: "font-display",

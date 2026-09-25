@@ -21,8 +21,9 @@ import {
   getLatestMessage,
   getGroupedChannels,
   getCommunityById,
-  getUser,
-  getUsers,
+  getCommunityPersona,
+  getPersonasAcrossCommunities,
+  personaKey,
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
 import { publicMemberTitle } from "@/lib/roles";
@@ -55,16 +56,13 @@ export default async function HomePage() {
     }
   }
 
-  const people = new Map(
-    (
-      await getUsers([
-        ...new Set([
-          ...feed.map((post) => post.authorId),
-          ...events.map((event) => event.hostId),
-        ]),
-      ])
-    ).map((person) => [person.id, person]),
-  );
+  // Every author and host as they appear in the community the item is from —
+  // this page gathers several communities, but each name on it is that
+  // community's own.
+  const people = await getPersonasAcrossCommunities([
+    ...feed.map((post) => ({ communityId: post.communityId, userId: post.authorId })),
+    ...events.map((event) => ({ communityId: event.communityId, userId: event.hostId })),
+  ]);
 
   // The two most recently used channels per community, with their last message.
   const activeChannels = (
@@ -76,7 +74,7 @@ export default async function HomePage() {
           channels.map(async (channel) => {
             const latest = await getLatestMessage(channel.id);
             if (!latest) return null;
-            const author = await getUser(latest.authorId);
+            const author = await getCommunityPersona(community.id, latest.authorId);
             return { community, channel, latest, authorName: author?.name.split(" ")[0] };
           }),
         );
@@ -129,7 +127,7 @@ export default async function HomePage() {
             <div className="space-y-4">
               {feed.map((post) => {
                 const community = communityById.get(post.communityId)!;
-                const author = people.get(post.authorId)!;
+                const author = people.get(personaKey(post.communityId, post.authorId))!;
                 return (
                   <PostCard
                     key={post.id}
@@ -155,7 +153,7 @@ export default async function HomePage() {
                       key={event.id}
                       event={event}
                       community={communityById.get(event.communityId)!}
-                      host={people.get(event.hostId)}
+                      host={people.get(personaKey(event.communityId, event.hostId))}
                       attending={event.attendeeIds.includes(user.id)}
                       variant="compact"
                       showCommunity
@@ -177,8 +175,7 @@ export default async function HomePage() {
                     <span className="flex items-center gap-2">
                       <CommunityAvatar
                         community={community}
-                        size="xs"
-                        className="h-4 w-4 text-[7px]"
+                        size="2xs"
                       />
                       <span className="truncate text-[13px] font-medium text-ink">
                         #{channel.name}

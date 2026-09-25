@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { EventRsvp } from "@/components/community/EventRsvp";
 import { Avatar, Badge, PageContainer, Panel } from "@/components/ui/primitives";
 import { IconArrowLeft, IconClock, IconGlobe, IconLock, IconMapPin } from "@/components/ui/icons";
-import { getCommunityById, getEvent, getUsers, now } from "@/lib/data";
+import { getCommunityById, getCommunityPersona, getEvent, now } from "@/lib/data";
 import { formatEventRange, timeUntil } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 
@@ -34,7 +34,7 @@ export default async function EventDetailPage({
   const [community, event] = await Promise.all([getCommunityById(communityId), getEvent(eventId)]);
   if (!community || !event || event.communityId !== community.id) notFound();
 
-  const host = (await getUsers([event.hostId]))[0];
+  const host = event.hostId ? await getCommunityPersona(community.id, event.hostId) : undefined;
   const attending = event.attendeeIds.includes(user.id);
   const accent = community.branding.accent;
   const past = Date.parse(event.endsAt) < now().getTime();

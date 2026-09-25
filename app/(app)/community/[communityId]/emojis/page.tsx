@@ -4,8 +4,8 @@ import { PageContainer, PageHeader } from "@/components/ui/primitives";
 import {
   getCommunityById,
   getCommunityEmojis,
+  getCommunityPersonas,
   getMembership,
-  getUsers,
 } from "@/lib/data";
 import { getSessionUser } from "@/lib/session";
 
@@ -32,9 +32,9 @@ export default async function CommunityEmojisPage({
     getCommunityEmojis(community.id),
   ]);
 
-  const authors = new Map(
-    (await getUsers([...new Set(emojis.map((emoji) => emoji.createdBy))])).map((u) => [u.id, u]),
-  );
+  const authors = await getCommunityPersonas(community.id, [
+    ...new Set(emojis.map((emoji) => emoji.createdBy)),
+  ]);
 
   const canManage = membership?.role === "admin" || membership?.role === "moderator";
 

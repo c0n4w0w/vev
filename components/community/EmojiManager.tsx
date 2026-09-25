@@ -9,7 +9,7 @@ import { EMOJI_MAX_DIMENSION, normalizeEmojiName } from "@/lib/emoji-image";
 import { EmptyState, Panel } from "@/components/ui/primitives";
 import { IconClose } from "@/components/ui/icons";
 import { formatFullDate } from "@/lib/format";
-import type { CommunityEmoji, User } from "@/lib/types";
+import type { CommunityEmoji, CommunityPersona } from "@/lib/types";
 
 function Submit({ label, pendingLabel, className, style, disabled }: {
   label: string;
@@ -83,7 +83,7 @@ export function EmojiManager({
 }: {
   communityId: string;
   emojis: CommunityEmoji[];
-  authors: Record<string, User>;
+  authors: Record<string, CommunityPersona>;
   canManage: boolean;
   accent: string;
 }) {

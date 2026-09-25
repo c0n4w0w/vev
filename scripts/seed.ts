@@ -25,6 +25,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { assertDemoDeployment } from "@/lib/environment";
 import { channelGroups, channels, communities, memberships } from "@/lib/mock/communities";
 import { communityPeople } from "@/lib/mock/community-people";
+import { avatarPng, communityProfiles } from "@/lib/mock/community-profiles";
 import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
 import { communityPolicies } from "@/lib/mock/community-policies";
@@ -162,6 +163,19 @@ async function clearEmojiFiles() {
       const paths = (data ?? []).map((entry) => `${community.id}/${entry.name}`);
       if (paths.length > 0) {
         await supabase.storage.from(bucket).remove(paths);
+      }
+    }
+  }
+
+  // Member photos sit one level deeper: <community>/<user>/<file>.
+  for (const community of communities) {
+    const { data: folders } = await supabase.storage.from("member-avatars").list(community.id);
+    for (const folder of folders ?? []) {
+      const prefix = `${community.id}/${folder.name}`;
+      const { data: files } = await supabase.storage.from("member-avatars").list(prefix);
+      const paths = (files ?? []).map((entry) => `${prefix}/${entry.name}`);
+      if (paths.length > 0) {
+        await supabase.storage.from("member-avatars").remove(paths);
       }
     }
   }
@@ -376,6 +390,46 @@ async function main() {
     `  ${applied} lokallagstilknytninger ` +
       `(${allMemberships.length - applied} uten lokallag)`,
   );
+
+  // Every active membership already has a community profile — the membership
+  // trigger created it from the account. These fixtures replace a few of them
+  // with deliberately different names, bios and photos per community.
+  let photos = 0;
+  for (const fixture of communityProfiles) {
+    const userId = uid.get(fixture.userId);
+    if (!userId) continue;
+
+    let avatarPath: string | null = null;
+    if (fixture.avatar) {
+      avatarPath = `${fixture.communityId}/${userId}/${crypto.randomUUID()}.png`;
+      fail(
+        `profilbilde for ${fixture.userId} i ${fixture.communityId}`,
+        (
+          await supabase.storage
+            .from("member-avatars")
+            .upload(avatarPath, avatarPng(fixture.avatar.background, fixture.avatar.foreground), {
+              contentType: "image/png",
+              upsert: true,
+            })
+        ).error,
+      );
+      photos += 1;
+    }
+
+    fail(
+      `fellesskapsprofil for ${fixture.userId} i ${fixture.communityId}`,
+      (
+        await supabase.from("community_profiles").upsert({
+          community_id: fixture.communityId,
+          user_id: userId,
+          display_name: fixture.displayName,
+          bio: fixture.bio,
+          avatar_path: avatarPath,
+        })
+      ).error,
+    );
+  }
+  console.log(`  ${communityProfiles.length} egne fellesskapsprofiler (${photos} med bilde)`);
 
   const localScopeId = (communityId: string, groupName?: string) => {
     if (!groupName) return null;

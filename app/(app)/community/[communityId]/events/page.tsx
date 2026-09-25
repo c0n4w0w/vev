@@ -9,11 +9,11 @@ import {
 } from "@/components/ui/primitives";
 import {
   getCommunityById,
+  getCommunityPersonas,
   getLocalGroups,
   getMembership,
   getPastCommunityEvents,
   getUpcomingCommunityEvents,
-  getUsers,
 } from "@/lib/data";
 import { plural } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
@@ -45,12 +45,9 @@ export default async function CommunityEventsPage({
   // uses. The database refuses everyone else regardless of what is rendered.
   const isAdmin = membership?.role === "admin";
   const publicCount = upcoming.filter((event) => event.isPublic).length;
-  const hosts = new Map(
-    (await getUsers([...new Set([...upcoming, ...past].map((e) => e.hostId))])).map((u) => [
-      u.id,
-      u,
-    ]),
-  );
+  const hosts = await getCommunityPersonas(community.id, [
+    ...new Set([...upcoming, ...past].map((e) => e.hostId).filter(Boolean)),
+  ]);
 
   return (
     <PageContainer width="narrow">

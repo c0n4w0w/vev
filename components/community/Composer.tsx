@@ -6,7 +6,7 @@ import { Avatar, Panel, cn } from "@/components/ui/primitives";
 import { IconMegaphone } from "@/components/ui/icons";
 import { createPostAction } from "@/app/actions";
 import { emptyPostFormState } from "@/lib/post-form";
-import type { Community, LocalGroup, User } from "@/lib/types";
+import type { Community, CommunityPersona, LocalGroup } from "@/lib/types";
 
 function PublishButton({ accent, disabled }: { accent: string; disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -36,7 +36,8 @@ export function Composer({
   canAnnounce,
   localGroups = [],
 }: {
-  user: User;
+  /** The author as they will appear in this community. */
+  user: CommunityPersona;
   community: Community;
   canAnnounce: boolean;
   localGroups?: LocalGroup[];

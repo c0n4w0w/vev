@@ -231,3 +231,14 @@ export function shortName(name: string) {
 export function plural(count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`;
 }
+
+/** Up to two letters for a monogram, from the first two words of a name. */
+export function initialsFor(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}

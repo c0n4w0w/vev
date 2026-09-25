@@ -423,6 +423,51 @@ export type Database = {
           },
         ]
       }
+      community_profiles: {
+        Row: {
+          avatar_path: string | null
+          bio: string
+          community_id: string
+          created_at: string
+          display_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_path?: string | null
+          bio?: string
+          community_id: string
+          created_at?: string
+          display_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_path?: string | null
+          bio?: string
+          community_id?: string
+          created_at?: string
+          display_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_profiles_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       direct_conversation_reads: {
         Row: {
           conversation_id: string
@@ -1078,6 +1123,10 @@ export type Database = {
       can_moderate: { Args: { cid: string }; Returns: boolean }
       can_moderate_post: { Args: { pid: string }; Returns: boolean }
       can_read_channel: { Args: { chid: string }; Returns: boolean }
+      can_read_member_avatar_object: {
+        Args: { p_name: string }
+        Returns: boolean
+      }
       can_reply_direct_conversation: {
         Args: { p_conversation_id: string }
         Returns: boolean
@@ -1086,7 +1135,19 @@ export type Database = {
         Args: { cid: string; recipient: string }
         Returns: boolean
       }
+      can_view_community_profile: {
+        Args: { p_community_id: string; p_user_id: string }
+        Returns: boolean
+      }
       can_view_member_directory: { Args: { cid: string }; Returns: boolean }
+      community_member_accounts: {
+        Args: { p_community_id: string }
+        Returns: {
+          email: string
+          handle: string
+          user_id: string
+        }[]
+      }
       community_people_linked_member_details: {
         Args: { p_community_id: string }
         Returns: {
@@ -1129,6 +1190,10 @@ export type Database = {
         Args: { eid: string; pid: string }
         Returns: boolean
       }
+      ensure_community_profile: {
+        Args: { p_community_id: string; p_user_id: string }
+        Returns: undefined
+      }
       has_membership_row: { Args: { cid: string }; Returns: boolean }
       has_pending_access_request: { Args: { p_slug: string }; Returns: boolean }
       hash_invitation_token: { Args: { p_token: string }; Returns: string }
@@ -1168,6 +1233,7 @@ export type Database = {
         Args: { p_community_id: string }
         Returns: boolean
       }
+      normalize_display_name: { Args: { p_value: string }; Returns: string }
       normalize_email: { Args: { p_email: string }; Returns: string }
       organization_person_dm_actions: {
         Args: { p_community_id: string }
@@ -1254,6 +1320,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      set_my_community_avatar: {
+        Args: { p_community_id: string; p_path: string }
+        Returns: {
+          applied: boolean
+          previous_path: string
+        }[]
+      }
       set_my_local_group: {
         Args: { p_community_id: string; p_local_group_id: string }
         Returns: boolean
@@ -1276,6 +1349,10 @@ export type Database = {
           community_id: string
           conversation_id: string
         }[]
+      }
+      update_my_community_profile: {
+        Args: { p_bio: string; p_community_id: string; p_display_name: string }
+        Returns: boolean
       }
     }
     Enums: {
@@ -1470,6 +1547,7 @@ export type CommunityPersonRow = Tables<"community_people">
 export type DirectConversationRow = Tables<"direct_conversations">
 export type DirectConversationReadRow = Tables<"direct_conversation_reads">
 export type DirectMessageRow = Tables<"direct_messages">
+export type CommunityProfileRow = Tables<"community_profiles">
 
 export type PortalCommunityRow =
   Database["public"]["Functions"]["portal_by_slug"]["Returns"][number]
