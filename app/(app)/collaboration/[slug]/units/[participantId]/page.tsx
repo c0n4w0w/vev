@@ -89,7 +89,7 @@ export default async function ChooseOrganizersPage({
         {collaboration.name}
       </Link>
       <PageHeader
-        eyebrow={collaboration.name}
+        eyebrow={t("collab.hub.eyebrow")}
         title={t("collab.organizers.title", { unit: label })}
         lead={t("collab.organizers.lead", { unit: label })}
       />
