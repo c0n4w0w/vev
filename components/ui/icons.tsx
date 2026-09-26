@@ -40,6 +40,14 @@ export const IconCommunities = (p: IconProps) => (
   </Svg>
 );
 
+/** Two overlapping circles: separate organisations, one shared space. */
+export const IconCollaboration = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="9" cy="12" r="5.6" />
+    <circle cx="15" cy="12" r="5.6" />
+  </Svg>
+);
+
 export const IconCalendar = (p: IconProps) => (
   <Svg {...p}>
     <rect x="3.2" y="5" width="17.6" height="15.8" rx="1.6" />

@@ -24,6 +24,7 @@ export const shell: Record<keyof typeof nb, string> = {
 
   "shell.platform.home": "Home",
   "shell.platform.communities": "My communities",
+  "shell.platform.collaborations": "Collaborations",
   "shell.platform.events": "Events",
   "shell.platform.notifications": "Notifications",
   "shell.platform.noneYet":

@@ -336,3 +336,90 @@ export interface Notification {
   read: boolean;
   href: string;
 }
+
+// ── Collaborations ──────────────────────────────────────────────────────
+//
+// A collaboration is not a community. Several organisations take part, each
+// through a unit (the whole community, or one of its local groups), and a
+// person is on the organiser team only because their own organisation chose
+// them and they said yes. None of these types carries a membership, a role in
+// a community, or a community persona.
+
+export interface Collaboration {
+  id: string;
+  slug: string;
+  /** Written by people; never translated. */
+  name: string;
+  description?: string;
+  /** The collaboration's own language, fixed from its source community. */
+  defaultLocale: Locale;
+}
+
+export type CollaborationUnitStatus = "invited" | "active" | "declined" | "left";
+
+/**
+ * One organisation's participation, as the viewer may see it: a display name
+ * and nothing about who belongs to it. `localGroupId` is present only on units
+ * the viewer represents — their own organisation's.
+ *
+ * `participantId` and `communityId` are null on label-only rows: the units a
+ * pending invitee may see so they know who they would be joining, which carry
+ * nothing to act on or look anything up with. `key` is stable for rendering
+ * either way.
+ */
+export interface CollaborationUnit {
+  key: string;
+  participantId: string | null;
+  status: CollaborationUnitStatus;
+  communityId: string | null;
+  communityName: string;
+  localGroupId?: string;
+  localGroupName?: string;
+  branding: Pick<CommunityBranding, "accent" | "monogram" | "markStyle">;
+  /** The viewer can currently act for this unit. */
+  represented: boolean;
+}
+
+/** A unit the viewer can act for: always a real participant row of their own organisation. */
+export type RepresentedCollaborationUnit = CollaborationUnit & {
+  participantId: string;
+  communityId: string;
+  represented: true;
+};
+
+export type CollaborationSponsorshipStatus = "invited" | "accepted" | "declined" | "revoked";
+
+/**
+ * What a representative sees for one of their OWN unit's people. "joined" and
+ * "left" come from `collaboration_sponsored_team_state()`; "accepted" is the
+ * rare accepted-but-never-joined case.
+ */
+export type OrganizerState =
+  | "none"
+  | "invited"
+  | "joined"
+  | "left"
+  | "accepted"
+  | "declined"
+  | "revoked";
+
+/** The viewer's own sponsorship. Never anyone else's. */
+export interface MyCollaborationSponsorship {
+  id: string;
+  collaborationId: string;
+  participantId: string;
+  status: CollaborationSponsorshipStatus;
+}
+
+/**
+ * How someone appears inside one collaboration. Only ever built from
+ * `collaboration_profiles` — never from the account or a community persona.
+ */
+export interface CollaborationPersona {
+  /** The account id. Used for keys and "is this me", never displayed. */
+  id: string;
+  collaborationId: string;
+  name: string;
+  initials: string;
+  bio: string;
+}

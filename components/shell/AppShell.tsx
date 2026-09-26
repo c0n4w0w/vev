@@ -10,6 +10,7 @@ import {
   IconBell,
   IconCalendar,
   IconClose,
+  IconCollaboration,
   IconCommunities,
   IconFeed,
   IconHash,
@@ -132,6 +133,7 @@ function DirectConversationNavLink({
 const platformNav = [
   { href: "/home", label: "shell.platform.home", icon: IconHome },
   { href: "/communities", label: "shell.platform.communities", icon: IconCommunities },
+  { href: "/collaborations", label: "shell.platform.collaborations", icon: IconCollaboration },
   { href: "/events", label: "shell.platform.events", icon: IconCalendar },
   { href: "/notifications", label: "shell.platform.notifications", icon: IconBell },
 ] as const;
@@ -386,7 +388,11 @@ function SidebarContent({
                     href={item.href}
                     label={t(item.label)}
                     icon={<item.icon size={17} />}
-                    active={pathname === item.href}
+                    active={
+                      item.href === "/collaborations"
+                        ? pathname.startsWith("/collaboration")
+                        : pathname === item.href
+                    }
                     badge={item.href === "/notifications" ? data.unreadCount : undefined}
                     onNavigate={onNavigate}
                   />
@@ -514,7 +520,15 @@ export function AppShell({ data, children }: { data: ShellData; children: ReactN
   const current = data.communities.find(({ community }) =>
     pathname.startsWith(`/community/${community.id}`),
   );
-  const locale = current ? communityLocale(current.community) : PLATFORM_LOCALE;
+  // A collaboration's own pages speak its language, fixed from the community
+  // that started it; the hub and everything else speak the platform's.
+  const collaboration = data.collaborations.find(
+    ({ slug }) =>
+      pathname === `/collaboration/${slug}` || pathname.startsWith(`/collaboration/${slug}/`),
+  );
+  const locale = current
+    ? communityLocale(current.community)
+    : (collaboration?.defaultLocale ?? PLATFORM_LOCALE);
 
   return (
     <LocaleProvider locale={locale}>

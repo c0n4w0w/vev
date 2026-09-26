@@ -23,6 +23,7 @@ export const shell = {
 
   "shell.platform.home": "Hjem",
   "shell.platform.communities": "Mine fellesskap",
+  "shell.platform.collaborations": "Samarbeid",
   "shell.platform.events": "Arrangementer",
   "shell.platform.notifications": "Varsler",
   "shell.platform.noneYet":

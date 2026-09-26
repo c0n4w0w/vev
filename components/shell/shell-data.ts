@@ -8,6 +8,8 @@ import {
   getUnreadDirectConversationCount,
   getUnreadCount,
 } from "@/lib/data";
+import { getVisibleCollaborations } from "@/lib/collaboration-data";
+import type { Locale } from "@/lib/i18n/locales";
 import type {
   Channel,
   ChannelGroup,
@@ -50,13 +52,20 @@ export interface ShellCommunity {
 export interface ShellData {
   user: User;
   communities: ShellCommunity[];
+  /**
+   * Only what the shell needs to speak a collaboration's language on its own
+   * pages: slug and locale of the collaborations the user is related to. A
+   * collaboration is not a community and gets no sidebar of its own.
+   */
+  collaborations: { slug: string; defaultLocale: Locale }[];
   unreadCount: number;
 }
 
 export async function buildShellData(user: User): Promise<ShellData> {
-  const [memberships, unreadCount] = await Promise.all([
+  const [memberships, unreadCount, collaborations] = await Promise.all([
     getCommunitiesForUser(user.id),
     getUnreadCount(user.id),
+    getVisibleCollaborations(),
   ]);
 
   const communities = await Promise.all(
@@ -87,5 +96,10 @@ export async function buildShellData(user: User): Promise<ShellData> {
     }),
   );
 
-  return { user, communities, unreadCount };
+  return {
+    user,
+    communities,
+    collaborations: collaborations.map(({ slug, defaultLocale }) => ({ slug, defaultLocale })),
+    unreadCount,
+  };
 }

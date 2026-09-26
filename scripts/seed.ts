@@ -134,7 +134,11 @@ async function clearContent() {
     .delete()
     .not("conversation_id", "is", null);
 
+  // Collaborations first: their participant rows point at communities and
+  // local groups, and a check run may have left some behind. Deleting the
+  // collaboration cascades to every collaboration_* table.
   const tables = [
+    "collaborations",
     "access_requests",
     "notifications",
     "direct_messages",
