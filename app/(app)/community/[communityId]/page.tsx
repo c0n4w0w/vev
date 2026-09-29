@@ -24,7 +24,9 @@ import {
 } from "@/components/ui/icons";
 import {
   getAnnouncements,
+  getCommentsForPosts,
   getCommunityById,
+  getCommunityEmojis,
   getCommunityMembers,
   getFeed,
   getGroupedChannels,
@@ -58,13 +60,16 @@ export default async function CommunityOverviewPage({
   const locale = communityLocale(community);
   const t = translator(locale);
 
-  const [membership, members, announcements, allPosts, upcoming, groups, related] = await Promise.all([
+  const [membership, members, announcements, allPosts, upcoming, groups, customEmojis, related] = await Promise.all([
     getMembership(user.id, community.id),
     getCommunityMembers(community.id),
     getAnnouncements(community.id),
     getFeed(community.id),
     getUpcomingCommunityEvents(community.id),
     getGroupedChannels(community.id),
+    // Once for the page: every post card below shares it.
+    getCommunityEmojis(community.id),
+    // Only the two configured Tryggere communities have one; others get undefined.
     getRelatedCommunity(user.id, community.slug),
   ]);
 
@@ -75,13 +80,29 @@ export default async function CommunityOverviewPage({
   const accent = community.branding.accent;
   const membershipTitle = publicMemberTitle(membership?.title);
 
+  // The cards below are the same interactive PostCard the feed renders, so
+  // they get the same inputs: who is looking, their role, the comments (one
+  // query for all cards) and everyone those comments name.
+  const shownPosts = [...(pinned ? [pinned] : []), ...feed];
+  const commentsByPost = await getCommentsForPosts(shownPosts.map((post) => post.id));
+
   const people = await getCommunityPersonas(community.id, [
     ...new Set([
+      user.id,
+      ...[...commentsByPost.values()].flat().map((comment) => comment.authorId),
       ...feed.map((post) => post.authorId),
       ...events.map((event) => event.hostId).filter(Boolean),
       ...(pinned ? [pinned.authorId] : []),
     ]),
   ]);
+
+  const interaction = (postId: string) => ({
+    viewer: people.get(user.id)!,
+    viewerRole: membership?.role,
+    comments: commentsByPost.get(postId) ?? [],
+    commentAuthors: Object.fromEntries(people),
+    customEmojis,
+  });
 
   // Last activity per channel, for the sidebar list.
   const channelActivity = new Map(
@@ -192,6 +213,7 @@ export default async function CommunityOverviewPage({
                   post={pinned}
                   author={people.get(pinned.authorId)!}
                   community={community}
+                  {...interaction(pinned.id)}
                 />
               </section>
             ) : null}
@@ -217,6 +239,7 @@ export default async function CommunityOverviewPage({
                     post={post}
                     author={people.get(post.authorId)!}
                     community={community}
+                    {...interaction(post.id)}
                   />
                 ))}
               </div>

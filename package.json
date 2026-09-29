@@ -24,6 +24,7 @@
     "check:local-content": "tsx scripts/check-local-content.ts",
     "check:notifications": "tsx scripts/check-notifications.ts",
     "check:organization-people": "tsx scripts/check-organization-people.ts",
+    "check:overview-interaction": "tsx scripts/check-overview-interaction.ts",
     "check:pinning": "tsx scripts/check-pinning.ts",
     "check:related-communities": "tsx scripts/check-related-communities.ts",
     "check:role-management": "tsx scripts/check-role-management.ts",
