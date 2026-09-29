@@ -972,6 +972,18 @@ async function main() {
   const oskarNotificationsBefore = (
     await admin.from("notifications").select("id").eq("user_id", oskarId)
   ).data!.length;
+  // Activating the membership also creates Oskar's Tryggere community profile
+  // (memberships_ensure_community_profile). Profiles deliberately outlive
+  // memberships, so deleting the membership below does not remove it; note
+  // whether one existed so the undo can put it back exactly as it was.
+  const oskarHadProfile =
+    (
+      await admin
+        .from("community_profiles")
+        .select("user_id", { count: "exact", head: true })
+        .eq("user_id", oskarId)
+        .eq("community_id", TR)
+    ).count! > 0;
 
   const oskarApproval = await lars.rpc("approve_access_request", { p_request_id: oskarRequest!.id });
   const oskarOutcome = (oskarApproval.data as { outcome: string; token: string | null }[] | null)?.[0];
@@ -1021,9 +1033,13 @@ async function main() {
     oskarNotificationsBefore + 1,
   );
 
-  // Undo case 9: the membership, its notice, and the request.
+  // Undo case 9: the membership, the community profile it created, its
+  // notice, and the request.
   if (oskarNotice) await admin.from("notifications").delete().eq("id", oskarNotice.id);
   await admin.from("memberships").delete().eq("user_id", oskarId).eq("community_id", TR);
+  if (!oskarHadProfile) {
+    await admin.from("community_profiles").delete().eq("user_id", oskarId).eq("community_id", TR);
+  }
   await admin.from("access_requests").delete().eq("id", oskarRequest!.id);
 
   // Tidy the requests case 8 and the role-boundary case above produced.

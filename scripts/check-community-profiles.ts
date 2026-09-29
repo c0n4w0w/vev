@@ -193,11 +193,38 @@ async function main() {
   expect("seed: Kari i TU", (await row(TU, ids.kari))?.display_name, "Kari");
   expect("seed: Kari har ingen UTR-profil", await row(UTR, ids.kari), null);
   expect("seed: Ingrid i UTR bruker pseudonym", (await row(UTR, ids.ingrid))?.display_name, "Lavfrekvens");
-  expect(
-    "seed: alle aktive medlemskap har en fellesskapsprofil",
-    (await admin.from("memberships").select("id", { count: "exact", head: true }).eq("status", "active")).count,
-    (await admin.from("community_profiles").select("user_id", { count: "exact", head: true })).count,
+  // In a fresh seed the two counts are equal: every active membership has a
+  // profile and there is no other profile. `expect` prints the membership count
+  // as "fikk" and the profile count as "forventet", so name them on failure.
+  const activeMembershipCount = (
+    await admin.from("memberships").select("id", { count: "exact", head: true }).eq("status", "active")
+  ).count;
+  const communityProfileCount = (
+    await admin.from("community_profiles").select("user_id", { count: "exact", head: true })
+  ).count;
+  expect("seed: alle aktive medlemskap har en fellesskapsprofil", activeMembershipCount, communityProfileCount);
+  if (activeMembershipCount !== communityProfileCount) {
+    console.error(
+      `    aktive medlemskap:    ${activeMembershipCount}\n    fellesskapsprofiler:  ${communityProfileCount}`,
+    );
+  }
+
+  // The invariant itself, pair by pair, so a missing profile cannot be hidden
+  // by an unrelated extra one. Only this direction: a profile may outlive its
+  // membership, because content written under it keeps its author's name.
+  const { data: activeMemberships } = await admin
+    .from("memberships")
+    .select("community_id, user_id")
+    .eq("status", "active");
+  const { data: communityProfiles } = await admin.from("community_profiles").select("community_id, user_id");
+  const profileKeys = new Set((communityProfiles ?? []).map((p) => `${p.community_id}/${p.user_id}`));
+  const missingProfiles = (activeMemberships ?? []).filter(
+    (m) => !profileKeys.has(`${m.community_id}/${m.user_id}`),
   );
+  expect("seed: hvert aktivt medlemskap har en fellesskapsprofil (par for par)", missingProfiles.length, 0);
+  for (const m of missingProfiles) {
+    console.error(`    mangler fellesskapsprofil: community_id=${m.community_id} user_id=${m.user_id}`);
+  }
 
   // ── 1: a member can read the profiles a community needs ──
   // Open registry (UTR): every active member's UTR profile.

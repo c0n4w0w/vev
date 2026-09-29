@@ -112,9 +112,29 @@ const membershipOf = async (userId: string, communityId: string) => {
   return data;
 };
 
+/** A community profile as the database holds it, or null. */
+const communityProfileOf = async (userId: string, communityId: string) => {
+  const { data } = await admin
+    .from("community_profiles")
+    .select("user_id, community_id, display_name, bio, avatar_path, created_at, updated_at")
+    .eq("user_id", userId)
+    .eq("community_id", communityId)
+    .maybeSingle();
+  return data;
+};
+
 /** Rows this run creates outside the access-request/invitation tables, so they can be torn down. */
 const createdAuthUserIds: string[] = [];
 const createdAccessRequestEmails: string[] = [];
+/**
+ * Community profiles this run caused for accounts it does not own. Activating
+ * a membership creates the member's profile in that community
+ * (memberships_ensure_community_profile), and profiles deliberately outlive
+ * the membership, so removing the membership does not remove it. Only a
+ * profile that did not exist before the run is listed here; one that was
+ * already there is never touched.
+ */
+const createdCommunityProfiles: { userId: string; communityId: string }[] = [];
 /** Notification ids that predate this run — everything else this run made gets deleted, by identity, not by matching titles. */
 let seededNotificationIds: string[] = [];
 
@@ -127,6 +147,11 @@ async function cleanup() {
     await admin.from("access_requests").delete().eq("email", email);
   }
   await admin.from("invitations").delete().is("request_id", null).like("email", "sjekk.%@example.no");
+  // Also runs when a case threw before its own undo, so it must be safe to
+  // repeat: deleting a row that is already gone is a no-op.
+  for (const { userId, communityId } of createdCommunityProfiles) {
+    await admin.from("community_profiles").delete().eq("user_id", userId).eq("community_id", communityId);
+  }
   for (const id of createdAuthUserIds) {
     await admin.auth.admin.deleteUser(id).catch(() => {});
   }
@@ -194,6 +219,12 @@ async function main() {
   await requestAccess(anon, TR, marteSeeker, "Sjekk Marte");
   const marteRequest = await pendingRequestFor(marteSeeker);
 
+  // Marte is a seeded account, not one this run creates and deletes, so the
+  // Tryggere profile the activation below gives her would otherwise survive the
+  // undo. Note whether she already had one, exactly as it was.
+  const marteProfileBefore = await communityProfileOf(marteId, TR);
+  if (!marteProfileBefore) createdCommunityProfiles.push({ userId: marteId, communityId: TR });
+
   const marteApproval = await larsbror.rpc("approve_access_request", { p_request_id: marteRequest.id });
   const marteOutcome = (marteApproval.data as MintedRow[] | null)?.[0];
   expect("5. godkjenning av en konto som finnes fra før aktiverer med det samme", marteOutcome?.outcome, "activated");
@@ -222,6 +253,8 @@ async function main() {
     1,
   );
 
+  expect("5. aktiveringen gir henne en profil i Tryggere", Boolean(await communityProfileOf(marteId, TR)), true);
+
   // Undo: Marte was never meant to end up a Tryggere member.
   await admin.from("memberships").delete().eq("user_id", marteId).eq("community_id", TR);
   await admin
@@ -230,6 +263,18 @@ async function main() {
     .eq("user_id", marteId)
     .eq("community_id", TR)
     .like("title", "Du er nå medlem%");
+  // Only the profile this run created. One that predates the run stays, and
+  // stays exactly as it was: the request's "Sjekk Marte" display name never
+  // overwrites an existing profile (ensure_community_profile does nothing on
+  // conflict), which the comparison below also proves.
+  if (!marteProfileBefore) {
+    await admin.from("community_profiles").delete().eq("user_id", marteId).eq("community_id", TR);
+  }
+  expect(
+    "5. opprydding: Martes Tryggere-profil er som før testen",
+    JSON.stringify(await communityProfileOf(marteId, TR)),
+    JSON.stringify(marteProfileBefore),
+  );
 
   // ── 9–11. An address with no usable account: the claim link ─────────────
   const claimEmail = "sjekk.claim@example.no";
