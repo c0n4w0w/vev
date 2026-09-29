@@ -54,6 +54,9 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.avatarTooSmall": "The image is too small. At least {min} pixels on each side.",
   "err.avatarAdminOnly": "Only the administrator can change the community's profile picture.",
   "err.avatarSaveFailed": "The profile picture couldn't be saved.",
+  "err.communityAboutTooLong": "The description is too long. Maximum {max} characters.",
+  "err.communityAboutSaveFailed": "Could not save the changes. Try again.",
+  "ok.communityAboutSaved": "Changes saved.",
   "err.profileSaveFailed": "The profile couldn't be saved. Try again.",
   "err.profileOwnOnly":
     "You can only edit your own profile in communities where you're an active member.",

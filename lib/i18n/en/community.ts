@@ -10,6 +10,8 @@ export const community: Record<keyof typeof nb, string> = {
   "overview.founded": "Founded",
   "overview.since": "Since {year}",
   "overview.about": "About the community",
+  "overview.editAbout": "Edit community description",
+  "overview.aboutLabel": "Description",
   "overview.openFeed": "Open the feed",
   "overview.pinnedAnnouncement": "Pinned announcement",
   "overview.fullFeed": "Full feed",

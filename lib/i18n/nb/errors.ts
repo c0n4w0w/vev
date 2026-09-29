@@ -56,6 +56,9 @@ export const errors = {
   "err.avatarTooSmall": "Bildet er for lite. Minst {min} piksler på hver side.",
   "err.avatarAdminOnly": "Bare administratoren kan endre fellesskapets profilbilde.",
   "err.avatarSaveFailed": "Profilbildet kunne ikke lagres.",
+  "err.communityAboutTooLong": "Beskrivelsen er for lang. Maks {max} tegn.",
+  "err.communityAboutSaveFailed": "Kunne ikke lagre endringene. Prøv igjen.",
+  "ok.communityAboutSaved": "Endringene er lagret.",
   "err.profileSaveFailed": "Profilen kunne ikke lagres. Prøv igjen.",
   "err.profileOwnOnly":
     "Du kan bare endre din egen profil i fellesskap du er aktivt medlem av.",

@@ -9,6 +9,8 @@ export const community = {
   "overview.founded": "Stiftet",
   "overview.since": "Siden {year}",
   "overview.about": "Om fellesskapet",
+  "overview.editAbout": "Rediger om fellesskapet",
+  "overview.aboutLabel": "Beskrivelse",
   "overview.openFeed": "Åpne feeden",
   "overview.pinnedAnnouncement": "Festet kunngjøring",
   "overview.fullFeed": "Hele feeden",

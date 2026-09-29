@@ -408,6 +408,29 @@ export async function getCommunityById(communityId: string): Promise<Community |
   return (await loadCommunities()).get(communityId);
 }
 
+export type SetCommunityAboutResult = { ok: true; about: string } | { ok: false; error: MessageKey };
+
+/**
+ * Changes the "Om fellesskapet" text on the overview page.
+ *
+ * Goes through `set_community_about()`, not a table write: the function is
+ * the only door, checks the caller is an active admin of exactly this
+ * community, and enforces the length limit itself, so this is a courtesy
+ * check rather than the authority.
+ */
+export async function setCommunityAbout(
+  communityId: string,
+  about: string,
+): Promise<SetCommunityAboutResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_community_about", {
+    p_community_id: communityId,
+    p_about: about,
+  });
+  if (error || data === null) return { ok: false, error: "err.communityAboutSaveFailed" };
+  return { ok: true, about: data };
+}
+
 /**
  * The public portal slug for a community id, regardless of whether the caller
  * can see the community itself. Used only by the access guard, so that someone

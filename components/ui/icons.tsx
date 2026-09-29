@@ -240,6 +240,13 @@ export const IconSwitch = (p: IconProps) => (
   </Svg>
 );
 
+export const IconPencil = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M14.2 5.2 18.8 9.8 8.4 20.2 3.8 20.2 3.8 15.6Z" />
+    <path d="M12.4 7 17 11.6" />
+  </Svg>
+);
+
 export const IconSmile = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="8.4" />

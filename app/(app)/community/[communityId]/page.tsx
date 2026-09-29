@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { CommunityAboutSection } from "@/components/community/CommunityAboutSection";
 import { RelatedCommunityCard } from "@/components/community/RelatedCommunityCard";
 import { EventCard } from "@/components/community/EventCard";
 import { PostCard } from "@/components/community/PostCard";
@@ -9,7 +10,6 @@ import {
   ElevatedRoleBadge,
   Panel,
   PageContainer,
-  RichText,
   SectionHeading,
   cn,
 } from "@/components/ui/primitives";
@@ -166,12 +166,12 @@ export default async function CommunityOverviewPage({
         */}
         <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12">
           <div className="space-y-10">
-            <section>
-              <SectionHeading>{t("overview.about")}</SectionHeading>
-              <Panel className="p-5 sm:p-6">
-                <RichText body={community.about} />
-              </Panel>
-            </section>
+            <CommunityAboutSection
+              communityId={community.id}
+              about={community.about}
+              canEdit={membership?.role === "admin" && membership.status === "active"}
+              accent={accent}
+            />
 
             {pinned ? (
               <section>

@@ -32,6 +32,7 @@ import {
   startDirectConversation,
   startDirectConversationWithOrganizationPerson,
   setAcceptsMemberDms,
+  setCommunityAbout,
   setCommunityAvatar,
   setMyCommunityAvatar,
   setCommunityPersonAccountLink,
@@ -49,6 +50,7 @@ import type { NotificationFormState } from "@/lib/notification-form";
 import { REQUEST_SENT_KEY, normalizeDisplayName } from "@/lib/access-form";
 import type { CommentFormState } from "@/lib/comment-form";
 import { normalizeBio, type CommunityProfileFormState } from "@/lib/community-profile-form";
+import { normalizeCommunityAbout, type CommunityAboutFormState } from "@/lib/community-about-form";
 import { inspectCommunityAvatar } from "@/lib/community-avatar-image";
 import {
   inspectEmojiImage,
@@ -954,6 +956,37 @@ export async function updateCommunityProfileAction(
   // The name appears on every screen of the community and in the shell.
   revalidatePath("/", "layout");
   return { status: "ok", message: t("ok.profileSaved") };
+}
+
+/**
+ * Updates the "Om fellesskapet" text on the community overview page.
+ *
+ * Visibility of the pencil that opens this form is decided by role, in the
+ * page — but that is presentation only. Whether the write actually happens is
+ * decided again here, from scratch, by `set_community_about()`: the function
+ * reads `auth.uid()` itself and refuses anyone who is not an active admin of
+ * exactly this community, so a forged request to this action gets the same
+ * refusal a forged request straight to the database would.
+ */
+export async function updateCommunityAboutAction(
+  _prev: CommunityAboutFormState,
+  formData: FormData,
+): Promise<CommunityAboutFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
+
+  const about = normalizeCommunityAbout(String(formData.get("about") ?? ""), t);
+  if (!about.ok) return { status: "error", message: about.message };
+
+  const result = await setCommunityAbout(communityId, about.value);
+  if (!result.ok) return { status: "error", message: t(result.error) };
+
+  revalidatePath(`/community/${communityId}`);
+  revalidatePath(`/community/${communityId}/settings`);
+  return { status: "ok", about: result.about };
 }
 
 export async function setMyCommunityAvatarAction(

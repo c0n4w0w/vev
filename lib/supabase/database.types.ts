@@ -1854,6 +1854,10 @@ export type Database = {
         Args: { p_community_id: string; p_value: boolean }
         Returns: boolean
       }
+      set_community_about: {
+        Args: { p_about: string; p_community_id: string }
+        Returns: string
+      }
       set_community_avatar: {
         Args: { p_community_id: string; p_path: string }
         Returns: {
