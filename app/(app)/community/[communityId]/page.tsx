@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { RelatedCommunityCard } from "@/components/community/RelatedCommunityCard";
 import { EventCard } from "@/components/community/EventCard";
 import { PostCard } from "@/components/community/PostCard";
 import {
@@ -29,6 +30,7 @@ import {
   getGroupedChannels,
   getLatestMessage,
   getMembership,
+  getRelatedCommunity,
   getUpcomingCommunityEvents,
   getCommunityPersonas,
 } from "@/lib/data";
@@ -56,13 +58,14 @@ export default async function CommunityOverviewPage({
   const locale = communityLocale(community);
   const t = translator(locale);
 
-  const [membership, members, announcements, allPosts, upcoming, groups] = await Promise.all([
+  const [membership, members, announcements, allPosts, upcoming, groups, related] = await Promise.all([
     getMembership(user.id, community.id),
     getCommunityMembers(community.id),
     getAnnouncements(community.id),
     getFeed(community.id),
     getUpcomingCommunityEvents(community.id),
     getGroupedChannels(community.id),
+    getRelatedCommunity(user.id, community.slug),
   ]);
 
   const leaders = members.filter((entry) => entry.membership.role !== "member");
@@ -321,6 +324,13 @@ export default async function CommunityOverviewPage({
                   </div>
                 ))}
               </Panel>
+              </section>
+            ) : null}
+
+            {related ? (
+              <section>
+                <SectionHeading>{t("overview.related.heading")}</SectionHeading>
+                <RelatedCommunityCard related={related} t={t} />
               </section>
             ) : null}
 

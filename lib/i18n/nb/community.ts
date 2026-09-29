@@ -17,6 +17,16 @@ export const community = {
   "overview.nothingPlanned": "Ingenting planlagt akkurat nå.",
   "overview.channels": "Kanaler",
   "overview.contacts": "Kontaktpersoner",
+  "overview.related.heading": "Relaterte fellesskap",
+  "overview.related.ungdom.lead": "Er du mellom 15 og 30 år?",
+  "overview.related.ungdom.body":
+    "Tryggere Ungdom har sitt eget fellesskap på TING. For å få tilgang må du først være medlem av Tryggere Ungdom.",
+  "overview.related.ruspolitikk.body":
+    "Du kan også bli medlem av Tryggere Ruspolitikk, som har sitt eget fellesskap på TING. For å få tilgang må du først være medlem av foreningen.",
+  "overview.related.join": "Bli medlem",
+  "overview.related.goToPortal": "Gå til fellesskapet",
+  "overview.related.open": "Åpne fellesskapet",
+  "overview.related.alsoMember": "Du er også med i {name}.",
   "overview.privacyNote":
     "Innholdet her er kun synlig for medlemmer. Den offentlige siden på {url} viser bare det {name} selv velger å dele.",
 

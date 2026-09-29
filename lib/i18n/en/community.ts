@@ -18,6 +18,16 @@ export const community: Record<keyof typeof nb, string> = {
   "overview.nothingPlanned": "Nothing planned right now.",
   "overview.channels": "Channels",
   "overview.contacts": "Contacts",
+  "overview.related.heading": "Related communities",
+  "overview.related.ungdom.lead": "Are you between 15 and 30?",
+  "overview.related.ungdom.body":
+    "Tryggere Ungdom has its own community on TING. To get access you first need to be a member of Tryggere Ungdom.",
+  "overview.related.ruspolitikk.body":
+    "You can also become a member of Tryggere Ruspolitikk, which has its own community on TING. To get access you first need to be a member of the association.",
+  "overview.related.join": "Become a member",
+  "overview.related.goToPortal": "Go to the community",
+  "overview.related.open": "Open the community",
+  "overview.related.alsoMember": "You are also a member of {name}.",
   "overview.privacyNote":
     "Everything here is visible to members only. The public page at {url} shows only what {name} chooses to share.",
 

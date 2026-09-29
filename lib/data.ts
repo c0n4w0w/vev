@@ -52,6 +52,7 @@ import type {
 } from "@/lib/types";
 import { initialsFor } from "@/lib/format";
 import { parseLocale, type Locale, type MessageKey } from "@/lib/i18n";
+import { getRelatedCommunityConfig, isActiveMember, type RelatedCommunityConfig } from "@/lib/related-communities";
 
 
 /**
@@ -472,6 +473,34 @@ export async function getMembership(
 
 export async function hasAccess(userId: string, communityId: string): Promise<boolean> {
   return (await getMembership(userId, communityId))?.status === "active";
+}
+
+export interface RelatedCommunity {
+  config: RelatedCommunityConfig;
+  /** The target's public portal record — the same fields its portal shows anyone. */
+  target: CommunityPublic;
+  /** Whether the current account itself is an active member of the target. */
+  joined: boolean;
+}
+
+/**
+ * The related-community card for one Overview: the configured target and
+ * whether the signed-in account already belongs to it.
+ *
+ * The target comes from its public portal record, and membership is read from
+ * the caller's own rows only — nothing about anyone else in the target is
+ * fetched, so no RLS is widened.
+ */
+export async function getRelatedCommunity(
+  userId: string,
+  sourceSlug: string,
+): Promise<RelatedCommunity | undefined> {
+  const config = getRelatedCommunityConfig(sourceSlug);
+  if (!config) return undefined;
+  const target = await getPortalCommunity(config.targetSlug);
+  if (!target) return undefined;
+  const joined = isActiveMember(await getMembership(userId, target.id));
+  return { config, target, joined };
 }
 
 export interface CommunityWithMembership {
