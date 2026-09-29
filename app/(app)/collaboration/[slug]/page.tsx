@@ -3,25 +3,17 @@ import { notFound, redirect } from "next/navigation";
 import {
   acceptAndJoinAction,
   declineSponsorshipAction,
-  leaveCollaborationAction,
   rejoinCollaborationAction,
-  withdrawUnitAction,
 } from "@/app/collaboration-actions";
 import { ActionButton } from "@/components/collaboration/ActionButton";
-import { InviteOrganizationForm } from "@/components/collaboration/InviteOrganizationForm";
+import { CollaborationManagement } from "@/components/collaboration/CollaborationManagement";
 import { OrganizationInviteResponse } from "@/components/collaboration/OrganizationInviteResponse";
 import { UnitName, unitLabel } from "@/components/collaboration/UnitName";
+import { WorkspaceOverview } from "@/components/collaboration/workspace/WorkspaceOverview";
 import { IconArrowLeft, IconLock } from "@/components/ui/icons";
-import {
-  Avatar,
-  ButtonLink,
-  PageContainer,
-  Panel,
-  SectionHeading,
-} from "@/components/ui/primitives";
+import { PageContainer, Panel, SectionHeading } from "@/components/ui/primitives";
 import {
   getCollaborationBySlug,
-  getCollaborationTeam,
   getCollaborationUnits,
   getMyCollaborationPersona,
   getMySponsorships,
@@ -30,10 +22,10 @@ import {
   isCollaborationManager,
 } from "@/lib/collaboration-data";
 import { isRepresented } from "@/lib/collaboration-form";
+import { getMyOrganizerRequests } from "@/lib/collaboration-workspace-data";
 import { getLocalGroups } from "@/lib/data";
 import { translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
-import type { CollaborationUnit, RepresentedCollaborationUnit } from "@/lib/types";
 
 export async function generateMetadata({ params }: PageProps<"/collaboration/[slug]">) {
   const { slug } = await params;
@@ -49,8 +41,10 @@ export async function generateMetadata({ params }: PageProps<"/collaboration/[sl
  * folded into one:
  *
  *   * Is the viewer on the organiser team? (`has_collaboration_access`) —
- *     then they get the private home: the team as collaboration personas,
- *     the participating organisations, and nothing about who came from where.
+ *     then they get the workspace overview (`WorkspaceOverview`): what needs
+ *     attention, the participating organisations, the team as collaboration
+ *     personas, and nothing about who came from where. Their institutional
+ *     tools, if they also represent a unit, live on the participants page.
  *   * Does the viewer represent a participating unit? (`represented` from
  *     `collaboration_units`, and `is_collaboration_manager` for the seat) —
  *     then they get the institutional view: invite organisations, choose
@@ -84,6 +78,9 @@ export default async function CollaborationPage({
   // on this page is shown under another identity in the meantime.
   const persona = access ? await getMyCollaborationPersona(collaboration.id, user.id) : undefined;
   if (access && !persona) redirect(`/collaboration/${slug}/profile`);
+  if (access && persona) {
+    return <WorkspaceOverview slug={slug} justJoinedUnit={deltar === "1"} />;
+  }
 
   const active = units.filter((unit) => unit.status === "active");
   const pending = units.filter((unit) => unit.status === "invited");
@@ -93,13 +90,14 @@ export default async function CollaborationPage({
   const unitOf = (participantId: string) =>
     active.find((unit) => unit.participantId === participantId);
   const personInvite = mine.find((s) => s.status === "invited" && unitOf(s.participantId));
+  // From here on the viewer is not on the team: everything below is the
+  // institutional view, or an invitation to join.
   const canRejoin =
-    !access &&
     teamStatus !== "active" &&
     mine.some((s) => s.status === "accepted" && unitOf(s.participantId));
   const institutional = manager || myUnits.length > 0;
+  const requests = await getMyOrganizerRequests(myUnits.map((unit) => unit.participantId));
 
-  const team = access ? await getCollaborationTeam(collaboration.id) : [];
   const ownOrgGroups = ownOrgInvite
     ? (await getLocalGroups(ownOrgInvite.communityId))
         .filter((group) => group.active)
@@ -138,7 +136,7 @@ export default async function CollaborationPage({
               {t("collab.orgInvite.acceptedUnit", { unit: myUnits.map(unitLabel).join(", ") })}
             </p>
             <p className="mt-1 text-[13px] leading-relaxed text-ink-2">
-              {access ? t("collab.orgInvite.acceptedOnTeam") : t("collab.orgInvite.acceptedNotTeam")}
+              {t("collab.orgInvite.acceptedNotTeam")}
             </p>
           </Panel>
         ) : null}
@@ -204,7 +202,7 @@ export default async function CollaborationPage({
           </Panel>
         ) : null}
 
-        {!access && myUnits.length > 0 ? (
+        {myUnits.length > 0 ? (
           <Panel className="bg-paper-2/50 p-5">
             <p className="text-[0.9375rem] font-medium text-ink">
               {t("collab.page.managerNotice", { unit: myUnits.map(unitLabel).join(", ") })}
@@ -226,54 +224,16 @@ export default async function CollaborationPage({
               </section>
             ) : null}
 
-            {access ? (
-              <>
-                <section>
-                  <SectionHeading>{t("collab.page.team")}</SectionHeading>
-                  <ul className="divide-y divide-line rounded-[6px] border border-line bg-surface">
-                    {team.map((member) => (
-                      <li key={member.id} className="flex items-start gap-3 px-4 py-3.5">
-                        <Avatar
-                          user={{ ...member, communityId: collaboration.id }}
-                          size="md"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-ink [overflow-wrap:anywhere]">
-                            {member.name}
-                            {member.id === user.id ? (
-                              <span className="ml-1.5 font-normal text-ink-3">
-                                ({t("collab.page.you")})
-                              </span>
-                            ) : null}
-                          </p>
-                          {member.bio ? (
-                            <p className="mt-0.5 line-clamp-2 text-[13px] leading-relaxed text-ink-2 [overflow-wrap:anywhere]">
-                              {member.bio}
-                            </p>
-                          ) : null}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-
-                <section className="rounded-[6px] border border-dashed border-line-2 px-5 py-6">
-                  <h2 className="font-display text-base text-ink">{t("collab.page.next.title")}</h2>
-                  <p className="mt-1.5 max-w-xl text-[13px] leading-relaxed text-ink-2">
-                    {t("collab.page.next.body")}
-                  </p>
-                </section>
-              </>
-            ) : null}
-
             {institutional ? (
-              <Management
+              <CollaborationManagement
                 t={t}
                 collaborationId={collaboration.id}
                 slug={slug}
                 manager={manager}
                 pending={pending}
                 myUnits={myUnits}
+                requests={requests}
+                locale={collaboration.defaultLocale}
               />
             ) : null}
           </div>
@@ -289,105 +249,9 @@ export default async function CollaborationPage({
                 ))}
               </ul>
             </section>
-
-            {access ? (
-              <section className="space-y-4 border-t border-line pt-5">
-                <ButtonLink href={`/collaboration/${slug}/profile`} variant="secondary" size="sm">
-                  {t("collab.page.yourProfile")}
-                </ButtonLink>
-                <ActionButton
-                  action={leaveCollaborationAction}
-                  fields={{ collaborationId: collaboration.id, slug }}
-                  label={t("collab.page.leave")}
-                  variant="quiet"
-                  confirm={{ note: t("collab.page.leaveNote"), yes: t("collab.page.leaveConfirm") }}
-                />
-              </section>
-            ) : null}
           </aside>
         </div>
       </div>
     </PageContainer>
-  );
-}
-
-/**
- * The institutional side. Every organisation's own actions are offered only
- * for units the viewer represents; another organisation's unit is a name and
- * nothing else. The database refuses the rest regardless.
- */
-function Management({
-  t,
-  collaborationId,
-  slug,
-  manager,
-  pending,
-  myUnits,
-}: {
-  t: ReturnType<typeof translator>;
-  collaborationId: string;
-  slug: string;
-  manager: boolean;
-  pending: CollaborationUnit[];
-  myUnits: RepresentedCollaborationUnit[];
-}) {
-  return (
-    <section className="divide-y divide-line rounded-[6px] border border-line bg-surface">
-      <div className="px-5 py-4">
-        <h2 className="font-display text-lg text-ink">{t("collab.manage.title")}</h2>
-        <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-ink-3">{t("collab.manage.lead")}</p>
-      </div>
-
-      {myUnits.length > 0 ? (
-        <div className="px-5 py-4">
-          <p className="label mb-3">{t("collab.unit.yours")}</p>
-          <ul className="space-y-4">
-            {myUnits.map((unit) => (
-              <li key={unit.key} className="space-y-3">
-                <UnitName unit={unit} className="max-w-full text-sm font-medium text-ink" />
-                <div className="flex flex-wrap items-start gap-2">
-                  <ButtonLink
-                    href={`/collaboration/${slug}/units/${unit.participantId}`}
-                    size="sm"
-                    variant="primary"
-                  >
-                    {t("collab.unit.chooseOrganizers")}
-                  </ButtonLink>
-                  <ActionButton
-                    action={withdrawUnitAction}
-                    fields={{ participantId: unit.participantId, slug }}
-                    label={t("collab.unit.withdraw")}
-                    variant="quiet"
-                    confirm={{ note: t("collab.unit.withdrawNote"), yes: t("collab.unit.withdrawConfirm") }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {/* Who takes part is listed beside the page for everyone; here only
-          what a manager additionally sees — invitations still open. */}
-      {manager && pending.length > 0 ? (
-        <div className="px-5 py-4">
-          <p className="label mb-2">{t("collab.manage.invited")}</p>
-          <ul className="space-y-1.5 text-sm text-ink-2">
-            {pending.map((unit) => (
-              <li key={unit.key} className="min-w-0">
-                <UnitName unit={unit} />
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {manager ? (
-        <div className="px-5 py-4">
-          <p className="mb-3 text-sm font-medium text-ink">{t("collab.manage.inviteTitle")}</p>
-          <InviteOrganizationForm collaborationId={collaborationId} slug={slug} />
-        </div>
-      ) : null}
-    </section>
   );
 }

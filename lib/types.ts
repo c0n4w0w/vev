@@ -430,3 +430,180 @@ export interface CollaborationPersona {
   initials: string;
   bio: string;
 }
+
+// ── Collaboration workspace ─────────────────────────────────────────────
+//
+// What the team does together inside a collaboration. Every one of these is
+// read through RLS that requires effective collaboration access, and every
+// person on them is an account id to be rendered through the collaboration
+// persona map — never through an account or a community persona.
+
+export type WorkspaceChannelStatus = "active" | "archived";
+
+export interface WorkspaceChannel {
+  id: string;
+  /** Normalised: lower case, digits, hyphens. Shown with a leading #. */
+  name: string;
+  description?: string;
+  position: number;
+  status: WorkspaceChannelStatus;
+  isDefault: boolean;
+}
+
+export interface WorkspaceMessage {
+  id: string;
+  channelId: string;
+  /** Null only if the account itself was deleted. */
+  authorId: string | null;
+  /** Set on thread replies. Threads are one level deep. */
+  parentMessageId: string | null;
+  body: string;
+  createdAt: string;
+  editedAt?: string;
+  deleted: boolean;
+}
+
+/** A top-level message with its thread summarised. */
+export interface WorkspaceThreadSummary {
+  replyCount: number;
+  lastReplyAt?: string;
+}
+
+export type WorkspaceTaskStatus = "todo" | "in_progress" | "done" | "cancelled";
+
+export interface WorkspaceTask {
+  id: string;
+  title: string;
+  description?: string;
+  status: WorkspaceTaskStatus;
+  /** A calendar day, `YYYY-MM-DD`. */
+  dueOn?: string;
+  relatedChannelId?: string;
+  relatedDocumentId?: string;
+  relatedEventId?: string;
+  createdBy: string | null;
+  assigneeIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type WorkspaceDocumentStatus = "active" | "archived";
+
+export interface WorkspaceDocument {
+  id: string;
+  title: string;
+  content: string;
+  status: WorkspaceDocumentStatus;
+  revision: number;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkspaceDocumentVersion {
+  revision: number;
+  title: string;
+  content: string;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface WorkspaceFile {
+  id: string;
+  displayName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedBy: string | null;
+  createdAt: string;
+}
+
+export type WorkspaceEventStatus = "draft" | "confirmed" | "cancelled";
+export type WorkspaceEventAudience = "public" | "participating_organizations" | "invite_only";
+
+/** PRIVATE planning data. Never rendered on a public page. */
+export interface WorkspaceEvent {
+  id: string;
+  title: string;
+  description?: string;
+  /** Always private. */
+  internalNotes?: string;
+  startsAt?: string;
+  endsAt?: string;
+  location?: string;
+  audience: WorkspaceEventAudience;
+  registrationUrl?: string;
+  status: WorkspaceEventStatus;
+  publicImageFileId?: string;
+  /** The random folder a published image is copied into. Private. */
+  publicAssetKey: string;
+  /** Units the managers asked to name publicly, in order. A request only. */
+  organizerParticipantIds: string[];
+  /** Of those, the units whose own representative has consented. */
+  organizerConsentIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A label snapshot, as published. No ids. */
+export interface PublishedOrganizer {
+  communityName: string;
+  localGroupName?: string;
+  accent: string;
+  monogram: string;
+  markStyle: CommunityBranding["markStyle"];
+}
+
+/** The team's view of an event's publication: what is (or was) live. */
+export interface EventPublication {
+  sourceEventId: string;
+  slug: string;
+  status: "published" | "unpublished";
+  title: string;
+  description?: string;
+  startsAt: string;
+  endsAt?: string;
+  location?: string;
+  audience: WorkspaceEventAudience;
+  registrationUrl?: string;
+  isCancelled: boolean;
+  organizers: PublishedOrganizer[];
+  imagePath?: string;
+  imageSourceFileId?: string;
+  publishedAt: string;
+}
+
+/**
+ * A request to name one of the viewer's OWN units as a public organiser, as
+ * that unit's representative sees it: the event's publishable fields only.
+ */
+export interface OrganizerRequest {
+  eventId: string;
+  participantId: string;
+  title: string;
+  startsAt?: string;
+  endsAt?: string;
+  location?: string;
+  audience: WorkspaceEventAudience;
+  status: WorkspaceEventStatus;
+  consented: boolean;
+  /** On the live public page right now. */
+  listed: boolean;
+}
+
+/** What an anonymous visitor may read: the published projection, public fields only. */
+export interface PublicEvent {
+  slug: string;
+  locale: Locale;
+  title: string;
+  description?: string;
+  startsAt: string;
+  endsAt?: string;
+  location?: string;
+  audience: WorkspaceEventAudience;
+  registrationUrl?: string;
+  isCancelled: boolean;
+  organizers: PublishedOrganizer[];
+  hasImage: boolean;
+  updatedAt: string;
+}

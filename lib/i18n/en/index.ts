@@ -6,6 +6,7 @@ import { community } from "./community";
 import { errors } from "./errors";
 import { portal } from "./portal";
 import { shell } from "./shell";
+import { workspace } from "./workspace";
 
 /** English. Every key of the Norwegian source dictionary, and nothing else. */
 export const en: Record<MessageKey, string> = {
@@ -16,4 +17,5 @@ export const en: Record<MessageKey, string> = {
   ...errors,
   ...portal,
   ...collaboration,
+  ...workspace,
 };

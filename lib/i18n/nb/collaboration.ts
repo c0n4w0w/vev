@@ -89,12 +89,8 @@ export const collaboration = {
   // ── The collaboration ─────────────────────────────────────────────────
   "collab.page.about": "Om samarbeidet",
   "collab.page.participating": "Deltakende organisasjoner",
-  "collab.page.team": "Samarbeidsteamet",
   "collab.page.you": "deg",
   "collab.page.yourProfile": "Din profil her",
-  "collab.page.next.title": "Kommer senere",
-  "collab.page.next.body":
-    "Samtaler og arbeidsverktøy for deltakerne får plass her etter hvert.",
   "collab.page.managerNotice":
     "Du representerer {unit} i dette samarbeidet.",
   "collab.page.managerNoticeBody":
@@ -125,6 +121,20 @@ export const collaboration = {
   "collab.unit.withdrawNote":
     "Deltakerne dere har valgt, mister tilgang. Organisasjonen og medlemskapene påvirkes ikke.",
   "collab.unit.withdrawn": "Enheten er trukket ut av samarbeidet.",
+
+  // ── Being named publicly as an organiser ─────────────────────────────
+  "collab.requests.title": "Offentlig visning som arrangør",
+  "collab.requests.lead":
+    "Samarbeidet ber om å vise enheten din som arrangør på en offentlig arrangementsside. Det skjer bare hvis du godkjenner, og du kan trekke godkjenningen tilbake når som helst.",
+  "collab.requests.approve": "Godkjenn offentlig visning",
+  "collab.requests.revoke": "Trekk tilbake godkjenningen",
+  "collab.requests.revokeNote": "Enheten fjernes fra den offentlige siden med én gang.",
+  "collab.requests.revokeConfirm": "Ja, trekk tilbake",
+  "collab.requests.pending": "Ikke godkjent. Enheten vises ikke offentlig.",
+  "collab.requests.approved": "Godkjent. Vises neste gang arrangementet publiseres eller oppdateres.",
+  "collab.requests.listed": "Godkjent og vises nå på den offentlige siden.",
+  "collab.requests.approvedMsg": "Godkjent.",
+  "collab.requests.revokedMsg": "Godkjenningen er trukket tilbake.",
 
   // ── Choosing participants ───────────────────────────────────────────────
   "collab.organizers.metaTitle": "Velg deltakere · {name}",

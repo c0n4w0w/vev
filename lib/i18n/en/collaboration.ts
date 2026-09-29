@@ -83,12 +83,8 @@ export const collaboration: Record<keyof typeof nb, string> = {
   // ── The collaboration ─────────────────────────────────────────────────
   "collab.page.about": "About",
   "collab.page.participating": "Participating organizations",
-  "collab.page.team": "Organizer team",
   "collab.page.you": "you",
   "collab.page.yourProfile": "Your profile here",
-  "collab.page.next.title": "Coming next",
-  "collab.page.next.body":
-    "Conversations, events and project tools for the organizers will live here later.",
   "collab.page.managerNotice":
     "You represent {unit} in this collaboration, but you're not part of the organizer team.",
   "collab.page.managerNoticeBody":
@@ -118,6 +114,18 @@ export const collaboration: Record<keyof typeof nb, string> = {
   "collab.unit.withdrawConfirm": "Yes, withdraw",
   "collab.unit.withdrawNote":
     "The organizers you chose lose access. Your organization and its memberships aren't affected.",
+  "collab.requests.title": "Public listing as organizer",
+  "collab.requests.lead":
+    "The collaboration asks to show your unit as an organizer on a public event page. That only happens if you approve, and you can withdraw your approval at any time.",
+  "collab.requests.approve": "Approve public listing",
+  "collab.requests.revoke": "Withdraw approval",
+  "collab.requests.revokeNote": "Your unit is removed from the public page immediately.",
+  "collab.requests.revokeConfirm": "Yes, withdraw",
+  "collab.requests.pending": "Not approved. Your unit is not shown publicly.",
+  "collab.requests.approved": "Approved. Shown the next time the event is published or updated.",
+  "collab.requests.listed": "Approved and shown on the public page now.",
+  "collab.requests.approvedMsg": "Approved.",
+  "collab.requests.revokedMsg": "Approval withdrawn.",
   "collab.unit.withdrawn": "The unit has been withdrawn from the collaboration.",
 
   // ── Choosing organisers ───────────────────────────────────────────────

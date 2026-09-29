@@ -213,13 +213,43 @@ export function plural(count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`;
 }
 
-/** Up to two letters for a monogram, from the first two words of a name. */
+/**
+ * Up to two letters for a monogram, from the first two words of a name that
+ * have a letter or digit — so "Kristoffer (FTR Oslo)" is "KF", not "K(".
+ */
 export function initialsFor(name: string) {
   return name
     .split(/\s+/)
-    .filter(Boolean)
+    .map((part) => part.match(/[\p{L}\p{N}]/u)?.[0])
+    .filter((initial): initial is string => Boolean(initial))
     .slice(0, 2)
-    .map((part) => part[0])
     .join("")
     .toUpperCase();
+}
+
+/**
+ * The inverse of `osloInstant`: an instant as the date and time an Oslo
+ * clock shows, in the shapes `<input type="date">` and `<input type="time">`
+ * take — so an edit form opens on exactly what was entered.
+ */
+export function osloInputParts(iso: string): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: COMMUNITY_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(iso));
+  const field = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    date: `${field("year")}-${field("month")}-${field("day")}`,
+    time: `${field("hour").replace(/^24$/, "00")}:${field("minute")}`,
+  };
+}
+
+/** Today's calendar day in Oslo, `YYYY-MM-DD`. */
+export function osloToday(): string {
+  return osloInputParts(new Date(now()).toISOString()).date;
 }

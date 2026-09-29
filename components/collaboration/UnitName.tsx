@@ -1,9 +1,16 @@
 import { cn } from "@/components/ui/primitives";
 import type { CollaborationUnit } from "@/lib/types";
 
-/** "Tryggere Ruspolitikk – FTR Oslo", or just the community for a whole-organisation unit. */
+/**
+ * "Tryggere Ruspolitikk · Oslo", or just the community for a whole-organisation
+ * unit. A leading acronym on the local group ("FTR Oslo") is dropped so the
+ * parent isn't repeated.
+ */
 export function unitLabel(unit: Pick<CollaborationUnit, "communityName" | "localGroupName">): string {
-  return unit.localGroupName ? `${unit.communityName} – ${unit.localGroupName}` : unit.communityName;
+  if (!unit.localGroupName) return unit.communityName;
+  const words = unit.localGroupName.trim().split(/\s+/);
+  const local = words.length > 1 && /^\p{Lu}{2,}$/u.test(words[0]) ? words.slice(1).join(" ") : unit.localGroupName;
+  return `${unit.communityName} · ${local}`;
 }
 
 /**

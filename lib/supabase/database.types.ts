@@ -230,6 +230,400 @@ export type Database = {
           },
         ]
       }
+      collaboration_channels: {
+        Row: {
+          archived_at: string | null
+          collaboration_id: string
+          created_at: string
+          created_by_user_id: string | null
+          description: string | null
+          id: string
+          is_default: boolean
+          name: string
+          position: number
+          status: Database["public"]["Enums"]["collaboration_channel_status"]
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          collaboration_id: string
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          position?: number
+          status?: Database["public"]["Enums"]["collaboration_channel_status"]
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          collaboration_id?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          position?: number
+          status?: Database["public"]["Enums"]["collaboration_channel_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_channels_collaboration_id_fkey"
+            columns: ["collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaborations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_channels_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collaboration_document_versions: {
+        Row: {
+          collaboration_id: string
+          content: string
+          created_at: string
+          created_by_user_id: string | null
+          document_id: string
+          id: string
+          revision: number
+          title: string
+        }
+        Insert: {
+          collaboration_id: string
+          content: string
+          created_at?: string
+          created_by_user_id?: string | null
+          document_id: string
+          id?: string
+          revision: number
+          title: string
+        }
+        Update: {
+          collaboration_id?: string
+          content?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          document_id?: string
+          id?: string
+          revision?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_document_versions_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_document_versions_document_fkey"
+            columns: ["document_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_documents"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+        ]
+      }
+      collaboration_documents: {
+        Row: {
+          archived_at: string | null
+          collaboration_id: string
+          content: string
+          created_at: string
+          created_by_user_id: string | null
+          id: string
+          revision: number
+          status: Database["public"]["Enums"]["collaboration_document_status"]
+          title: string
+          updated_at: string
+          updated_by_user_id: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          collaboration_id: string
+          content?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          revision?: number
+          status?: Database["public"]["Enums"]["collaboration_document_status"]
+          title: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          collaboration_id?: string
+          content?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          revision?: number
+          status?: Database["public"]["Enums"]["collaboration_document_status"]
+          title?: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_documents_collaboration_id_fkey"
+            columns: ["collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaborations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_documents_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_documents_updated_by_user_id_fkey"
+            columns: ["updated_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collaboration_event_organizer_consents: {
+        Row: {
+          collaboration_id: string
+          event_id: string
+          granted_at: string
+          participant_id: string
+        }
+        Insert: {
+          collaboration_id: string
+          event_id: string
+          granted_at?: string
+          participant_id: string
+        }
+        Update: {
+          collaboration_id?: string
+          event_id?: string
+          granted_at?: string
+          participant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_event_organizer_consents_event_fkey"
+            columns: ["event_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_events"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+          {
+            foreignKeyName: "collaboration_event_organizer_consents_participant_fkey"
+            columns: ["participant_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_participants"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+        ]
+      }
+      collaboration_event_public_organizers: {
+        Row: {
+          collaboration_id: string
+          created_at: string
+          event_id: string
+          participant_id: string
+          position: number
+        }
+        Insert: {
+          collaboration_id: string
+          created_at?: string
+          event_id: string
+          participant_id: string
+          position?: number
+        }
+        Update: {
+          collaboration_id?: string
+          created_at?: string
+          event_id?: string
+          participant_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_event_public_organizers_event_fkey"
+            columns: ["event_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_events"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+          {
+            foreignKeyName: "collaboration_event_public_organizers_participant_fkey"
+            columns: ["participant_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_participants"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+        ]
+      }
+      collaboration_events: {
+        Row: {
+          audience: Database["public"]["Enums"]["collaboration_event_audience"]
+          collaboration_id: string
+          created_at: string
+          created_by_user_id: string | null
+          description: string | null
+          ends_at: string | null
+          id: string
+          internal_notes: string | null
+          location: string | null
+          public_asset_key: string
+          public_image_file_id: string | null
+          registration_url: string | null
+          starts_at: string | null
+          status: Database["public"]["Enums"]["collaboration_event_status"]
+          title: string
+          updated_at: string
+          updated_by_user_id: string | null
+        }
+        Insert: {
+          audience?: Database["public"]["Enums"]["collaboration_event_audience"]
+          collaboration_id: string
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          internal_notes?: string | null
+          location?: string | null
+          public_asset_key?: string
+          public_image_file_id?: string | null
+          registration_url?: string | null
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["collaboration_event_status"]
+          title: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Update: {
+          audience?: Database["public"]["Enums"]["collaboration_event_audience"]
+          collaboration_id?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          internal_notes?: string | null
+          location?: string | null
+          public_asset_key?: string
+          public_image_file_id?: string | null
+          registration_url?: string | null
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["collaboration_event_status"]
+          title?: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_events_collaboration_id_fkey"
+            columns: ["collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaborations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_events_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_events_public_image_fkey"
+            columns: ["public_image_file_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_files"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+          {
+            foreignKeyName: "collaboration_events_updated_by_user_id_fkey"
+            columns: ["updated_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collaboration_files: {
+        Row: {
+          archived_at: string | null
+          archived_by_user_id: string | null
+          collaboration_id: string
+          created_at: string
+          display_name: string
+          id: string
+          mime_type: string
+          size_bytes: number
+          storage_path: string
+          uploaded_by_user_id: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_by_user_id?: string | null
+          collaboration_id: string
+          created_at?: string
+          display_name: string
+          id: string
+          mime_type: string
+          size_bytes: number
+          storage_path: string
+          uploaded_by_user_id?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          archived_by_user_id?: string | null
+          collaboration_id?: string
+          created_at?: string
+          display_name?: string
+          id?: string
+          mime_type?: string
+          size_bytes?: number
+          storage_path?: string
+          uploaded_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_files_archived_by_user_id_fkey"
+            columns: ["archived_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_files_collaboration_id_fkey"
+            columns: ["collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaborations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_files_uploaded_by_user_id_fkey"
+            columns: ["uploaded_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collaboration_manager_participants: {
         Row: {
           collaboration_id: string
@@ -386,6 +780,81 @@ export type Database = {
           },
         ]
       }
+      collaboration_messages: {
+        Row: {
+          author_id: string | null
+          body: string
+          channel_id: string
+          collaboration_id: string
+          created_at: string
+          deleted_at: string | null
+          deleted_by_user_id: string | null
+          edited_at: string | null
+          id: string
+          parent_message_id: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          channel_id: string
+          collaboration_id: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by_user_id?: string | null
+          edited_at?: string | null
+          id?: string
+          parent_message_id?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          channel_id?: string
+          collaboration_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by_user_id?: string | null
+          edited_at?: string | null
+          id?: string
+          parent_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_messages_channel_fkey"
+            columns: ["channel_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_channels"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+          {
+            foreignKeyName: "collaboration_messages_collaboration_id_fkey"
+            columns: ["collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaborations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_messages_deleted_by_user_id_fkey"
+            columns: ["deleted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_messages_parent_fkey"
+            columns: ["parent_message_id", "channel_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_messages"
+            referencedColumns: ["id", "channel_id", "collaboration_id"]
+          },
+        ]
+      }
       collaboration_participants: {
         Row: {
           collaboration_id: string
@@ -509,6 +978,146 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "collaboration_members"
             referencedColumns: ["collaboration_id", "user_id"]
+          },
+        ]
+      }
+      collaboration_task_assignees: {
+        Row: {
+          assigned_by_user_id: string | null
+          collaboration_id: string
+          created_at: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by_user_id?: string | null
+          collaboration_id: string
+          created_at?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_by_user_id?: string | null
+          collaboration_id?: string
+          created_at?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_task_assignees_assigned_by_user_id_fkey"
+            columns: ["assigned_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_task_assignees_member_fkey"
+            columns: ["collaboration_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_members"
+            referencedColumns: ["collaboration_id", "user_id"]
+          },
+          {
+            foreignKeyName: "collaboration_task_assignees_task_fkey"
+            columns: ["task_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_tasks"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+        ]
+      }
+      collaboration_tasks: {
+        Row: {
+          collaboration_id: string
+          completed_at: string | null
+          created_at: string
+          created_by_user_id: string | null
+          description: string | null
+          due_on: string | null
+          id: string
+          related_channel_id: string | null
+          related_document_id: string | null
+          related_event_id: string | null
+          status: Database["public"]["Enums"]["collaboration_task_status"]
+          title: string
+          updated_at: string
+          updated_by_user_id: string | null
+        }
+        Insert: {
+          collaboration_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          due_on?: string | null
+          id?: string
+          related_channel_id?: string | null
+          related_document_id?: string | null
+          related_event_id?: string | null
+          status?: Database["public"]["Enums"]["collaboration_task_status"]
+          title: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Update: {
+          collaboration_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          description?: string | null
+          due_on?: string | null
+          id?: string
+          related_channel_id?: string | null
+          related_document_id?: string | null
+          related_event_id?: string | null
+          status?: Database["public"]["Enums"]["collaboration_task_status"]
+          title?: string
+          updated_at?: string
+          updated_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_tasks_channel_fkey"
+            columns: ["related_channel_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_channels"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+          {
+            foreignKeyName: "collaboration_tasks_collaboration_id_fkey"
+            columns: ["collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaborations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_tasks_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_tasks_document_fkey"
+            columns: ["related_document_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_documents"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+          {
+            foreignKeyName: "collaboration_tasks_event_fkey"
+            columns: ["related_event_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_events"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+          {
+            foreignKeyName: "collaboration_tasks_updated_by_user_id_fkey"
+            columns: ["updated_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1487,6 +2096,106 @@ export type Database = {
         }
         Relationships: []
       }
+      published_collaboration_events: {
+        Row: {
+          audience: Database["public"]["Enums"]["collaboration_event_audience"]
+          collaboration_id: string
+          description: string | null
+          ends_at: string | null
+          first_published_at: string
+          id: string
+          is_cancelled: boolean
+          locale: string
+          location: string | null
+          organizers: Json
+          public_image_path: string | null
+          public_image_source_file_id: string | null
+          public_slug: string
+          published_at: string
+          published_by_user_id: string | null
+          registration_url: string | null
+          source_event_id: string
+          starts_at: string
+          status: Database["public"]["Enums"]["collaboration_publication_status"]
+          title: string
+          unpublished_at: string | null
+          unpublished_by_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          audience: Database["public"]["Enums"]["collaboration_event_audience"]
+          collaboration_id: string
+          description?: string | null
+          ends_at?: string | null
+          first_published_at?: string
+          id?: string
+          is_cancelled?: boolean
+          locale: string
+          location?: string | null
+          organizers?: Json
+          public_image_path?: string | null
+          public_image_source_file_id?: string | null
+          public_slug: string
+          published_at?: string
+          published_by_user_id?: string | null
+          registration_url?: string | null
+          source_event_id: string
+          starts_at: string
+          status?: Database["public"]["Enums"]["collaboration_publication_status"]
+          title: string
+          unpublished_at?: string | null
+          unpublished_by_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          audience?: Database["public"]["Enums"]["collaboration_event_audience"]
+          collaboration_id?: string
+          description?: string | null
+          ends_at?: string | null
+          first_published_at?: string
+          id?: string
+          is_cancelled?: boolean
+          locale?: string
+          location?: string | null
+          organizers?: Json
+          public_image_path?: string | null
+          public_image_source_file_id?: string | null
+          public_slug?: string
+          published_at?: string
+          published_by_user_id?: string | null
+          registration_url?: string | null
+          source_event_id?: string
+          starts_at?: string
+          status?: Database["public"]["Enums"]["collaboration_publication_status"]
+          title?: string
+          unpublished_at?: string | null
+          unpublished_by_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "published_collaboration_events_published_by_user_id_fkey"
+            columns: ["published_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "published_collaboration_events_source_fkey"
+            columns: ["source_event_id", "collaboration_id"]
+            isOneToOne: false
+            referencedRelation: "collaboration_events"
+            referencedColumns: ["id", "collaboration_id"]
+          },
+          {
+            foreignKeyName: "published_collaboration_events_unpublished_by_user_id_fkey"
+            columns: ["unpublished_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1535,9 +2244,17 @@ export type Database = {
         }[]
       }
       can_access_post: { Args: { pid: string }; Returns: boolean }
+      can_discard_collaboration_file_object: {
+        Args: { p_name: string }
+        Returns: boolean
+      }
       can_moderate: { Args: { cid: string }; Returns: boolean }
       can_moderate_post: { Args: { pid: string }; Returns: boolean }
       can_read_channel: { Args: { chid: string }; Returns: boolean }
+      can_read_collaboration_file_object: {
+        Args: { p_name: string }
+        Returns: boolean
+      }
       can_read_member_avatar_object: {
         Args: { p_name: string }
         Returns: boolean
@@ -1562,8 +2279,20 @@ export type Database = {
         Args: { cid: string; recipient: string }
         Returns: boolean
       }
+      can_upload_collaboration_file_object: {
+        Args: { p_name: string }
+        Returns: boolean
+      }
+      can_upload_published_event_image: {
+        Args: { p_name: string }
+        Returns: boolean
+      }
       can_view_collaboration: {
         Args: { p_collaboration_id: string }
+        Returns: boolean
+      }
+      can_view_collaboration_author: {
+        Args: { p_collaboration_id: string; p_user_id: string }
         Returns: boolean
       }
       can_view_collaboration_member: {
@@ -1579,9 +2308,37 @@ export type Database = {
         Returns: boolean
       }
       can_view_member_directory: { Args: { cid: string }; Returns: boolean }
+      collaboration_assignees_valid: {
+        Args: {
+          p_assignee_ids: string[]
+          p_collaboration_id: string
+          p_keep: string[]
+        }
+        Returns: boolean
+      }
+      collaboration_can_contribute: {
+        Args: { p_collaboration_id: string }
+        Returns: boolean
+      }
       collaboration_enrol_representative: {
         Args: { p_collaboration_id: string; p_participant_id: string }
         Returns: undefined
+      }
+      collaboration_event_fields_valid: {
+        Args: {
+          p_description: string
+          p_ends_at: string
+          p_internal_notes: string
+          p_location: string
+          p_registration_url: string
+          p_starts_at: string
+          p_title: string
+        }
+        Returns: boolean
+      }
+      collaboration_file_object_collaboration: {
+        Args: { p_name: string }
+        Returns: string
       }
       collaboration_has_valid_sponsorship: {
         Args: { p_collaboration_id: string; p_user_id: string }
@@ -1597,6 +2354,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      collaboration_organizer_request: {
+        Args: { p_event_id: string; p_participant_id: string }
+        Returns: Record<string, unknown>
+      }
       collaboration_participant_in_force: {
         Args: { p_participant_id: string }
         Returns: boolean
@@ -1604,6 +2365,15 @@ export type Database = {
       collaboration_sponsored_team_state: {
         Args: { p_sponsorship_id: string }
         Returns: string
+      }
+      collaboration_task_links_valid: {
+        Args: {
+          p_channel_id: string
+          p_collaboration_id: string
+          p_document_id: string
+          p_event_id: string
+        }
+        Returns: boolean
       }
       collaboration_unit_includes: {
         Args: {
@@ -1631,6 +2401,10 @@ export type Database = {
           represented: boolean
           status: Database["public"]["Enums"]["collaboration_participant_status"]
         }[]
+      }
+      collaboration_user_contributed: {
+        Args: { p_collaboration_id: string; p_user_id: string }
+        Returns: boolean
       }
       collaboration_user_has_access: {
         Args: { p_collaboration_id: string; p_user_id: string }
@@ -1680,12 +2454,56 @@ export type Database = {
         }
         Returns: string
       }
+      create_collaboration_channel: {
+        Args: {
+          p_collaboration_id: string
+          p_description: string
+          p_name: string
+        }
+        Returns: string
+      }
+      create_collaboration_document: {
+        Args: { p_collaboration_id: string; p_content: string; p_title: string }
+        Returns: string
+      }
+      create_collaboration_event: {
+        Args: {
+          p_audience: Database["public"]["Enums"]["collaboration_event_audience"]
+          p_collaboration_id: string
+          p_description: string
+          p_ends_at: string
+          p_internal_notes: string
+          p_location: string
+          p_registration_url: string
+          p_starts_at: string
+          p_status: Database["public"]["Enums"]["collaboration_event_status"]
+          p_title: string
+        }
+        Returns: string
+      }
+      create_collaboration_task: {
+        Args: {
+          p_assignee_ids: string[]
+          p_collaboration_id: string
+          p_description: string
+          p_due_on: string
+          p_related_channel_id: string
+          p_related_document_id: string
+          p_related_event_id: string
+          p_title: string
+        }
+        Returns: string
+      }
       create_local_group: {
         Args: { p_community_id: string; p_name: string }
         Returns: string
       }
       decline_collaboration_participant_invite: {
         Args: { p_participant_id: string }
+        Returns: boolean
+      }
+      delete_collaboration_message: {
+        Args: { p_message_id: string }
         Returns: boolean
       }
       direct_member_dm_actions: {
@@ -1696,6 +2514,10 @@ export type Database = {
         }[]
       }
       direct_unread_count: { Args: { p_community_id: string }; Returns: number }
+      edit_collaboration_message: {
+        Args: { p_body: string; p_message_id: string }
+        Returns: boolean
+      }
       emoji_matches_post: {
         Args: { eid: string; pid: string }
         Returns: boolean
@@ -1771,6 +2593,10 @@ export type Database = {
       }
       local_group_slug: { Args: { p_name: string }; Returns: string }
       looks_like_email: { Args: { p_email: string }; Returns: boolean }
+      manages_collaboration_workspace: {
+        Args: { p_collaboration_id: string }
+        Returns: boolean
+      }
       mark_direct_conversation_read: {
         Args: { p_conversation_id: string }
         Returns: boolean
@@ -1780,6 +2606,7 @@ export type Database = {
         Args: { p_community_id: string }
         Returns: boolean
       }
+      normalize_channel_name: { Args: { p_name: string }; Returns: string }
       normalize_display_name: { Args: { p_value: string }; Returns: string }
       normalize_email: { Args: { p_email: string }; Returns: string }
       organization_person_dm_actions: {
@@ -1821,6 +2648,14 @@ export type Database = {
         }[]
       }
       portal_slug_by_id: { Args: { p_community_id: string }; Returns: string }
+      post_collaboration_message: {
+        Args: {
+          p_body: string
+          p_channel_id: string
+          p_parent_message_id: string
+        }
+        Returns: string
+      }
       post_scope_admits: {
         Args: {
           p_community_id: string
@@ -1829,8 +2664,33 @@ export type Database = {
         }
         Returns: boolean
       }
+      publish_collaboration_event: {
+        Args: { p_event_id: string; p_image_path: string }
+        Returns: string
+      }
+      published_event_by_slug: {
+        Args: { p_slug: string }
+        Returns: Record<string, unknown>
+      }
+      published_event_image_is_public: {
+        Args: { p_name: string }
+        Returns: boolean
+      }
+      register_collaboration_file: {
+        Args: {
+          p_collaboration_id: string
+          p_display_name: string
+          p_file_id: string
+          p_mime_type: string
+        }
+        Returns: string
+      }
       reject_access_request: {
         Args: { p_request_id: string }
+        Returns: boolean
+      }
+      remove_collaboration_file: {
+        Args: { p_file_id: string }
         Returns: boolean
       }
       rename_local_group: {
@@ -1862,8 +2722,58 @@ export type Database = {
         Args: { p_sponsorship_id: string }
         Returns: boolean
       }
+      save_collaboration_document: {
+        Args: {
+          p_content: string
+          p_document_id: string
+          p_expected_revision: number
+          p_title: string
+        }
+        Returns: Record<string, unknown>
+      }
       set_accepts_member_dms: {
         Args: { p_community_id: string; p_value: boolean }
+        Returns: boolean
+      }
+      set_collaboration_channel_status: {
+        Args: {
+          p_channel_id: string
+          p_status: Database["public"]["Enums"]["collaboration_channel_status"]
+        }
+        Returns: boolean
+      }
+      set_collaboration_document_status: {
+        Args: {
+          p_document_id: string
+          p_status: Database["public"]["Enums"]["collaboration_document_status"]
+        }
+        Returns: boolean
+      }
+      set_collaboration_event_image: {
+        Args: { p_event_id: string; p_file_id: string }
+        Returns: boolean
+      }
+      set_collaboration_event_organizer_consent: {
+        Args: {
+          p_consent: boolean
+          p_event_id: string
+          p_participant_id: string
+        }
+        Returns: boolean
+      }
+      set_collaboration_event_organizers: {
+        Args: { p_event_id: string; p_participant_ids: string[] }
+        Returns: boolean
+      }
+      set_collaboration_task_assignees: {
+        Args: { p_assignee_ids: string[]; p_task_id: string }
+        Returns: boolean
+      }
+      set_collaboration_task_status: {
+        Args: {
+          p_status: Database["public"]["Enums"]["collaboration_task_status"]
+          p_task_id: string
+        }
         Returns: boolean
       }
       set_community_about: {
@@ -1922,6 +2832,41 @@ export type Database = {
           conversation_id: string
         }[]
       }
+      unpublish_collaboration_event: {
+        Args: { p_event_id: string }
+        Returns: boolean
+      }
+      update_collaboration_channel: {
+        Args: { p_channel_id: string; p_description: string; p_name: string }
+        Returns: boolean
+      }
+      update_collaboration_event: {
+        Args: {
+          p_audience: Database["public"]["Enums"]["collaboration_event_audience"]
+          p_description: string
+          p_ends_at: string
+          p_event_id: string
+          p_internal_notes: string
+          p_location: string
+          p_registration_url: string
+          p_starts_at: string
+          p_status: Database["public"]["Enums"]["collaboration_event_status"]
+          p_title: string
+        }
+        Returns: boolean
+      }
+      update_collaboration_task: {
+        Args: {
+          p_description: string
+          p_due_on: string
+          p_related_channel_id: string
+          p_related_document_id: string
+          p_related_event_id: string
+          p_task_id: string
+          p_title: string
+        }
+        Returns: boolean
+      }
       update_my_community_profile: {
         Args: { p_bio: string; p_community_id: string; p_display_name: string }
         Returns: boolean
@@ -1938,18 +2883,27 @@ export type Database = {
     Enums: {
       access_policy: "invite-only" | "request-to-join"
       access_request_status: "pending" | "approved" | "rejected" | "cancelled"
+      collaboration_channel_status: "active" | "archived"
+      collaboration_document_status: "active" | "archived"
+      collaboration_event_audience:
+        | "public"
+        | "participating_organizations"
+        | "invite_only"
+      collaboration_event_status: "draft" | "confirmed" | "cancelled"
       collaboration_member_status: "active" | "left"
       collaboration_participant_status:
         | "invited"
         | "active"
         | "declined"
         | "left"
+      collaboration_publication_status: "published" | "unpublished"
       collaboration_sponsorship_status:
         | "invited"
         | "accepted"
         | "declined"
         | "revoked"
       collaboration_status: "active" | "archived"
+      collaboration_task_status: "todo" | "in_progress" | "done" | "cancelled"
       community_person_section:
         | "staff"
         | "board"
@@ -2099,6 +3053,14 @@ export const Constants = {
     Enums: {
       access_policy: ["invite-only", "request-to-join"],
       access_request_status: ["pending", "approved", "rejected", "cancelled"],
+      collaboration_channel_status: ["active", "archived"],
+      collaboration_document_status: ["active", "archived"],
+      collaboration_event_audience: [
+        "public",
+        "participating_organizations",
+        "invite_only",
+      ],
+      collaboration_event_status: ["draft", "confirmed", "cancelled"],
       collaboration_member_status: ["active", "left"],
       collaboration_participant_status: [
         "invited",
@@ -2106,6 +3068,7 @@ export const Constants = {
         "declined",
         "left",
       ],
+      collaboration_publication_status: ["published", "unpublished"],
       collaboration_sponsorship_status: [
         "invited",
         "accepted",
@@ -2113,6 +3076,7 @@ export const Constants = {
         "revoked",
       ],
       collaboration_status: ["active", "archived"],
+      collaboration_task_status: ["todo", "in_progress", "done", "cancelled"],
       community_person_section: [
         "staff",
         "board",
@@ -2135,6 +3099,7 @@ export const Constants = {
     },
   },
 } as const
+
 
 export type ProfileRow = Tables<"profiles">
 export type CommunityRow = Tables<"communities">

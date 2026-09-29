@@ -185,6 +185,23 @@ async function clearEmojiFiles() {
   }
 }
 
+/**
+ * Empties the collaboration buckets. Deleting a collaboration cascades to its
+ * file and publication rows but, as with emoji, not into Storage. Both
+ * buckets are laid out `<folder>/<file>`, one folder per collaboration or
+ * published event.
+ */
+async function clearCollaborationFiles() {
+  for (const bucket of ["collaboration-files", "published-event-images"]) {
+    const { data: folders } = await supabase.storage.from(bucket).list("", { limit: 1000 });
+    for (const folder of folders ?? []) {
+      const { data: files } = await supabase.storage.from(bucket).list(folder.name, { limit: 1000 });
+      const paths = (files ?? []).map((entry) => `${folder.name}/${entry.name}`);
+      if (paths.length > 0) await supabase.storage.from(bucket).remove(paths);
+    }
+  }
+}
+
 async function main() {
   console.log("Fyller databasen med testdata …\n");
 
@@ -197,6 +214,7 @@ async function main() {
   // previous run's emoji images and community avatars orphaned in their
   // buckets.
   await clearEmojiFiles();
+  await clearCollaborationFiles();
 
   const uid = await seedAccounts();
   console.log(`  ${allUsers.length} kontoer (${demoPersonas.length} showcase-personaer)`);

@@ -5,6 +5,7 @@ import { community } from "./community";
 import { errors } from "./errors";
 import { portal } from "./portal";
 import { shell } from "./shell";
+import { workspace } from "./workspace";
 
 /**
  * Norwegian Bokmål — the source dictionary.
@@ -13,6 +14,6 @@ import { shell } from "./shell";
  * a message missing from any other language is a type error rather than a
  * blank on screen.
  */
-export const nb = { ...common, ...shell, ...community, ...admin, ...errors, ...portal, ...collaboration } as const;
+export const nb = { ...common, ...shell, ...community, ...admin, ...errors, ...portal, ...collaboration, ...workspace } as const;
 
 export type MessageKey = keyof typeof nb;
