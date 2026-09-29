@@ -5,7 +5,6 @@ import { RelatedCommunityCard } from "@/components/community/RelatedCommunityCar
 import { EventCard } from "@/components/community/EventCard";
 import { PostCard } from "@/components/community/PostCard";
 import {
-  Avatar,
   Badge,
   ElevatedRoleBadge,
   Panel,
@@ -27,7 +26,6 @@ import {
   getCommentsForPosts,
   getCommunityById,
   getCommunityEmojis,
-  getCommunityMembers,
   getFeed,
   getGroupedChannels,
   getLatestMessage,
@@ -60,9 +58,8 @@ export default async function CommunityOverviewPage({
   const locale = communityLocale(community);
   const t = translator(locale);
 
-  const [membership, members, announcements, allPosts, upcoming, groups, customEmojis, related] = await Promise.all([
+  const [membership, announcements, allPosts, upcoming, groups, customEmojis, related] = await Promise.all([
     getMembership(user.id, community.id),
-    getCommunityMembers(community.id),
     getAnnouncements(community.id),
     getFeed(community.id),
     getUpcomingCommunityEvents(community.id),
@@ -73,7 +70,6 @@ export default async function CommunityOverviewPage({
     getRelatedCommunity(user.id, community.slug),
   ]);
 
-  const leaders = members.filter((entry) => entry.membership.role !== "member");
   const pinned = announcements.find((post) => post.pinned);
   const feed = allPosts.filter((post) => post.id !== pinned?.id).slice(0, 2);
   const events = upcoming.slice(0, 2);
@@ -310,45 +306,6 @@ export default async function CommunityOverviewPage({
                 )}
               </Panel>
             </section>
-
-            {/*
-              Only shown when the membership is readable. Where the registry is
-              admin-only this comes back empty from the database, and an empty
-              "Kontaktpersoner" panel reads as a fault rather than a setting.
-            */}
-            {leaders.length > 0 ? (
-              <section>
-              <SectionHeading
-                action={
-                  <Link
-                    href={`/community/${community.id}/members`}
-                    className="text-xs text-ink-2 transition-colors hover:text-ink"
-                  >
-                    {t("common.all")}
-                  </Link>
-                }
-              >
-                {t("overview.contacts")}
-              </SectionHeading>
-              <Panel className="divide-y divide-line">
-                {leaders.map(({ persona: person, membership: personMembership }) => (
-                  <div key={person.id} className="flex items-center gap-3 px-4 py-3">
-                    <Avatar user={person} size="sm" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-medium text-ink">
-                        {person.name}
-                      </span>
-                      {publicMemberTitle(personMembership.title) ? (
-                        <span className="block truncate text-[11px] text-ink-3">
-                          {publicMemberTitle(personMembership.title)}
-                        </span>
-                      ) : null}
-                    </span>
-                  </div>
-                ))}
-              </Panel>
-              </section>
-            ) : null}
 
             {related ? (
               <section>

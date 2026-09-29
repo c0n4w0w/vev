@@ -19,7 +19,6 @@ export const community: Record<keyof typeof nb, string> = {
   "overview.upcomingEvents": "Upcoming events",
   "overview.nothingPlanned": "Nothing planned right now.",
   "overview.channels": "Channels",
-  "overview.contacts": "Contacts",
   "overview.related.heading": "Related communities",
   "overview.related.ungdom.lead": "Are you between 15 and 30?",
   "overview.related.ungdom.body":

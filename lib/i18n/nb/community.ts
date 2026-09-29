@@ -18,7 +18,6 @@ export const community = {
   "overview.upcomingEvents": "Neste arrangementer",
   "overview.nothingPlanned": "Ingenting planlagt akkurat nå.",
   "overview.channels": "Kanaler",
-  "overview.contacts": "Kontaktpersoner",
   "overview.related.heading": "Relaterte fellesskap",
   "overview.related.ungdom.lead": "Er du mellom 15 og 30 år?",
   "overview.related.ungdom.body":
