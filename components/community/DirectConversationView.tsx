@@ -3,22 +3,26 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Avatar, cn } from "@/components/ui/primitives";
+import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/community/EmojiPicker";
 import { IconArrowLeft, IconSend } from "@/components/ui/icons";
 import { createDirectMessageAction } from "@/app/actions";
 import { emptyDirectMessageFormState } from "@/lib/direct-message-form";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/react";
-import type { Community, CommunityPersona, DirectConversation } from "@/lib/types";
+import type { Community, CommunityEmoji, CommunityPersona, DirectConversation } from "@/lib/types";
 
 export function DirectConversationView({
   conversation,
   community,
   currentUser,
+  customEmojis,
 }: {
   conversation: DirectConversation;
   community: Community;
   /** The viewer as they appear in this conversation's community. */
   currentUser: CommunityPersona;
+  /** Only this conversation's community's emojis, never another the pair share. */
+  customEmojis: CommunityEmoji[];
 }) {
   const t = useT();
   const locale = useLocale();
@@ -28,6 +32,7 @@ export function DirectConversationView({
   const [pending, startTransition] = useTransition();
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const insertText = useComposerInsert(composerRef, draft, setDraft);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -180,7 +185,7 @@ export function DirectConversationView({
                               : "border border-line bg-surface text-ink-2",
                           )}
                         >
-                          {message.body}
+                          <EmojiText body={message.body} emojis={customEmojis} />
                         </p>
                       </div>
                     </div>
@@ -215,18 +220,26 @@ export function DirectConversationView({
                 }
               }}
               placeholder={t("dm.placeholder", { name: conversation.otherParticipant.name })}
-              className="max-h-44 min-h-[2.25rem] flex-1 resize-none bg-transparent py-2 text-[0.9375rem] leading-6 text-ink outline-none placeholder:text-ink-3"
+              className="max-h-44 min-h-[2.25rem] min-w-0 flex-1 resize-none bg-transparent py-2 text-[0.9375rem] leading-6 text-ink outline-none placeholder:text-ink-3"
             />
-            <button
-              type="button"
-              onClick={send}
-              disabled={!draft.trim() || pending}
-              aria-label={t("channel.send")}
-              className="mb-0.5 rounded-[5px] p-2 text-white transition-opacity disabled:opacity-30"
-              style={{ backgroundColor: community.branding.accent }}
-            >
-              <IconSend size={17} />
-            </button>
+            <div className="flex shrink-0 items-end gap-1">
+              <ComposerEmojiButton
+                customEmojis={customEmojis}
+                onInsert={insertText}
+                textareaRef={composerRef}
+                className="mb-0.5"
+              />
+              <button
+                type="button"
+                onClick={send}
+                disabled={!draft.trim() || pending}
+                aria-label={t("channel.send")}
+                className="mb-0.5 rounded-[5px] p-2 text-white transition-opacity disabled:opacity-30"
+                style={{ backgroundColor: community.branding.accent }}
+              >
+                <IconSend size={17} />
+              </button>
+            </div>
           </div>
           {error ? (
             <p role="alert" className="mt-2 text-[11px] text-rust">

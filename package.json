@@ -16,6 +16,7 @@
     "check:community-avatar": "tsx scripts/check-community-avatar.ts",
     "check:community-profiles": "tsx scripts/check-community-profiles.ts",
     "check:content": "tsx scripts/check-content.ts",
+    "check:custom-emojis": "tsx scripts/check-custom-emojis.ts",
     "check:demo-entry": "tsx scripts/check-demo-entry.ts",
     "check:direct-messages": "tsx scripts/check-direct-messages.ts",
     "check:events": "tsx scripts/check-events.ts",

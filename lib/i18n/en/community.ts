@@ -67,6 +67,7 @@ export const community: Record<keyof typeof nb, string> = {
   "reaction.allUsed": "All are in use.",
   "reaction.communityOwn": "Community emojis",
   "reaction.noneYet": "No custom emojis yet. Moderators can add some under Emojis.",
+  "emoji.insert": "Insert emoji",
   "reaction.noMatches": "No matches.",
 
   // ── Events ────────────────────────────────────────────────────────────

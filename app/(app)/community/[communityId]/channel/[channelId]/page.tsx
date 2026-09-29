@@ -3,6 +3,7 @@ import { ChannelView } from "@/components/community/ChannelView";
 import {
   getChannel,
   getCommunityById,
+  getCommunityEmojis,
   getCommunityPersonas,
   getMembership,
   getMessages,
@@ -38,9 +39,10 @@ export default async function ChannelPage({
   ]);
   if (!community || !channel || channel.communityId !== community.id) notFound();
 
-  const [membership, messages] = await Promise.all([
+  const [membership, messages, customEmojis] = await Promise.all([
     getMembership(user.id, community.id),
     getMessages(channel.id),
+    getCommunityEmojis(community.id),
   ]);
   const personas = await getCommunityPersonas(community.id, [
     ...new Set([user.id, ...messages.map((message) => message.authorId)]),
@@ -60,6 +62,7 @@ export default async function ChannelPage({
         membership?.role === "admin" ||
         membership?.role === "moderator"
       }
+      customEmojis={customEmojis}
       lastActivityLabel={
         messages.length > 0
           ? timeAgo(messages[messages.length - 1].createdAt, communityLocale(community))

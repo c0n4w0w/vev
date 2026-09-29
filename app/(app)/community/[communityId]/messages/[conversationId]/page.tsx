@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { DirectConversationView } from "@/components/community/DirectConversationView";
 import {
   getCommunityById,
+  getCommunityEmojis,
   getCommunityPersona,
   getDirectConversation,
   markDirectConversationRead,
@@ -49,6 +50,7 @@ export default async function DirectConversationPage({
       conversation={conversation}
       community={community}
       currentUser={await getCommunityPersona(community.id, user.id)}
+      customEmojis={await getCommunityEmojis(conversation.communityId)}
     />
   );
 }

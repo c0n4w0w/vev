@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   createCommentAction,
@@ -8,11 +8,12 @@ import {
   updateCommentAction,
 } from "@/app/actions";
 import { emptyCommentFormState } from "@/lib/comment-form";
+import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/community/EmojiPicker";
 import { Avatar, cn } from "@/components/ui/primitives";
 import { timeAgo } from "@/lib/format";
 import { tn } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/react";
-import type { Comment, CommunityPersona } from "@/lib/types";
+import type { Comment, CommunityEmoji, CommunityPersona } from "@/lib/types";
 
 function Submit({
   label,
@@ -42,6 +43,7 @@ function CommentComposer({
   author,
   accent,
   placeholder,
+  customEmojis,
   onDone,
   autoFocus,
 }: {
@@ -51,12 +53,15 @@ function CommentComposer({
   author: CommunityPersona;
   accent: string;
   placeholder: string;
+  customEmojis: CommunityEmoji[];
   onDone?: () => void;
   autoFocus?: boolean;
 }) {
   const t = useT();
   const [state, formAction] = useActionState(createCommentAction, emptyCommentFormState);
   const [draft, setDraft] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const insertText = useComposerInsert(textareaRef, draft, setDraft);
 
   // Clear only once the write is confirmed, adjusted during render.
   const [handled, setHandled] = useState(state);
@@ -76,12 +81,14 @@ function CommentComposer({
       <Avatar user={author} size="xs" className="mt-1" />
       <div className="min-w-0 flex-1">
         <textarea
+          ref={textareaRef}
           name="body"
           rows={2}
           value={draft}
           autoFocus={autoFocus}
           onChange={(event) => setDraft(event.target.value)}
           placeholder={placeholder}
+          aria-label={placeholder}
           className="w-full resize-none rounded-[5px] border border-line bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-ink-3"
         />
         {state.status === "error" ? (
@@ -90,6 +97,13 @@ function CommentComposer({
           </p>
         ) : null}
         <div className="mt-1.5 flex items-center gap-2">
+          <ComposerEmojiButton
+            customEmojis={customEmojis}
+            onInsert={insertText}
+            textareaRef={textareaRef}
+            align="start"
+            className="-ml-1.5"
+          />
           <Submit
             label={t("comment.submit")}
             pendingLabel={t("common.saving")}
@@ -119,6 +133,7 @@ function CommentRow({
   viewerId,
   canModerate,
   accent,
+  customEmojis,
   onReply,
   isReply,
 }: {
@@ -128,12 +143,16 @@ function CommentRow({
   viewerId: string;
   canModerate: boolean;
   accent: string;
+  customEmojis: CommunityEmoji[];
   onReply?: () => void;
   isReply?: boolean;
 }) {
   const t = useT();
   const locale = useLocale();
   const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState(comment.body);
+  const editRef = useRef<HTMLTextAreaElement>(null);
+  const insertIntoEdit = useComposerInsert(editRef, editDraft, setEditDraft);
   const [confirming, setConfirming] = useState(false);
   const [editState, editAction] = useActionState(updateCommentAction, emptyCommentFormState);
   const [deleteState, deleteAction] = useActionState(deleteCommentAction, emptyCommentFormState);
@@ -161,8 +180,11 @@ function CommentRow({
             <input type="hidden" name="commentId" value={comment.id} />
             <input type="hidden" name="communityId" value={communityId} />
             <textarea
+              ref={editRef}
               name="body"
-              defaultValue={comment.body}
+              value={editDraft}
+              onChange={(event) => setEditDraft(event.target.value)}
+              aria-label={t("common.edit")}
               rows={3}
               className="w-full resize-none rounded-[5px] border border-line-2 bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink outline-none focus:border-ink-3"
             />
@@ -172,6 +194,13 @@ function CommentRow({
               </p>
             ) : null}
             <div className="mt-1.5 flex items-center gap-2">
+              <ComposerEmojiButton
+                customEmojis={customEmojis}
+                onInsert={insertIntoEdit}
+                textareaRef={editRef}
+                align="start"
+                className="-ml-1.5"
+              />
               <Submit
                 label={t("common.save")}
                 pendingLabel={t("common.saving")}
@@ -189,7 +218,7 @@ function CommentRow({
           </form>
         ) : (
           <p className="mt-0.5 whitespace-pre-line text-[13px] leading-relaxed text-ink-2">
-            {comment.body}
+            <EmojiText body={comment.body} emojis={customEmojis} />
           </p>
         )}
 
@@ -207,7 +236,10 @@ function CommentRow({
             {isAuthor ? (
               <button
                 type="button"
-                onClick={() => setEditing(true)}
+                onClick={() => {
+                  setEditDraft(comment.body);
+                  setEditing(true);
+                }}
                 className="text-[11px] text-ink-3 transition-colors hover:text-ink"
               >
                 {t("common.edit")}
@@ -270,6 +302,7 @@ export function CommentThread({
   viewer,
   canModerate,
   accent,
+  customEmojis = [],
 }: {
   postId: string;
   communityId: string;
@@ -279,6 +312,8 @@ export function CommentThread({
   viewer: CommunityPersona;
   canModerate: boolean;
   accent: string;
+  /** This community's own custom emojis; comments never resolve any other's. */
+  customEmojis?: CommunityEmoji[];
 }) {
   const t = useT();
   const locale = useLocale();
@@ -315,6 +350,7 @@ export function CommentThread({
                       viewerId={viewer.id}
                       canModerate={canModerate}
                       accent={accent}
+                      customEmojis={customEmojis}
                       onReply={() =>
                         setReplyingTo((current) => (current === comment.id ? null : comment.id))
                       }
@@ -328,6 +364,7 @@ export function CommentThread({
                         viewerId={viewer.id}
                         canModerate={canModerate}
                         accent={accent}
+                        customEmojis={customEmojis}
                         isReply
                       />
                     ))}
@@ -344,6 +381,7 @@ export function CommentThread({
                         placeholder={t("comment.replyTo", {
                           name: authors[comment.authorId]?.name.split(" ")[0] ?? "",
                         })}
+                        customEmojis={customEmojis}
                         onDone={() => setReplyingTo(null)}
                         autoFocus
                       />
@@ -360,6 +398,7 @@ export function CommentThread({
             author={viewer}
             accent={accent}
             placeholder={t("comment.write")}
+            customEmojis={customEmojis}
           />
         </div>
       ) : null}

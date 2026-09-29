@@ -67,6 +67,7 @@ export const community = {
   "reaction.communityOwn": "Fellesskapets egne",
   "reaction.noneYet": "Ingen egne emojier ennå. Moderatorer kan legge til noen under Emojier.",
   "reaction.noMatches": "Ingen treff.",
+  "emoji.insert": "Sett inn emoji",
 
   // ── Events ────────────────────────────────────────────────────────────
   "events.title": "Arrangementer",

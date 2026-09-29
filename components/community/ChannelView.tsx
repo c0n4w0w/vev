@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Avatar, Badge, cn } from "@/components/ui/primitives";
+import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/community/EmojiPicker";
 import { IconAttach, IconHash, IconLock, IconSend } from "@/components/ui/icons";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
 import { createMessageAction } from "@/app/actions";
 import { useLocale, useT } from "@/lib/i18n/react";
 import { emptyMessageFormState } from "@/lib/message-form";
-import type { Channel, Community, CommunityPersona, Message } from "@/lib/types";
+import type { Channel, Community, CommunityEmoji, CommunityPersona, Message } from "@/lib/types";
 
 /**
  * Channel conversation.
@@ -28,6 +29,7 @@ export function ChannelView({
   authors,
   currentUser,
   canPost,
+  customEmojis,
   lastActivityLabel,
 }: {
   channel: Channel;
@@ -37,6 +39,8 @@ export function ChannelView({
   /** The viewer as they appear in this community. */
   currentUser: CommunityPersona;
   canPost: boolean;
+  /** This community's own custom emojis, for the picker and for rendering. */
+  customEmojis: CommunityEmoji[];
   /**
    * Rendered on the server. Computing a relative time in the browser as well
    * would risk the two disagreeing across a minute boundary during hydration.
@@ -51,6 +55,7 @@ export function ChannelView({
   const [pending, startTransition] = useTransition();
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const insertText = useComposerInsert(composerRef, draft, setDraft);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -181,7 +186,7 @@ export function ChannelView({
                       ) : null}
 
                       <p className="whitespace-pre-line text-[0.9375rem] leading-[1.65] text-ink-2">
-                        {message.body}
+                        <EmojiText body={message.body} emojis={customEmojis} />
                       </p>
 
                       {message.attachment ? (
@@ -243,18 +248,26 @@ export function ChannelView({
                   }
                 }}
                 placeholder={t("channel.placeholder", { name: channel.name })}
-                className="max-h-44 min-h-[2.25rem] flex-1 resize-none bg-transparent py-2 text-[0.9375rem] leading-6 text-ink outline-none placeholder:text-ink-3"
+                className="max-h-44 min-h-[2.25rem] min-w-0 flex-1 resize-none bg-transparent py-2 text-[0.9375rem] leading-6 text-ink outline-none placeholder:text-ink-3"
               />
-              <button
-                type="button"
-                onClick={send}
-                disabled={!draft.trim() || pending}
-                aria-label={t("channel.send")}
-                className="mb-0.5 rounded-[5px] p-2 text-white transition-opacity disabled:opacity-30"
-                style={{ backgroundColor: community.branding.accent }}
-              >
-                <IconSend size={17} />
-              </button>
+              <div className="flex shrink-0 items-end gap-1">
+                <ComposerEmojiButton
+                  customEmojis={customEmojis}
+                  onInsert={insertText}
+                  textareaRef={composerRef}
+                  className="mb-0.5"
+                />
+                <button
+                  type="button"
+                  onClick={send}
+                  disabled={!draft.trim() || pending}
+                  aria-label={t("channel.send")}
+                  className="mb-0.5 rounded-[5px] p-2 text-white transition-opacity disabled:opacity-30"
+                  style={{ backgroundColor: community.branding.accent }}
+                >
+                  <IconSend size={17} />
+                </button>
+              </div>
             </div>
           ) : (
             <p className="flex items-center justify-center gap-2 rounded-[6px] border border-dashed border-line-2 px-4 py-3.5 text-[13px] text-ink-3">

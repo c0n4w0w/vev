@@ -1,31 +1,14 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import Image from "next/image";
 import { toggleReactionAction } from "@/app/actions";
-import { emptyCommentFormState, reactionPalette } from "@/lib/comment-form";
-import { IconPlus, IconSearch } from "@/components/ui/icons";
+import { emptyCommentFormState } from "@/lib/comment-form";
+import { CustomEmoji, EmojiPickerPanel } from "@/components/community/EmojiPicker";
+import { IconPlus } from "@/components/ui/icons";
 import { cn } from "@/components/ui/primitives";
 import { useT } from "@/lib/i18n/react";
 import type { CommunityEmoji, Reaction } from "@/lib/types";
-
-/** A custom emoji image, or its name if the signed URL could not be made. */
-function CustomEmoji({ name, url, size = 16 }: { name: string; url?: string; size?: number }) {
-  if (!url) return <span className="text-[11px] text-ink-3">:{name}:</span>;
-  return (
-    <Image
-      src={url}
-      alt={`:${name}:`}
-      title={`:${name}:`}
-      width={size}
-      height={size}
-      unoptimized
-      className="inline-block object-contain align-text-bottom"
-      style={{ width: size, height: size }}
-    />
-  );
-}
 
 function ReactionButton({
   reaction,
@@ -93,16 +76,10 @@ export function ReactionBar({
   const t = useT();
   const [state, formAction] = useActionState(toggleReactionAction, emptyCommentFormState);
   const [picking, setPicking] = useState(false);
-  const [query, setQuery] = useState("");
 
   const emojiById = new Map(customEmojis.map((emoji) => [emoji.id, emoji]));
   const usedUnicode = new Set(reactions.map((r) => r.emoji).filter(Boolean));
   const usedCustom = new Set(reactions.map((r) => r.emojiId).filter(Boolean));
-
-  const unusedBuiltIn = reactionPalette.filter((emoji) => !usedUnicode.has(emoji));
-  const matchingCustom = customEmojis.filter(
-    (emoji) => !usedCustom.has(emoji.id) && emoji.name.includes(query.trim().toLowerCase()),
-  );
 
   function hidden(fields: { emoji?: string; emojiId?: string }) {
     return (
@@ -149,63 +126,23 @@ export function ReactionBar({
               onClick={() => setPicking(false)}
               className="fixed inset-0 z-40 cursor-default"
             />
-            <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-64 rounded-[6px] border border-line-2 bg-surface p-3 shadow-[0_12px_32px_-12px_rgba(23,25,26,0.28)]">
-              <p className="label mb-2">{t("reaction.default")}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {unusedBuiltIn.map((emoji) => (
-                  <form key={emoji} action={formAction} onSubmit={() => setPicking(false)}>
-                    {hidden({ emoji })}
-                    <button
-                      type="submit"
-                      className="rounded-[5px] px-1.5 py-1 text-base transition-colors hover:bg-paper-2"
-                      aria-label={emoji}
-                    >
-                      {emoji}
-                    </button>
-                  </form>
-                ))}
-                {unusedBuiltIn.length === 0 ? (
-                  <span className="text-xs text-ink-3">{t("reaction.allUsed")}</span>
-                ) : null}
-              </div>
-
-              <p className="label mb-2 mt-4">{t("reaction.communityOwn")}</p>
-              {customEmojis.length === 0 ? (
-                <p className="text-xs leading-relaxed text-ink-3">
-                  {t("reaction.noneYet")}
-                </p>
-              ) : (
-                <>
-                  <label className="mb-2 flex items-center gap-1.5 rounded-[5px] border border-line px-2 py-1">
-                    <IconSearch size={12} className="shrink-0 text-ink-3" />
-                    <input
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                      placeholder={t("common.search")}
-                      className="w-full bg-transparent text-xs text-ink outline-none placeholder:text-ink-3"
-                    />
-                  </label>
-                  <div className="scroll-quiet flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
-                    {matchingCustom.map((emoji) => (
-                      <form key={emoji.id} action={formAction} onSubmit={() => setPicking(false)}>
-                        {hidden({ emojiId: emoji.id })}
-                        <button
-                          type="submit"
-                          title={`:${emoji.name}:`}
-                          aria-label={`:${emoji.name}:`}
-                          className="rounded-[5px] p-1 transition-colors hover:bg-paper-2"
-                        >
-                          <CustomEmoji name={emoji.name} url={emoji.url} size={20} />
-                        </button>
-                      </form>
-                    ))}
-                    {matchingCustom.length === 0 ? (
-                      <span className="text-xs text-ink-3">{t("reaction.noMatches")}</span>
-                    ) : null}
-                  </div>
-                </>
-              )}
-            </div>
+            <EmojiPickerPanel
+              // On a phone the "+" can sit anywhere along the row, so anchoring to it
+              // would push the panel off screen: centre it above the tab bar instead.
+              className="absolute bottom-[calc(100%+6px)] left-0 z-50 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-24 max-sm:mx-auto"
+              customEmojis={customEmojis}
+              excludeUnicode={usedUnicode}
+              excludeCustomIds={usedCustom}
+              onPick={(choice) => {
+                const form = new FormData();
+                form.set("postId", postId);
+                form.set("communityId", communityId);
+                if ("emoji" in choice) form.set("emoji", choice.emoji);
+                else form.set("emojiId", choice.emojiId);
+                setPicking(false);
+                startTransition(() => formAction(form));
+              }}
+            />
           </>
         ) : null}
       </div>

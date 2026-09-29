@@ -1,3 +1,4 @@
+import { messageBodyError } from "@/lib/message-form";
 import "server-only";
 
 import { cache } from "react";
@@ -1006,7 +1007,8 @@ export async function createMessage(input: {
   body: string;
 }): Promise<MessageWriteResult> {
   const body = input.body.trim();
-  if (!body) return { ok: false, error: "err.messageEmpty" };
+  const invalid = messageBodyError(body);
+  if (invalid) return { ok: false, error: invalid };
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -1356,8 +1358,8 @@ export async function createDirectMessage(input: {
   body: string;
 }): Promise<DirectMessageWriteResult> {
   const body = input.body.trim();
-  if (!body) return { ok: false, error: "err.messageEmpty" };
-  if (body.length > 4000) return { ok: false, error: "err.messageTooLong" };
+  const invalid = messageBodyError(body);
+  if (invalid) return { ok: false, error: invalid };
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -1772,21 +1774,29 @@ export async function toggleReaction(
 // non-member cannot obtain one, and a URL that leaks stops working.
 
 const EMOJI_BUCKET = "community-emoji";
-const EMOJI_URL_TTL_SECONDS = 60 * 60;
 
-function toEmoji(row: CommunityEmojiRow, url?: string): CommunityEmoji {
+/**
+ * The stable, authenticated address of an emoji's image. It never expires and
+ * carries no credential: the route behind it checks membership on every
+ * request, so a copied link is useless to anyone else.
+ */
+export function communityEmojiUrl(communityId: string, emojiId: string): string {
+  return `/community/${encodeURIComponent(communityId)}/emoji/${encodeURIComponent(emojiId)}`;
+}
+
+function toEmoji(row: CommunityEmojiRow): CommunityEmoji {
   return {
     id: row.id,
     communityId: row.community_id,
     name: row.name,
     createdBy: row.created_by,
     createdAt: row.created_at,
-    url,
+    url: communityEmojiUrl(row.community_id, row.id),
   };
 }
 
 /**
- * Every custom emoji in one community, with a signed image URL each.
+ * Every custom emoji in one community.
  *
  * Row level security already limits this to communities the caller belongs to,
  * so passing another community's id returns nothing rather than anything.
@@ -1799,15 +1809,31 @@ export async function getCommunityEmojis(communityId: string): Promise<Community
     .eq("community_id", communityId)
     .order("name", { ascending: true });
 
-  const emojiRows = rows(data) as CommunityEmojiRow[];
-  if (emojiRows.length === 0) return [];
+  return (rows(data) as CommunityEmojiRow[]).map(toEmoji);
+}
 
-  const { data: signed } = await supabase.storage
-    .from(EMOJI_BUCKET)
-    .createSignedUrls(emojiRows.map((row) => row.storage_path), EMOJI_URL_TTL_SECONDS);
+/**
+ * One emoji's image, read with the caller's own session.
+ *
+ * Keyed by community *and* id, so an id from another community matches no row.
+ * The row is visible only to members, and the object only to members too;
+ * anyone else, and any emoji that no longer exists, gets `undefined`.
+ */
+export async function downloadCommunityEmoji(
+  communityId: string,
+  emojiId: string,
+): Promise<{ blob: Blob; contentType: string } | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data: row } = await supabase
+    .from("community_emojis")
+    .select("storage_path, content_type")
+    .eq("community_id", communityId)
+    .eq("id", emojiId)
+    .maybeSingle();
+  if (!row) return undefined;
 
-  const urlByPath = new Map((signed ?? []).map((entry) => [entry.path, entry.signedUrl]));
-  return emojiRows.map((row) => toEmoji(row, urlByPath.get(row.storage_path) ?? undefined));
+  const { data: blob } = await supabase.storage.from(EMOJI_BUCKET).download(row.storage_path);
+  return blob ? { blob, contentType: row.content_type } : undefined;
 }
 
 /** Emojis for every community the caller belongs to, keyed by community. */
