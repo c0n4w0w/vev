@@ -593,8 +593,10 @@ async function main() {
     .eq("id", adminPost.data!.id);
   expect("å endre teksten lager ingen nye varsler", (await notificationsSince(TR)).length, beforeUpdates);
 
-  // E. An ordinary post notifies nobody, pinned or not.
-  const ordinary = await linn
+  // E. An ordinary post notifies nobody, pinned or not. Published by a
+  // moderator: feed posts are staff-only, and what is under test here is the
+  // kind, not who wrote it.
+  const ordinary = await nadia
     .from("posts")
     .insert({ community_id: TR, body: "Sjekk: helt vanlig innlegg" })
     .select("id")

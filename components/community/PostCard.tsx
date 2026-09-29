@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Avatar, Badge, Panel, RichText, cn } from "@/components/ui/primitives";
 import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
-import { IconMegaphone, IconPin } from "@/components/ui/icons";
+import { IconMapPin, IconMegaphone, IconPin } from "@/components/ui/icons";
 import { CommentThread } from "@/components/community/CommentThread";
 import { PostActions } from "@/components/community/PostActions";
 import { ReactionBar } from "@/components/community/ReactionBar";
@@ -23,6 +23,59 @@ function Reactions({ reactions }: { reactions: Post["reactions"] }) {
         </span>
       ))}
     </div>
+  );
+}
+
+/**
+ * The badges beside a post's author and time, always in the same order:
+ *
+ *   scope — which local group the post is for, when it has one
+ *   type  — announcement
+ *   state — pinned
+ *
+ * Where it applies, what kind of post it is, whether it is held at the top.
+ * A community-wide post has no scope badge at all: absence is what "the whole
+ * organisation" looks like, so there is no "Hele fellesskapet" chip to read
+ * past on nearly every post.
+ *
+ * The scope label is the local group's own name, verbatim. Organisations name
+ * their units with their own prefix ("FTR Oslo", "TU UiO"), and that prefix is
+ * not derivable from anything else: the community monogram is "TR", not
+ * "FTR". Showing the name as the organisation wrote it is what keeps an FTR
+ * post from ever being labelled as TU's, with nothing organisation-specific
+ * here.
+ *
+ * Scope is the quietest of the three (outline) so it never competes with an
+ * announcement. The pin icon is decorative; the visible name carries the
+ * meaning, and screen readers hear "Lokallag: FTR Oslo".
+ */
+export function PostBadges({ post, locale }: { post: Post; locale: Locale }) {
+  const t = translator(locale);
+  const isAnnouncement = post.kind === "announcement";
+  if (!post.localGroup && !isAnnouncement && !post.pinned) return null;
+
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      {post.localGroup ? (
+        <Badge tone="outline" className="max-w-full">
+          <IconMapPin size={11} className="shrink-0" />
+          <span className="sr-only">{t("post.scopePrefix")} </span>
+          <span className="truncate">{post.localGroup.name}</span>
+        </Badge>
+      ) : null}
+      {isAnnouncement ? (
+        <Badge tone="rust">
+          <IconMegaphone size={11} />
+          {t("post.announcement")}
+        </Badge>
+      ) : null}
+      {post.pinned ? (
+        <Badge tone="neutral">
+          <IconPin size={11} />
+          {t("post.pinned")}
+        </Badge>
+      ) : null}
+    </span>
   );
 }
 
@@ -95,18 +148,7 @@ export function PostCard({
                 · {t("common.edited")}
               </span>
             ) : null}
-            {isAnnouncement ? (
-              <Badge tone="rust">
-                <IconMegaphone size={11} />
-                {t("post.announcement")}
-              </Badge>
-            ) : null}
-            {post.pinned ? (
-              <Badge tone="neutral">
-                <IconPin size={11} />
-                {t("post.pinned")}
-              </Badge>
-            ) : null}
+            <PostBadges post={post} locale={locale} />
           </div>
 
           {post.title ? (
@@ -146,6 +188,7 @@ export function PostCard({
                 viewer={viewer}
                 canModerate={canModerate}
                 accent={community.branding.accent}
+                customEmojis={customEmojis}
               />
               <PostActions
                 post={post}

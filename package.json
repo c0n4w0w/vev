@@ -20,6 +20,7 @@
     "check:demo-entry": "tsx scripts/check-demo-entry.ts",
     "check:direct-messages": "tsx scripts/check-direct-messages.ts",
     "check:events": "tsx scripts/check-events.ts",
+    "check:feed-publishing": "tsx scripts/check-feed-publishing.ts",
     "check:fixture-time": "tsx scripts/check-fixture-time.ts",
     "check:local-content": "tsx scripts/check-local-content.ts",
     "check:notifications": "tsx scripts/check-notifications.ts",

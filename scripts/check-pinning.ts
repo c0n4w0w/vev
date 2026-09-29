@@ -106,6 +106,26 @@ async function createPostAs(
   return data.id;
 }
 
+/**
+ * A post owned by an ordinary member, written with the service role.
+ *
+ * Members can no longer publish to the feed (posts_insert is staff-only), but
+ * posts they wrote before that rule still exist and they still own them. The
+ * pinning rules have to hold for exactly those rows, so the fixture is made
+ * the way such a row came to exist rather than through a path that is now
+ * closed.
+ */
+async function legacyMemberPost(handle: string, communityId: string, body: string): Promise<string> {
+  const { data, error } = await admin
+    .from("posts")
+    .insert({ community_id: communityId, body, author_id: await profileId(handle) })
+    .select("id")
+    .single();
+  if (error) throw new Error(`kunne ikke opprette medlemsinnlegg: ${error.message}`);
+  created.push(data.id);
+  return data.id;
+}
+
 /** The feed's own ordering, as lib/data.ts getFeed issues it. */
 async function feedOrder(
   client: SupabaseClient<Database>,
@@ -136,6 +156,12 @@ async function main() {
     signIn(await emailFor("marte")),
   ]);
 
+  // Measured, not assumed: the seed's post count changes whenever fixture
+  // content is added, and what matters is that this run leaves it unchanged.
+  const { count: postsBefore } = await admin
+    .from("posts")
+    .select("*", { count: "exact", head: true });
+
   const seededPin = (await admin
     .from("posts")
     .select("id")
@@ -148,7 +174,7 @@ async function main() {
   // This is the case that passed before the fix. A member could set pinned on
   // their own post through the plain table API, because posts_update only ever
   // checked authorship.
-  const linnPost = await createPostAs(linn, TR, "Sjekk: medlemmets eget innlegg");
+  const linnPost = await legacyMemberPost("linn", TR, "Sjekk: medlemmets eget innlegg");
 
   const selfPin = await linn.from("posts").update({ pinned: true }).eq("id", linnPost).select("id");
   expect("medlem kan ikke feste eget innlegg — avvist", selfPin.error !== null, true);
@@ -208,7 +234,7 @@ async function main() {
   // linnPost is pinned and is the newest post in TR. To prove the ordering is
   // the pin's doing and not recency, add a newer ordinary post and check the
   // pinned one still leads.
-  const newer = await createPostAs(linn, TR, "Sjekk: nyeste vanlige innlegg");
+  const newer = await createPostAs(nadia, TR, "Sjekk: nyeste vanlige innlegg");
   const order = await feedOrder(ingrid, TR);
   // The seeded announcement is pinned too, so the pinned group holds both it
   // and linnPost; `newer` is the first unpinned row.
@@ -289,7 +315,10 @@ async function main() {
   expect("UTR-administrator ser ingen Tryggere-innlegg", utrFeedIds, 0);
 
   // ── 5. Identity cannot be forged ──────────────────────────────────────
-  const forgedAuthor = await linn
+  //
+  // Attempted by a moderator, who may publish: a member's attempt would now be
+  // refused for their role alone and prove nothing about the author check.
+  const forgedAuthor = await nadia
     .from("posts")
     .insert({ community_id: TR, body: "Sjekk: forfalsket forfatter", author_id: await profileId("ingrid") })
     .select("id");
@@ -376,7 +405,7 @@ async function main() {
   const { count: remaining } = await admin
     .from("posts")
     .select("*", { count: "exact", head: true });
-  expect("innleggene er tilbake til utgangspunktet", remaining, 16);
+  expect("innleggene er tilbake til utgangspunktet", remaining, postsBefore);
 
   const { count: stillPinned } = await admin
     .from("posts")

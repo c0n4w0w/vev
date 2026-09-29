@@ -23,6 +23,12 @@ export type SeedPost = Omit<Post, "commentCount" | "reactions"> & {
  * Feed content. Everything here appears in the feed; an `announcement` is a
  * kind of post rather than a separate destination, and a pinned one is also
  * surfaced on the community overview.
+ *
+ * The feed is the organisation's official surface: every post here is written
+ * by an admin or moderator of its community (`posts_insert` enforces the same
+ * for real writes, and `scripts/check-content.ts` for these fixtures). Members
+ * take part through comments, reactions and channels. A post with
+ * `localGroupName` is readable only by that group and the community's staff.
  */
 export const posts: SeedPost[] = [
   // ── Tryggere Ruspolitikk ──────────────────────────────────────────────
@@ -30,13 +36,13 @@ export const posts: SeedPost[] = [
     id: "p-tr-local-1",
     communityId: "tryggere-ruspolitikk",
     localGroupName: "FTR Trøndelag",
-    authorId: "petter",
+    authorId: "demo-tryggere",
     kind: "post",
     title: "Plan for medlemsmøtet i Trondheim",
     body:
       "Vi møtes på Frivilligsentralen torsdag 24. september. Første halvtime bruker vi på høstens standvakter, så fordeler vi hvem som følger opp møtet med kommunen.\n\nJeg tar med utskrifter av notatet Nadia la inn i #pagaende-prosjekter. Si fra hvis du vil holde en kort innledning.",
     createdAt: "2026-09-17T18:10:00+02:00",
-    reactions: [{ emoji: "👍", userIds: ["demo-tryggere", "amina"] }],
+    reactions: [{ emoji: "👍", userIds: ["petter", "amina"] }],
   },
   {
     id: "p-tr-local-2",
@@ -88,7 +94,7 @@ export const posts: SeedPost[] = [
   {
     id: "p-tr-4",
     communityId: "tryggere-ruspolitikk",
-    authorId: "linn",
+    authorId: "lars-bror-kristiansen",
     kind: "post",
     body:
       "Fra Tromsø: kommunen har sagt ja til å møte oss om lavterskeltilbudet i november. Det tok halvannet år og elleve e-poster, men nå står det i kalenderen.",
@@ -103,7 +109,6 @@ export const posts: SeedPost[] = [
     communityId: "tryggere-ruspolitikk",
     authorId: "amina",
     kind: "announcement",
-    pinned: true,
     title: "Årsmøtet blir 14. november i Oslo",
     body:
       "Datoen er endelig satt. Årsmøtet holdes lørdag 14. november på Litteraturhuset, med digital deltakelse for dem som ikke kan møte fysisk.\n\nSaker som skal behandles må være styret i hende senest 17. oktober. Innkalling med fullstendig saksliste kommer i midten av oktober.",
@@ -144,7 +149,7 @@ export const posts: SeedPost[] = [
   {
     id: "p-tu-3",
     communityId: "tryggere-ungdom",
-    authorId: "adrian",
+    authorId: "emma-mortensen",
     kind: "post",
     body:
       "Filmkvelden i Bergen ble fullere enn vi trodde — sytten stykker i et rom med plass til tolv. Vi fikk låne stoler fra naboen i gangen.\n\nNeste gang booker vi det store rommet. Takk til alle som kom, og til han som tok med hjemmebakt.",
@@ -154,7 +159,7 @@ export const posts: SeedPost[] = [
   {
     id: "p-tu-4",
     communityId: "tryggere-ungdom",
-    authorId: "petter",
+    authorId: "ingrid",
     kind: "post",
     title: "Hvordan snakker vi med de yngste?",
     body:
@@ -201,17 +206,6 @@ export const posts: SeedPost[] = [
     reactions: [{ emoji: "🙋", userIds: ["ingrid", "oskar"] }],
   },
   {
-    id: "p-utr-3",
-    communityId: "under-the-rug",
-    authorId: "oskar",
-    kind: "post",
-    title: "Plakatutkast til september",
-    body:
-      "La tre utkast i mappa. Jeg lener mot det andre — mindre tekst, større flate, og det fungerer bedre i A3 enn på skjerm. Si fra hvis noe skurrer med lesbarheten, jeg har stirret på det for lenge.",
-    createdAt: "2026-09-01T22:47:00+02:00",
-    reactions: [{ emoji: "👀", userIds: ["marte", "vilde"] }],
-  },
-  {
     id: "p-utr-4",
     communityId: "under-the-rug",
     authorId: "vilde",
@@ -231,15 +225,5 @@ export const posts: SeedPost[] = [
       "Vi har bygget om de to bunnkassene og byttet delefilteret. Forskjellen er tydelig under 40 Hz, og vi slipper klippingen vi hadde i mai.\n\nJeg vil gjerne teste det med publikum i rommet før 26. Er det noen som kan stille en kveld i uke 38?",
     createdAt: "2026-08-31T19:05:00+02:00",
     reactions: [{ emoji: "🔊", userIds: ["eirik", "jonas", "tobias"] }],
-  },
-  {
-    id: "p-utr-6",
-    communityId: "under-the-rug",
-    authorId: "jonas",
-    kind: "post",
-    body:
-      "Sitter i studio i Bergen denne uka og jobber med noe som begynner å likne et live-sett. Hvis noen har lyst til å høre på en halvferdig skisse og være ærlig, si fra.",
-    createdAt: "2026-08-28T21:03:00+02:00",
-    reactions: [{ emoji: "👂", userIds: ["sindre", "tobias", "marte"] }],
   },
 ];

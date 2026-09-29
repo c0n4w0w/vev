@@ -175,6 +175,19 @@ for (const post of posts) {
     activeMembers(post.communityId).has(post.authorId),
     `${post.id}: ${post.authorId}`,
   );
+  // The feed is staff-published (posts_insert). A fixture written by an
+  // ordinary member would show the demo a state the product cannot reach.
+  check(
+    "innlegg i feeden er skrevet av administrator eller moderator",
+    allMemberships.some(
+      (m) =>
+        m.userId === post.authorId &&
+        m.communityId === post.communityId &&
+        m.status === "active" &&
+        (m.role === "admin" || m.role === "moderator"),
+    ),
+    `${post.id}: ${post.authorId} i ${post.communityId}`,
+  );
   for (const reaction of post.reactions) {
     for (const userId of reaction.userIds) {
       check("reaksjon peker på en ekte bruker", userIds.has(userId), `${post.id}: ${userId}`);

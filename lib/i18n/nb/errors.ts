@@ -16,7 +16,7 @@ export const errors = {
   "err.postEditOwn": "Du kan bare endre dine egne innlegg.",
   "err.postDeleteDenied": "Du har ikke tilgang til å slette dette innlegget.",
   "err.pinDenied": "Du har ikke tilgang til å feste innlegg her.",
-  "err.publishDenied": "Du har ikke tilgang til å publisere dette her.",
+  "err.publishDenied": "Bare administratorer og moderatorer kan publisere i feeden.",
   "err.postSaveFailed": "Innlegget kunne ikke lagres. Prøv igjen.",
   "err.commentEmpty": "Kommentaren kan ikke være tom.",
   "err.commentEditOwn": "Du kan bare endre dine egne kommentarer.",

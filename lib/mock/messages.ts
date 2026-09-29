@@ -324,6 +324,30 @@ export const messages: Message[] = [
     createdAt: "2026-09-06T12:41:00+02:00",
     reactions: [{ emoji: "🙏", userIds: ["sindre"] }],
   },
+  // Jonas's studio note and its replies were a feed post before the feed
+  // became staff-only. It is member conversation, so it lives here now.
+  {
+    id: "m-76",
+    channelId: "under-the-rug--generelt",
+    authorId: "jonas",
+    body: "Sitter i studio i Bergen denne uka og jobber med noe som begynner å likne et live-sett. Hvis noen har lyst til å høre på en halvferdig skisse og være ærlig, si fra.",
+    createdAt: "2026-08-28T21:03:00+02:00",
+    reactions: [{ emoji: "👂", userIds: ["sindre", "tobias", "marte"] }],
+  },
+  {
+    id: "m-77",
+    channelId: "under-the-rug--generelt",
+    authorId: "sindre",
+    body: "Send den. Jeg lover å være ærlig, og det er ikke alltid hyggelig.",
+    createdAt: "2026-08-28T21:40:00+02:00",
+  },
+  {
+    id: "m-78",
+    channelId: "under-the-rug--generelt",
+    authorId: "tobias",
+    body: "Samme her. Send den i to versjoner hvis du er i tvil om noe.",
+    createdAt: "2026-08-29T09:10:00+02:00",
+  },
 
   // ── Under The Rug / #kunngjoringer ───────────────────────────────────
   {
@@ -401,6 +425,37 @@ export const messages: Message[] = [
     body: "Oppdatert teknisk rider ligger i mappa. Viktigste endring er kravet om separat strømkurs til modulærsystemet.",
     createdAt: "2026-09-03T14:08:00+02:00",
     attachment: { kind: "file", label: "utr-rider-host-2026.pdf", meta: "PDF · 310 KB" },
+  },
+  // Oskar's poster drafts, formerly a feed post with comments. Work in
+  // progress between members belongs in the project channel.
+  {
+    id: "m-79",
+    channelId: "under-the-rug--pagaende-prosjekter",
+    authorId: "oskar",
+    body: "Plakatutkast til september: la tre utkast i mappa. Jeg lener mot det andre — mindre tekst, større flate, og det fungerer bedre i A3 enn på skjerm. Si fra hvis noe skurrer med lesbarheten, jeg har stirret på det for lenge.",
+    createdAt: "2026-09-01T22:47:00+02:00",
+    reactions: [{ emoji: "👀", userIds: ["marte", "vilde"] }],
+  },
+  {
+    id: "m-80",
+    channelId: "under-the-rug--pagaende-prosjekter",
+    authorId: "vilde",
+    body: "Nummer to, klart. Den første er penere på skjerm, men den andre overlever å bli hengt opp på en vegg i regnet.",
+    createdAt: "2026-09-02T08:15:00+02:00",
+  },
+  {
+    id: "m-81",
+    channelId: "under-the-rug--pagaende-prosjekter",
+    authorId: "marte",
+    body: "Enig i nummer to. Kan vi få datoen litt større?",
+    createdAt: "2026-09-02T09:30:00+02:00",
+  },
+  {
+    id: "m-82",
+    channelId: "under-the-rug--pagaende-prosjekter",
+    authorId: "oskar",
+    body: "Ja. Jeg øker den to punkter og flytter den over logoen.",
+    createdAt: "2026-09-02T10:05:00+02:00",
   },
 
   // ── Under The Rug / #samarbeid ───────────────────────────────────────

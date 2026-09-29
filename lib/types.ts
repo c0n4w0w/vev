@@ -243,6 +243,13 @@ export interface Post {
   communityId: string;
   /** Optional local group scope. Absent means community-wide. */
   localGroupId?: string;
+  /**
+   * The scoped local group's id and name, loaded with the post in the same
+   * query. Absent exactly when `localGroupId` is. The name is the
+   * organisation's own label for the unit ("FTR Oslo", "TU UiO") and is shown
+   * verbatim as the post's scope badge.
+   */
+  localGroup?: { id: string; name: string };
   authorId: string;
   /** Optional headline; short updates have none. */
   title?: string;

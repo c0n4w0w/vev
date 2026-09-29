@@ -235,28 +235,6 @@ export const comments: Comment[] = [
     createdAt: "2026-09-05T07:40:00+02:00",
   },
   {
-    id: "c-utr-6",
-    postId: "p-utr-3",
-    authorId: "vilde",
-    body: "Nummer to, klart. Den første er penere på skjerm, men den andre overlever å bli hengt opp på en vegg i regnet.",
-    createdAt: "2026-09-02T08:15:00+02:00",
-  },
-  {
-    id: "c-utr-7",
-    postId: "p-utr-3",
-    authorId: "marte",
-    body: "Enig i nummer to. Kan vi få datoen litt større?",
-    createdAt: "2026-09-02T09:30:00+02:00",
-  },
-  {
-    id: "c-utr-8",
-    postId: "p-utr-3",
-    authorId: "oskar",
-    parentId: "c-utr-7",
-    body: "Ja. Jeg øker den to punkter og flytter den over logoen.",
-    createdAt: "2026-09-02T10:05:00+02:00",
-  },
-  {
     id: "c-utr-9",
     postId: "p-utr-4",
     authorId: "eirik",
@@ -277,19 +255,5 @@ export const comments: Comment[] = [
     parentId: "c-utr-10",
     body: "Perfekt. Onsdag eller torsdag, si fra hva som passer.",
     createdAt: "2026-08-31T21:02:00+02:00",
-  },
-  {
-    id: "c-utr-12",
-    postId: "p-utr-6",
-    authorId: "sindre",
-    body: "Send den. Jeg lover å være ærlig, og det er ikke alltid hyggelig.",
-    createdAt: "2026-08-28T21:40:00+02:00",
-  },
-  {
-    id: "c-utr-13",
-    postId: "p-utr-6",
-    authorId: "tobias",
-    body: "Samme her. Send den i to versjoner hvis du er i tvil om noe.",
-    createdAt: "2026-08-29T09:10:00+02:00",
   },
 ];

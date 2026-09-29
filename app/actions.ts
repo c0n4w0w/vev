@@ -170,8 +170,10 @@ export async function createPostAction(
     localGroupId: String(formData.get("localGroupId") ?? "") || undefined,
     body: String(formData.get("body") ?? ""),
     title: String(formData.get("title") ?? ""),
-    // A tampered checkbox only reaches a policy that refuses it: publishing an
-    // announcement requires can_moderate() in the database.
+    // Whether the caller may publish at all is posts_insert's decision: only an
+    // active admin or moderator of this community, announcements included. A
+    // member who posts this form by hand reaches a policy that refuses it, and
+    // a local group from another community is refused by the foreign key.
     announcement: formData.get("announcement") === "on",
   });
 

@@ -203,11 +203,27 @@ function toDirectMessage(row: DirectMessageRow): DirectMessage {
   };
 }
 
-function toPost(row: PostRow): Post {
+/**
+ * Every post read selects its scoped local group in the same request, so a
+ * feed of twenty posts is one query rather than twenty-one, and no card ever
+ * looks its own group up.
+ *
+ * The embed runs under `community_local_groups_select`, which admits exactly
+ * the active members of the community — the same predicate as
+ * `posts_select`. Whoever can read the post can read its group's name, and
+ * the embed cannot surface a group the post does not already point at.
+ */
+const POST_SELECT =
+  "*, local_group:community_local_groups!posts_local_group_fkey(id, name)" as const;
+
+type PostWithGroupRow = PostRow & { local_group: { id: string; name: string } | null };
+
+function toPost(row: PostWithGroupRow): Post {
   return {
     id: row.id,
     communityId: row.community_id,
     localGroupId: row.local_group_id ?? undefined,
+    localGroup: row.local_group ? { id: row.local_group.id, name: row.local_group.name } : undefined,
     authorId: row.author_id,
     title: row.title ?? undefined,
     body: row.body,
@@ -1408,7 +1424,7 @@ export async function getFeed(communityId: string): Promise<Post[]> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("posts")
-    .select("*")
+    .select(POST_SELECT)
     .eq("community_id", communityId)
     .order("pinned", { ascending: false })
     .order("created_at", { ascending: false });
@@ -1419,7 +1435,7 @@ export async function getAnnouncements(communityId: string): Promise<Post[]> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("posts")
-    .select("*")
+    .select(POST_SELECT)
     .eq("community_id", communityId)
     .eq("kind", "announcement")
     .order("created_at", { ascending: false });
@@ -1435,7 +1451,7 @@ export async function getRecentLocalGroupPosts(
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("posts")
-    .select("*")
+    .select(POST_SELECT)
     .eq("community_id", communityId)
     .eq("local_group_id", localGroupId)
     .order("created_at", { ascending: false })
@@ -1455,7 +1471,7 @@ export async function getHomeFeed(_userId: string, limit = 8): Promise<Post[]> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("posts")
-    .select("*")
+    .select(POST_SELECT)
     .order("created_at", { ascending: false })
     .limit(limit);
   return rows(data).map(toPost);
@@ -1578,8 +1594,14 @@ export async function setPostPinned(
 
 /** Turns a Postgres message into something worth showing a person. */
 function postWriteError(message: string): MessageKey {
+  // posts_insert: only active admins and moderators may publish.
   if (message.includes("row-level security")) {
     return "err.publishDenied";
+  }
+  // A group from another community (composite foreign key) or a retired one
+  // (posts_local_group_active trigger).
+  if (message.includes("posts_local_group_fkey") || message.includes("Lokallaget finnes ikke")) {
+    return "err.localGroupSelectionRefused";
   }
   return "err.postSaveFailed";
 }

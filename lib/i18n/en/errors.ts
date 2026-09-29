@@ -13,7 +13,7 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.postEditOwn": "You can only edit your own posts.",
   "err.postDeleteDenied": "You don't have access to delete this post.",
   "err.pinDenied": "You don't have access to pin posts here.",
-  "err.publishDenied": "You don't have access to publish this here.",
+  "err.publishDenied": "Only admins and moderators can publish to the feed.",
   "err.postSaveFailed": "The post couldn't be saved. Try again.",
   "err.commentEmpty": "The comment can't be empty.",
   "err.commentEditOwn": "You can only edit your own comments.",

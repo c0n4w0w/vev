@@ -25,12 +25,14 @@ function PublishButton({ accent, disabled }: { accent: string; disabled: boolean
 }
 
 /**
- * Feed composer.
+ * Feed composer. Rendered only for active admins and moderators — the feed is
+ * the community's official surface, and members take part through comments and
+ * reactions. The database enforces the same rule on insert.
  *
  * The draft is only cleared once the server action reports that the row was
- * written. If the database refuses — a member trying to publish an
- * announcement, say — the text stays exactly where it was, with the reason
- * shown, so nothing anyone typed is lost to a failed write.
+ * written. If the database refuses — a role changed since the page loaded, or
+ * a local group was retired meanwhile — the text stays exactly where it was,
+ * with the reason shown, so nothing anyone typed is lost to a failed write.
  */
 export function Composer({
   user,

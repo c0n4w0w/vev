@@ -1542,6 +1542,10 @@ export type Database = {
         Args: { p_name: string }
         Returns: boolean
       }
+      can_read_post_scope: {
+        Args: { p_community_id: string; p_local_group_id: string }
+        Returns: boolean
+      }
       can_reply_direct_conversation: {
         Args: { p_conversation_id: string }
         Returns: boolean
@@ -1817,6 +1821,14 @@ export type Database = {
         }[]
       }
       portal_slug_by_id: { Args: { p_community_id: string }; Returns: string }
+      post_scope_admits: {
+        Args: {
+          p_community_id: string
+          p_local_group_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       reject_access_request: {
         Args: { p_request_id: string }
         Returns: boolean

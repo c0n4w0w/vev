@@ -36,9 +36,13 @@ export const community: Record<keyof typeof nb, string> = {
   // ── Feed and posts ────────────────────────────────────────────────────
   "feed.title": "Feed",
   "feed.lead": "Everything happening in {name} — posts and announcements, newest first.",
+  "feed.empty.title": "No posts yet",
+  "feed.empty.body": "Posts and announcements from {name} will appear here.",
   "post.editedAt": "Edited {time}",
   "post.announcement": "Announcement",
   "post.pinned": "Pinned",
+  // Read before the group name by screen readers: "Local group: FTR Oslo".
+  "post.scopePrefix": "Local group:",
   "post.titlePlaceholder": "Title",
   "post.pin": "Pin post",
   "post.unpin": "Unpin post",

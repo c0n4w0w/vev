@@ -35,9 +35,13 @@ export const community = {
   // ── Feed and posts ────────────────────────────────────────────────────
   "feed.title": "Feed",
   "feed.lead": "Alt som skjer i {name} — innlegg og kunngjøringer, nyeste først.",
+  "feed.empty.title": "Ingen innlegg ennå",
+  "feed.empty.body": "Innlegg og kunngjøringer fra {name} kommer her.",
   "post.editedAt": "Endret {time}",
   "post.announcement": "Kunngjøring",
   "post.pinned": "Festet",
+  // Read before the group name by screen readers: "Lokallag: FTR Oslo".
+  "post.scopePrefix": "Lokallag:",
   "post.titlePlaceholder": "Overskrift",
   "post.pin": "Fest innlegg",
   "post.unpin": "Løsne innlegg",

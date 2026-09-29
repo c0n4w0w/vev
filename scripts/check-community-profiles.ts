@@ -589,7 +589,15 @@ async function main() {
   expect("19: kunngjøringsvarselet navngir TU-profilen", announcement?.body.startsWith("K. (TU) publiserte"), true);
   expect("19: kunngjøringsvarselet nevner ikke kontonavnet", announcement?.body.includes("Kari Moen"), false);
 
-  const { data: ftrPost } = await admin.from("posts").select("id").eq("community_id", FTR).limit(1).single();
+  // A community-wide post: the silent member belongs to no local group, and a
+  // lokallag post is readable only by that group and the community's staff.
+  const { data: ftrPost } = await admin
+    .from("posts")
+    .select("id")
+    .eq("community_id", FTR)
+    .is("local_group_id", null)
+    .limit(1)
+    .single();
   const silentClient = applicant;
   const comment = await silentClient.from("comments").insert({ post_id: ftrPost!.id, body: "Kontroll: kommentar" }).select("id").single();
   expect("19: taust FTR-medlem kommenterer", comment.error, null);

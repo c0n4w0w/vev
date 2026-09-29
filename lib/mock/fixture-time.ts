@@ -17,7 +17,7 @@
  * newest post, comment and notification in the set. Move the fixtures forward
  * and this moves with them; the arithmetic takes care of itself.
  */
-export const FIXTURE_TODAY = "2026-09-06T12:00:00+02:00";
+export const FIXTURE_TODAY = "2026-09-17T18:10:00+02:00";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
