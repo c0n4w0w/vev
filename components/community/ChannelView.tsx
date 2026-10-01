@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Avatar, Badge, cn } from "@/components/ui/primitives";
+import { ChannelIntroCard } from "@/components/community/ChannelIntroCard";
 import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/community/EmojiPicker";
 import { IconAttach, IconHash, IconLock, IconSend } from "@/components/ui/icons";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
@@ -29,6 +30,7 @@ export function ChannelView({
   authors,
   currentUser,
   canPost,
+  canEdit,
   customEmojis,
   lastActivityLabel,
 }: {
@@ -39,6 +41,8 @@ export function ChannelView({
   /** The viewer as they appear in this community. */
   currentUser: CommunityPersona;
   canPost: boolean;
+  /** Active admin of this community: shows the pencil. The write is re-checked server-side. */
+  canEdit: boolean;
   /** This community's own custom emojis, for the picker and for rendering. */
   customEmojis: CommunityEmoji[];
   /**
@@ -110,7 +114,7 @@ export function ChannelView({
   return (
     <div className="flex h-full min-h-[calc(100dvh-3.25rem)] flex-col lg:min-h-dvh">
       <header className="sticky top-[3.25rem] z-20 border-b border-line bg-surface/95 px-5 py-3.5 backdrop-blur-sm lg:top-0 lg:px-8">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-baseline gap-x-3 gap-y-1">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="flex items-center gap-1.5 text-[0.9375rem] font-medium text-ink">
             <IconHash size={16} className="text-ink-3" />
             {channel.name}
@@ -121,26 +125,18 @@ export function ChannelView({
               {t("channel.announcementsOnly")}
             </Badge>
           ) : null}
-          <p className="w-full text-[13px] text-ink-3 sm:w-auto sm:flex-1 sm:truncate">
-            {channel.purpose}
-          </p>
         </div>
       </header>
 
       <div className="flex-1 px-5 py-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
-          <div
-            className="mb-8 rounded-[6px] border border-line p-5"
-            style={{ backgroundColor: `${community.branding.accent}0a` }}
-          >
-            <h2 className="font-display text-lg text-ink">
-              {t("channel.start", { name: channel.name })}
-            </h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-2">{channel.purpose}</p>
-            <p className="mt-3 text-xs text-ink-3">
-              {t("channel.membersOnly", { name: community.name })}
-            </p>
-          </div>
+          <ChannelIntroCard
+            communityId={community.id}
+            communityName={community.name}
+            channel={channel}
+            canEdit={canEdit}
+            accent={community.branding.accent}
+          />
 
           <ol className="space-y-1">
             {messages.map((message, index) => {

@@ -62,6 +62,7 @@ export default async function ChannelPage({
         membership?.role === "admin" ||
         membership?.role === "moderator"
       }
+      canEdit={membership?.role === "admin" && membership.status === "active"}
       customEmojis={customEmojis}
       lastActivityLabel={
         messages.length > 0

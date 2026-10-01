@@ -32,6 +32,7 @@ import {
   startDirectConversation,
   startDirectConversationWithOrganizationPerson,
   setAcceptsMemberDms,
+  setChannelDetails,
   setCommunityAbout,
   setCommunityAvatar,
   setMyCommunityAvatar,
@@ -50,6 +51,7 @@ import type { NotificationFormState } from "@/lib/notification-form";
 import { REQUEST_SENT_KEY, normalizeDisplayName } from "@/lib/access-form";
 import type { CommentFormState } from "@/lib/comment-form";
 import { normalizeBio, type CommunityProfileFormState } from "@/lib/community-profile-form";
+import { normalizeChannelDetails, type ChannelEditFormState } from "@/lib/channel-edit-form";
 import { normalizeCommunityAbout, type CommunityAboutFormState } from "@/lib/community-about-form";
 import { inspectCommunityAvatar } from "@/lib/community-avatar-image";
 import {
@@ -989,6 +991,39 @@ export async function updateCommunityAboutAction(
   revalidatePath(`/community/${communityId}`);
   revalidatePath(`/community/${communityId}/settings`);
   return { status: "ok", about: result.about };
+}
+
+/**
+ * Updates a channel's display name and description.
+ *
+ * The pencil is shown to admins only, but that is presentation: the write is
+ * decided again by `set_channel_details()`, which checks that the caller is an
+ * active admin of this community and that the channel is in it.
+ */
+export async function updateChannelDetailsAction(
+  _prev: ChannelEditFormState,
+  formData: FormData,
+): Promise<ChannelEditFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const channelId = String(formData.get("channelId") ?? "");
+  const t = await translatorFor(communityId);
+
+  const input = normalizeChannelDetails(
+    String(formData.get("name") ?? ""),
+    String(formData.get("purpose") ?? ""),
+    t,
+  );
+  if (!input.ok) return { status: "error", message: input.message };
+
+  const result = await setChannelDetails(communityId, channelId, input.name, input.purpose);
+  if (!result.ok) return { status: "error", message: t(result.error) };
+
+  // The name is in the sidebar (layout) as well as the channel page.
+  revalidatePath("/", "layout");
+  return { status: "ok", name: result.name, purpose: result.purpose };
 }
 
 export async function setMyCommunityAvatarAction(

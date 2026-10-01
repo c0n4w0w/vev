@@ -2776,6 +2776,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      set_channel_details: {
+        Args: {
+          p_channel_id: string
+          p_community_id: string
+          p_name: string
+          p_purpose: string
+        }
+        Returns: {
+          name: string
+          purpose: string
+        }[]
+      }
       set_community_about: {
         Args: { p_about: string; p_community_id: string }
         Returns: string

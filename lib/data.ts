@@ -448,6 +448,37 @@ export async function setCommunityAbout(
   return { ok: true, about: data };
 }
 
+export type SetChannelDetailsResult =
+  | { ok: true; name: string; purpose: string }
+  | { ok: false; error: MessageKey };
+
+/**
+ * Changes a channel's display name and description.
+ *
+ * Goes through `set_channel_details()`, which decides from `auth.uid()` that
+ * the caller is an active admin of `communityId`, that the channel belongs to
+ * that community, and that the text is valid. It touches nothing but the two
+ * display fields, so the channel id (and with it URLs and message history)
+ * stays put. An empty result means the function refused.
+ */
+export async function setChannelDetails(
+  communityId: string,
+  channelId: string,
+  name: string,
+  purpose: string,
+): Promise<SetChannelDetailsResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_channel_details", {
+    p_community_id: communityId,
+    p_channel_id: channelId,
+    p_name: name,
+    p_purpose: purpose,
+  });
+  const row = data?.[0];
+  if (error || !row) return { ok: false, error: "err.channelEditFailed" };
+  return { ok: true, name: row.name, purpose: row.purpose };
+}
+
 /**
  * The public portal slug for a community id, regardless of whether the caller
  * can see the community itself. Used only by the access guard, so that someone
