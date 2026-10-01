@@ -117,7 +117,7 @@ export function DirectConversationView({
               </p>
             </div>
           ) : (
-            <ol className="space-y-1">
+            <ol>
               {messages.map((message, index) => {
                 const previous = messages[index - 1];
                 const author = people[message.authorId];
@@ -140,7 +140,7 @@ export function DirectConversationView({
 
                     <div
                       className={cn(
-                        "group flex gap-3",
+                        "group flex gap-2",
                         grouped ? "mt-1" : "mt-4",
                         mine && "flex-row-reverse",
                       )}
@@ -164,7 +164,7 @@ export function DirectConversationView({
                         {!grouped ? (
                           <p
                             className={cn(
-                              "mb-1 flex items-baseline gap-2",
+                              "mb-[3px] flex items-baseline gap-2",
                               mine && "justify-end",
                             )}
                           >
@@ -179,7 +179,7 @@ export function DirectConversationView({
 
                         <p
                           className={cn(
-                            "whitespace-pre-line rounded-[6px] px-3 py-2 text-[0.9375rem] leading-[1.55]",
+                            "whitespace-pre-line break-words rounded-[6px] px-3 py-2 text-[0.9375rem] leading-[1.55]",
                             mine
                               ? "bg-skog text-white"
                               : "border border-line bg-surface text-ink-2",
