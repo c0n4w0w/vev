@@ -740,10 +740,15 @@ async function main() {
   // it is there for a stated reason (unit labels, with the pending-invitee
   // exception pinned in P1–P12). Everything else — including the Joined/Left
   // helper — returns a single value.
+  //
+  // The rest of the list predates collaborations, except set_channel_details
+  // (admin channel editing), which came after. Like set_community_avatar it is
+  // an admin-only setter that returns the one row it stored — that channel's
+  // own name and purpose, matched on the primary key — and no person fields.
   expect(
     "68/70: ingen nye mengdereturnerende funksjoner utenom collaboration_units",
     sql("select string_agg(p.proname, ',' order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proretset"),
-    "accept_invitation_token,access_request_history,approve_access_request,collaboration_units,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,invitation_preview,local_group_member_counts,organization_person_dm_actions,portal_by_slug,portal_events,resend_invitation,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person",
+    "accept_invitation_token,access_request_history,approve_access_request,collaboration_units,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,invitation_preview,local_group_member_counts,organization_person_dm_actions,portal_by_slug,portal_events,resend_invitation,set_channel_details,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person",
   );
   const unitsResult = sql("select pg_get_function_result('public.collaboration_units(uuid)'::regprocedure)");
   expect("68: collaboration_units returnerer ingen personfelt", /user|email|handle|member|profile|count/.test(unitsResult), false);
