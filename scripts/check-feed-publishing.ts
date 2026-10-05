@@ -728,7 +728,12 @@ async function main() {
       .eq("id", kristofferMembership.id);
     await admin.from("memberships").update({ local_group_id: adrianMembership.local_group_id }).eq("id", adrianMembership.id);
     await admin.from("memberships").update({ local_group_id: null }).eq("user_id", await profileId("linn")).eq("community_id", TR);
-    if (sameNameGroup) await admin.from("community_local_groups").delete().eq("id", sameNameGroup);
+    if (sameNameGroup) {
+      // Every group gets a lokallag chat channel, and a group with a channel
+      // cannot be deleted (that protects chat history), so the channel goes first.
+      await admin.from("channels").delete().eq("local_group_id", sameNameGroup);
+      await admin.from("community_local_groups").delete().eq("id", sameNameGroup);
+    }
     for (const id of created) await admin.from("posts").delete().eq("id", id);
     await admin.from("posts").delete().like("body", `${MARK}%`);
     await admin.from("notifications").delete().like("title", `%${MARK}%`);

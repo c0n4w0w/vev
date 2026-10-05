@@ -60,6 +60,9 @@ export function ChannelView({
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const insertText = useComposerInsert(composerRef, draft, setDraft);
+  // Who can read this conversation: the local group for a lokallag channel
+  // (whose name is the group's), otherwise the whole community.
+  const audienceName = channel.localGroupId ? channel.name : community.name;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -132,7 +135,7 @@ export function ChannelView({
         <div className="mx-auto max-w-3xl">
           <ChannelIntroCard
             communityId={community.id}
-            communityName={community.name}
+            audienceName={audienceName}
             channel={channel}
             canEdit={canEdit}
             accent={community.branding.accent}
@@ -277,7 +280,7 @@ export function ChannelView({
             </p>
           ) : null}
           <p className="mt-2 text-[11px] text-ink-3">
-            {t("channel.footer", { name: community.name })}
+            {t("channel.footer", { name: audienceName })}
             {lastActivityLabel ? ` ${t("channel.lastActivity", { when: lastActivityLabel })}` : ""}
           </p>
         </div>

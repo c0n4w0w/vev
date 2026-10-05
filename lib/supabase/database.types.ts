@@ -115,6 +115,7 @@ export type Database = {
           community_id: string
           group_id: string
           id: string
+          local_group_id: string | null
           name: string
           position: number
           purpose: string
@@ -124,6 +125,7 @@ export type Database = {
           community_id: string
           group_id: string
           id: string
+          local_group_id?: string | null
           name: string
           position?: number
           purpose: string
@@ -133,6 +135,7 @@ export type Database = {
           community_id?: string
           group_id?: string
           id?: string
+          local_group_id?: string | null
           name?: string
           position?: number
           purpose?: string
@@ -152,6 +155,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "channel_groups"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channels_local_group_fkey"
+            columns: ["local_group_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_local_groups"
+            referencedColumns: ["id", "community_id"]
           },
         ]
       }
@@ -2251,6 +2261,10 @@ export type Database = {
       can_moderate: { Args: { cid: string }; Returns: boolean }
       can_moderate_post: { Args: { pid: string }; Returns: boolean }
       can_read_channel: { Args: { chid: string }; Returns: boolean }
+      can_read_channel_scope: {
+        Args: { p_community_id: string; p_local_group_id: string }
+        Returns: boolean
+      }
       can_read_collaboration_file_object: {
         Args: { p_name: string }
         Returns: boolean
@@ -2308,6 +2322,14 @@ export type Database = {
         Returns: boolean
       }
       can_view_member_directory: { Args: { cid: string }; Returns: boolean }
+      channel_scope_admits: {
+        Args: {
+          p_community_id: string
+          p_local_group_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       collaboration_assignees_valid: {
         Args: {
           p_assignee_ids: string[]
@@ -2526,6 +2548,10 @@ export type Database = {
         Args: { p_community_id: string; p_user_id: string }
         Returns: undefined
       }
+      ensure_local_group_channel: {
+        Args: { p_local_group_id: string }
+        Returns: string
+      }
       has_collaboration_access: {
         Args: { p_collaboration_id: string }
         Returns: boolean
@@ -2584,6 +2610,7 @@ export type Database = {
         Args: { p_participant_id: string }
         Returns: boolean
       }
+      local_group_channel_name: { Args: { p_name: string }; Returns: string }
       local_group_member_counts: {
         Args: { p_community_id: string }
         Returns: {
@@ -2735,6 +2762,18 @@ export type Database = {
         Args: { p_community_id: string; p_value: boolean }
         Returns: boolean
       }
+      set_channel_details: {
+        Args: {
+          p_channel_id: string
+          p_community_id: string
+          p_name: string
+          p_purpose: string
+        }
+        Returns: {
+          name: string
+          purpose: string
+        }[]
+      }
       set_collaboration_channel_status: {
         Args: {
           p_channel_id: string
@@ -2775,18 +2814,6 @@ export type Database = {
           p_task_id: string
         }
         Returns: boolean
-      }
-      set_channel_details: {
-        Args: {
-          p_channel_id: string
-          p_community_id: string
-          p_name: string
-          p_purpose: string
-        }
-        Returns: {
-          name: string
-          purpose: string
-        }[]
       }
       set_community_about: {
         Args: { p_about: string; p_community_id: string }

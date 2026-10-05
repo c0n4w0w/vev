@@ -62,7 +62,11 @@ export default async function ChannelPage({
         membership?.role === "admin" ||
         membership?.role === "moderator"
       }
-      canEdit={membership?.role === "admin" && membership.status === "active"}
+      // A lokallag channel's name follows its group and set_channel_details()
+      // refuses it, so there is nothing to offer here.
+      canEdit={
+        membership?.role === "admin" && membership.status === "active" && !channel.localGroupId
+      }
       customEmojis={customEmojis}
       lastActivityLabel={
         messages.length > 0

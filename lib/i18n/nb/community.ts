@@ -197,6 +197,7 @@ export const community = {
   "lokallag.retired":
     "Dette lokallaget er avviklet. Du beholder tilknytningen, men den kan ikke velges på nytt.",
   "lokallag.change": "Endre lokallag",
+  "lokallag.openChat": "Åpne lokallagschatten",
   "lokallag.nextActivity": "Neste aktivitet",
   "lokallag.noEvents.title": "Ingen lokale arrangementer akkurat nå",
   "lokallag.noEvents.body": "Det er ingen lokale arrangementer planlagt for dette lokallaget ennå.",

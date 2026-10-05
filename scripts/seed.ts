@@ -268,6 +268,24 @@ async function main() {
       `(${communityPolicies.filter((p) => p.memberDirectoryVisibility === "admin_only").length} med lukket medlemsliste)`,
   );
 
+  // Channel sections, before local groups: inserting a group creates its
+  // lokallag chat channel (local_group_channel_sync), which is filed under the
+  // `lokallag` section.
+  fail(
+    "kanalgrupper",
+    (
+      await supabase
+        .from("channel_groups")
+        .insert(
+          channelGroups.map((group, index) => ({
+            id: group.id,
+            label: group.label,
+            position: index,
+          })),
+        )
+    ).error,
+  );
+
   // Local groups, before memberships so an affiliation has something to point
   // at. Communities absent from the fixture get none, which is how the feature
   // stays out of Under The Rug without anything checking its slug.
@@ -328,21 +346,6 @@ async function main() {
   console.log(`  ${communityPeople.length} offentlige organisasjonspersoner`);
 
   fail(
-    "kanalgrupper",
-    (
-      await supabase
-        .from("channel_groups")
-        .insert(
-          channelGroups.map((group, index) => ({
-            id: group.id,
-            label: group.label,
-            position: index,
-          })),
-        )
-    ).error,
-  );
-
-  fail(
     "kanaler",
     (
       await supabase.from("channels").insert(
@@ -358,7 +361,7 @@ async function main() {
       )
     ).error,
   );
-  console.log(`  ${channels.length} kanaler`);
+  console.log(`  ${channels.length} kanaler (+ ${localGroups.length} lokallagskanaler fra databasen)`);
 
   fail(
     "medlemskap",

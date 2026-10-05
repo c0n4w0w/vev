@@ -15,6 +15,7 @@ import {
 import { IconArrowRight, IconMapPin } from "@/components/ui/icons";
 import {
   getCommunityById,
+  getLocalGroupChannel,
   getLocalGroupLeader,
   getLocalGroupMemberCounts,
   getLocalGroups,
@@ -135,9 +136,14 @@ export default async function LocalGroupsPage({
         getRecentLocalGroupPosts(community.id, selected.id, 3),
       ])
     : [[], []];
-  const localLeader = selected
-    ? await getLocalGroupLeader(community.id, selected.id)
-    : undefined;
+  const [localLeader, localChannel] = selected
+    ? await Promise.all([
+        getLocalGroupLeader(community.id, selected.id),
+        // Read through the same channels_select policy as the sidebar, so the
+        // link exists exactly when the chat is open to this member.
+        getLocalGroupChannel(community.id, selected.id),
+      ])
+    : [undefined, undefined];
   const organizationDmActions = localLeader
     ? await getOrganizationPersonDmActions(community.id)
     : new Map<string, string | undefined>();
@@ -185,9 +191,20 @@ export default async function LocalGroupsPage({
                   )}
                 </div>
               </div>
-              <a href="#endre-lokallag" className={buttonClass({ variant: "secondary", size: "sm" })}>
-                {t("lokallag.change")}
-              </a>
+              <div className="flex flex-wrap items-center gap-2">
+                {localChannel ? (
+                  <Link
+                    href={`/community/${community.id}/channel/${localChannel.id}`}
+                    className={buttonClass({ variant: "primary", size: "sm" })}
+                  >
+                    {t("lokallag.openChat")}
+                    <IconArrowRight size={14} />
+                  </Link>
+                ) : null}
+                <a href="#endre-lokallag" className={buttonClass({ variant: "secondary", size: "sm" })}>
+                  {t("lokallag.change")}
+                </a>
+              </div>
             </div>
 
             <SectionHeading

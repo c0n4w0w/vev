@@ -594,7 +594,16 @@ async function main() {
   // there, so he cannot see her yet; once she takes part, he sees exactly her
   // TU persona and nothing else.
   expect("19: før deltakelse ser TU-medlem ikke Kari", (await visibleRows(adrian, ids.kari)).length, 0);
-  const { data: tuChannel } = await admin.from("channels").select("id").eq("community_id", TU).eq("read_only", false).limit(1).single();
+  // A community-wide channel: lokallag channels admit only their own group.
+  const { data: tuChannel } = await admin
+    .from("channels")
+    .select("id")
+    .eq("community_id", TU)
+    .eq("read_only", false)
+    .is("local_group_id", null)
+    .order("position", { ascending: true })
+    .limit(1)
+    .single();
   const tuMessage = await kari.from("messages").insert({ channel_id: tuChannel!.id, body: "Kontroll: kanalmelding" }).select("id").single();
   expect("19: Kari skriver i en TU-kanal", tuMessage.error, null);
   if (tuMessage.data) created.messages.push(tuMessage.data.id);

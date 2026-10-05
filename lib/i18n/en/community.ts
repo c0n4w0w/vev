@@ -199,6 +199,7 @@ export const community: Record<keyof typeof nb, string> = {
   "lokallag.retired":
     "This local group has been retired. You keep your affiliation, but it can't be selected again.",
   "lokallag.change": "Change local group",
+  "lokallag.openChat": "Open the local group chat",
   "lokallag.nextActivity": "Next activity",
   "lokallag.noEvents.title": "No local events right now",
   "lokallag.noEvents.body": "No local events are planned for this local group yet.",

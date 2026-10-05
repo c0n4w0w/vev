@@ -223,6 +223,11 @@ export interface Channel {
   purpose: string;
   /** Only moderators and admins may post. */
   readOnly?: boolean;
+  /**
+   * Set for a lokallag chat channel. Only members of exactly that local group
+   * can read it (enforced by RLS), and its name follows the group's name.
+   */
+  localGroupId?: string;
 }
 
 export interface Message {

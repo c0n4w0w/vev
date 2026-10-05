@@ -94,6 +94,10 @@ export const communities: Community[] = [
 export const channelGroups: ChannelGroup[] = [
   { id: "generelt", label: "Generelt" },
   { id: "prosjekter", label: "Prosjekter" },
+  // Lokallag chat channels. Not listed in `channels` below: the database
+  // creates one per local group (community_local_groups trigger), and each
+  // member only ever sees their own group's.
+  { id: "lokallag", label: "Mitt lokallag" },
 ];
 
 const channelBlueprint: Omit<Channel, "communityId" | "id">[] = [

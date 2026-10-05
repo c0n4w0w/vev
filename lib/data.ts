@@ -178,6 +178,7 @@ function toChannel(row: ChannelRow): Channel {
     name: row.name,
     purpose: row.purpose,
     readOnly: row.read_only || undefined,
+    localGroupId: row.local_group_id ?? undefined,
   };
 }
 
@@ -1005,6 +1006,20 @@ export async function getGroupedChannels(communityId: string) {
       channels: channels.filter((channel) => channel.groupId === group.id),
     }))
     .filter((entry) => entry.channels.length > 0);
+}
+
+/**
+ * The chat channel of one local group, if the caller may read it.
+ *
+ * `channels_select` admits a lokallag channel only to members whose membership
+ * is in exactly that group, so this returns nothing for anyone else — admins
+ * and moderators included. No access decision is made here.
+ */
+export async function getLocalGroupChannel(
+  communityId: string,
+  localGroupId: string,
+): Promise<Channel | undefined> {
+  return (await loadChannels(communityId)).find((channel) => channel.localGroupId === localGroupId);
 }
 
 export async function getDefaultChannel(communityId: string) {
