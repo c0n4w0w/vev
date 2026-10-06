@@ -92,6 +92,12 @@ export const errors: Record<keyof typeof nb, string> = {
     "That local group couldn't be selected. It may have been retired, or belong to another community.",
   "err.localGroupAdminRefused":
     "The change wasn't made. Only administrators of this community can edit local groups.",
+  "err.eventScopedNotPublic":
+    "An event for a local group or a team can't be open to the public. Untick the public option, or choose the whole community.",
+  "err.subgroupPickMember": "Choose a member to add.",
+  "err.subgroupAddRefused":
+    "The member wasn't added. They may already be in the group, not be an active member, or you aren't allowed to change this group.",
+  "err.subgroupRemoveRefused": "The member wasn't removed. You aren't allowed to change this group.",
   "err.localGroupNameRequired": "The local group needs a name.",
 
   // ── Settings, requests and invitations ────────────────────────────────

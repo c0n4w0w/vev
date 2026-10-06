@@ -6,13 +6,15 @@
  * The rules under test:
  *
  *   create (20260930120000_feed_posts_staff_only)
- *     feed posts — active admins and moderators of that community only
+ *     feed posts — active admins and moderators of that community only,
+ *     and only into a scope they can read themselves (20261005100000)
  *     announcements and pinning — can_moderate(), exactly as before
  *
- *   read (20260930130000_lokallag_post_visibility)
+ *   read (20260930130000_lokallag_post_visibility, narrowed for moderators in
+ *   20261005100000_community_subgroups)
  *     community-wide post — every active member of the community
  *     lokallag post       — active members of that group, and the community's
- *                           active admins and moderators
+ *                           active admins (moderators only for their own group)
  *     comments, reactions — follow the post: read and write only where the
  *                           post itself is readable
  *
@@ -187,7 +189,7 @@ const UTR = "under-the-rug";
 
 async function main() {
   // Roles and local groups, from the seed:
-  //   larsbror    — admin, TR, no local group
+  //   miaminge    — admin, TR, no local group
   //   amina       — moderator, TR, FTR Oslo
   //   nadia       — moderator, TR, FTR Vestland
   //   ingrid      — moderator in TR (no group) and TU, ordinary member in UTR
@@ -202,7 +204,7 @@ async function main() {
   //   marte       — moderator, UTR
   //   sofie       — no memberships; given an inactive one below
   const handles = [
-    "larsbror",
+    "miaminge",
     "amina",
     "nadia",
     "ingrid",
@@ -218,7 +220,7 @@ async function main() {
     "sofie",
   ] as const;
   const sessions = await Promise.all(handles.map(sessionFor));
-  const [lars, amina, nadia, ingrid, kristoffer, petter, eli, linn, emma, hanne, adrian, octavio, marte, sofie] =
+  const [mia, amina, nadia, ingrid, kristoffer, petter, eli, linn, emma, hanne, adrian, octavio, marte, sofie] =
     sessions;
   const anon = anonymous();
 
@@ -232,7 +234,7 @@ async function main() {
   expect("forutsetning: Kristoffer er i FTR Oslo", (await membershipOf("kristoffer", TR)).local_group_id, ftrOslo);
   expect("forutsetning: Petter er i FTR Trøndelag", (await membershipOf("petter", TR)).local_group_id, ftrTrondelag);
   expect("forutsetning: Linn har ikke lokallag", (await membershipOf("linn", TR)).local_group_id, null);
-  expect("forutsetning: Lars er ikke i FTR Oslo", (await membershipOf("larsbror", TR)).local_group_id !== ftrOslo, true);
+  expect("forutsetning: Mia er ikke i FTR Oslo", (await membershipOf("miaminge", TR)).local_group_id !== ftrOslo, true);
   expect("forutsetning: Nadia er ikke i FTR Oslo", (await membershipOf("nadia", TR)).local_group_id !== ftrOslo, true);
 
   const postsBefore = await postCount();
@@ -257,7 +259,7 @@ async function main() {
 
   try {
     // ── Post creation ──────────────────────────────────────────────────
-    const adminPost = await publish(lars, TR, { title: "administrator, hele fellesskapet" });
+    const adminPost = await publish(mia, TR, { title: "administrator, hele fellesskapet" });
     expect("P1. administrator kan publisere til hele fellesskapet", adminPost.error?.message ?? "ok", "ok");
     expect("P1. og innlegget er ikke lokalt", adminPost.localGroupId, null);
 
@@ -299,17 +301,25 @@ async function main() {
     expect("ingen av de avviste forsøkene la igjen en rad", await postCount(), countBeforeRefusals);
 
     // ── Local-group scope on create ────────────────────────────────────
-    const osloPost = await publish(lars, TR, { localGroupId: ftrOslo, title: "administrator, FTR Oslo" });
+    const osloPost = await publish(mia, TR, { localGroupId: ftrOslo, title: "administrator, FTR Oslo" });
     expect("P8. administrator kan publisere til FTR Oslo", osloPost.error?.message ?? "ok", "ok");
     expect("P11. lokallaget er lagret som valgt", osloPost.localGroupId, ftrOslo);
     expect("P11. og står slik i databasen", (await stored(osloPost.id!)).local_group_id, ftrOslo);
 
-    // A moderator publishing to a group they are not in: nadia is Vestland.
-    const trondelagPost = await publish(nadia, TR, {
+    // Staff publish only into a scope they can read (20261005100000): a
+    // moderator into their own lokallag, an admin into any. nadia is Vestland.
+    const refusedForModerator = await publish(nadia, TR, {
       localGroupId: ftrTrondelag,
       title: "moderator, FTR Trøndelag",
     });
-    expect("P9. moderator kan publisere til et lokallag hun ikke selv er i", trondelagPost.error?.message ?? "ok", "ok");
+    expect("P9. moderator kan ikke publisere til et lokallag hun ikke selv er i", refusedForModerator.error !== null, true);
+    const ownGroupPost = await publish(amina, TR, { localGroupId: ftrOslo, title: "moderator, eget lokallag" });
+    expect("P9. moderator kan publisere til sitt eget lokallag", ownGroupPost.error?.message ?? "ok", "ok");
+    const trondelagPost = await publish(mia, TR, {
+      localGroupId: ftrTrondelag,
+      title: "administrator, FTR Trøndelag",
+    });
+    expect("P9. administrator kan publisere til et hvilket som helst lokallag", trondelagPost.error?.message ?? "ok", "ok");
     expect("P11. lokallaget er lagret som valgt", trondelagPost.localGroupId, ftrTrondelag);
 
     // ingrid moderates both TR and TU, so role cannot be what refuses these —
@@ -331,7 +341,7 @@ async function main() {
     const ftrModIntoTu = await publish(amina, TU, { localGroupId: tuOslo, title: "FTR-moderator i TU Oslo" });
     expect("P10. FTR-moderator kan ikke publisere i TU", ftrModIntoTu.error !== null, true);
 
-    const scopeMove = await lars
+    const scopeMove = await mia
       .from("posts")
       .update({ local_group_id: ftrTrondelag })
       .eq("id", osloPost.id!)
@@ -342,7 +352,7 @@ async function main() {
     // ── Reading: community-wide ────────────────────────────────────────
     expect("1. vanlig medlem leser innlegg for hele fellesskapet", await canRead(linn, adminPost.id!), true);
     expect("1. også et medlem i et lokallag", await canRead(petter, adminPost.id!), true);
-    expect("2. administrator leser det", await canRead(lars, adminPost.id!), true);
+    expect("2. administrator leser det", await canRead(mia, adminPost.id!), true);
     expect("3. moderator leser det", await canRead(nadia, adminPost.id!), true);
     expect("4. UTR-administrator leser det ikke", await canRead(octavio, adminPost.id!), false);
     expect("4. TU-moderator leser det ikke", await canRead(hanne, adminPost.id!), false);
@@ -354,9 +364,10 @@ async function main() {
     expect("6. medlem i FTR Trøndelag leser ikke Oslo-innlegget", await canRead(petter, osloPost.id!), false);
     expect("6. heller ikke showcase-medlemmet i Trøndelag", await canRead(eli, osloPost.id!), false);
     expect("7. medlem uten lokallag leser ikke Oslo-innlegget", await canRead(linn, osloPost.id!), false);
-    expect("8. administrator leser Oslo-innlegget uten å være i Oslo", await canRead(lars, osloPost.id!), true);
-    expect("9. moderator leser Oslo-innlegget uten å være i Oslo", await canRead(nadia, osloPost.id!), true);
-    expect("9. også moderator uten lokallag", await canRead(ingrid, osloPost.id!), true);
+    expect("8. administrator leser Oslo-innlegget uten å være i Oslo", await canRead(mia, osloPost.id!), true);
+    expect("9. moderator utenfor Oslo leser ikke Oslo-innlegget", await canRead(nadia, osloPost.id!), false);
+    expect("9. heller ikke moderator uten lokallag", await canRead(ingrid, osloPost.id!), false);
+    expect("9. moderator i Oslo leser Oslo-innlegget", await canRead(amina, osloPost.id!), true);
     expect("10. TU-administrator leser ikke FTR Oslo", await canRead(emma, osloPost.id!), false);
     expect("10. TU-moderator i TU Oslo leser ikke FTR Oslo", await canRead(hanne, osloPost.id!), false);
     expect("10. TU-medlem leser ikke FTR Oslo", await canRead(adrian, osloPost.id!), false);
@@ -405,19 +416,25 @@ async function main() {
     const { data: kristofferSeesComments } = await kristoffer.from("comments").select("id").eq("post_id", osloPost.id!);
     expect("13. Oslo-medlem leser kommentaren", (kristofferSeesComments ?? []).length, 1);
 
-    const adminComment = await lars
+    const adminComment = await mia
       .from("comments")
       .insert({ post_id: osloPost.id!, body: `${MARK}: administratoren svarer` })
       .select("id")
       .maybeSingle();
     expect("15. administrator kan kommentere Oslo-innlegget", adminComment.error?.message ?? "ok", "ok");
-    const modReply = await nadia
+    const outsideModReply = await nadia
+      .from("comments")
+      .insert({ post_id: osloPost.id!, parent_id: comment.data?.id, body: `${MARK}: moderatoren utenfra svarer` })
+      .select("id")
+      .maybeSingle();
+    expect("15. moderator utenfor Oslo kan ikke svare der", outsideModReply.error !== null, true);
+    const modReply = await amina
       .from("comments")
       .insert({ post_id: osloPost.id!, parent_id: comment.data?.id, body: `${MARK}: moderatoren svarer` })
       .select("id")
       .maybeSingle();
-    expect("15. moderator utenfor Oslo kan svare der", modReply.error?.message ?? "ok", "ok");
-    const modDelete = await nadia.from("comments").delete().eq("id", modReply.data!.id).select("id");
+    expect("15. moderator i Oslo kan svare der", modReply.error?.message ?? "ok", "ok");
+    const modDelete = await amina.from("comments").delete().eq("id", modReply.data!.id).select("id");
     expect("15. og moderere (slette) i tråden", (modDelete.data ?? []).length, 1);
     const petterDelete = await petter.from("comments").delete().eq("id", comment.data!.id).select("id");
     expect("14. Trøndelag-medlem kan ikke slette kommentaren", (petterDelete.data ?? []).length, 0);
@@ -500,7 +517,7 @@ async function main() {
     // An Oslo announcement, pinned: it is the newest post anywhere and the
     // newest pinned announcement in TR, so if any surface leaked it, it would
     // be first in line.
-    const osloAnnouncement = await publish(lars, TR, {
+    const osloAnnouncement = await publish(mia, TR, {
       kind: "announcement",
       localGroupId: ftrOslo,
       title: "Oslo, festet kunngjøring",
@@ -522,7 +539,7 @@ async function main() {
     const kristofferFeed = await feedIds(kristoffer, TR);
     expect("19. Oslo-medlemmets feed har Oslo-kunngjøringen øverst", kristofferFeed[0], osloAnnouncement.id);
     expect("19. og ikke Trøndelag-innlegget", kristofferFeed.includes(trondelagPost.id!), false);
-    const larsFeed = await feedIds(lars, TR);
+    const larsFeed = await feedIds(mia, TR);
     expect(
       "19. administratorens feed har alle lokallagene",
       [osloPost.id, osloAnnouncement.id, trondelagPost.id].every((id) => larsFeed.includes(id!)),
@@ -544,11 +561,11 @@ async function main() {
       .like("title", `%${MARK}: Oslo, festet kunngjøring%`);
     const notified = new Set((fanOut ?? []).map((row) => row.user_id));
     expect("varsel: Oslo-medlemmet får varsel", notified.has(await profileId("kristoffer")), true);
-    expect("varsel: moderator utenfor Oslo får varsel", notified.has(await profileId("nadia")), true);
+    expect("varsel: moderator utenfor Oslo får ikke varsel (kan ikke lese den)", notified.has(await profileId("nadia")), false);
     expect("varsel: moderator i Oslo får varsel", notified.has(await profileId("amina")), true);
     expect("varsel: Trøndelag-medlemmet får ikke varsel", notified.has(await profileId("petter")), false);
     expect("varsel: medlem uten lokallag får ikke varsel", notified.has(await profileId("linn")), false);
-    expect("varsel: forfatteren får ikke varsel", notified.has(await profileId("larsbror")), false);
+    expect("varsel: forfatteren får ikke varsel", notified.has(await profileId("miaminge")), false);
     expect("varsel: inaktivt medlemskap får ikke varsel", notified.has(sofieId), false);
 
     // ── Membership changes ─────────────────────────────────────────────
@@ -611,20 +628,28 @@ async function main() {
 
     // Present in the generated types (the generator ignores grants), refused
     // by the database: execute is revoked from every API role.
-    const askForOthers = await adrian.rpc("post_scope_admits", {
+    const askForOthers = await adrian.rpc("content_scope_admits", {
       p_user_id: await profileId("kristoffer"),
       p_community_id: TR,
       p_local_group_id: ftrOslo,
+      p_subgroup_id: null as unknown as string,
     });
     expect("24. den interne regelen kan ikke kalles for en annen bruker", askForOthers.error !== null, true);
-    const askForSelf = await hanne.rpc("can_read_post_scope", { p_community_id: TR, p_local_group_id: ftrOslo });
+    const askForSelf = await hanne.rpc("can_read_content_scope", {
+      p_community_id: TR,
+      p_local_group_id: ftrOslo,
+      p_subgroup_id: null as unknown as string,
+    });
     expect("24. TU-moderator får nei når hun spør om FTR Oslo", askForSelf.data, false);
 
-    const tuUioPost = await publish(hanne, TU, { localGroupId: tuUio, title: "TU UiO" });
-    expect("25. TU-moderator leser TU UiO uten å være i UiO", await canRead(hanne, tuUioPost.id!), true);
+    const hanneIntoUio = await publish(hanne, TU, { localGroupId: tuUio, title: "TU UiO fra moderator" });
+    expect("25. TU-moderator utenfor UiO kan ikke publisere i TU UiO", hanneIntoUio.error !== null, true);
+    const tuUioPost = await publish(emma, TU, { localGroupId: tuUio, title: "TU UiO" });
+    expect("25. TU-administrator publiserer i TU UiO", tuUioPost.error?.message ?? "ok", "ok");
+    expect("25. TU-moderator utenfor UiO leser ikke TU UiO", await canRead(hanne, tuUioPost.id!), false);
     expect("25. TU-administrator leser TU UiO", await canRead(emma, tuUioPost.id!), true);
-    expect("25. moderator i både TR og TU leser TU UiO", await canRead(ingrid, tuUioPost.id!), true);
-    expect("25. FTR-administrator leser ikke TU UiO", await canRead(lars, tuUioPost.id!), false);
+    expect("25. moderator i både TR og TU (uten lokallag) leser ikke TU UiO", await canRead(ingrid, tuUioPost.id!), false);
+    expect("25. FTR-administrator leser ikke TU UiO", await canRead(mia, tuUioPost.id!), false);
     expect("25. FTR-moderator leser ikke TU UiO", await canRead(nadia, tuUioPost.id!), false);
     expect("25. TU-medlem utenfor UiO leser ikke TU UiO", await canRead(adrian, tuUioPost.id!), false);
     const crossPin = await hanne.rpc("set_post_pinned", { p_post_id: osloPost.id!, p_pinned: true });
@@ -711,9 +736,11 @@ async function main() {
       .eq("id", legacy.data!.id)
       .select("id");
     expect("A22. medlem kan ikke feste sitt eget eldre innlegg", memberSelfPin.error !== null, true);
-    const modPin = await nadia.rpc("set_post_pinned", { p_post_id: osloPost.id!, p_pinned: true });
-    expect("A22. moderator utenfor Oslo kan feste Oslo-innlegget", modPin.data, true);
-    const adminUnpin = await lars.rpc("set_post_pinned", { p_post_id: osloPost.id!, p_pinned: false });
+    const outsidePin = await nadia.rpc("set_post_pinned", { p_post_id: osloPost.id!, p_pinned: true });
+    expect("A22. moderator utenfor Oslo kan ikke feste Oslo-innlegget", outsidePin.data, null);
+    const modPin = await amina.rpc("set_post_pinned", { p_post_id: osloPost.id!, p_pinned: true });
+    expect("A22. moderator i Oslo kan feste Oslo-innlegget", modPin.data, true);
+    const adminUnpin = await mia.rpc("set_post_pinned", { p_post_id: osloPost.id!, p_pinned: false });
     expect("A22. administrator kan løsne", adminUnpin.data, false);
     expect("A22. festingen står som administratoren satte den", (await stored(osloPost.id!)).pinned, false);
   } finally {
@@ -764,7 +791,7 @@ async function main() {
     process.exit(1);
   }
   console.log(`✓ ${checks} kontroller passerte`);
-  console.log("  staben publiserer; lokallagsinnlegg leses bare av lokallaget og staben");
+  console.log("  staben publiserer; lokallagsinnlegg leses bare av lokallaget og administratorene");
 }
 
 main().catch((error) => {

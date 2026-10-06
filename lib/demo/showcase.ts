@@ -41,7 +41,7 @@ export const showcases: Showcase[] = [
   {
     id: "ftr_admin",
     label: "Tryggere Ruspolitikk (admin)",
-    personaEmail: "lars.bror@demo.join-ting.no",
+    personaEmail: "mia.minge@demo.join-ting.no",
     landing: "/community/tryggere-ruspolitikk",
     demonstrates:
       "Foreningen Tryggere Ruspolitikk as the designated administrator: private member administration, access requests, account links and moderator assignment.",

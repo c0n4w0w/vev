@@ -21,6 +21,7 @@ import {
   IconMail,
   IconOverview,
   IconSettings,
+  IconShield,
   IconSmile,
   IconUser,
   IconUsers,
@@ -191,7 +192,7 @@ function communityNav(
  * set and only staff change it, unchanged by this. Hiding a link is tidiness —
  * every page and policy behind these refuses the wrong caller anyway.
  */
-function communityAdminNav(id: string, t: Translator) {
+function communityAdminNav(id: string, managesSubgroups: boolean, t: Translator) {
   return [
     {
       href: `/community/${id}/admin/members`,
@@ -199,6 +200,12 @@ function communityAdminNav(id: string, t: Translator) {
       icon: IconUsers,
       adminOnly: true,
     },
+    // Private teams: drawn for anyone who may manage at least one — an admin,
+    // or an explicit manager whatever their role. Not for every moderator:
+    // reading a team's content and managing its members are separate rights.
+    ...(managesSubgroups
+      ? [{ href: `/community/${id}/grupper`, label: t("shell.nav.subgroups"), icon: IconShield }]
+      : []),
     {
       href: `/community/${id}/organization-links`,
       label: t("shell.nav.accountLinks"),
@@ -325,7 +332,7 @@ function SidebarContent({
             {(() => {
               // Filtering happens before the heading is drawn, so a member who
               // administers nothing does not get an empty "Administrasjon".
-              const adminItems = communityAdminNav(current.community.id, t)
+              const adminItems = communityAdminNav(current.community.id, current.managesSubgroups, t)
                 .filter((item) => !item.adminOnly || current.membership.role === "admin")
                 .filter(
                   (item) =>

@@ -70,7 +70,7 @@ async function main() {
   const kristoffer = await signIn("kristoffer"); // ordinary member, FTR Oslo
   const petter = await signIn("petter"); // ordinary member, FTR Trøndelag
   const ingrid = await signIn("ingrid"); // moderator
-  const larsbror = await signIn("larsbror"); // admin
+  const miaminge = await signIn("miaminge"); // admin
 
   const { data: posts } = await admin
     .from("posts")
@@ -109,11 +109,13 @@ async function main() {
   const count = await kristoffer.client.from("posts").select("comment_count").eq("id", pinned.id).single();
   expect("kommentartallet på kortet øker", Number(count.data?.comment_count) >= 1, true);
 
-  // Local-group post: the group, staff, and nobody else.
+  // Local-group post: the group, the community's admins, and nobody else —
+  // moderators only for their own lokallag.
   expect("lokallagsmedlem kan kommentere", (await comment(petter, trondelag.id, "Overview-sjekk: lokallag")).error?.message ?? "ok", "ok");
   expect("lokallagsmedlem kan reagere", (await react(petter, trondelag.id, { emoji: "😮" })).error?.message ?? "ok", "ok");
-  expect("moderator kan kommentere lokallagsinnlegg", (await comment(ingrid, trondelag.id, "Overview-sjekk: moderator")).error?.message ?? "ok", "ok");
-  expect("admin kan reagere på lokallagsinnlegg", (await react(larsbror, trondelag.id, { emoji: "🎉" })).error?.message ?? "ok", "ok");
+  expect("admin kan kommentere lokallagsinnlegg", (await comment(miaminge, trondelag.id, "Overview-sjekk: admin")).error?.message ?? "ok", "ok");
+  expect("moderator utenfor lokallaget kan ikke kommentere", !!(await comment(ingrid, trondelag.id, "skal avvises")).error, true);
+  expect("admin kan reagere på lokallagsinnlegg", (await react(miaminge, trondelag.id, { emoji: "🎉" })).error?.message ?? "ok", "ok");
   expect("medlem utenfor lokallaget kan ikke kommentere", !!(await comment(kristoffer, trondelag.id, "skal avvises")).error, true);
   expect("medlem utenfor lokallaget kan ikke reagere", !!(await react(kristoffer, trondelag.id, { emoji: "👍" })).error, true);
   const hiddenComments = await kristoffer.client.from("comments").select("id").eq("post_id", trondelag.id);

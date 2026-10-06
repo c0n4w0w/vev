@@ -3,11 +3,28 @@ import type { CommunityEvent } from "@/lib/types";
 export type SeedEvent = CommunityEvent & {
   /** Human-readable fixture key; the seed resolves it to events.local_group_id. */
   localGroupName?: string;
+  /** Subgroup slug; the seed resolves it to events.subgroup_id. */
+  subgroupSlug?: string;
 };
 
 /** `isPublic` events are the only ones that appear on a community's portal. */
 export const events: SeedEvent[] = [
   // ── Tryggere Ruspolitikk ──────────────────────────────────────────────
+  {
+    id: "e-tr-safe-space-1",
+    communityId: "tryggere-ruspolitikk",
+    subgroupSlug: "safe-space-frivillige",
+    title: "Opplæring for Safe-Space-frivillige",
+    description:
+      "Gjennomgang av rutiner, samtaleteknikk og hvem som er vakthavende. Obligatorisk før første vakt.",
+    startsAt: "2026-09-26T17:00:00+02:00",
+    endsAt: "2026-09-26T19:00:00+02:00",
+    location: "Kontoret, Oslo",
+    isPublic: false,
+    hostId: "mia-minge",
+    attendeeIds: ["mia-minge", "erlend-thonstad", "kristoffer"],
+    capacity: 20,
+  },
   {
     id: "e-tr-local-1",
     communityId: "tryggere-ruspolitikk",

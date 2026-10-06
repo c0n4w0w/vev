@@ -7,7 +7,8 @@ import { IconPlus } from "@/components/ui/icons";
 import { createEventAction } from "@/app/actions";
 import { emptyEventFormState } from "@/lib/event-form";
 import { useT } from "@/lib/i18n/react";
-import type { LocalGroup } from "@/lib/types";
+import { ScopeOptions } from "@/components/community/ScopeOptions";
+import type { LocalGroup, Subgroup } from "@/lib/types";
 
 function Save({ accent }: { accent: string }) {
   const { pending } = useFormStatus();
@@ -44,11 +45,13 @@ export function EventComposer({
   communityName,
   accent,
   localGroups = [],
+  subgroups = [],
 }: {
   communityId: string;
   communityName: string;
   accent: string;
   localGroups?: LocalGroup[];
+  subgroups?: Subgroup[];
 }) {
   const t = useT();
   const [state, formAction] = useActionState(createEventAction, emptyEventFormState);
@@ -115,18 +118,13 @@ export function EventComposer({
           <input id="event-location" name="location" maxLength={120} className={field} />
         </div>
 
-        {localGroups.length > 0 ? (
+        {localGroups.length + subgroups.length > 0 ? (
           <div>
             <label htmlFor="event-local-group" className="label mb-1.5 block">
               {t("events.compose.visibility")}
             </label>
-            <select id="event-local-group" name="localGroupId" className={field}>
-              <option value="">{t("composer.wholeCommunity")}</option>
-              {localGroups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
+            <select id="event-local-group" name="scope" className={field}>
+              <ScopeOptions localGroups={localGroups} subgroups={subgroups} />
             </select>
           </div>
         ) : null}

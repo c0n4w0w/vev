@@ -120,6 +120,7 @@ export type Database = {
           position: number
           purpose: string
           read_only: boolean
+          subgroup_id: string | null
         }
         Insert: {
           community_id: string
@@ -130,6 +131,7 @@ export type Database = {
           position?: number
           purpose: string
           read_only?: boolean
+          subgroup_id?: string | null
         }
         Update: {
           community_id?: string
@@ -140,6 +142,7 @@ export type Database = {
           position?: number
           purpose?: string
           read_only?: boolean
+          subgroup_id?: string | null
         }
         Relationships: [
           {
@@ -161,6 +164,13 @@ export type Database = {
             columns: ["local_group_id", "community_id"]
             isOneToOne: false
             referencedRelation: "community_local_groups"
+            referencedColumns: ["id", "community_id"]
+          },
+          {
+            foreignKeyName: "channels_subgroup_fkey"
+            columns: ["subgroup_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_subgroups"
             referencedColumns: ["id", "community_id"]
           },
         ]
@@ -1494,6 +1504,126 @@ export type Database = {
           },
         ]
       }
+      community_subgroup_managers: {
+        Row: {
+          community_id: string
+          created_at: string
+          subgroup_id: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          subgroup_id: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          subgroup_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_subgroup_managers_subgroup_id_community_id_fkey"
+            columns: ["subgroup_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_subgroups"
+            referencedColumns: ["id", "community_id"]
+          },
+          {
+            foreignKeyName: "community_subgroup_managers_user_id_community_id_fkey"
+            columns: ["user_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["user_id", "community_id"]
+          },
+        ]
+      }
+      community_subgroup_members: {
+        Row: {
+          added_by: string | null
+          community_id: string
+          created_at: string
+          subgroup_id: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          community_id: string
+          created_at?: string
+          subgroup_id: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          community_id?: string
+          created_at?: string
+          subgroup_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_subgroup_members_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_subgroup_members_subgroup_id_community_id_fkey"
+            columns: ["subgroup_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_subgroups"
+            referencedColumns: ["id", "community_id"]
+          },
+          {
+            foreignKeyName: "community_subgroup_members_user_id_community_id_fkey"
+            columns: ["user_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["user_id", "community_id"]
+          },
+        ]
+      }
+      community_subgroups: {
+        Row: {
+          active: boolean
+          community_id: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          active?: boolean
+          community_id: string
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          active?: boolean
+          community_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_subgroups_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       direct_conversation_reads: {
         Row: {
           conversation_id: string
@@ -1667,6 +1797,7 @@ export type Database = {
           local_group_id: string | null
           location: string
           starts_at: string
+          subgroup_id: string | null
           title: string
         }
         Insert: {
@@ -1680,6 +1811,7 @@ export type Database = {
           local_group_id?: string | null
           location: string
           starts_at: string
+          subgroup_id?: string | null
           title: string
         }
         Update: {
@@ -1693,6 +1825,7 @@ export type Database = {
           local_group_id?: string | null
           location?: string
           starts_at?: string
+          subgroup_id?: string | null
           title?: string
         }
         Relationships: [
@@ -1715,6 +1848,13 @@ export type Database = {
             columns: ["local_group_id", "community_id"]
             isOneToOne: false
             referencedRelation: "community_local_groups"
+            referencedColumns: ["id", "community_id"]
+          },
+          {
+            foreignKeyName: "events_subgroup_fkey"
+            columns: ["subgroup_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_subgroups"
             referencedColumns: ["id", "community_id"]
           },
         ]
@@ -1911,6 +2051,7 @@ export type Database = {
           href: string
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
+          post_id: string | null
           read: boolean
           title: string
           user_id: string
@@ -1922,6 +2063,7 @@ export type Database = {
           href: string
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
+          post_id?: string | null
           read?: boolean
           title: string
           user_id: string
@@ -1933,6 +2075,7 @@ export type Database = {
           href?: string
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
+          post_id?: string | null
           read?: boolean
           title?: string
           user_id?: string
@@ -1943,6 +2086,13 @@ export type Database = {
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
             referencedColumns: ["id"]
           },
           {
@@ -2016,6 +2166,7 @@ export type Database = {
           local_group_id: string | null
           pinned: boolean
           reactions: Json
+          subgroup_id: string | null
           title: string | null
         }
         Insert: {
@@ -2030,6 +2181,7 @@ export type Database = {
           local_group_id?: string | null
           pinned?: boolean
           reactions?: Json
+          subgroup_id?: string | null
           title?: string | null
         }
         Update: {
@@ -2044,6 +2196,7 @@ export type Database = {
           local_group_id?: string | null
           pinned?: boolean
           reactions?: Json
+          subgroup_id?: string | null
           title?: string | null
         }
         Relationships: [
@@ -2066,6 +2219,13 @@ export type Database = {
             columns: ["local_group_id", "community_id"]
             isOneToOne: false
             referencedRelation: "community_local_groups"
+            referencedColumns: ["id", "community_id"]
+          },
+          {
+            foreignKeyName: "posts_subgroup_fkey"
+            columns: ["subgroup_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_subgroups"
             referencedColumns: ["id", "community_id"]
           },
         ]
@@ -2239,6 +2399,10 @@ export type Database = {
           status: Database["public"]["Enums"]["access_request_status"]
         }[]
       }
+      add_subgroup_member: {
+        Args: { p_subgroup_id: string; p_user_id: string }
+        Returns: boolean
+      }
       administers_pending_membership: {
         Args: { other: string }
         Returns: boolean
@@ -2254,27 +2418,30 @@ export type Database = {
         }[]
       }
       can_access_post: { Args: { pid: string }; Returns: boolean }
+      can_access_subgroup: { Args: { p_subgroup_id: string }; Returns: boolean }
       can_discard_collaboration_file_object: {
         Args: { p_name: string }
         Returns: boolean
       }
+      can_manage_subgroup: { Args: { p_subgroup_id: string }; Returns: boolean }
       can_moderate: { Args: { cid: string }; Returns: boolean }
       can_moderate_post: { Args: { pid: string }; Returns: boolean }
       can_read_channel: { Args: { chid: string }; Returns: boolean }
-      can_read_channel_scope: {
-        Args: { p_community_id: string; p_local_group_id: string }
-        Returns: boolean
-      }
       can_read_collaboration_file_object: {
         Args: { p_name: string }
         Returns: boolean
       }
-      can_read_member_avatar_object: {
-        Args: { p_name: string }
+      can_read_content_scope: {
+        Args: {
+          p_community_id: string
+          p_local_group_id: string
+          p_subgroup_id: string
+        }
         Returns: boolean
       }
-      can_read_post_scope: {
-        Args: { p_community_id: string; p_local_group_id: string }
+      can_read_event: { Args: { p_event_id: string }; Returns: boolean }
+      can_read_member_avatar_object: {
+        Args: { p_name: string }
         Returns: boolean
       }
       can_reply_direct_conversation: {
@@ -2287,6 +2454,10 @@ export type Database = {
           p_local_group_id: string
           p_user_id: string
         }
+        Returns: boolean
+      }
+      can_see_rsvp: {
+        Args: { p_attendee_id: string; p_event_id: string }
         Returns: boolean
       }
       can_send_dm: {
@@ -2322,14 +2493,6 @@ export type Database = {
         Returns: boolean
       }
       can_view_member_directory: { Args: { cid: string }; Returns: boolean }
-      channel_scope_admits: {
-        Args: {
-          p_community_id: string
-          p_local_group_id: string
-          p_user_id: string
-        }
-        Returns: boolean
-      }
       collaboration_assignees_valid: {
         Args: {
           p_assignee_ids: string[]
@@ -2466,6 +2629,15 @@ export type Database = {
           user_id: string
         }[]
       }
+      content_scope_admits: {
+        Args: {
+          p_community_id: string
+          p_local_group_id: string
+          p_subgroup_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       create_collaboration: {
         Args: {
           p_description: string
@@ -2550,6 +2722,10 @@ export type Database = {
       }
       ensure_local_group_channel: {
         Args: { p_local_group_id: string }
+        Returns: string
+      }
+      ensure_subgroup_channel: {
+        Args: { p_subgroup_id: string }
         Returns: string
       }
       has_collaboration_access: {
@@ -2683,14 +2859,6 @@ export type Database = {
         }
         Returns: string
       }
-      post_scope_admits: {
-        Args: {
-          p_community_id: string
-          p_local_group_id: string
-          p_user_id: string
-        }
-        Returns: boolean
-      }
       publish_collaboration_event: {
         Args: { p_event_id: string; p_image_path: string }
         Returns: string
@@ -2718,6 +2886,10 @@ export type Database = {
       }
       remove_collaboration_file: {
         Args: { p_file_id: string }
+        Returns: boolean
+      }
+      remove_subgroup_member: {
+        Args: { p_subgroup_id: string; p_user_id: string }
         Returns: boolean
       }
       rename_local_group: {
@@ -2749,6 +2921,10 @@ export type Database = {
         Args: { p_sponsorship_id: string }
         Returns: boolean
       }
+      rsvp_is_current: {
+        Args: { p_event_id: string; p_user_id: string }
+        Returns: boolean
+      }
       save_collaboration_document: {
         Args: {
           p_content: string
@@ -2757,6 +2933,13 @@ export type Database = {
           p_title: string
         }
         Returns: Record<string, unknown>
+      }
+      search_subgroup_candidates: {
+        Args: { p_query: string; p_subgroup_id: string }
+        Returns: {
+          display_name: string
+          user_id: string
+        }[]
       }
       set_accepts_member_dms: {
         Args: { p_community_id: string; p_value: boolean }
@@ -2869,6 +3052,24 @@ export type Database = {
         Returns: {
           community_id: string
           conversation_id: string
+        }[]
+      }
+      subgroup_access_admits: {
+        Args: { p_subgroup_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      subgroup_manage_admits: {
+        Args: { p_subgroup_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      subgroup_roster: {
+        Args: { p_subgroup_id: string }
+        Returns: {
+          added_at: string
+          display_name: string
+          is_manager: boolean
+          role: Database["public"]["Enums"]["community_role"]
+          user_id: string
         }[]
       }
       unpublish_collaboration_event: {
@@ -3171,3 +3372,4 @@ export type MintedInvitationRow =
   Database["public"]["Functions"]["approve_access_request"]["Returns"][number]
 export type AccessRequestHistoryRow =
   Database["public"]["Functions"]["access_request_history"]["Returns"][number]
+export type SubgroupRow = Tables<"community_subgroups">

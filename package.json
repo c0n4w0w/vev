@@ -32,6 +32,7 @@
     "check:pinning": "tsx scripts/check-pinning.ts",
     "check:related-communities": "tsx scripts/check-related-communities.ts",
     "check:role-management": "tsx scripts/check-role-management.ts",
+    "check:safe-space": "tsx scripts/check-safe-space.ts",
     "check:storage": "tsx scripts/check-storage.ts"
   },
   "dependencies": {

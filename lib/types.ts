@@ -156,6 +156,30 @@ export interface LocalGroup {
   active: boolean;
 }
 
+/**
+ * A private organisational team inside a community ("Safe-Space frivillige").
+ * Not a lokallag: membership is explicit and sits alongside a member's
+ * lokallag. Only people who may read or manage it can see that it exists.
+ */
+export interface Subgroup {
+  id: string;
+  communityId: string;
+  slug: string;
+  name: string;
+  description: string;
+  active: boolean;
+}
+
+/** One person in a subgroup, as its managers see the roster. */
+export interface SubgroupRosterEntry {
+  userId: string;
+  /** The person's name in this community, never their account identity. */
+  displayName: string;
+  /** Only returned to the community's admins; a team manager who is not an admin gets none. */
+  role?: RoleId;
+  isManager: boolean;
+}
+
 export type CommunityPersonSection = "staff" | "board" | "local_group_leader" | "crew";
 
 /**
@@ -228,6 +252,8 @@ export interface Channel {
    * can read it (enforced by RLS), and its name follows the group's name.
    */
   localGroupId?: string;
+  /** Set for a subgroup chat channel; its name follows the subgroup's. */
+  subgroupId?: string;
 }
 
 export interface Message {
@@ -255,6 +281,8 @@ export interface Post {
    * verbatim as the post's scope badge.
    */
   localGroup?: { id: string; name: string };
+  /** Optional subgroup scope, loaded the same way. Never set with a local group. */
+  subgroup?: { id: string; name: string };
   authorId: string;
   /** Optional headline; short updates have none. */
   title?: string;
@@ -277,6 +305,13 @@ export interface CommunityEvent {
   communityId: string;
   /** Optional local group scope. Absent means community-wide. */
   localGroupId?: string;
+  /** Optional subgroup scope. Never set together with `localGroupId`. */
+  subgroupId?: string;
+  /**
+   * Name of the lokallag or subgroup the event is limited to, loaded with the
+   * event under the same row level security. Absent for community-wide events.
+   */
+  scopeName?: string;
   title: string;
   description: string;
   /** ISO timestamp for the start. */

@@ -28,6 +28,7 @@ import type {
   DirectConversationReadRow,
   DirectConversationRow,
   DirectMessageRow,
+  SubgroupRow,
 } from "@/lib/supabase/database.types";
 import type {
   Channel,
@@ -50,6 +51,8 @@ import type {
   DirectConversation,
   DirectConversationSummary,
   DirectMessage,
+  Subgroup,
+  SubgroupRosterEntry,
 } from "@/lib/types";
 import { initialsFor } from "@/lib/format";
 import { parseLocale, type Locale, type MessageKey } from "@/lib/i18n";
@@ -179,6 +182,7 @@ function toChannel(row: ChannelRow): Channel {
     purpose: row.purpose,
     readOnly: row.read_only || undefined,
     localGroupId: row.local_group_id ?? undefined,
+    subgroupId: row.subgroup_id ?? undefined,
   };
 }
 
@@ -215,9 +219,12 @@ function toDirectMessage(row: DirectMessageRow): DirectMessage {
  * the embed cannot surface a group the post does not already point at.
  */
 const POST_SELECT =
-  "*, local_group:community_local_groups!posts_local_group_fkey(id, name)" as const;
+  "*, local_group:community_local_groups!posts_local_group_fkey(id, name), subgroup:community_subgroups!posts_subgroup_fkey(id, name)" as const;
 
-type PostWithGroupRow = PostRow & { local_group: { id: string; name: string } | null };
+type PostWithGroupRow = PostRow & {
+  local_group: { id: string; name: string } | null;
+  subgroup: { id: string; name: string } | null;
+};
 
 function toPost(row: PostWithGroupRow): Post {
   return {
@@ -225,6 +232,7 @@ function toPost(row: PostWithGroupRow): Post {
     communityId: row.community_id,
     localGroupId: row.local_group_id ?? undefined,
     localGroup: row.local_group ? { id: row.local_group.id, name: row.local_group.name } : undefined,
+    subgroup: row.subgroup ? { id: row.subgroup.id, name: row.subgroup.name } : undefined,
     authorId: row.author_id,
     title: row.title ?? undefined,
     body: row.body,
@@ -237,11 +245,27 @@ function toPost(row: PostWithGroupRow): Post {
   };
 }
 
-function toEvent(row: EventRow, attendeeIds: string[]): CommunityEvent {
+/**
+ * Events are read with the name of the lokallag or subgroup they are limited
+ * to. Both embeds run under their own table's RLS, and anyone who can read a
+ * scoped event can also read its group, so the label never names a group the
+ * row does not already point at.
+ */
+const EVENT_SELECT =
+  "*, local_group:community_local_groups!events_local_group_fkey(name), subgroup:community_subgroups!events_subgroup_fkey(name)" as const;
+
+type EventWithScopeRow = EventRow & {
+  local_group?: { name: string } | null;
+  subgroup?: { name: string } | null;
+};
+
+function toEvent(row: EventWithScopeRow, attendeeIds: string[]): CommunityEvent {
   return {
     id: row.id,
     communityId: row.community_id,
     localGroupId: row.local_group_id ?? undefined,
+    subgroupId: row.subgroup_id ?? undefined,
+    scopeName: row.local_group?.name ?? row.subgroup?.name ?? undefined,
     title: row.title,
     description: row.description,
     startsAt: row.starts_at,
@@ -994,18 +1018,148 @@ export async function getChannel(channelId: string): Promise<Channel | undefined
   return data ? toChannel(data) : undefined;
 }
 
-/** Channels grouped for the sidebar, in the order the groups are declared. */
-export async function getGroupedChannels(communityId: string) {
+/**
+ * Channels grouped for the sidebar, in the order the groups are declared.
+ *
+ * Which channels appear is decided entirely by `channels_select`. The viewer is
+ * used only to word two section headings honestly: "Mitt lokallag" and "Mine
+ * grupper" describe the viewer's own groups, so an admin who also sees other
+ * lokallag chats, or staff who see a team they are not on, get the neutral
+ * "Lokallag" / "Grupper" instead.
+ */
+export async function getGroupedChannels(
+  communityId: string,
+  viewer?: { localGroupId?: string; subgroupIds?: string[] },
+) {
   const [groups, channels] = await Promise.all([
     loadChannelGroups(),
     loadChannels(communityId),
   ]);
   return groups
-    .map((group) => ({
-      group,
-      channels: channels.filter((channel) => channel.groupId === group.id),
-    }))
+    .map((group) => {
+      const inGroup = channels.filter((channel) => channel.groupId === group.id);
+      let label = group.label;
+      if (viewer && group.id === "lokallag" && inGroup.some((c) => c.localGroupId !== viewer.localGroupId)) {
+        label = "Lokallag";
+      }
+      if (
+        viewer &&
+        group.id === "grupper" &&
+        inGroup.some((c) => !c.subgroupId || !(viewer.subgroupIds ?? []).includes(c.subgroupId))
+      ) {
+        label = "Grupper";
+      }
+      return { group: { ...group, label }, channels: inGroup };
+    })
     .filter((entry) => entry.channels.length > 0);
+}
+
+// ── Subgroups ───────────────────────────────────────────────────────────
+//
+// Private teams. Every read below is filtered by row level security: a
+// subgroup is visible only to people who may read its content or manage it,
+// its member list only to its managers (and each person's own row to them).
+// Nothing here decides access.
+
+function toSubgroup(row: SubgroupRow): Subgroup {
+  return {
+    id: row.id,
+    communityId: row.community_id,
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    active: row.active,
+  };
+}
+
+/** Subgroups of a community the caller may read or manage. */
+export const getSubgroups = cache(async (communityId: string): Promise<Subgroup[]> => {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("community_subgroups")
+    .select("*")
+    .eq("community_id", communityId)
+    .order("name", { ascending: true });
+  return rows(data).map(toSubgroup);
+});
+
+/** Ids of the subgroups the caller is an explicit member of, in one community. */
+export const getMySubgroupIds = cache(
+  async (communityId: string, userId: string): Promise<string[]> => {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase
+      .from("community_subgroup_members")
+      .select("subgroup_id")
+      .eq("community_id", communityId)
+      .eq("user_id", userId);
+    return rows(data).map((row) => row.subgroup_id);
+  },
+);
+
+/** Whether the caller may add and remove members (admin or explicit manager). */
+export async function canManageSubgroup(subgroupId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("can_manage_subgroup", { p_subgroup_id: subgroupId });
+  return !error && data === true;
+}
+
+/** The subgroups the caller may manage in one community. */
+export const getManageableSubgroups = cache(async (communityId: string): Promise<Subgroup[]> => {
+  const subgroups = await getSubgroups(communityId);
+  const allowed = await Promise.all(subgroups.map((subgroup) => canManageSubgroup(subgroup.id)));
+  return subgroups.filter((_, index) => allowed[index]);
+});
+
+/** Members of a subgroup, for its managers. Empty for anyone else. */
+export async function getSubgroupRoster(subgroupId: string): Promise<SubgroupRosterEntry[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("subgroup_roster", { p_subgroup_id: subgroupId });
+  return rows(data).map((row) => ({
+    userId: row.user_id,
+    displayName: row.display_name,
+    role: row.role ?? undefined,
+    isManager: row.is_manager,
+  }));
+}
+
+/**
+ * Active members of the community, not yet in the subgroup, whose community
+ * display name matches a search — for the subgroup's managers. The database
+ * answers only a manager, only for at least two characters, with at most ten
+ * matches and nothing but each person's id and display name, so no one is
+ * handed the community roster.
+ */
+export async function searchSubgroupCandidates(
+  subgroupId: string,
+  query: string,
+): Promise<{ userId: string; displayName: string }[]> {
+  if (query.trim().length < 2) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("search_subgroup_candidates", {
+    p_subgroup_id: subgroupId,
+    p_query: query,
+  });
+  return rows(data).map((row) => ({ userId: row.user_id, displayName: row.display_name }));
+}
+
+/** Adds an active community member. False when refused or already a member. */
+export async function addSubgroupMember(subgroupId: string, userId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("add_subgroup_member", {
+    p_subgroup_id: subgroupId,
+    p_user_id: userId,
+  });
+  return !error && data === true;
+}
+
+/** Removes subgroup membership only — never the community membership or lokallag. */
+export async function removeSubgroupMember(subgroupId: string, userId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("remove_subgroup_member", {
+    p_subgroup_id: subgroupId,
+    p_user_id: userId,
+  });
+  return !error && data === true;
 }
 
 /**
@@ -1541,6 +1695,7 @@ export type PostWriteResult = { ok: true; id: string } | { ok: false; error: Mes
 export async function createPost(input: {
   communityId: string;
   localGroupId?: string;
+  subgroupId?: string;
   body: string;
   title?: string;
   announcement?: boolean;
@@ -1554,6 +1709,7 @@ export async function createPost(input: {
     .insert({
       community_id: input.communityId,
       local_group_id: input.localGroupId || null,
+      subgroup_id: input.subgroupId || null,
       body,
       title: input.title?.trim() || null,
       kind: input.announcement ? "announcement" : "post",
@@ -2339,7 +2495,7 @@ const loadAttendees = cache(async (): Promise<Map<string, string[]>> => {
   return byEvent;
 });
 
-async function withAttendees(rows: EventRow[]): Promise<CommunityEvent[]> {
+async function withAttendees(rows: EventWithScopeRow[]): Promise<CommunityEvent[]> {
   const attendees = await loadAttendees();
   return rows.map((row) => toEvent(row, attendees.get(row.id) ?? []));
 }
@@ -2348,7 +2504,7 @@ export async function getCommunityEvents(communityId: string): Promise<Community
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("events")
-    .select("*")
+    .select(EVENT_SELECT)
     .eq("community_id", communityId)
     .order("starts_at", { ascending: true });
   return withAttendees(rows(data));
@@ -2367,7 +2523,7 @@ export async function getUpcomingLocalGroupEvents(
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("events")
-    .select("*")
+    .select(EVENT_SELECT)
     .eq("community_id", communityId)
     .eq("local_group_id", localGroupId)
     .gte("ends_at", now().toISOString())
@@ -2386,7 +2542,7 @@ export async function getEventsForUser(_userId: string): Promise<CommunityEvent[
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("events")
-    .select("*")
+    .select(EVENT_SELECT)
     .gte("ends_at", now().toISOString())
     .order("starts_at", { ascending: true });
   return withAttendees(rows(data));
@@ -2440,6 +2596,7 @@ export async function leaveEvent(eventId: string): Promise<EventWriteResult> {
 export async function createEvent(input: {
   communityId: string;
   localGroupId?: string;
+  subgroupId?: string;
   title: string;
   description: string;
   startsAt: string;
@@ -2454,6 +2611,7 @@ export async function createEvent(input: {
     .insert({
       community_id: input.communityId,
       local_group_id: input.localGroupId || null,
+      subgroup_id: input.subgroupId || null,
       title: input.title.trim(),
       description: input.description.trim(),
       starts_at: input.startsAt,
@@ -2470,7 +2628,7 @@ export async function createEvent(input: {
 
 export async function getEvent(eventId: string): Promise<CommunityEvent | undefined> {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.from("events").select("*").eq("id", eventId).maybeSingle();
+  const { data } = await supabase.from("events").select(EVENT_SELECT).eq("id", eventId).maybeSingle();
   return data ? (await withAttendees([data]))[0] : undefined;
 }
 

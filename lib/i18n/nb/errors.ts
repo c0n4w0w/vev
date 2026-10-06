@@ -94,6 +94,12 @@ export const errors = {
     "Lokallaget kunne ikke velges. Det kan være avviklet, eller høre til et annet fellesskap.",
   "err.localGroupAdminRefused":
     "Endringen ble ikke utført. Bare administratorer i dette fellesskapet kan endre lokallag.",
+  "err.eventScopedNotPublic":
+    "Et arrangement for et lokallag eller en gruppe kan ikke være åpent. Fjern avhukingen for åpent arrangement, eller velg hele fellesskapet.",
+  "err.subgroupPickMember": "Velg et medlem å legge til.",
+  "err.subgroupAddRefused":
+    "Medlemmet ble ikke lagt til. Personen kan allerede være med, ikke være aktivt medlem, eller du har ikke lov til å endre gruppen.",
+  "err.subgroupRemoveRefused": "Medlemmet ble ikke fjernet. Du har ikke lov til å endre denne gruppen.",
   "err.localGroupNameRequired": "Lokallaget må ha et navn.",
 
   // ── Settings, requests and invitations ────────────────────────────────

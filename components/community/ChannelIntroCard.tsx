@@ -43,14 +43,14 @@ const fieldClass =
  */
 export function ChannelIntroCard({
   communityId,
-  audienceName,
+  audienceNote,
   channel,
   canEdit,
   accent,
 }: {
   communityId: string;
-  /** Who can read the conversation: the community, or the channel's local group. */
-  audienceName: string;
+  /** One sentence saying who can read the conversation. */
+  audienceNote: string;
   channel: Channel;
   canEdit: boolean;
   accent: string;
@@ -167,7 +167,7 @@ export function ChannelIntroCard({
             {channel.purpose}
           </p>
           <p className="mt-3 text-xs text-ink-3">
-            {t("channel.membersOnly", { name: audienceName })}
+            {audienceNote}
           </p>
         </>
       )}

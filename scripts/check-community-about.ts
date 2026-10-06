@@ -95,7 +95,7 @@ async function main() {
   const anon = createClient<Database>(supabaseUrl(), supabaseAnonKey());
   const admins: [string, string][] = [
     [UTR, "octavio"],
-    [TR, "larsbror"],
+    [TR, "miaminge"],
     [TU, "emmamortensen"],
   ];
   const adminClients = new Map<string, Client>();
@@ -171,9 +171,9 @@ async function main() {
 
     // ── 4: an admin of a different community cannot write here ──
     {
-      const larsbror = adminClients.get(TR)!;
+      const miaminge = adminClients.get(TR)!;
       const before = await storedAbout(UTR);
-      const crossResult = await setAbout(larsbror, UTR, "Forsøk fra en annen admin");
+      const crossResult = await setAbout(miaminge, UTR, "Forsøk fra en annen admin");
       expect("admin i ett fellesskap kan ikke endre et annet", crossResult.stored, null);
       expect("beskrivelsen i det andre fellesskapet er uendret", await storedAbout(UTR), before);
     }
@@ -184,7 +184,7 @@ async function main() {
         .from("memberships")
         .select("id, status")
         .eq("community_id", TR)
-        .eq("user_id", await profileId("larsbror"))
+        .eq("user_id", await profileId("miaminge"))
         .single();
       if (error) throw error;
       const before = await storedAbout(TR);

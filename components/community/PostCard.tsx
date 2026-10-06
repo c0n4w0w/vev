@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Avatar, Badge, Panel, RichText, cn } from "@/components/ui/primitives";
 import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
-import { IconMapPin, IconMegaphone, IconPin } from "@/components/ui/icons";
+import { IconLock, IconMapPin, IconMegaphone, IconPin } from "@/components/ui/icons";
 import { CommentThread } from "@/components/community/CommentThread";
 import { PostActions } from "@/components/community/PostActions";
 import { ReactionBar } from "@/components/community/ReactionBar";
@@ -52,7 +52,7 @@ function Reactions({ reactions }: { reactions: Post["reactions"] }) {
 export function PostBadges({ post, locale }: { post: Post; locale: Locale }) {
   const t = translator(locale);
   const isAnnouncement = post.kind === "announcement";
-  if (!post.localGroup && !isAnnouncement && !post.pinned) return null;
+  if (!post.localGroup && !post.subgroup && !isAnnouncement && !post.pinned) return null;
 
   return (
     <span className="flex flex-wrap items-center gap-1.5">
@@ -61,6 +61,13 @@ export function PostBadges({ post, locale }: { post: Post; locale: Locale }) {
           <IconMapPin size={11} className="shrink-0" />
           <span className="sr-only">{t("post.scopePrefix")} </span>
           <span className="truncate">{post.localGroup.name}</span>
+        </Badge>
+      ) : null}
+      {post.subgroup ? (
+        <Badge tone="outline" className="max-w-full">
+          <IconLock size={11} className="shrink-0" />
+          <span className="sr-only">{t("post.subgroupPrefix")} </span>
+          <span className="truncate">{post.subgroup.name}</span>
         </Badge>
       ) : null}
       {isAnnouncement ? (

@@ -84,7 +84,7 @@ async function communityPeople(client: SupabaseClient<Database>, communityId?: s
 async function main() {
   const kristoffer = await signIn(await emailFor("kristoffer")); // ordinary FTR member
   const nadia = await signIn(await emailFor("nadia")); // FTR moderator
-  const lars = await signIn(await emailFor("larsbror")); // FTR admin
+  const mia = await signIn(await emailFor("miaminge")); // FTR admin
   const adrian = await signIn(await emailFor("adrian")); // ordinary TU member
   const robin = await signIn(await emailFor("robinsaether")); // UTR moderator
   const mina = await signIn(await emailFor("minasolberg")); // ordinary UTR member
@@ -107,7 +107,7 @@ async function main() {
     .eq("community_id", "tryggere-ruspolitikk");
   expect("FTR-moderator får ikke privat medlemskatalog", (moderatorRows ?? []).length, 1);
 
-  const { data: adminRows } = await lars
+  const { data: adminRows } = await mia
     .from("memberships")
     .select("user_id, community_id, role")
     .eq("community_id", "tryggere-ruspolitikk");

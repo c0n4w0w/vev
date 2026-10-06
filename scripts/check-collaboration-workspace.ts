@@ -309,7 +309,7 @@ async function main() {
     adrian: await profileId("adrian"), // TU member
     petter: await profileId("petter"), // TU member; FTR member (Trøndelag)
     ingrid: await profileId("ingrid"), // FTR + TU moderator, UTR member
-    larsbror: await profileId("larsbror"), // FTR admin, not in Oslo
+    miaminge: await profileId("miaminge"), // FTR admin, not in Oslo
     amina: await profileId("amina"), // FTR moderator in Oslo — never selected
     kristoffer: await profileId("kristoffer"), // FTR member, Oslo
     octavio: await profileId("octavio"), // UTR admin
@@ -324,7 +324,7 @@ async function main() {
   const adrian = await signIn("adrian");
   const petter = await signIn("petter");
   const ingrid = await signIn("ingrid");
-  const larsbror = await signIn("larsbror");
+  const miaminge = await signIn("miaminge");
   const amina = await signIn("amina");
   const kristoffer = await signIn("kristoffer");
   const octavio = await signIn("octavio");
@@ -336,11 +336,11 @@ async function main() {
   const P_TU = (await admin.from("collaboration_participants").select("id").eq("collaboration_id", C).single()).data!.id;
   const P_OSLO = await rpcId(emma, "invite_collaboration_participant", { p_collaboration_id: C, p_community_id: FTR });
   if (!P_OSLO) throw new Error("kunne ikke invitere FTR");
-  if (!(await rpcOk(larsbror, "accept_collaboration_participant_invite", { p_participant_id: P_OSLO, p_local_group_id: OSLO }))) {
+  if (!(await rpcOk(miaminge, "accept_collaboration_participant_invite", { p_participant_id: P_OSLO, p_local_group_id: OSLO }))) {
     throw new Error("FTR Oslo kunne ikke akseptere");
   }
   await sponsorAndJoin(emma, adrian, C, P_TU, ids.adrian);
-  const S_kristoffer = await sponsorAndJoin(larsbror, kristoffer, C, P_OSLO, ids.kristoffer);
+  const S_kristoffer = await sponsorAndJoin(miaminge, kristoffer, C, P_OSLO, ids.kristoffer);
   await sponsorAndJoin(emma, ingrid, C, P_TU, ids.ingrid);
 
   // A second, unrelated collaboration. Ingrid is in both — the case where
@@ -350,7 +350,7 @@ async function main() {
   await sponsorAndJoin(octavio, ingrid, C2, P_UTR, ids.ingrid);
 
   expect("fixtur: Emma har tilgang og er forvalter", `${await rpcOk(emma, "has_collaboration_access", { p_collaboration_id: C })}|${await rpcOk(emma, "is_collaboration_manager", { p_collaboration_id: C })}`, "true|true");
-  expect("fixtur: Lars Bror er forvalter uten tilgang (bare representant)", `${await rpcOk(larsbror, "has_collaboration_access", { p_collaboration_id: C })}|${await rpcOk(larsbror, "is_collaboration_manager", { p_collaboration_id: C })}`, "false|true");
+  expect("fixtur: Mia er forvalter uten tilgang (bare representant)", `${await rpcOk(miaminge, "has_collaboration_access", { p_collaboration_id: C })}|${await rpcOk(miaminge, "is_collaboration_manager", { p_collaboration_id: C })}`, "false|true");
   expect("fixtur: Ingrid har tilgang til begge samarbeidene", `${await rpcOk(ingrid, "has_collaboration_access", { p_collaboration_id: C })}|${await rpcOk(ingrid, "has_collaboration_access", { p_collaboration_id: C2 })}`, "true|true");
   expect("fixtur: Emma har ikke tilgang til C2", await rpcOk(emma, "has_collaboration_access", { p_collaboration_id: C2 }), false);
 
@@ -386,10 +386,10 @@ async function main() {
   expect("2: vanlig medlem kan ikke endre kanal", await rpcOk(adrian, "update_collaboration_channel", { p_channel_id: PROGRAM, p_name: "kapret", p_description: null }), false);
   expect("2: medlem ser alle fem kanalene", await count(adrian, "collaboration_channels", { collaboration_id: C }), 5);
 
-  expect("3: bare-representant ser ingen kanaler", await count(larsbror, "collaboration_channels", { collaboration_id: C }), 0);
-  expect("3: bare-representant (forvalter) kan ikke opprette kanal", await rpcId(larsbror, "create_collaboration_channel", { p_collaboration_id: C, p_name: "lars", p_description: null }), null);
-  expect("3: bare-representant kan ikke arkivere kanal", await rpcOk(larsbror, "set_collaboration_channel_status", { p_channel_id: PROGRAM, p_status: "archived" }), false);
-  expect("3: bare-representant kan ikke gi kanalen nytt navn", await rpcOk(larsbror, "update_collaboration_channel", { p_channel_id: PROGRAM, p_name: "lars", p_description: null }), false);
+  expect("3: bare-representant ser ingen kanaler", await count(miaminge, "collaboration_channels", { collaboration_id: C }), 0);
+  expect("3: bare-representant (forvalter) kan ikke opprette kanal", await rpcId(miaminge, "create_collaboration_channel", { p_collaboration_id: C, p_name: "mia", p_description: null }), null);
+  expect("3: bare-representant kan ikke arkivere kanal", await rpcOk(miaminge, "set_collaboration_channel_status", { p_channel_id: PROGRAM, p_status: "archived" }), false);
+  expect("3: bare-representant kan ikke gi kanalen nytt navn", await rpcOk(miaminge, "update_collaboration_channel", { p_channel_id: PROGRAM, p_name: "mia", p_description: null }), false);
   expect("4: uvalgt medlem i TU ser ingen kanaler", await count(hanne, "collaboration_channels", { collaboration_id: C }), 0);
   expect("4: uvalgt medlem i FTR Oslo ser ingen kanaler", await count(amina, "collaboration_channels", { collaboration_id: C }), 0);
   expect("5: anonym ser ingen kanaler", refusedOrEmpty(await anon.from("collaboration_channels").select("id")), true);
@@ -422,8 +422,8 @@ async function main() {
   expect("S: blank melding avvises", await rpcId(adrian, "post_collaboration_message", { p_channel_id: GENERAL, p_parent_message_id: null, p_body: "   \n  " }), null);
   expect("S: for lang melding avvises", await rpcId(adrian, "post_collaboration_message", { p_channel_id: GENERAL, p_parent_message_id: null, p_body: "x".repeat(4001) }), null);
 
-  expect("10: bare-representant kan ikke lese meldinger", await count(larsbror, "collaboration_messages", { collaboration_id: C }), 0);
-  expect("10: bare-representant kan ikke poste", await rpcId(larsbror, "post_collaboration_message", { p_channel_id: GENERAL, p_parent_message_id: null, p_body: "Hei" }), null);
+  expect("10: bare-representant kan ikke lese meldinger", await count(miaminge, "collaboration_messages", { collaboration_id: C }), 0);
+  expect("10: bare-representant kan ikke poste", await rpcId(miaminge, "post_collaboration_message", { p_channel_id: GENERAL, p_parent_message_id: null, p_body: "Hei" }), null);
   expect("11: uvalgt TU-moderator kan ikke lese", await count(hanne, "collaboration_messages", { collaboration_id: C }), 0);
   expect("11: uvalgt TU-moderator kan ikke poste", await rpcId(hanne, "post_collaboration_message", { p_channel_id: GENERAL, p_parent_message_id: null, p_body: "Hei" }), null);
   expect("11: bruker uten relasjon kan ikke lese", await count(sofie, "collaboration_messages", { collaboration_id: C }), 0);
@@ -435,7 +435,7 @@ async function main() {
   expect("S: forvalter kan ikke redigere andres melding", await rpcOk(emma, "edit_collaboration_message", { p_message_id: M_k, p_body: "Kapret" }), false);
   const M_adrian = await rpcId(adrian, "post_collaboration_message", { p_channel_id: GENERAL, p_parent_message_id: null, p_body: "Feilpostet" });
   expect("S: andre medlemmer kan ikke slette meldingen", await rpcOk(kristoffer, "delete_collaboration_message", { p_message_id: M_adrian }), false);
-  expect("S: forvalter uten tilgang kan ikke moderere", await rpcOk(larsbror, "delete_collaboration_message", { p_message_id: M_adrian }), false);
+  expect("S: forvalter uten tilgang kan ikke moderere", await rpcOk(miaminge, "delete_collaboration_message", { p_message_id: M_adrian }), false);
   expect("S: forvalter med tilgang kan moderere", await rpcOk(emma, "delete_collaboration_message", { p_message_id: M_adrian }), true);
   const deleted = (await admin.from("collaboration_messages").select("body, deleted_at, deleted_by_user_id").eq("id", M_adrian!).single()).data!;
   expect("S: slettet melding beholder ingen tekst", `${deleted.body}|${deleted.deleted_at !== null}|${deleted.deleted_by_user_id}`, `|true|${ids.emma}`);
@@ -493,7 +493,7 @@ async function main() {
   expect("19: effektive medlemmer leser oppgavene", await count(ingrid, "collaboration_tasks", { collaboration_id: C }), 3);
   expect("21: tildeling til uvalgt TU-medlem avvises", await createTask(adrian, C, "Kapret", [ids.hanne]), null);
   expect("22: tildeling til uvalgt FTR Oslo-medlem avvises", await createTask(adrian, C, "Kapret", [ids.amina]), null);
-  expect("22: tildeling til bare-representant avvises", await createTask(adrian, C, "Kapret", [ids.larsbror]), null);
+  expect("22: tildeling til bare-representant avvises", await createTask(adrian, C, "Kapret", [ids.miaminge]), null);
   expect("22: tildeling til oppdiktet id avvises", await createTask(adrian, C, "Kapret", [randomUUID()]), null);
   const notMember = await admin.from("collaboration_task_assignees").insert({ task_id: T3!, collaboration_id: C, user_id: ids.hanne });
   expect("21: FK stopper en ansvarlig som aldri ble med", notMember.error !== null, true);
@@ -504,9 +504,9 @@ async function main() {
   expect("24: FK stopper oppgave/samarbeid-par som ikke stemmer", crossTaskCollab.error !== null, true);
   expect("24: lenke til en kanal i et annet samarbeid avvises", await createTask(ingrid, C, "Kryss", [], { p_related_channel_id: C2_GENERAL }), null);
 
-  expect("23: bare-representant leser ingen oppgaver", await count(larsbror, "collaboration_tasks", { collaboration_id: C }), 0);
-  expect("23: bare-representant leser ingen ansvarlige", await count(larsbror, "collaboration_task_assignees", { collaboration_id: C }), 0);
-  expect("23: bare-representant kan ikke opprette oppgave", await createTask(larsbror, C, "Lars", []), null);
+  expect("23: bare-representant leser ingen oppgaver", await count(miaminge, "collaboration_tasks", { collaboration_id: C }), 0);
+  expect("23: bare-representant leser ingen ansvarlige", await count(miaminge, "collaboration_task_assignees", { collaboration_id: C }), 0);
+  expect("23: bare-representant kan ikke opprette oppgave", await createTask(miaminge, C, "Mia", []), null);
   expect("23: uvalgt medlem leser ingen oppgaver", await count(hanne, "collaboration_tasks", { collaboration_id: C }), 0);
 
   expect("25: ansvarlig kan sette status", await rpcOk(kristoffer, "set_collaboration_task_status", { p_task_id: T1, p_status: "in_progress" }), true);
@@ -522,7 +522,7 @@ async function main() {
   expect("25: ansvarlig (ikke skaper) kan ikke gjenåpne avbrutt oppgave", await rpcOk(ingrid, "set_collaboration_task_status", { p_task_id: T2, p_status: "todo" }), false);
   expect("25: ansvarlig (ikke skaper) kan ikke avbryte", await rpcOk(ingrid, "set_collaboration_task_status", { p_task_id: T1, p_status: "cancelled" }), false);
   expect("25: forvalter gjenåpner", await rpcOk(emma, "set_collaboration_task_status", { p_task_id: T2, p_status: "todo" }), true);
-  expect("25: forvalter uten tilgang kan ikke administrere oppgaver", await rpcOk(larsbror, "set_collaboration_task_status", { p_task_id: T2, p_status: "cancelled" }), false);
+  expect("25: forvalter uten tilgang kan ikke administrere oppgaver", await rpcOk(miaminge, "set_collaboration_task_status", { p_task_id: T2, p_status: "cancelled" }), false);
   expect("S: ferdig stempler completed_at", `${await rpcOk(adrian, "set_collaboration_task_status", { p_task_id: T1, p_status: "done" })}|${(await admin.from("collaboration_tasks").select("completed_at").eq("id", T1!).single()).data?.completed_at !== null}`, "true|true");
   expect("S: direkte UPDATE av oppgave avvises", refusedOrEmpty(await (adrian as unknown as Loose).from("collaboration_tasks").update({ title: "Kapret" }).eq("id", T3!).select("id")), true);
 
@@ -534,9 +534,9 @@ async function main() {
   const D3 = await rpcId(emma, "create_collaboration_document", { p_collaboration_id: C, p_title: "Presse-/SoMe-tekst", p_content: "Utkast" });
   expect("27: to organisasjoner, tre dokumenter", [D1, D2, D3].every((d) => typeof d === "string"), true);
   expect("26: effektivt medlem leser dokumentene", await count(ingrid, "collaboration_documents", { collaboration_id: C }), 3);
-  expect("28: bare-representant leser ingen dokumenter", await count(larsbror, "collaboration_documents", { collaboration_id: C }), 0);
-  expect("28: bare-representant leser ingen versjoner", await count(larsbror, "collaboration_document_versions", { collaboration_id: C }), 0);
-  expect("28: bare-representant kan ikke opprette dokument", await rpcId(larsbror, "create_collaboration_document", { p_collaboration_id: C, p_title: "Lars", p_content: "" }), null);
+  expect("28: bare-representant leser ingen dokumenter", await count(miaminge, "collaboration_documents", { collaboration_id: C }), 0);
+  expect("28: bare-representant leser ingen versjoner", await count(miaminge, "collaboration_document_versions", { collaboration_id: C }), 0);
+  expect("28: bare-representant kan ikke opprette dokument", await rpcId(miaminge, "create_collaboration_document", { p_collaboration_id: C, p_title: "Mia", p_content: "" }), null);
   expect("29: uvalgt medlem leser ingen dokumenter", await count(amina, "collaboration_documents", { collaboration_id: C }), 0);
   expect("29: anonym leser ingen dokumenter", refusedOrEmpty(await anon.from("collaboration_documents").select("id")), true);
 
@@ -553,9 +553,9 @@ async function main() {
   const v1 = (await adrian.from("collaboration_document_versions").select("content").eq("document_id", D1!).eq("revision", 1).single()).data!;
   expect("31: en tidligere versjon kan gjenopprettes som ny versjon", await save(adrian, D1!, 2, "Programutkast", v1.content), "saved|3");
   expect("31: gjenopprettet innhold er versjon 1", (await admin.from("collaboration_documents").select("content").eq("id", D1!).single()).data?.content, v1.content);
-  expect("S: bare-representant kan ikke lagre", await save(larsbror, D1!, 3, "Kapret", "Kapret"), "null|null");
+  expect("S: bare-representant kan ikke lagre", await save(miaminge, D1!, 3, "Kapret", "Kapret"), "null|null");
   expect("S: vanlig medlem kan ikke arkivere dokument", await rpcOk(adrian, "set_collaboration_document_status", { p_document_id: D3, p_status: "archived" }), false);
-  expect("S: forvalter uten tilgang kan ikke arkivere", await rpcOk(larsbror, "set_collaboration_document_status", { p_document_id: D3, p_status: "archived" }), false);
+  expect("S: forvalter uten tilgang kan ikke arkivere", await rpcOk(miaminge, "set_collaboration_document_status", { p_document_id: D3, p_status: "archived" }), false);
   expect("S: forvalter med tilgang kan arkivere", await rpcOk(emma, "set_collaboration_document_status", { p_document_id: D3, p_status: "archived" }), true);
   expect("S: arkivert dokument kan ikke lagres", await save(emma, D3!, 1, "Presse", "Ny"), "null|null");
   expect("S: arkivert dokument er fortsatt lesbart", await count(adrian, "collaboration_documents", { id: D3! }), 1);
@@ -572,9 +572,9 @@ async function main() {
   expect("S: størrelsen leses fra lagringen, ikke klienten", fileRow.size_bytes, PDF.length);
   expect("32: medlem lister filene", await count(ingrid, "collaboration_files", { collaboration_id: C }), 3);
   expect("32: medlem fra annen organisasjon laster ned", await canDownload(adrian, "collaboration-files", program.path), true);
-  expect("33: bare-representant lister ingen filer", await count(larsbror, "collaboration_files", { collaboration_id: C }), 0);
-  expect("33: bare-representant kan ikke laste ned", await canDownload(larsbror, "collaboration-files", plakat.path), false);
-  expect("33: bare-representant kan ikke laste opp", await upload(larsbror, "collaboration-files", `${C}/${randomUUID()}.pdf`, PDF, "application/pdf"), false);
+  expect("33: bare-representant lister ingen filer", await count(miaminge, "collaboration_files", { collaboration_id: C }), 0);
+  expect("33: bare-representant kan ikke laste ned", await canDownload(miaminge, "collaboration-files", plakat.path), false);
+  expect("33: bare-representant kan ikke laste opp", await upload(miaminge, "collaboration-files", `${C}/${randomUUID()}.pdf`, PDF, "application/pdf"), false);
   expect("34: uvalgt medlem kan ikke laste ned", await canDownload(hanne, "collaboration-files", plakat.path), false);
   expect("34: uvalgt medlem lister ingen filer", await count(hanne, "collaboration_files", { collaboration_id: C }), 0);
   expect("35: anonym kan ikke laste ned", await canDownload(anon, "collaboration-files", plakat.path), false);
@@ -621,7 +621,7 @@ async function main() {
   expect("S: opplasteren kan fjerne egen fil", await rpcOk(adrian, "remove_collaboration_file", { p_file_id: extra.id }), true);
   expect("S: fjernet fil er borte fra listen", await count(adrian, "collaboration_files", { id: extra.id! }), 0);
   expect("S: fjernet fil kan ikke lastes ned", await canDownload(adrian, "collaboration-files", extra.path), false);
-  expect("S: forvalter uten tilgang kan ikke fjerne filer", await rpcOk(larsbror, "remove_collaboration_file", { p_file_id: program.id }), false);
+  expect("S: forvalter uten tilgang kan ikke fjerne filer", await rpcOk(miaminge, "remove_collaboration_file", { p_file_id: program.id }), false);
 
   // ── The upload route (HTTP, against the running app) ────────────────
   // The form posts here rather than to a server action, so the file cap does
@@ -636,7 +636,7 @@ async function main() {
   const C2_slug = (await admin.from("collaborations").select("slug").eq("id", C2).single()).data!.slug;
   const [emmaCookie, larsCookie, ingridCookie] = await Promise.all([
     sessionCookie("emmamortensen"),
-    sessionCookie("larsbror"),
+    sessionCookie("miaminge"),
     sessionCookie("ingrid"),
   ]);
   const pdfFile = { bytes: PDF, name: "plakat-rute.pdf", type: "application/pdf" };
@@ -695,19 +695,19 @@ async function main() {
   });
   const E1 = await rpcId(emma, "create_collaboration_event", { p_collaboration_id: C, ...eventArgs() });
   expect("42: forvalter med tilgang oppretter arrangement", typeof E1, "string");
-  expect("43: forvalter uten tilgang kan ikke opprette", await rpcId(larsbror, "create_collaboration_event", { p_collaboration_id: C, ...eventArgs() }), null);
+  expect("43: forvalter uten tilgang kan ikke opprette", await rpcId(miaminge, "create_collaboration_event", { p_collaboration_id: C, ...eventArgs() }), null);
   expect("S: vanlig medlem kan ikke opprette arrangement", await rpcId(adrian, "create_collaboration_event", { p_collaboration_id: C, ...eventArgs() }), null);
   expect("S: et samarbeid kan planlegge flere arrangement", typeof (await rpcId(emma, "create_collaboration_event", { p_collaboration_id: C, ...eventArgs({ p_title: "Oppfølgingsmøte", p_audience: "invite_only", p_status: "draft", p_internal_notes: null }) })), "string");
   expect("S: slutt før start avvises", await rpcId(emma, "create_collaboration_event", { p_collaboration_id: C, ...eventArgs({ p_ends_at: "2026-10-22T15:00:00Z" }) }), null);
   expect("S: javascript:-lenke avvises", await rpcId(emma, "create_collaboration_event", { p_collaboration_id: C, ...eventArgs({ p_registration_url: "javascript:alert(1)" }) }), null);
   expect("39: medlem leser den private planen", await count(adrian, "collaboration_events", { id: E1! }), 1);
   expect("39: medlem leser de interne notatene", (await adrian.from("collaboration_events").select("internal_notes").eq("id", E1!).single()).data?.internal_notes, NOTE);
-  expect("40: bare-representant leser ikke planen", await count(larsbror, "collaboration_events", { id: E1! }), 0);
+  expect("40: bare-representant leser ikke planen", await count(miaminge, "collaboration_events", { id: E1! }), 0);
   expect("41: målgruppe «åpent for alle» gjør ikke planen offentlig (anonym)", refusedOrEmpty(await anon.from("collaboration_events").select("id").eq("id", E1!)), true);
   expect("41: …eller lesbar for innloggede utenforstående", await count(sofie, "collaboration_events", { id: E1! }), 0);
   expect("44: uvalgt medlem leser ikke planen", await count(hanne, "collaboration_events", { id: E1! }), 0);
   expect("42: forvalter med tilgang redigerer", await rpcOk(emma, "update_collaboration_event", { p_event_id: E1, ...eventArgs({ p_location: "Høyskolen Kristiania, Oslo" }) }), true);
-  expect("43: forvalter uten tilgang kan ikke redigere", await rpcOk(larsbror, "update_collaboration_event", { p_event_id: E1, ...eventArgs({ p_title: "Kapret" }) }), false);
+  expect("43: forvalter uten tilgang kan ikke redigere", await rpcOk(miaminge, "update_collaboration_event", { p_event_id: E1, ...eventArgs({ p_title: "Kapret" }) }), false);
   expect("S: vanlig medlem kan ikke redigere planen", await rpcOk(adrian, "update_collaboration_event", { p_event_id: E1, ...eventArgs({ p_title: "Kapret" }) }), false);
 
   // ══ PUBLIC PUBLISHING (45–56) ═══════════════════════════════════════
@@ -732,7 +732,7 @@ async function main() {
   expect("PO: uvedkommende admin (UTR) kan ikke godkjenne", await consent(octavio, P_OSLO, true), false);
   expect("PO: uvedkommende admin kan ikke trekke tilbake TUs godkjenning", await consent(octavio, P_TU, false), false);
   expect("PO: TU-forvalter kan ikke trekke tilbake for FTR Oslo", await consent(emma, P_OSLO, false), false);
-  expect("PO: FTR-representanten kan ikke godkjenne for TU", await consent(larsbror, P_TU, true), false);
+  expect("PO: FTR-representanten kan ikke godkjenne for TU", await consent(miaminge, P_TU, true), false);
   expect("PO: deltaker fra et annet samarbeid avvises", await consent(octavio, P_UTR, true), false);
   const direct = await (emma as unknown as Loose).from("collaboration_event_organizer_consents").insert({ event_id: E1, collaboration_id: C, participant_id: P_OSLO });
   expect("PO: direkte INSERT av samtykke avvises", direct.error !== null, true);
@@ -740,24 +740,24 @@ async function main() {
 
   // What the representative outside the team can see: their own unit's
   // request, and the event's publishable fields — nothing else changes.
-  expect("PO: FTR-representanten ser forespørselen til sin egen enhet", await count(larsbror, "collaboration_event_public_organizers", { participant_id: P_OSLO! }), 1);
-  expect("PO: …men ikke TUs rad", await count(larsbror, "collaboration_event_public_organizers", { participant_id: P_TU }), 0);
-  expect("PO: …og ikke TUs godkjenning", await count(larsbror, "collaboration_event_organizer_consents", { participant_id: P_TU }), 0);
+  expect("PO: FTR-representanten ser forespørselen til sin egen enhet", await count(miaminge, "collaboration_event_public_organizers", { participant_id: P_OSLO! }), 1);
+  expect("PO: …men ikke TUs rad", await count(miaminge, "collaboration_event_public_organizers", { participant_id: P_TU }), 0);
+  expect("PO: …og ikke TUs godkjenning", await count(miaminge, "collaboration_event_organizer_consents", { participant_id: P_TU }), 0);
   const request = async (client: Client, participant: string | null) => {
     const { data } = await rpc(client, "collaboration_organizer_request", { p_event_id: E1, p_participant_id: participant });
     return ((Array.isArray(data) ? data[0] : data) ?? {}) as Record<string, unknown>;
   };
-  const larsView = await request(larsbror, P_OSLO);
+  const larsView = await request(miaminge, P_OSLO);
   expect("PO: representanten ser tittelen han blir bedt om å stå bak", larsView.title, "Seminar: Strategier, markedsføring og differensiering");
   expect("PO: representanten får bare publiserbare felt", Object.keys(larsView).sort().join(","), "audience,consented,ends_at,listed,location,starts_at,status,title");
   expect("PO: ingen interne notater i forespørselen", JSON.stringify(larsView).includes("INTERNT-NOTAT"), false);
-  expect("PO: representanten får ingenting for en annen enhets forespørsel", (await request(larsbror, P_TU)).title ?? null, null);
+  expect("PO: representanten får ingenting for en annen enhets forespørsel", (await request(miaminge, P_TU)).title ?? null, null);
   expect("PO: uvedkommende får ingenting", (await request(octavio, P_OSLO)).title ?? null, null);
   expect("PO: TU-forvalter får ikke FTR Oslos visning via funksjonen", (await request(emma, P_OSLO)).title ?? null, null);
-  expect("PO: ingen andre tilgangsendringer — fortsatt ingen arbeidsflate-tilgang", await rpcOk(larsbror, "has_collaboration_access", { p_collaboration_id: C }), false);
-  expect("PO: …ingen arrangementsplan", await count(larsbror, "collaboration_events", { collaboration_id: C }), 0);
-  expect("PO: …ingen kanaler, dokumenter eller filer", `${await count(larsbror, "collaboration_channels", { collaboration_id: C })}|${await count(larsbror, "collaboration_documents", { collaboration_id: C })}|${await count(larsbror, "collaboration_files", { collaboration_id: C })}`, "0|0|0");
-  expect("PO: …og ingen teamliste", await count(larsbror, "collaboration_members", { collaboration_id: C }), 0);
+  expect("PO: ingen andre tilgangsendringer — fortsatt ingen arbeidsflate-tilgang", await rpcOk(miaminge, "has_collaboration_access", { p_collaboration_id: C }), false);
+  expect("PO: …ingen arrangementsplan", await count(miaminge, "collaboration_events", { collaboration_id: C }), 0);
+  expect("PO: …ingen kanaler, dokumenter eller filer", `${await count(miaminge, "collaboration_channels", { collaboration_id: C })}|${await count(miaminge, "collaboration_documents", { collaboration_id: C })}|${await count(miaminge, "collaboration_files", { collaboration_id: C })}`, "0|0|0");
+  expect("PO: …og ingen teamliste", await count(miaminge, "collaboration_members", { collaboration_id: C }), 0);
   expect("S: bildevalg må være et bilde fra samarbeidet", await rpcOk(emma, "set_collaboration_event_image", { p_event_id: E1, p_file_id: plakat.id }), false);
   expect("S: bildevalg fra C2 avvises", await rpcOk(emma, "set_collaboration_event_image", { p_event_id: E1, p_file_id: c2File.id }), false);
   expect("S: forvalter velger bildet", await rpcOk(emma, "set_collaboration_event_image", { p_event_id: E1, p_file_id: photo.id }), true);
@@ -768,7 +768,7 @@ async function main() {
   expect("S: arrangement for inviterte kan ikke publiseres", await rpcId(emma, "publish_collaboration_event", { p_event_id: inviteOnly, p_image_path: null }), null);
 
   expect("46: vanlig medlem kan ikke publisere", await rpcId(adrian, "publish_collaboration_event", { p_event_id: E1, p_image_path: null }), null);
-  expect("47: bare-representant kan ikke publisere", await rpcId(larsbror, "publish_collaboration_event", { p_event_id: E1, p_image_path: null }), null);
+  expect("47: bare-representant kan ikke publisere", await rpcId(miaminge, "publish_collaboration_event", { p_event_id: E1, p_image_path: null }), null);
   expect("S: uvalgt medlem kan ikke publisere", await rpcId(hanne, "publish_collaboration_event", { p_event_id: E1, p_image_path: null }), null);
 
   // The image is copied into the publication bucket by the manager first —
@@ -778,7 +778,7 @@ async function main() {
   expect("S: bildemappa er en egen tilfeldig nøkkel, ikke arrangementets id", assetKey !== E1, true);
   const imagePath = `${assetKey}/${randomUUID()}.png`;
   expect("S: vanlig medlem kan ikke legge bilder i publiseringsbøtta", await upload(adrian, "published-event-images", `${assetKey}/${randomUUID()}.png`, PNG, "image/png"), false);
-  expect("S: forvalter uten tilgang kan ikke legge bilder der", await upload(larsbror, "published-event-images", `${assetKey}/${randomUUID()}.png`, PNG, "image/png"), false);
+  expect("S: forvalter uten tilgang kan ikke legge bilder der", await upload(miaminge, "published-event-images", `${assetKey}/${randomUUID()}.png`, PNG, "image/png"), false);
   expect("S: mappe med arrangementets id (ikke nøkkelen) avvises", await upload(emma, "published-event-images", `${E1}/${randomUUID()}.png`, PNG, "image/png"), false);
   expect("S: forvalter med tilgang kopierer bildet", await upload(emma, "published-event-images", imagePath, PNG, "image/png"), true);
   expect("S: kopiert bilde er ikke offentlig før publisering", await canDownload(anon, "published-event-images", imagePath), false);
@@ -814,43 +814,43 @@ async function main() {
   expect("56: anonym leser det publiserte bildet", await canDownload(anon, "published-event-images", imagePath), true);
   expect("56: anonym leser fortsatt ikke kildebildet i den private bøtta", await canDownload(anon, "collaboration-files", photo.path), false);
   expect("56: projeksjonen peker ikke inn i den private bøtta", everything.includes(photo.path) || everything.includes("collaboration-files"), false);
-  expect("S: bare-representant ser ikke engang publiseringsstatusen", await count(larsbror, "published_collaboration_events", { source_event_id: E1! }), 0);
+  expect("S: bare-representant ser ikke engang publiseringsstatusen", await count(miaminge, "published_collaboration_events", { source_event_id: E1! }), 0);
   expect("S: teamet ser publiseringsstatusen", await count(adrian, "published_collaboration_events", { source_event_id: E1! }), 1);
 
   const liveOrganizers = async () =>
     ((await publicEvent(anon, slug!)).organizers as { communityName: string; localGroupName: string | null }[] | undefined ?? [])
       .map((o) => `${o.communityName}${o.localGroupName ? ` / ${o.localGroupName}` : ""}`)
       .join(" + ");
-  expect("PO: FTR Oslo-representanten godkjenner sin egen offentlige visning", await consent(larsbror, P_OSLO, true), true);
-  expect("PO: godkjenning er idempotent", await consent(larsbror, P_OSLO, true), true);
+  expect("PO: FTR Oslo-representanten godkjenner sin egen offentlige visning", await consent(miaminge, P_OSLO, true), true);
+  expect("PO: godkjenning er idempotent", await consent(miaminge, P_OSLO, true), true);
   expect("PO: godkjenningen er registrert", await consents(), "OSLO,TU");
-  expect("PO: godkjenningen er revidert med representanten som aktør", ((await admin.from("collaboration_audit_log").select("actor_user_id").eq("collaboration_id", C).eq("action", "organizer_consent_granted").eq("participant_id", P_OSLO!)).data ?? []).some((r) => r.actor_user_id === ids.larsbror), true);
+  expect("PO: godkjenningen er revidert med representanten som aktør", ((await admin.from("collaboration_audit_log").select("actor_user_id").eq("collaboration_id", C).eq("action", "organizer_consent_granted").eq("participant_id", P_OSLO!)).data ?? []).some((r) => r.actor_user_id === ids.miaminge), true);
   expect("PO: godkjenning publiserer ingenting av seg selv", await liveOrganizers(), "Tryggere Ungdom");
-  expect("PO: representanten ser «godkjent, ikke vist ennå»", `${(await request(larsbror, P_OSLO)).consented}|${(await request(larsbror, P_OSLO)).listed}`, "true|false");
+  expect("PO: representanten ser «godkjent, ikke vist ennå»", `${(await request(miaminge, P_OSLO)).consented}|${(await request(miaminge, P_OSLO)).listed}`, "true|false");
   expect("PO: (oppsett) forvalter oppdaterer publiseringen", await rpcId(emma, "publish_collaboration_event", { p_event_id: E1, p_image_path: null }), slug);
   expect("PO: etter godkjenning og oppdatering vises begge", await liveOrganizers(), "Tryggere Ungdom + Tryggere Ruspolitikk / FTR Oslo");
-  expect("PO: representanten ser at enheten vises nå", (await request(larsbror, P_OSLO)).listed, true);
+  expect("PO: representanten ser at enheten vises nå", (await request(miaminge, P_OSLO)).listed, true);
   expect("PO: fortsatt ingen id-er i de offentlige arrangørene", JSON.stringify((await publicEvent(anon, slug!)).organizers).match(/[0-9a-f]{8}-[0-9a-f]{4}-/) === null, true);
 
   // Revocation removes the unit from the live page at once.
-  expect("PO: representanten trekker tilbake godkjenningen", await consent(larsbror, P_OSLO, false), true);
+  expect("PO: representanten trekker tilbake godkjenningen", await consent(miaminge, P_OSLO, false), true);
   expect("PO: enheten er borte fra den offentlige siden umiddelbart (uten ny publisering)", await liveOrganizers(), "Tryggere Ungdom");
   expect("PO: godkjenningen er borte", await consents(), "TU");
-  expect("PO: tilbaketrekking er revidert", ((await admin.from("collaboration_audit_log").select("actor_user_id").eq("collaboration_id", C).eq("action", "organizer_consent_revoked").eq("participant_id", P_OSLO!)).data ?? []).some((r) => r.actor_user_id === ids.larsbror), true);
-  expect("PO: tilbaketrekking er idempotent", await consent(larsbror, P_OSLO, false), true);
+  expect("PO: tilbaketrekking er revidert", ((await admin.from("collaboration_audit_log").select("actor_user_id").eq("collaboration_id", C).eq("action", "organizer_consent_revoked").eq("participant_id", P_OSLO!)).data ?? []).some((r) => r.actor_user_id === ids.miaminge), true);
+  expect("PO: tilbaketrekking er idempotent", await consent(miaminge, P_OSLO, false), true);
   expect("PO: neste oppdatering tar den ikke med igjen", `${await rpcId(emma, "publish_collaboration_event", { p_event_id: E1, p_image_path: null })}|${await liveOrganizers()}`, `${slug}|Tryggere Ungdom`);
-  expect("PO: ny godkjenning vises først ved neste oppdatering", `${await consent(larsbror, P_OSLO, true)}|${await liveOrganizers()}`, "true|Tryggere Ungdom");
+  expect("PO: ny godkjenning vises først ved neste oppdatering", `${await consent(miaminge, P_OSLO, true)}|${await liveOrganizers()}`, "true|Tryggere Ungdom");
 
   // Taking a unit out of the selection drops its consent: asking again means
   // asking again.
   expect("PO: (oppsett) forvalter tar FTR Oslo ut av valget", await rpcOk(emma, "set_collaboration_event_organizers", { p_event_id: E1, p_participant_ids: [P_TU] }), true);
   expect("PO: utvalg fjerner godkjenningen", await consents(), "TU");
-  expect("PO: en enhet som ikke er forespurt kan ikke godkjenne", await consent(larsbror, P_OSLO, true), false);
-  expect("PO: forespørselen er borte for representanten", await count(larsbror, "collaboration_event_public_organizers", { participant_id: P_OSLO! }), 0);
+  expect("PO: en enhet som ikke er forespurt kan ikke godkjenne", await consent(miaminge, P_OSLO, true), false);
+  expect("PO: forespørselen er borte for representanten", await count(miaminge, "collaboration_event_public_organizers", { participant_id: P_OSLO! }), 0);
   expect("PO: (oppsett) forespurt igjen", await rpcOk(emma, "set_collaboration_event_organizers", { p_event_id: E1, p_participant_ids: [P_TU, P_OSLO] }), true);
   expect("PO: gammel godkjenning følger ikke med", await consents(), "TU");
-  expect("PO: (oppsett) representanten godkjenner på nytt og siden oppdateres", `${await consent(larsbror, P_OSLO, true)}|${await rpcId(emma, "publish_collaboration_event", { p_event_id: E1, p_image_path: null })}|${await liveOrganizers()}`, `true|${slug}|Tryggere Ungdom + Tryggere Ruspolitikk / FTR Oslo`);
-  expect("PO: forespørsel på et arrangement enheten ikke er bedt om avvises", await consent(larsbror, P_OSLO, true, draft), false);
+  expect("PO: (oppsett) representanten godkjenner på nytt og siden oppdateres", `${await consent(miaminge, P_OSLO, true)}|${await rpcId(emma, "publish_collaboration_event", { p_event_id: E1, p_image_path: null })}|${await liveOrganizers()}`, `true|${slug}|Tryggere Ungdom + Tryggere Ruspolitikk / FTR Oslo`);
+  expect("PO: forespørsel på et arrangement enheten ikke er bedt om avvises", await consent(miaminge, P_OSLO, true, draft), false);
 
   // 53–54: a snapshot.
   expect("53: (oppsett) privat endring etter publisering", await rpcOk(emma, "update_collaboration_event", { p_event_id: E1, ...eventArgs({ p_title: "Seminar – NY TITTEL (privat)", p_location: "Høyskolen Kristiania, Oslo" }) }), true);
@@ -864,7 +864,7 @@ async function main() {
   expect("S: bildet som ikke lenger er publisert kan ikke leses anonymt", await canDownload(anon, "published-event-images", imagePath), false);
 
   expect("55: vanlig medlem kan ikke avpublisere", await rpcOk(adrian, "unpublish_collaboration_event", { p_event_id: E1 }), false);
-  expect("55: bare-representant kan ikke avpublisere", await rpcOk(larsbror, "unpublish_collaboration_event", { p_event_id: E1 }), false);
+  expect("55: bare-representant kan ikke avpublisere", await rpcOk(miaminge, "unpublish_collaboration_event", { p_event_id: E1 }), false);
   expect("55: forvalter avpubliserer", await rpcOk(emma, "unpublish_collaboration_event", { p_event_id: E1 }), true);
   expect("55: anonym får ingenting etter avpublisering", (await publicEvent(anon, slug!)).public_slug ?? null, null);
   expect("55: den private planen er urørt", (await admin.from("collaboration_events").select("internal_notes").eq("id", E1!).single()).data?.internal_notes, NOTE);
@@ -880,7 +880,7 @@ async function main() {
   expect("57: Oslo-medlem i teamet ser ingen TU-medlemskap", seen(await kristoffer.from("memberships").select("id").eq("community_id", TU)), 0);
   expect("58: ingen policy på community_profiles nevner samarbeid", sql("select count(*) from pg_policies where schemaname = 'public' and tablename = 'community_profiles' and (coalesce(qual, '') ilike '%collaboration%' or coalesce(with_check, '') ilike '%collaboration%')"), "0");
   expect("58: teamkollega ser ingen TU-profiler for Adrian", await count(kristoffer, "community_profiles", { user_id: ids.adrian }), 0);
-  expect("59: FTR-representanten kan ikke telle TU-medlemmer", seen(await larsbror.from("memberships").select("id").eq("community_id", TU)), 0);
+  expect("59: FTR-representanten kan ikke telle TU-medlemmer", seen(await miaminge.from("memberships").select("id").eq("community_id", TU)), 0);
   expect("59: TU-forvalteren kan ikke telle FTR Oslo-medlemmer", seen(await emma.from("memberships").select("id").eq("local_group_id", OSLO)), 0);
   expect("60: TU-forvalteren ser ingen FTR-lokallag", await count(emma, "community_local_groups", { community_id: FTR }), 0);
   expect("60: teamkollega ser ikke andre Oslo-medlemmer (Amina)", await count(adrian, "collaboration_members", { user_id: ids.amina }), 0);
@@ -896,7 +896,7 @@ async function main() {
   const shortLived = await kristoffer.storage.from("collaboration-files").createSignedUrl(program.path, 2);
   expect("65: (oppsett) medlem kan lage en kortlivet signert lenke", typeof shortLived.data?.signedUrl, "string");
 
-  expect("62: (oppsett) FTR Oslo trekker Kristoffers eneste sponsing", await rpcOk(larsbror, "revoke_collaboration_sponsorship", { p_sponsorship_id: S_kristoffer }), true);
+  expect("62: (oppsett) FTR Oslo trekker Kristoffers eneste sponsing", await rpcOk(miaminge, "revoke_collaboration_sponsorship", { p_sponsorship_id: S_kristoffer }), true);
   expect("62: tilgangen er borte med én gang", await rpcOk(kristoffer, "has_collaboration_access", { p_collaboration_id: C }), false);
   expect("62: ingen kanaler", await count(kristoffer, "collaboration_channels", { collaboration_id: C }), 0);
   expect("12: ingen meldinger å lese", await count(kristoffer, "collaboration_messages", { collaboration_id: C }), 0);
@@ -930,7 +930,7 @@ async function main() {
   await rememberMembership(ids.petter, FTR);
   expect("63: (oppsett) Petter flytter selv til FTR Oslo", (await petter.rpc("set_my_local_group", { p_community_id: FTR, p_local_group_id: OSLO })).data, true);
   const S_petter_tu = await sponsorAndJoin(emma, petter, C, P_TU, ids.petter);
-  const S_petter_oslo = await rpcId(larsbror, "invite_collaboration_member", { p_collaboration_id: C, p_participant_id: P_OSLO, p_target_user_id: ids.petter });
+  const S_petter_oslo = await rpcId(miaminge, "invite_collaboration_member", { p_collaboration_id: C, p_participant_id: P_OSLO, p_target_user_id: ids.petter });
   expect("63: (oppsett) Petter aksepterer også FTR Oslos sponsing", await rpcOk(petter, "respond_to_collaboration_sponsorship", { p_sponsorship_id: S_petter_oslo, p_accept: true }), true);
   expect("UP: medlem med tilgang, men uten samarbeidsprofil, kan ikke laste opp", (await uploadViaRoute(C_slug, pdfFile, { cookie: await sessionCookie("petter") })).status, 403);
   await persona(petter, C, "Petter P.");
@@ -969,16 +969,16 @@ async function main() {
   expect("72: Ingrid (i begge, ikke forvalter) kan ikke publisere i noen", `${await rpcId(ingrid, "publish_collaboration_event", { p_event_id: E1, p_image_path: null })}|${await rpcId(ingrid, "publish_collaboration_event", { p_event_id: C2_EVENT, p_image_path: null })}`, "null|null");
 
   // ══ 64 — the participant unit leaves ════════════════════════════════
-  // Last, because it retires Lars Bror's management seat.
+  // Last, because it retires Mia's management seat.
 
-  expect("64: (oppsett) FTR Oslo trekker enheten ut", await rpcOk(larsbror, "leave_collaboration_as_participant", { p_participant_id: P_OSLO }), true);
+  expect("64: (oppsett) FTR Oslo trekker enheten ut", await rpcOk(miaminge, "leave_collaboration_as_participant", { p_participant_id: P_OSLO }), true);
   expect("64: Petter mister tilgangen (siste sponsing gikk via enheten)", await rpcOk(petter, "has_collaboration_access", { p_collaboration_id: C }), false);
   expect("64: …og kanalene", await count(petter, "collaboration_channels", { collaboration_id: C }), 0);
   expect("S: Petter, som aldri skrev noe, blir ikke synlig som «historisk forfatter»", await count(adrian, "collaboration_profiles", { user_id: ids.petter }), 0);
   expect("64: FTR Oslo er arrangør før uttrekket", ((await publicEvent(anon, slug!)).organizers as unknown[]).length, 2);
   expect("64: FTR Oslo er ikke lenger arrangør ved neste oppdatering", `${await rpcId(emma, "publish_collaboration_event", { p_event_id: E1, p_image_path: null })}|${((await publicEvent(anon, slug!)).organizers as unknown[]).length}`, `${slug}|1`);
-  expect("PO: en enhet som har trukket seg kan fortsatt trekke tilbake godkjenningen", await consent(larsbror, P_OSLO, false), true);
-  expect("PO: …men ikke gi ny", await consent(larsbror, P_OSLO, true), false);
+  expect("PO: en enhet som har trukket seg kan fortsatt trekke tilbake godkjenningen", await consent(miaminge, P_OSLO, false), true);
+  expect("PO: …men ikke gi ny", await consent(miaminge, P_OSLO, true), false);
   expect("64: TU-teamet har fortsatt tilgang", await rpcOk(adrian, "has_collaboration_access", { p_collaboration_id: C }), true);
 
   // ══ CATALOGUE ═══════════════════════════════════════════════════════

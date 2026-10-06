@@ -156,7 +156,7 @@ async function cleanup() {
     await admin.auth.admin.deleteUser(id).catch(() => {});
   }
   // Every access request submitted above notified an administrator ("X ba om
-  // tilgang"), and those rows belong to larsbror and octavio's real accounts
+  // tilgang"), and those rows belong to miaminge and octavio's real accounts
   // rather than to anything already deleted above, so nothing else removes
   // them. Deleting everything outside the pre-run snapshot catches those plus
   // anything else this run produced, the same way check-notifications.ts does.
@@ -169,8 +169,8 @@ async function main() {
   seededNotificationIds = (await admin.from("notifications").select("id")).data!.map((row) => row.id);
 
   const anon = anonymous();
-  const [larsbror, octavio, nadia, linn, marte] = await Promise.all([
-    signIn(await emailFor("larsbror")), // administrator, Tryggere Ruspolitikk
+  const [miaminge, octavio, nadia, linn, marte] = await Promise.all([
+    signIn(await emailFor("miaminge")), // administrator, Tryggere Ruspolitikk
     signIn(await emailFor("octavio")), // administrator, Under The Rug
     signIn(await emailFor("nadia")), // moderator, Tryggere Ruspolitikk
     signIn(await emailFor("linn")), // ordinary member, Tryggere Ruspolitikk
@@ -204,7 +204,7 @@ async function main() {
     "pending",
   );
 
-  const adminApprove = await larsbror.rpc("approve_access_request", { p_request_id: roleRequest.id });
+  const adminApprove = await miaminge.rpc("approve_access_request", { p_request_id: roleRequest.id });
   const adminOutcome = (adminApprove.data as MintedRow[] | null)?.[0];
   expect("3. administrator i eget fellesskap kan godkjenne", Boolean(adminOutcome), true);
   expect(
@@ -225,7 +225,7 @@ async function main() {
   const marteProfileBefore = await communityProfileOf(marteId, TR);
   if (!marteProfileBefore) createdCommunityProfiles.push({ userId: marteId, communityId: TR });
 
-  const marteApproval = await larsbror.rpc("approve_access_request", { p_request_id: marteRequest.id });
+  const marteApproval = await miaminge.rpc("approve_access_request", { p_request_id: marteRequest.id });
   const marteOutcome = (marteApproval.data as MintedRow[] | null)?.[0];
   expect("5. godkjenning av en konto som finnes fra før aktiverer med det samme", marteOutcome?.outcome, "activated");
   expect("5. og gir ingen token", marteOutcome?.token, null);
@@ -244,7 +244,7 @@ async function main() {
   //      the membership. There is only one row to find either way — this
   //      asserts there is exactly one, not merely that the count did not
   //      change relative to some other total.
-  const marteApproveAgain = await larsbror.rpc("approve_access_request", { p_request_id: marteRequest.id });
+  const marteApproveAgain = await miaminge.rpc("approve_access_request", { p_request_id: marteRequest.id });
   const marteAgainOutcome = (marteApproveAgain.data as MintedRow[] | null)?.[0];
   expect("7. en gjentatt godkjenning er idempotent", marteAgainOutcome?.outcome, "activated");
   expect(
@@ -282,7 +282,7 @@ async function main() {
   await requestAccess(anon, TR, claimEmail, "Sjekk Claim");
   const claimRequest = await pendingRequestFor(claimEmail);
 
-  const claimApproval = await larsbror.rpc("approve_access_request", { p_request_id: claimRequest.id });
+  const claimApproval = await miaminge.rpc("approve_access_request", { p_request_id: claimRequest.id });
   const claimOutcome = (claimApproval.data as MintedRow[] | null)?.[0];
   expect("godkjenning uten konto gir en invitasjon", claimOutcome?.outcome, "invited");
   const claimToken = claimOutcome?.token;
@@ -393,10 +393,10 @@ async function main() {
   createdAccessRequestEmails.push(rejectedEmail);
   await requestAccess(anon, TR, rejectedEmail, "Sjekk Avslått");
   const rejectedRequest = await pendingRequestFor(rejectedEmail);
-  const rejection = await larsbror.rpc("reject_access_request", { p_request_id: rejectedRequest.id });
+  const rejection = await miaminge.rpc("reject_access_request", { p_request_id: rejectedRequest.id });
   expect("administrator kan avslå", rejection.data, true);
 
-  const rejectedApproveAttempt = await larsbror.rpc("approve_access_request", { p_request_id: rejectedRequest.id });
+  const rejectedApproveAttempt = await miaminge.rpc("approve_access_request", { p_request_id: rejectedRequest.id });
   expect("14. et avslag kan ikke senere godkjennes", (rejectedApproveAttempt.data ?? []).length, 0);
   expect(
     "14. og det finnes ingen invitasjon for den avslåtte adressen",
@@ -570,7 +570,7 @@ async function main() {
     .insert({ community_id: TR, email: legacyEmail, display_name: null });
   expect("17. eldre forespørsler uten navn kan fortsatt finnes", legacyInsertError, null);
   const legacyRequest = await pendingRequestFor(legacyEmail);
-  const larsBror = await signIn(await emailFor("larsbror"));
+  const larsBror = await signIn(await emailFor("miaminge"));
   const legacyApproval = await larsBror.rpc("approve_access_request", { p_request_id: legacyRequest.id });
   expect("17. og kan fortsatt godkjennes av en administrator", legacyApproval.error, null);
 

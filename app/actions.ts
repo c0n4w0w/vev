@@ -13,7 +13,9 @@ import {
   clearCommunityAvatar,
   clearMyCommunityAvatar,
   createCommunityEmoji as persistEmoji,
+  addSubgroupMember,
   createPost as persistPost,
+  removeSubgroupMember,
   deleteComment as removeComment,
   getCommunityById,
   getLocalGroups,
@@ -74,6 +76,7 @@ import {
   type LocalGroupFormState,
 } from "@/lib/local-group-form";
 import type { MessageFormState } from "@/lib/message-form";
+import { parseContentScope, type SubgroupFormState } from "@/lib/subgroup-form";
 import type { PostFormState } from "@/lib/post-form";
 import { sendInvitationEmail } from "@/lib/email/invitation";
 import { osloInstant } from "@/lib/format";
@@ -169,13 +172,14 @@ export async function createPostAction(
   const communityId = String(formData.get("communityId") ?? "");
   const result = await persistPost({
     communityId,
-    localGroupId: String(formData.get("localGroupId") ?? "") || undefined,
+    ...parseContentScope(String(formData.get("scope") ?? "")),
     body: String(formData.get("body") ?? ""),
     title: String(formData.get("title") ?? ""),
     // Whether the caller may publish at all is posts_insert's decision: only an
     // active admin or moderator of this community, announcements included. A
-    // member who posts this form by hand reaches a policy that refuses it, and
-    // a local group from another community is refused by the foreign key.
+    // member who posts this form by hand reaches a policy that refuses it, as
+    // does staff publishing into a lokallag or subgroup they cannot read; a
+    // group from another community is refused by the foreign key.
     announcement: formData.get("announcement") === "on",
   });
 
@@ -661,21 +665,79 @@ export async function createEventAction(
     return { status: "error", error: t("err.eventCapacityInvalid") };
   }
 
+  const scope = parseContentScope(String(formData.get("scope") ?? ""));
+  const isPublic = formData.get("isPublic") === "on";
+  // events_scoped_not_public: a lokallag or group event is private by
+  // definition and never appears on the public portal.
+  if (isPublic && (scope.localGroupId || scope.subgroupId)) {
+    return { status: "error", error: t("err.eventScopedNotPublic") };
+  }
+
   const result = await createEvent({
     communityId,
-    localGroupId: String(formData.get("localGroupId") ?? "") || undefined,
+    ...scope,
     title,
     description,
     location,
     startsAt: startsAt.toISOString(),
     endsAt: endsAt.toISOString(),
-    isPublic: formData.get("isPublic") === "on",
+    isPublic,
     capacity,
   });
 
   if (!result.ok) return { status: "error", error: t(EVENT_CREATE_REFUSED) };
 
   revalidateEvents(communityId, result.id);
+  return { status: "ok" };
+}
+
+// ── Subgroups (teams) ───────────────────────────────────────────────────
+//
+// Only ids travel in the form. Whether the caller may manage this subgroup
+// (community admin or explicit manager), whether the person is an active member
+// of the same community, and whether they are already in it, is decided by
+// add_subgroup_member() / remove_subgroup_member() from auth.uid(). Neither
+// touches anyone's community role, lokallag or authored content.
+
+function revalidateSubgroups(communityId: string) {
+  revalidatePath(`/community/${communityId}/grupper`);
+  revalidatePath(`/community/${communityId}`, "layout");
+}
+
+export async function addSubgroupMemberAction(
+  _prev: SubgroupFormState,
+  formData: FormData,
+): Promise<SubgroupFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
+  const userId = String(formData.get("userId") ?? "");
+  if (!userId) return { status: "error", error: t("err.subgroupPickMember") };
+
+  const ok = await addSubgroupMember(String(formData.get("subgroupId") ?? ""), userId);
+  if (!ok) return { status: "error", error: t("err.subgroupAddRefused") };
+
+  revalidateSubgroups(communityId);
+  return { status: "ok" };
+}
+
+export async function removeSubgroupMemberAction(
+  _prev: SubgroupFormState,
+  formData: FormData,
+): Promise<SubgroupFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const ok = await removeSubgroupMember(
+    String(formData.get("subgroupId") ?? ""),
+    String(formData.get("userId") ?? ""),
+  );
+  if (!ok) return { status: "error", error: (await translatorFor(communityId))("err.subgroupRemoveRefused") };
+
+  revalidateSubgroups(communityId);
   return { status: "ok" };
 }
 

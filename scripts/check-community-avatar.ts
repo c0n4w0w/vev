@@ -207,7 +207,7 @@ async function main() {
   const anon = createClient<Database>(supabaseUrl(), supabaseAnonKey());
   const admins: [string, string][] = [
     [UTR, "octavio"],
-    [TR, "larsbror"],
+    [TR, "miaminge"],
     [TU, "emmamortensen"],
   ];
   const adminClients = new Map<string, Client>();
@@ -257,19 +257,19 @@ async function main() {
   }
 
   // ── 4: an administrator cannot touch another community ──
-  const larsbror = adminClients.get(TR)!;
+  const miaminge = adminClients.get(TR)!;
   const utrBefore = await storedPath(UTR);
-  const crossUpload = await upload(larsbror, pathFor(UTR), png());
+  const crossUpload = await upload(miaminge, pathFor(UTR), png());
   expect("admin kan ikke laste opp til et annet fellesskap", crossUpload.error !== null, true);
   const ownPath = (await storedPath(TR))!;
-  const crossSwap = await swap(larsbror, UTR, ownPath);
+  const crossSwap = await swap(miaminge, UTR, ownPath);
   expect("admin kan ikke endre et annet fellesskaps referanse", crossSwap.applied, false);
-  const crossClear = await swap(larsbror, UTR, null);
+  const crossClear = await swap(miaminge, UTR, null);
   expect("admin kan ikke fjerne et annet fellesskaps bilde", crossClear.applied, false);
   expect("annet fellesskap urørt etter kryssforsøk", await storedPath(UTR), utrBefore);
-  const crossRead = await larsbror.storage.from(BUCKET).download(utrBefore!);
+  const crossRead = await miaminge.storage.from(BUCKET).download(utrBefore!);
   expect("admin kan ikke lese et annet fellesskaps bilde", crossRead.error !== null, true);
-  const crossDelete = await larsbror.storage.from(BUCKET).remove([utrBefore!]);
+  const crossDelete = await miaminge.storage.from(BUCKET).remove([utrBefore!]);
   expect("admin kan ikke slette et annet fellesskaps fil", (crossDelete.data ?? []).length, 0);
   expect("annet fellesskaps fil finnes fortsatt", await objectExists(utrBefore!), true);
 
@@ -314,19 +314,19 @@ async function main() {
       .from("memberships")
       .select("id, status")
       .eq("community_id", TR)
-      .eq("user_id", await profileId("larsbror"))
+      .eq("user_id", await profileId("miaminge"))
       .single();
     if (error) throw error;
     const current = (await storedPath(TR))!;
     try {
       await admin.from("memberships").update({ status: "invited" }).eq("id", row.id);
-      const denied = await upload(larsbror, pathFor(TR), png());
+      const denied = await upload(miaminge, pathFor(TR), png());
       expect("inaktivt medlemskap kan ikke laste opp", denied.error !== null, true);
-      const swapped = await swap(larsbror, TR, current);
+      const swapped = await swap(miaminge, TR, current);
       expect("inaktivt medlemskap kan ikke bytte", swapped.applied, false);
-      const cleared = await swap(larsbror, TR, null);
+      const cleared = await swap(miaminge, TR, null);
       expect("inaktivt medlemskap kan ikke fjerne", cleared.applied, false);
-      const read = await larsbror.storage.from(BUCKET).download(current);
+      const read = await miaminge.storage.from(BUCKET).download(current);
       expect("inaktivt medlemskap kan ikke lese bildet", read.error !== null, true);
     } finally {
       await admin.from("memberships").update({ status: row.status }).eq("id", row.id);

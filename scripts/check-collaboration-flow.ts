@@ -290,7 +290,7 @@ async function main() {
     adrian: await profileId("adrian"),
     petter: await profileId("petter"),
     ingrid: await profileId("ingrid"),
-    larsbror: await profileId("larsbror"),
+    miaminge: await profileId("miaminge"),
     amina: await profileId("amina"),
     kristoffer: await profileId("kristoffer"),
     kari: await profileId("karimoen"),
@@ -317,7 +317,7 @@ async function main() {
   const adrian = await signIn("adrian");
   const petter = await signIn("petter");
   const ingrid = await signIn("ingrid");
-  const larsbror = await signIn("larsbror");
+  const miaminge = await signIn("miaminge");
   const amina = await signIn("amina");
   const kristoffer = await signIn("kristoffer");
   const kari = await signIn("karimoen");
@@ -328,16 +328,16 @@ async function main() {
   const emmaUnits = await representableUnits(emma, ids.emma);
   expect("1: TU-admin tilbys bare TU-enheter", emmaUnits.every((u) => decodeUnit(u)?.communityId === TU), true);
   expect("1: TU-admin tilbys hele TU pluss TUs aktive lokallag", emmaUnits.includes(encodeUnit(TU)) && emmaUnits.includes(encodeUnit(TU, TU_OSLO)), true);
-  const larsUnits = await representableUnits(larsbror, ids.larsbror);
-  expect("1: FTR-admin tilbys FTR Oslo selv uten å være Oslo-medlem", larsUnits.includes(encodeUnit(FTR, OSLO)), true);
-  expect("2: FTR-admin tilbys ingen TU-enheter", larsUnits.some((u) => decodeUnit(u)?.communityId !== FTR), false);
+  const miaUnits = await representableUnits(miaminge, ids.miaminge);
+  expect("1: FTR-admin tilbys FTR Oslo selv uten å være Oslo-medlem", miaUnits.includes(encodeUnit(FTR, OSLO)), true);
+  expect("2: FTR-admin tilbys ingen TU-enheter", miaUnits.some((u) => decodeUnit(u)?.communityId !== FTR), false);
   expect("2: moderator tilbys ingen enheter", (await representableUnits(hanne, ids.hanne)).length, 0);
   expect("2: TU-admin kan ikke lese FTRs lokallag", seen(await emma.from("community_local_groups").select("id").eq("community_id", FTR)), 0);
 
-  const C_ftr = await create(larsbror, FTR, OSLO, "FTR Oslo planlegger");
+  const C_ftr = await create(miaminge, FTR, OSLO, "FTR Oslo planlegger");
   expect("3: opprettet fra FTR Oslo", typeof C_ftr, "string");
-  expect("3: representasjon av lokallag gir forvalterrett", await isManager(larsbror, C_ftr!), true);
-  expect("3: …men ikke arrangørtilgang", await hasAccess(larsbror, C_ftr!), false);
+  expect("3: representasjon av lokallag gir forvalterrett", await isManager(miaminge, C_ftr!), true);
+  expect("3: …men ikke arrangørtilgang", await hasAccess(miaminge, C_ftr!), false);
 
   expect("4: slug fra navn", slugFromName("Seminar – Cannabismarkedet"), "seminar-cannabismarkedet");
   expect("4: slug med æøå", slugFromName("Kulturnatt på Grünerløkka"), "kulturnatt-pa-grunerlokka");
@@ -419,20 +419,20 @@ async function main() {
 
   const inbox = async (client: Client) =>
     (await units(client, C!)).filter((u) => u.status === "invited" && u.represented).map((u) => u.participant_id);
-  expect("11: nåværende FTR-admin ser invitasjonen", (await inbox(larsbror)).join(), P_FTR);
-  expect("11: FTR-admin ser aktive deltakere (TU) mens han vurderer", (await units(larsbror, C!)).some((u) => u.community_name === "Tryggere Ungdom" && u.status === "active"), true);
-  expect("11: FTR-admin ser ikke UTRs ventende invitasjon", (await units(larsbror, C!)).some((u) => u.participant_id === utrInvite.participantId), false);
-  expect("11: FTR-admin får ikke TUs lokallag-id", (await units(larsbror, C!)).every((u) => u.community_id === FTR || u.local_group_id === null), true);
+  expect("11: nåværende FTR-admin ser invitasjonen", (await inbox(miaminge)).join(), P_FTR);
+  expect("11: FTR-admin ser aktive deltakere (TU) mens hun vurderer", (await units(miaminge, C!)).some((u) => u.community_name === "Tryggere Ungdom" && u.status === "active"), true);
+  expect("11: FTR-admin ser ikke UTRs ventende invitasjon", (await units(miaminge, C!)).some((u) => u.participant_id === utrInvite.participantId), false);
+  expect("11: FTR-admin får ikke TUs lokallag-id", (await units(miaminge, C!)).every((u) => u.community_id === FTR || u.local_group_id === null), true);
   expect("12: FTR-moderator ser den ikke", (await inbox(kari)).length, 0);
   expect("12: FTR-moderator ser ikke samarbeidet", seen(await kari.from("collaborations").select("id").eq("id", C!)), 0);
-  await remember(ids.larsbror, FTR);
+  await remember(ids.miaminge, FTR);
   await remember(ids.kari, FTR);
-  await admin.from("memberships").update({ role: "member" }).eq("user_id", ids.larsbror).eq("community_id", FTR);
+  await admin.from("memberships").update({ role: "member" }).eq("user_id", ids.miaminge).eq("community_id", FTR);
   await admin.from("memberships").update({ role: "admin" }).eq("user_id", ids.kari).eq("community_id", FTR);
-  expect("13: tidligere admin ser ikke invitasjonen etter skifte", (await inbox(larsbror)).length, 0);
+  expect("13: tidligere admin ser ikke invitasjonen etter skifte", (await inbox(miaminge)).length, 0);
   expect("14: ny admin ser den uten synkronisering", (await inbox(kari)).join(), P_FTR);
   await admin.from("memberships").update({ role: "moderator" }).eq("user_id", ids.kari).eq("community_id", FTR);
-  await admin.from("memberships").update({ role: "admin" }).eq("user_id", ids.larsbror).eq("community_id", FTR);
+  await admin.from("memberships").update({ role: "admin" }).eq("user_id", ids.miaminge).eq("community_id", FTR);
 
   // ══ PENDING-INVITEE EXCEPTION (P1–P12) ═══════════════════════════════
   //
@@ -458,7 +458,7 @@ async function main() {
   const statuses = ((await admin.from("collaboration_participants").select("status").eq("collaboration_id", C_vis!)).data ?? []).map((r) => r.status).sort().join();
   expect("P: (oppsett) aktiv, forlatt, avslått og to ventende rader finnes", statuses, "active,declined,invited,invited,left");
 
-  const pendingView = await units(larsbror, C_vis!);
+  const pendingView = await units(miaminge, C_vis!);
   const own = pendingView.filter((u) => u.represented);
   const labels = pendingView.filter((u) => !u.represented);
   expect("P1: ventende invitert ser nøyaktig egen invitasjon + aktive enheter", pendingView.length, 2);
@@ -469,43 +469,43 @@ async function main() {
   expect("P4: ingen avslåtte eller forlatte enheter vises", pendingView.some((u) => u.status === "declined" || u.status === "left"), false);
   expect("P5: ingen UTR-rad av noe slag", pendingView.some((u) => u.community_name === "Under The Rug"), false);
   expect("P5: ingen av UTRs deltaker-id-er lekker", pendingView.some((u) => [P_utr1, P_utr2, P_utr3].includes(u.participant_id)), false);
-  expect("P6: tabellen viser fortsatt bare egen rad", seen(await larsbror.from("collaboration_participants").select("id").eq("collaboration_id", C_vis!)), 1);
-  expect("P7: ingen sponsinger", seen(await larsbror.from("collaboration_member_sponsorships").select("id").eq("collaboration_id", C_vis!)), 0);
-  expect("P7: ingen forvalterplass-proveniens", seen(await larsbror.from("collaboration_manager_participants").select("participant_id").eq("collaboration_id", C_vis!)), 0);
-  expect("P7: ingen teammedlemmer eller profiler", `${seen(await larsbror.from("collaboration_members").select("user_id").eq("collaboration_id", C_vis!))}|${seen(await larsbror.from("collaboration_profiles").select("user_id").eq("collaboration_id", C_vis!))}`, "0|0");
-  expect("P8: ingen av TUs lokallag", seen(await larsbror.from("community_local_groups").select("id").eq("community_id", TU)), 0);
-  expect("P8: ingen TU-medlemskap eller -tall", `${seen(await larsbror.from("memberships").select("id").eq("community_id", TU))}|${seen(await larsbror.rpc("local_group_member_counts", { p_community_id: TU }))}`, "0|0");
+  expect("P6: tabellen viser fortsatt bare egen rad", seen(await miaminge.from("collaboration_participants").select("id").eq("collaboration_id", C_vis!)), 1);
+  expect("P7: ingen sponsinger", seen(await miaminge.from("collaboration_member_sponsorships").select("id").eq("collaboration_id", C_vis!)), 0);
+  expect("P7: ingen forvalterplass-proveniens", seen(await miaminge.from("collaboration_manager_participants").select("participant_id").eq("collaboration_id", C_vis!)), 0);
+  expect("P7: ingen teammedlemmer eller profiler", `${seen(await miaminge.from("collaboration_members").select("user_id").eq("collaboration_id", C_vis!))}|${seen(await miaminge.from("collaboration_profiles").select("user_id").eq("collaboration_id", C_vis!))}`, "0|0");
+  expect("P8: ingen av TUs lokallag", seen(await miaminge.from("community_local_groups").select("id").eq("community_id", TU)), 0);
+  expect("P8: ingen TU-medlemskap eller -tall", `${seen(await miaminge.from("memberships").select("id").eq("community_id", TU))}|${seen(await miaminge.rpc("local_group_member_counts", { p_community_id: TU }))}`, "0|0");
   expect("P9: etikett-raden har bare navn og offentlig merke", Object.entries(labels[0] ?? {}).filter(([, v]) => v !== null).map(([k]) => k).sort().join(), "accent,community_name,local_group_name,mark_style,monogram,represented,status");
   expect("P11: FTR-moderator uten representasjon får ingenting", (await units(kari, C_vis!)).length, 0);
-  await admin.from("memberships").update({ role: "member" }).eq("user_id", ids.larsbror).eq("community_id", FTR);
+  await admin.from("memberships").update({ role: "member" }).eq("user_id", ids.miaminge).eq("community_id", FTR);
   await admin.from("memberships").update({ role: "admin" }).eq("user_id", ids.kari).eq("community_id", FTR);
-  expect("P12: tidligere admin mister unntaket umiddelbart", (await units(larsbror, C_vis!)).length, 0);
+  expect("P12: tidligere admin mister unntaket umiddelbart", (await units(miaminge, C_vis!)).length, 0);
   expect("P12: ny admin får det uten synkronisering", (await units(kari, C_vis!)).filter((u) => !u.represented).length, 1);
   await admin.from("memberships").update({ role: "moderator" }).eq("user_id", ids.kari).eq("community_id", FTR);
-  await admin.from("memberships").update({ role: "admin" }).eq("user_id", ids.larsbror).eq("community_id", FTR);
-  expect("P10: etter aksept gjelder ordinære regler (ingen etikett-rader)", await accept(larsbror, P_ftrVis, null) && (await units(larsbror, C_vis!)).every((u) => u.participant_id !== null), true);
+  await admin.from("memberships").update({ role: "admin" }).eq("user_id", ids.miaminge).eq("community_id", FTR);
+  expect("P10: etter aksept gjelder ordinære regler (ingen etikett-rader)", await accept(miaminge, P_ftrVis, null) && (await units(miaminge, C_vis!)).every((u) => u.participant_id !== null), true);
 
   // ══ ACCEPTANCE (15–20) ════════════════════════════════════════════════
 
-  const larsGroups = (await larsbror.from("community_local_groups").select("id, community_id")).data ?? [];
+  const larsGroups = (await miaminge.from("community_local_groups").select("id, community_id")).data ?? [];
   expect("15: mottaker ser bare egne lokallag i valget", larsGroups.every((g) => g.community_id === FTR) && larsGroups.length > 0, true);
   expect("20: inviterende kan ikke velge for FTR", await accept(emma, P_FTR, OSLO), false);
-  expect("18: et annet fellesskaps lokallag avvises", await accept(larsbror, P_FTR, TU_OSLO), false);
+  expect("18: et annet fellesskaps lokallag avvises", await accept(miaminge, P_FTR, TU_OSLO), false);
   await rememberGroup(AKERSHUS);
-  await larsbror.rpc("set_local_group_active", { p_local_group_id: AKERSHUS, p_active: false });
-  expect("19: avviklet lokallag avvises", await accept(larsbror, P_FTR, AKERSHUS), false);
-  await larsbror.rpc("set_local_group_active", { p_local_group_id: AKERSHUS, p_active: true });
-  expect("17: FTR deltar som FTR Oslo", await accept(larsbror, P_FTR, OSLO), true);
+  await miaminge.rpc("set_local_group_active", { p_local_group_id: AKERSHUS, p_active: false });
+  expect("19: avviklet lokallag avvises", await accept(miaminge, P_FTR, AKERSHUS), false);
+  await miaminge.rpc("set_local_group_active", { p_local_group_id: AKERSHUS, p_active: true });
+  expect("17: FTR deltar som FTR Oslo", await accept(miaminge, P_FTR, OSLO), true);
   const P_OSLO = P_FTR;
   const osloRow = (await admin.from("collaboration_participants").select("community_id, local_group_id, status").eq("id", P_OSLO).single()).data;
   expect("17: enheten er FTR / FTR Oslo", `${osloRow?.community_id}|${osloRow?.local_group_id}|${osloRow?.status}`, `${FTR}|${OSLO}|active`);
-  expect("17: representanten forvalter, men er ikke arrangør", `${await isManager(larsbror, C!)}|${await hasAccess(larsbror, C!)}`, "true|false");
+  expect("17: representanten forvalter, men er ikke arrangør", `${await isManager(miaminge, C!)}|${await hasAccess(miaminge, C!)}`, "true|false");
   const emmaSeesOslo = (await units(emma, C!)).find((u) => u.participant_id === P_OSLO);
   expect("17: TU ser navnet «FTR Oslo», men ikke lokallag-id", `${emmaSeesOslo?.local_group_name}|${emmaSeesOslo?.local_group_id}`, "FTR Oslo|null");
 
   const C_whole = await create(emma, TU, null, "Helorganisasjon-test");
   const P_whole = (await inviteBySlug(emma, C_whole!, FTR)).participantId!;
-  expect("16: FTR deltar som hele organisasjonen", await accept(larsbror, P_whole, null), true);
+  expect("16: FTR deltar som hele organisasjonen", await accept(miaminge, P_whole, null), true);
   const wholeRow = (await admin.from("collaboration_participants").select("local_group_id").eq("id", P_whole).single()).data;
   expect("16: helorganisasjon har intet lokallag", wholeRow?.local_group_id, null);
   const P_decl = (await inviteBySlug(emma, C_whole!, UTR)).participantId!;
@@ -514,28 +514,28 @@ async function main() {
   // ══ ORGANIZER PICKER (21–25) ══════════════════════════════════════════
 
   const truthOslo = ((await admin.from("memberships").select("user_id").eq("community_id", FTR).eq("status", "active").eq("local_group_id", OSLO)).data ?? []).map((r) => r.user_id).sort();
-  expect("21/22: representanten ser nøyaktig FTR Oslos aktive medlemmer", JSON.stringify(await organizerCandidates(larsbror, FTR, OSLO)), JSON.stringify(truthOslo));
+  expect("21/22: representanten ser nøyaktig FTR Oslos aktive medlemmer", JSON.stringify(await organizerCandidates(miaminge, FTR, OSLO)), JSON.stringify(truthOslo));
   expect("22: Oslo-listen inneholder Kristoffer og Amina", truthOslo.includes(ids.kristoffer) && truthOslo.includes(ids.amina), true);
   expect("23: TU-forvalter får ingen FTR Oslo-kandidater", JSON.stringify(await organizerCandidates(emma, FTR, OSLO)), "[]");
-  expect("23: FTR-representant får ingen TU-kandidater", JSON.stringify(await organizerCandidates(larsbror, TU, null)), "[]");
+  expect("23: FTR-representant får ingen TU-kandidater", JSON.stringify(await organizerCandidates(miaminge, TU, null)), "[]");
   expect("24: forvalterrett gir ingen FTR-medlemsliste", seen(await emma.from("memberships").select("id").eq("local_group_id", OSLO)), 0);
   expect("24: forvalterrett gir ingen FTR-profiler", seen(await emma.from("community_profiles").select("user_id").eq("community_id", FTR)), 0);
   expect("24: TU kan ikke sponse via FTR Oslo selv med forvalterrett", await sponsor(emma, C!, P_OSLO, ids.kristoffer), null);
   await remember(ids.kristoffer, FTR);
   await kristoffer.rpc("set_my_local_group", { p_community_id: FTR, p_local_group_id: TRONDELAG });
-  expect("25: medlemsdata er kilden — flyttet medlem forsvinner fra listen", (await organizerCandidates(larsbror, FTR, OSLO) as string[]).includes(ids.kristoffer), false);
+  expect("25: medlemsdata er kilden — flyttet medlem forsvinner fra listen", (await organizerCandidates(miaminge, FTR, OSLO) as string[]).includes(ids.kristoffer), false);
   await kristoffer.rpc("set_my_local_group", { p_community_id: FTR, p_local_group_id: OSLO });
-  expect("25: …og kommer tilbake", (await organizerCandidates(larsbror, FTR, OSLO) as string[]).includes(ids.kristoffer), true);
+  expect("25: …og kommer tilbake", (await organizerCandidates(miaminge, FTR, OSLO) as string[]).includes(ids.kristoffer), true);
 
   // ══ PERSON INVITE (26–32) ═════════════════════════════════════════════
 
-  const S_k = await sponsor(larsbror, C!, P_OSLO, ids.kristoffer);
+  const S_k = await sponsor(miaminge, C!, P_OSLO, ids.kristoffer);
   expect("26: sponset person ser egen invitasjon", seen(await kristoffer.from("collaboration_member_sponsorships").select("id").eq("id", S_k!)), 1);
   expect("26: …og enheten som valgte ham", (await units(kristoffer, C!)).map((u) => u.participant_id).join(), P_OSLO);
   expect("27: andre ser den ikke", seen(await amina.from("collaboration_member_sponsorships").select("id").eq("id", S_k!)), 0);
   expect("27: TU-admin ser den ikke", seen(await emma.from("collaboration_member_sponsorships").select("id").eq("id", S_k!)), 0);
   expect("27: andre kan ikke akseptere den", await acceptAndJoin(amina, S_k!), false);
-  expect("27: sponsor kan ikke akseptere den", await acceptAndJoin(larsbror, S_k!), false);
+  expect("27: sponsor kan ikke akseptere den", await acceptAndJoin(miaminge, S_k!), false);
   expect("28: takk ja og bli med virker", await acceptAndJoin(kristoffer, S_k!), true);
   expect("28: tilgang etterpå", await hasAccess(kristoffer, C!), true);
   expect("30: nytt forsøk er trygt", await acceptAndJoin(kristoffer, S_k!), true);
@@ -551,7 +551,7 @@ async function main() {
   expect("31: trukket invitasjon kan ikke aksepteres", await acceptAndJoin(adrian, S_a!), false);
   expect("31: ingen teamrad", seen(await admin.from("collaboration_members").select("user_id").eq("collaboration_id", C!).eq("user_id", ids.adrian)), 0);
 
-  const S_am = await sponsor(larsbror, C!, P_OSLO, ids.amina);
+  const S_am = await sponsor(miaminge, C!, P_OSLO, ids.amina);
   await remember(ids.amina, FTR);
   await amina.rpc("set_my_local_group", { p_community_id: FTR, p_local_group_id: nullable<string>(null) });
   expect("32: tapt organisatorisk tilknytning kan ikke aksepteres", await acceptAndJoin(amina, S_am!), false);
@@ -566,7 +566,7 @@ async function main() {
   const kp = (await admin.from("collaboration_profiles").select("display_name, bio").eq("collaboration_id", C!).eq("user_id", ids.kristoffer).single()).data;
   expect("37: navnet trimmes", kp?.display_name, "Kris");
   expect("34: ikke-medlem kan ikke", await upsertProfile(amina, C!, "Amina", ""), false);
-  expect("35: forvalter uten teamplass kan ikke", await upsertProfile(larsbror, C!, "Lars", ""), false);
+  expect("35: forvalter uten teamplass kan ikke", await upsertProfile(miaminge, C!, "Mia", ""), false);
   expect("34: utenforstående kan ikke", await upsertProfile(octavio, C!, "Octavio", ""), false);
   const forged = await kristoffer.rpc("upsert_my_collaboration_profile" as never, {
     p_collaboration_id: C!, p_display_name: "Kapret", p_bio: "", p_user_id: ids.ingrid,
@@ -624,21 +624,21 @@ async function main() {
 
   // ══ MANAGER VS MEMBER (52–55) ═════════════════════════════════════════
 
-  const larsInvite = await inviteBySlug(larsbror, C_ftr!, TU);
+  const larsInvite = await inviteBySlug(miaminge, C_ftr!, TU);
   expect("52: forvalter uten teamplass kan invitere organisasjon", larsInvite.name, "Tryggere Ungdom");
-  expect("52: …og velge egne Oslo-folk", typeof (await sponsor(larsbror, C_ftr!, (await units(larsbror, C_ftr!)).find((u) => u.represented)!.participant_id, ids.kristoffer)), "string");
-  expect("53: forvalter uten teamplass ser ikke teamet", seen(await larsbror.from("collaboration_members").select("user_id").eq("collaboration_id", C!)), 0);
-  expect("53: …eller samarbeidsprofilene", seen(await larsbror.from("collaboration_profiles").select("user_id").eq("collaboration_id", C!)), 0);
+  expect("52: …og velge egne Oslo-folk", typeof (await sponsor(miaminge, C_ftr!, (await units(miaminge, C_ftr!)).find((u) => u.represented)!.participant_id, ids.kristoffer)), "string");
+  expect("53: forvalter uten teamplass ser ikke teamet", seen(await miaminge.from("collaboration_members").select("user_id").eq("collaboration_id", C!)), 0);
+  expect("53: …eller samarbeidsprofilene", seen(await miaminge.from("collaboration_profiles").select("user_id").eq("collaboration_id", C!)), 0);
   expect("54: arrangør uten representasjon kan ikke invitere", (await inviteBySlug(kristoffer, C!, "under-the-rug")).participantId, null);
   expect("54: …eller trekke enheten ut", await rpcBool(kristoffer, "leave_collaboration_as_participant", { p_participant_id: P_OSLO }), false);
   expect("54: …eller sponse", await sponsor(kristoffer, C!, P_OSLO, ids.amina), null);
-  await admin.from("memberships").update({ role: "member" }).eq("user_id", ids.larsbror).eq("community_id", FTR);
+  await admin.from("memberships").update({ role: "member" }).eq("user_id", ids.miaminge).eq("community_id", FTR);
   await admin.from("memberships").update({ role: "admin" }).eq("user_id", ids.kari).eq("community_id", FTR);
-  expect("55: arvtaker forvalter", `${await isManager(kari, C!)}|${await isManager(larsbror, C!)}`, "true|false");
+  expect("55: arvtaker forvalter", `${await isManager(kari, C!)}|${await isManager(miaminge, C!)}`, "true|false");
   expect("55: arvtaker får «din enhet»-merking", (await units(kari, C!)).find((u) => u.participant_id === P_OSLO)?.represented, true);
-  expect("55: tidligere admin mister den", (await units(larsbror, C!)).find((u) => u.participant_id === P_OSLO)?.represented ?? false, false);
+  expect("55: tidligere admin mister den", (await units(miaminge, C!)).find((u) => u.participant_id === P_OSLO)?.represented ?? false, false);
   await admin.from("memberships").update({ role: "moderator" }).eq("user_id", ids.kari).eq("community_id", FTR);
-  await admin.from("memberships").update({ role: "admin" }).eq("user_id", ids.larsbror).eq("community_id", FTR);
+  await admin.from("memberships").update({ role: "admin" }).eq("user_id", ids.miaminge).eq("community_id", FTR);
 
   // ══ OWN ORGANISER STATE (O1–O12) ══════════════════════════════════════
   //
@@ -648,22 +648,22 @@ async function main() {
     const { data, error } = await client.rpc("collaboration_sponsored_team_state", { p_sponsorship_id: sponsorshipId });
     return error ? `feil: ${error.message}` : data;
   };
-  expect("O1: FTR Oslo-representant ser «joined» for egen arrangør", await teamState(larsbror, S_k!), "joined");
+  expect("O1: FTR Oslo-representant ser «joined» for egen arrangør", await teamState(miaminge, S_k!), "joined");
   expect("O2: TU-forvalter får ikke svar", await teamState(emma, S_k!), null);
   expect("O3: utenforstående admin får ikke svar", await teamState(octavio, S_k!), null);
   expect("O4: vanlig samarbeidsmedlem får ikke svar", await teamState(hanne, S_k!), null);
   expect("O4: personen selv får ikke svar her", await teamState(kristoffer, S_k!), null);
-  expect("O7: FTR-representant får ikke svar om TUs sponsing", await teamState(larsbror, S_i!), null);
-  expect("O8: oppdiktet id gir intet svar", await teamState(larsbror, randomUUID()), null);
-  expect("O10: ikke-akseptert sponsing gir intet svar", await teamState(larsbror, S_am!), null);
+  expect("O7: FTR-representant får ikke svar om TUs sponsing", await teamState(miaminge, S_i!), null);
+  expect("O8: oppdiktet id gir intet svar", await teamState(miaminge, randomUUID()), null);
+  expect("O10: ikke-akseptert sponsing gir intet svar", await teamState(miaminge, S_am!), null);
   expect("O12: anonym kan ikke kalle", (await anon.rpc("collaboration_sponsored_team_state", { p_sponsorship_id: S_k! })).error !== null, true);
   expect("O5: (oppsett) Kristoffer forlater teamet", await rpcBool(kristoffer, "leave_collaboration", { p_collaboration_id: C! }), true);
-  expect("O5: joined → left", await teamState(larsbror, S_k!), "left");
+  expect("O5: joined → left", await teamState(miaminge, S_k!), "left");
   expect("O5: sponsingen er fortsatt akseptert, ikke trukket", (await admin.from("collaboration_member_sponsorships").select("status").eq("id", S_k!).single()).data?.status, "accepted");
   expect("O6: (oppsett) Kristoffer blir med igjen", await rpcBool(kristoffer, "join_collaboration", { p_collaboration_id: C! }), true);
-  expect("O6: left → joined", await teamState(larsbror, S_k!), "joined");
+  expect("O6: left → joined", await teamState(miaminge, S_k!), "joined");
   await kristoffer.rpc("set_my_local_group", { p_community_id: FTR, p_local_group_id: TRONDELAG });
-  expect("O11: intet svar om noen som ikke lenger hører til enheten", await teamState(larsbror, S_k!), null);
+  expect("O11: intet svar om noen som ikke lenger hører til enheten", await teamState(miaminge, S_k!), null);
   await kristoffer.rpc("set_my_local_group", { p_community_id: FTR, p_local_group_id: OSLO });
   expect(
     "O9: hjelperen returnerer én verdi, ikke rader",
@@ -685,11 +685,11 @@ async function main() {
   expect("57: kan ikke forlate på vegne av andre", leaveOther.error !== null, true);
   expect("59: annen deltaker kan ikke trekke FTRs sponsing", await rpcBool(emma, "revoke_collaboration_sponsorship", { p_sponsorship_id: S_k }), false);
   expect("61: annen deltaker kan ikke trekke FTR Oslo ut", await rpcBool(emma, "leave_collaboration_as_participant", { p_participant_id: P_OSLO }), false);
-  expect("58: egen representant kan trekke egen sponsing", await rpcBool(larsbror, "revoke_collaboration_sponsorship", { p_sponsorship_id: S_k }), true);
+  expect("58: egen representant kan trekke egen sponsing", await rpcBool(miaminge, "revoke_collaboration_sponsorship", { p_sponsorship_id: S_k }), true);
   expect("58: …og tilgangen forsvinner", await hasAccess(kristoffer, C!), false);
-  expect("O: trukket forblir trukket — ingen team-status gis", `${(await admin.from("collaboration_member_sponsorships").select("status").eq("id", S_k!).single()).data?.status}|${await teamState(larsbror, S_k!)}`, "revoked|null");
-  expect("60: egen representant kan trekke egen enhet ut", await rpcBool(larsbror, "leave_collaboration_as_participant", { p_participant_id: P_OSLO }), true);
-  expect("60: …og forvalterretten forsvinner", await isManager(larsbror, C!), false);
+  expect("O: trukket forblir trukket — ingen team-status gis", `${(await admin.from("collaboration_member_sponsorships").select("status").eq("id", S_k!).single()).data?.status}|${await teamState(miaminge, S_k!)}`, "revoked|null");
+  expect("60: egen representant kan trekke egen enhet ut", await rpcBool(miaminge, "leave_collaboration_as_participant", { p_participant_id: P_OSLO }), true);
+  expect("60: …og forvalterretten forsvinner", await isManager(miaminge, C!), false);
 
   // ══ LOCALE (62–65) ════════════════════════════════════════════════════
 
@@ -745,10 +745,19 @@ async function main() {
   // (admin channel editing), which came after. Like set_community_avatar it is
   // an admin-only setter that returns the one row it stored — that channel's
   // own name and purpose, matched on the primary key — and no person fields.
+  //
+  // subgroup_roster and search_subgroup_candidates (private teams) name people
+  // by design: they exist so a team's managers can add and remove members.
+  // Both answer only can_manage_subgroup() callers (community admins and
+  // explicit team managers) with the person's display name in that one
+  // community — never email, handle, account name or avatar. Roles are
+  // returned to admins only, and the search needs two characters and returns
+  // at most ten matches, so nobody is handed the roster. Pinned by
+  // check:safe-space.
   expect(
     "68/70: ingen nye mengdereturnerende funksjoner utenom collaboration_units",
     sql("select string_agg(p.proname, ',' order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proretset"),
-    "accept_invitation_token,access_request_history,approve_access_request,collaboration_units,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,invitation_preview,local_group_member_counts,organization_person_dm_actions,portal_by_slug,portal_events,resend_invitation,set_channel_details,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person",
+    "accept_invitation_token,access_request_history,approve_access_request,collaboration_units,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,invitation_preview,local_group_member_counts,organization_person_dm_actions,portal_by_slug,portal_events,resend_invitation,search_subgroup_candidates,set_channel_details,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person,subgroup_roster",
   );
   const unitsResult = sql("select pg_get_function_result('public.collaboration_units(uuid)'::regprocedure)");
   expect("68: collaboration_units returnerer ingen personfelt", /user|email|handle|member|profile|count/.test(unitsResult), false);
@@ -759,7 +768,12 @@ async function main() {
   expect("69: bruker uten relasjon får ikke slå opp via invitasjon", (await inviteBySlug(sofie, C!, FTR)).name, null);
   expect("69: anonym får ingen enheter", (await anon.rpc("collaboration_units", { p_collaboration_id: C! })).error !== null, true);
   expect("69: vilkårlig id gir ingenting", (await units(emma, randomUUID())).length, 0);
-  expect("70: ingen søkefunksjon for fellesskap finnes", sql("select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and (p.proname ilike '%search%' or p.proname ilike '%autocomplete%' or p.proname ilike '%suggest%')"), "0");
+  // search_subgroup_candidates is the one reviewed exception: it finds active
+  // members *inside* a team's own community, for that team's managers only,
+  // by display name, at most ten at a time (see the allowlist note at 68/70
+  // and check:safe-space). It cannot reach another community or list
+  // communities at all. Any other search-shaped function still fails here.
+  expect("70: ingen søkefunksjon for fellesskap finnes", sql("select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and (p.proname ilike '%search%' or p.proname ilike '%autocomplete%' or p.proname ilike '%suggest%') and p.proname <> 'search_subgroup_candidates'"), "0");
 
   // Nothing about any community profile or account changed along the way.
   expect("39/40: fellesskapsprofiler og kontoer uendret", await snapshot(), before);

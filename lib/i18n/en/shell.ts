@@ -14,6 +14,7 @@ export const shell: Record<keyof typeof nb, string> = {
   "shell.nav.accountLinks": "Account links",
   "shell.nav.requests": "Requests",
   "shell.nav.emojis": "Emojis",
+  "shell.nav.subgroups": "Teams",
   "shell.nav.settings": "Settings",
   "shell.nav.channels": "Channels",
   "shell.closed": "Private",

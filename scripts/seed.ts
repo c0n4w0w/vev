@@ -30,6 +30,7 @@ import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
 import { communityPolicies } from "@/lib/mock/community-policies";
 import { localGroupAssignments, localGroups } from "@/lib/mock/local-groups";
+import { subgroupManagers, subgroupMembers, subgroups } from "@/lib/mock/subgroups";
 import { customEmojis } from "@/lib/mock/emojis";
 import { events } from "@/lib/mock/events";
 import { messages } from "@/lib/mock/messages";
@@ -315,6 +316,25 @@ async function main() {
       `(${new Set(localGroups.map((g) => g.communityId)).size} fellesskap)`,
   );
 
+  // Subgroups (teams), keyed on slug. Like a local group, inserting one creates
+  // its private chat channel (subgroup_channel_sync), under `grupper`.
+  const subgroupId = new Map<string, string>();
+  for (const subgroup of subgroups) {
+    const { data, error } = await supabase
+      .from("community_subgroups")
+      .insert({
+        community_id: subgroup.communityId,
+        slug: subgroup.slug,
+        name: subgroup.name,
+        description: subgroup.description,
+      })
+      .select("id")
+      .single();
+    fail(`gruppe ${subgroup.slug}`, error);
+    subgroupId.set(`${subgroup.communityId}|${subgroup.slug}`, data!.id);
+  }
+  console.log(`  ${subgroups.length} grupper`);
+
   fail(
     "offentlige organisasjonspersoner",
     (
@@ -361,7 +381,9 @@ async function main() {
       )
     ).error,
   );
-  console.log(`  ${channels.length} kanaler (+ ${localGroups.length} lokallagskanaler fra databasen)`);
+  console.log(
+    `  ${channels.length} kanaler (+ ${localGroups.length} lokallagskanaler og ${subgroups.length} gruppekanaler fra databasen)`,
+  );
 
   fail(
     "medlemskap",
@@ -417,6 +439,26 @@ async function main() {
       `(${allMemberships.length - applied} uten lokallag)`,
   );
 
+  // Subgroup members and managers, after the memberships they point at. The
+  // composite foreign key refuses anyone without a membership in that
+  // community, so a fixture typo fails here rather than granting anything.
+  for (const [table, fixtures] of [
+    ["community_subgroup_members", subgroupMembers],
+    ["community_subgroup_managers", subgroupManagers],
+  ] as const) {
+    const rows = fixtures.map((fixture) => {
+      const id = subgroupId.get(`${fixture.communityId}|${fixture.subgroupSlug}`);
+      const userId = uid.get(fixture.userId);
+      if (!id || !userId) {
+        console.error(`\n✗ ukjent gruppe eller person: ${fixture.subgroupSlug}/${fixture.userId}`);
+        process.exit(1);
+      }
+      return { subgroup_id: id, community_id: fixture.communityId, user_id: userId };
+    });
+    fail(table, (await supabase.from(table).insert(rows)).error);
+  }
+  console.log(`  ${subgroupMembers.length} gruppemedlemmer, ${subgroupManagers.length} gruppeansvarlige`);
+
   // Every active membership already has a community profile — the membership
   // trigger created it from the account. These fixtures replace a few of them
   // with deliberately different names, bios and photos per community.
@@ -457,6 +499,16 @@ async function main() {
   }
   console.log(`  ${communityProfiles.length} egne fellesskapsprofiler (${photos} med bilde)`);
 
+  const subgroupScopeId = (communityId: string, slug?: string) => {
+    if (!slug) return null;
+    const id = subgroupId.get(`${communityId}|${slug}`);
+    if (!id) {
+      console.error(`\n✗ ukjent gruppe for innhold: ${communityId}/${slug}`);
+      process.exit(1);
+    }
+    return id;
+  };
+
   const localScopeId = (communityId: string, groupName?: string) => {
     if (!groupName) return null;
     const id = localGroupId.get(`${communityId}|${groupName}`);
@@ -481,6 +533,7 @@ async function main() {
           id: postId.get(post.id)!,
           community_id: post.communityId,
           local_group_id: localScopeId(post.communityId, post.localGroupName),
+          subgroup_id: subgroupScopeId(post.communityId, post.subgroupSlug),
           author_id: uid.get(post.authorId)!,
           title: post.title ?? null,
           body: post.body,
@@ -599,6 +652,7 @@ async function main() {
       events.map((event) => ({
         community_id: event.communityId,
         local_group_id: localScopeId(event.communityId, event.localGroupName),
+        subgroup_id: subgroupScopeId(event.communityId, event.subgroupSlug),
         title: event.title,
         description: event.description,
         starts_at: at(event.startsAt),

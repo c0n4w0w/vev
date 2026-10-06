@@ -7,7 +7,8 @@ import { IconMegaphone } from "@/components/ui/icons";
 import { createPostAction } from "@/app/actions";
 import { useT } from "@/lib/i18n/react";
 import { emptyPostFormState } from "@/lib/post-form";
-import type { Community, CommunityPersona, LocalGroup } from "@/lib/types";
+import { ScopeOptions } from "@/components/community/ScopeOptions";
+import type { Community, CommunityPersona, LocalGroup, Subgroup } from "@/lib/types";
 
 function PublishButton({ accent, disabled }: { accent: string; disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -39,12 +40,14 @@ export function Composer({
   community,
   canAnnounce,
   localGroups = [],
+  subgroups = [],
 }: {
   /** The author as they will appear in this community. */
   user: CommunityPersona;
   community: Community;
   canAnnounce: boolean;
   localGroups?: LocalGroup[];
+  subgroups?: Subgroup[];
 }) {
   const t = useT();
   const [state, formAction] = useActionState(createPostAction, emptyPostFormState);
@@ -94,19 +97,14 @@ export function Composer({
             {open ? (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  {localGroups.length > 0 ? (
+                  {localGroups.length + subgroups.length > 0 ? (
                     <label className="flex items-center gap-2 text-[13px] text-ink-3">
                       <span>{t("composer.visibility")}</span>
                       <select
-                        name="localGroupId"
-                        className="h-8 rounded-[5px] border border-line-2 bg-surface px-2 text-[13px] text-ink outline-none focus:border-ink-3"
+                        name="scope"
+                        className="h-8 max-w-[14rem] rounded-[5px] border border-line-2 bg-surface px-2 text-[13px] text-ink outline-none focus:border-ink-3"
                       >
-                        <option value="">{t("composer.wholeCommunity")}</option>
-                        {localGroups.map((group) => (
-                          <option key={group.id} value={group.id}>
-                            {group.name}
-                          </option>
-                        ))}
+                        <ScopeOptions localGroups={localGroups} subgroups={subgroups} />
                       </select>
                     </label>
                   ) : (

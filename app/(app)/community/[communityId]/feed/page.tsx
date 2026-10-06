@@ -8,6 +8,7 @@ import {
   getCommunityById,
   getFeed,
   getLocalGroups,
+  getSubgroups,
   getCommunityPersonas,
   getMembership,
 } from "@/lib/data";
@@ -32,10 +33,11 @@ export default async function CommunityFeedPage({
   if (!community) notFound();
   const t = translator(communityLocale(community));
 
-  const [membership, feed, groups] = await Promise.all([
+  const [membership, feed, groups, subgroups] = await Promise.all([
     getMembership(user.id, community.id),
     getFeed(community.id),
     getLocalGroups(community.id),
+    getSubgroups(community.id),
   ]);
   const customEmojis = await getCommunityEmojis(community.id);
   const commentsByPost = await getCommentsForPosts(feed.map((post) => post.id));
@@ -76,7 +78,14 @@ export default async function CommunityFeedPage({
           // Announcement authority is the same can_moderate() rule as
           // publishing itself, so everyone who sees the composer may use it.
           canAnnounce
-          localGroups={groups.filter((group) => group.active)}
+          // Only scopes the author can read, which is also what posts_insert
+          // accepts: an admin any lokallag, a moderator their own; staff
+          // every active subgroup (getSubgroups is already RLS-filtered).
+          localGroups={groups.filter(
+            (group) =>
+              group.active && (membership?.role === "admin" || group.id === membership?.localGroupId),
+          )}
+          subgroups={subgroups.filter((subgroup) => subgroup.active)}
         />
       ) : null}
 

@@ -4,6 +4,8 @@ import {
   getCommunityPersona,
   getGroupedChannels,
   getLocalGroups,
+  getManageableSubgroups,
+  getMySubgroupIds,
   getRecentDirectConversations,
   getUnreadDirectConversationCount,
   getUnreadCount,
@@ -45,6 +47,13 @@ export interface ShellCommunity {
    */
   localGroups: { usesLocalGroups: boolean; selectedName?: string };
   hasOrganizationPeople: boolean;
+  /**
+   * Whether the viewer may add and remove members of at least one subgroup —
+   * a community admin, or an explicit manager. Decides only whether the
+   * "Grupper" administration link is drawn; the page and the database decide
+   * again per subgroup.
+   */
+  managesSubgroups: boolean;
   unreadDirectCount: number;
   recentDirectConversations: DirectConversationSummary[];
 }
@@ -70,14 +79,19 @@ export async function buildShellData(user: User): Promise<ShellData> {
 
   const communities = await Promise.all(
     memberships.map(async ({ community, membership }) => {
-      const [me, channelGroups, groups, people, unreadDirectCount, recentDirectConversations] =
+      const mySubgroupIds = await getMySubgroupIds(community.id, user.id);
+      const [me, channelGroups, groups, people, unreadDirectCount, recentDirectConversations, manageable] =
         await Promise.all([
           getCommunityPersona(community.id, user.id),
-          getGroupedChannels(community.id),
+          getGroupedChannels(community.id, {
+            localGroupId: membership.localGroupId,
+            subgroupIds: mySubgroupIds,
+          }),
           getLocalGroups(community.id),
           getCommunityPeople(community.id),
           getUnreadDirectConversationCount(community.id),
           getRecentDirectConversations(community.id, user.id, 5),
+          getManageableSubgroups(community.id),
         ]);
 
       return {
@@ -88,6 +102,7 @@ export async function buildShellData(user: User): Promise<ShellData> {
         unreadDirectCount,
         recentDirectConversations,
         hasOrganizationPeople: people.length > 0,
+        managesSubgroups: manageable.length > 0,
         localGroups: {
           usesLocalGroups: groups.some((group) => group.active),
           selectedName: groups.find((group) => group.id === membership.localGroupId)?.name,

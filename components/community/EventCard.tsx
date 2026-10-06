@@ -155,7 +155,9 @@ export function EventCard({
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Badge tone={event.isPublic ? "fjord" : "neutral"}>
               {event.isPublic ? <IconGlobe size={11} /> : <IconLock size={11} />}
-              {event.isPublic ? t("events.public") : t("events.membersOnly")}
+              {/* A lokallag or group event is limited to that group, so it
+                  names the group rather than "members only". */}
+              {event.isPublic ? t("events.public") : (event.scopeName ?? t("events.membersOnly"))}
             </Badge>
             <Badge tone="outline">{timeUntil(event.startsAt, locale)}</Badge>
             {attending ? <Badge tone="skog">{t("events.attendingYou")}</Badge> : null}

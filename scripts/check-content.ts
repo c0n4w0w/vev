@@ -61,7 +61,7 @@ const TRYGGERE = ["tryggere-ruspolitikk", "tryggere-ungdom"];
 const INDEPENDENT = "under-the-rug";
 const intendedAdmins = new Map([
   ["under-the-rug", "octavio-esperanto"],
-  ["tryggere-ruspolitikk", "lars-bror-kristiansen"],
+  ["tryggere-ruspolitikk", "mia-minge"],
   ["tryggere-ungdom", "emma-mortensen"],
 ]);
 const TRYGGERE_ORGANIZATION_SHAPE = {
@@ -69,8 +69,9 @@ const TRYGGERE_ORGANIZATION_SHAPE = {
     staff: [
       "Ina Roll Spinnangr",
       "Dagfinn Hessen Paust",
-      "Lars Bror Kristiansen",
+      "Mia Minge",
       "Emil Bjørnstad Belgau",
+      "Erlend Thonstad",
     ],
     board: [
       "Jonas Ali Werket Ghanizadeh",

@@ -117,11 +117,11 @@ async function main() {
   const anon = anonymous();
   const kristoffer = await signIn("kristoffer");
   const nadia = await signIn("nadia");
-  const lars = await signIn("larsbror");
+  const mia = await signIn("miaminge");
 
   const kristofferMembership = await membership("kristoffer", TR);
   const nadiaMembership = await membership("nadia", TR);
-  const larsMembership = await membership("larsbror", TR);
+  const miaMembership = await membership("miaminge", TR);
   const adrianMembership = await membership("adrian", TU);
 
   await remember(kristofferMembership);
@@ -145,7 +145,7 @@ async function main() {
   });
   expect("moderator kan ikke endre rolle", moderatorAttempt.data, false);
 
-  const promote = await lars.rpc("set_membership_role", {
+  const promote = await mia.rpc("set_membership_role", {
     p_membership_id: kristofferMembership.id,
     p_role: "moderator",
   });
@@ -154,7 +154,7 @@ async function main() {
   expect("rollen ble moderator", promoted.role, "moderator");
   expect("bare role ble endret ved promotering", unchangedExceptRole(kristofferMembership, promoted), true);
 
-  const demote = await lars.rpc("set_membership_role", {
+  const demote = await mia.rpc("set_membership_role", {
     p_membership_id: nadiaMembership.id,
     p_role: "member",
   });
@@ -163,19 +163,19 @@ async function main() {
   expect("rollen ble medlem", demoted.role, "member");
   expect("bare role ble endret ved demotering", unchangedExceptRole(nadiaMembership, demoted), true);
 
-  const assignAdmin = await lars.rpc("set_membership_role", {
+  const assignAdmin = await mia.rpc("set_membership_role", {
     p_membership_id: kristofferMembership.id,
     p_role: "admin",
   });
   expect("admin kan ikke tildele admin", assignAdmin.data, false);
 
-  const demoteAdmin = await lars.rpc("set_membership_role", {
-    p_membership_id: larsMembership.id,
+  const demoteAdmin = await mia.rpc("set_membership_role", {
+    p_membership_id: miaMembership.id,
     p_role: "member",
   });
   expect("admin kan ikke demotere admin via moderator-RPC", demoteAdmin.data, false);
 
-  const crossCommunity = await lars.rpc("set_membership_role", {
+  const crossCommunity = await mia.rpc("set_membership_role", {
     p_membership_id: adrianMembership.id,
     p_role: "moderator",
   });
@@ -183,7 +183,7 @@ async function main() {
 
   await remember(adrianMembership);
   await admin.from("memberships").update({ status: "requested" }).eq("id", adrianMembership.id);
-  const inactive = await lars.rpc("set_membership_role", {
+  const inactive = await mia.rpc("set_membership_role", {
     p_membership_id: adrianMembership.id,
     p_role: "moderator",
   });
@@ -201,7 +201,7 @@ async function main() {
     .select("community_id, role, status, profiles!memberships_user_id_fkey!inner(handle)");
   const expectedAdmins = new Map([
     [UTR, "octavio"],
-    [TR, "larsbror"],
+    [TR, "miaminge"],
     [TU, "emmamortensen"],
   ]);
   for (const communityId of [UTR, TR, TU]) {

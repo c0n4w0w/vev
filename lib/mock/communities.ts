@@ -98,6 +98,9 @@ export const channelGroups: ChannelGroup[] = [
   // creates one per local group (community_local_groups trigger), and each
   // member only ever sees their own group's.
   { id: "lokallag", label: "Mitt lokallag" },
+  // Subgroup (team) chat channels, likewise created by the database — one per
+  // subgroup (community_subgroups trigger).
+  { id: "grupper", label: "Mine grupper" },
 ];
 
 const channelBlueprint: Omit<Channel, "communityId" | "id">[] = [
@@ -184,7 +187,13 @@ export const memberships: Membership[] = [
   // the access-request and invitation lifecycle, not a row seeded ahead of her.
 
   // Tryggere Ruspolitikk
-  { userId: "lars-bror-kristiansen", communityId: "tryggere-ruspolitikk", role: "admin", status: "active", joinedAt: "2023-09-04", title: "Organisasjonssekretær" },
+  // Lars was the community's administrator and organisasjonssekretær; Mia
+  // Minge has taken over both (one active admin per community). His account,
+  // membership and history stay. No current title is recorded for him, so none
+  // is invented: the stale one is simply cleared.
+  { userId: "lars-bror-kristiansen", communityId: "tryggere-ruspolitikk", role: "moderator", status: "active", joinedAt: "2023-09-04" },
+  { userId: "mia-minge", communityId: "tryggere-ruspolitikk", role: "admin", status: "active", joinedAt: "2026-09-01", title: "Organisasjonssekretær" },
+  { userId: "erlend-thonstad", communityId: "tryggere-ruspolitikk", role: "moderator", status: "active", joinedAt: "2026-09-01", title: "Prosjektleder Rusopplysningen" },
   { userId: "amina", communityId: "tryggere-ruspolitikk", role: "moderator", status: "active", joinedAt: "2023-09-04", title: "Fagansvarlig" },
   { userId: "nadia", communityId: "tryggere-ruspolitikk", role: "moderator", status: "active", joinedAt: "2024-05-30", title: "Erfaringskonsulent" },
   { userId: "kristoffer", communityId: "tryggere-ruspolitikk", role: "member", status: "active", joinedAt: "2023-11-19", title: "Frivillig, Oslo" },

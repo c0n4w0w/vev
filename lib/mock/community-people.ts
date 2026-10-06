@@ -215,10 +215,9 @@ export const communityPeople: CommunityPersonFixture[] = [
   {
     communityId: "tryggere-ruspolitikk",
     section: "staff",
-    userId: "lars-bror-kristiansen",
-    name: "Lars Bror Kristiansen",
+    userId: "mia-minge",
+    name: "Mia Minge",
     role: "Organisasjonssekretær",
-    email: "bror@rusreform.no",
     sortOrder: 2,
   },
   {
@@ -228,6 +227,14 @@ export const communityPeople: CommunityPersonFixture[] = [
     role: "Kommunikasjonsrådgiver",
     email: "emilbelgau@rusreform.no",
     sortOrder: 3,
+  },
+  {
+    communityId: "tryggere-ruspolitikk",
+    section: "staff",
+    userId: "erlend-thonstad",
+    name: "Erlend Thonstad",
+    role: "Prosjektleder Rusopplysningen",
+    sortOrder: 4,
   },
 
   // Tryggere Ruspolitikk — sentralstyret

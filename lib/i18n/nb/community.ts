@@ -40,6 +40,7 @@ export const community = {
   "post.announcement": "Kunngjøring",
   "post.pinned": "Festet",
   // Read before the group name by screen readers: "Lokallag: FTR Oslo".
+  "post.subgroupPrefix": "Gruppe:",
   "post.scopePrefix": "Lokallag:",
   "post.titlePlaceholder": "Overskrift",
   "post.pin": "Fest innlegg",
@@ -54,6 +55,8 @@ export const community = {
   "composer.publish": "Publiser",
   "composer.publishing": "Publiserer …",
   "composer.visibility": "Synlighet / område",
+  "composer.localGroupsHeading": "Lokallag",
+  "composer.subgroupsHeading": "Grupper",
   "composer.wholeCommunity": "Hele fellesskapet",
   "composer.visibleToAll": "Synlig for alle medlemmer",
   "composer.asAnnouncement": "Publiser som kunngjøring",
@@ -121,6 +124,12 @@ export const community = {
   "channel.announcementsOnly": "Kun kunngjøringer",
   "channel.start": "Dette er starten på #{name}",
   "channel.membersOnly": "Samtalen er kun synlig for medlemmer av {name}.",
+  "channel.membersOnlyLocal": "Samtalen er kun synlig for medlemmer av {name} og administratorer i {community}.",
+  "channel.membersOnlySubgroup":
+    "Samtalen er kun synlig for medlemmer av {name} og moderatorer og administratorer i {community}.",
+  "channel.footerLocal": "Meldinger er kun synlige for medlemmer av {name} og administratorer i {community}.",
+  "channel.footerSubgroup":
+    "Meldinger er kun synlige for medlemmer av {name} og moderatorer og administratorer i {community}.",
   "channel.placeholder": "Skriv i #{name}",
   "channel.send": "Send melding",
   "channel.readOnly": "Bare moderatorer og administratorer kan skrive i denne kanalen.",
@@ -196,6 +205,28 @@ export const community = {
   "lokallag.affiliated": "Du er tilknyttet",
   "lokallag.retired":
     "Dette lokallaget er avviklet. Du beholder tilknytningen, men den kan ikke velges på nytt.",
+  "subgroups.metaTitle": "Grupper · {name}",
+  "subgroups.title": "Grupper",
+  "subgroups.lead":
+    "Lukkede grupper i {name}. Medlemmene ser gruppens kanal, innlegg og arrangementer, sammen med fellesskapets moderatorer og administratorer. Her legger du til og fjerner medlemmer.",
+  "subgroups.none.title": "Ingen grupper å administrere",
+  "subgroups.none.body":
+    "Grupper administreres av fellesskapets administratorer og av dem som er gitt ansvar for en gruppe.",
+  "subgroups.membersHeading": "Medlemmer i {name}",
+  "subgroups.empty": "Gruppen har ingen medlemmer ennå.",
+  "subgroups.manager": "Gruppeansvarlig",
+  "subgroups.remove": "Fjern",
+  "subgroups.removeNamed": "Fjern {name} fra gruppen",
+  "subgroups.add": "Legg til medlem",
+  "subgroups.searchLabel": "Søk etter et medlem å legge til",
+  "subgroups.searchPlaceholder": "Søk etter navn (minst to tegn)",
+  "subgroups.search": "Søk",
+  "subgroups.searchResults": "Treff",
+  "subgroups.noMatches": "Ingen aktive medlemmer utenfor gruppen passer søket.",
+  "subgroups.addNamed": "Legg til {name} i gruppen",
+  "subgroups.removeNote":
+    "Å fjerne noen fra gruppen tar bare bort gruppemedlemskapet. Personen er fortsatt medlem av fellesskapet, beholder rolle og lokallag, og det de har skrevet blir stående.",
+  "subgroups.openChat": "Åpne gruppechatten",
   "lokallag.change": "Endre lokallag",
   "lokallag.openChat": "Åpne lokallagschatten",
   "lokallag.nextActivity": "Neste aktivitet",

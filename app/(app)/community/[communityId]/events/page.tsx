@@ -11,6 +11,7 @@ import {
   getCommunityById,
   getCommunityPersonas,
   getLocalGroups,
+  getSubgroups,
   getMembership,
   getPastCommunityEvents,
   getUpcomingCommunityEvents,
@@ -38,11 +39,12 @@ export default async function CommunityEventsPage({
   const locale = communityLocale(community);
   const t = translator(locale);
 
-  const [upcoming, past, membership, groups] = await Promise.all([
+  const [upcoming, past, membership, groups, subgroups] = await Promise.all([
     getUpcomingCommunityEvents(community.id),
     getPastCommunityEvents(community.id),
     getMembership(user.id, community.id),
     getLocalGroups(community.id),
+    getSubgroups(community.id),
   ]);
   // Creation is an administrator's job, the same gate the membership queue
   // uses. The database refuses everyone else regardless of what is rendered.
@@ -70,6 +72,7 @@ export default async function CommunityEventsPage({
           communityName={community.name}
           accent={community.branding.accent}
           localGroups={groups.filter((group) => group.active)}
+          subgroups={subgroups.filter((subgroup) => subgroup.active)}
         />
       ) : null}
 

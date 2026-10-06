@@ -13,6 +13,7 @@ export const shell = {
   "shell.nav.accountLinks": "Kontokoblinger",
   "shell.nav.requests": "Forespørsler",
   "shell.nav.emojis": "Emojier",
+  "shell.nav.subgroups": "Grupper",
   "shell.nav.settings": "Innstillinger",
   "shell.nav.channels": "Kanaler",
   "shell.closed": "Lukket",

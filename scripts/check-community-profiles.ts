@@ -123,6 +123,16 @@ async function canDownload(client: Client, path: string): Promise<boolean> {
   return !error && Boolean(data);
 }
 
+/**
+ * A lower bound for "notifications created from now on". The database stamps
+ * created_at with its own clock, which in the local Docker stack can run a few
+ * milliseconds behind this process; a small margin keeps a notification made
+ * right after this call from falling before it.
+ */
+function notificationsFromNow(): string {
+  return new Date(Date.now() - 2000).toISOString();
+}
+
 async function latestNotification(userId: string, kind: "direct_message" | "announcement", since: string) {
   const { data } = await admin
     .from("notifications")
@@ -168,7 +178,7 @@ async function main() {
     jonas: await profileId("jonas"),
     amina: await profileId("amina"),
     kristoffer: await profileId("kristoffer"),
-    larsbror: await profileId("larsbror"),
+    miaminge: await profileId("miaminge"),
     octavio: await profileId("octavio"),
     adrian: await profileId("adrian"),
     eli: await profileId("elironning"),
@@ -182,7 +192,7 @@ async function main() {
   const jonas = await signIn("jonas");
   const amina = await signIn("amina");
   const kristoffer = await signIn("kristoffer");
-  const larsbror = await signIn("larsbror");
+  const miaminge = await signIn("miaminge");
   const octavio = await signIn("octavio");
   const adrian = await signIn("adrian");
   const eli = await signIn("elironning");
@@ -235,11 +245,19 @@ async function main() {
     .eq("status", "active");
   const { data: jonasSees } = await jonas.from("community_profiles").select("*").eq("community_id", UTR);
   expect("1: UTR-medlem ser alle UTR-profiler (åpen medlemsliste)", (jonasSees ?? []).length, utrMembers);
-  // Closed registry (FTR): the author of a post the member can read.
+  // Closed registry (FTR): the author of a post the member can read. Kari's
+  // only FTR content is FTR Trøndelag (posts and a hosted event), so a fellow
+  // Trøndelag member sees her and an Oslo member does not.
+  const petter = await signIn("petter");
   expect(
     "1: FTR-medlem ser FTR-profilen til en som har skrevet et innlegg",
-    (await visibleRows(kristoffer, ids.kari)).map((r) => `${r.community_id}:${r.display_name}`).join(","),
+    (await visibleRows(petter, ids.kari)).map((r) => `${r.community_id}:${r.display_name}`).join(","),
     `${FTR}:Kari Moen`,
+  );
+  expect(
+    "1: Oslo-medlem ser ikke profilen til en som bare har skrevet for Trøndelag",
+    (await visibleRows(kristoffer, ids.kari)).filter((r) => r.community_id === FTR).length,
+    0,
   );
   expect("1: egen profil er alltid synlig", (await visibleRows(eli, ids.eli)).length, 2);
 
@@ -319,13 +337,13 @@ async function main() {
     .eq("community_id", FTR)
     .eq("user_id", ids.kristoffer);
   expect("11: moderator kan ikke endre en annens profil", modAttempt.error !== null, true);
-  const adminAttempt = await larsbror
+  const adminAttempt = await miaminge
     .from("community_profiles")
     .update({ bio: "Admin skrev dette" })
     .eq("community_id", FTR)
     .eq("user_id", ids.kari);
   expect("12: administrator kan ikke endre en annens profil", adminAttempt.error !== null, true);
-  const adminDelete = await larsbror.from("community_profiles").delete().eq("user_id", ids.kari);
+  const adminDelete = await miaminge.from("community_profiles").delete().eq("user_id", ids.kari);
   expect("12: administrator kan ikke slette en annens profil", adminDelete.error !== null, true);
   expect("4/11/12: Aminas profil uendret", JSON.stringify(await row(FTR, ids.amina)), JSON.stringify(aminaBefore));
   expect("12: Karis FTR-profil uendret av admin", (await row(FTR, ids.kari))?.bio, "Ny FTR-bio.");
@@ -333,7 +351,7 @@ async function main() {
   // A moderator or administrator's photo attempts on someone else.
   const modUpload = await upload(amina, avatarPath(FTR, ids.kristoffer));
   expect("11: moderator kan ikke laste opp i en annens mappe", modUpload.error !== null, true);
-  const adminUpload = await upload(larsbror, avatarPath(FTR, ids.kari));
+  const adminUpload = await upload(miaminge, avatarPath(FTR, ids.kari));
   expect("12: administrator kan ikke laste opp i en annens mappe", adminUpload.error !== null, true);
 
   // ── 16: storage is scoped to your own folder in communities you are in ──
@@ -461,7 +479,7 @@ async function main() {
     p_email: email,
     p_display_name: "Omar Kontroll",
   });
-  await larsbror.rpc("approve_access_request", { p_request_id: await requestId(FTR) });
+  await miaminge.rpc("approve_access_request", { p_request_id: await requestId(FTR) });
   expect("14: FTR-profilen heter det FTR-forespørselen sa", (await row(FTR, newId))?.display_name, "Omar Kontroll");
   expect("14: FTR-forespørselen overskrev ikke UTR", (await row(UTR, newId))?.display_name, "Night Owl");
 
@@ -551,22 +569,22 @@ async function main() {
   };
   const activeIn = async (communityId: string) =>
     (await admin.from("memberships").select("user_id").eq("community_id", communityId).eq("status", "active")).data!.map((m) => m.user_id).sort();
-  const ftrAccounts = await accountsFor(larsbror, FTR);
+  const ftrAccounts = await accountsFor(miaminge, FTR);
   expect("admin 4: FTR-admin får kontoene til FTRs aktive medlemmer", ftrAccounts.rows.map((r) => r.user_id).sort().join(","), (await activeIn(FTR)).join(","));
   expect(
     "admin 4: bare feltene koblingsverktøyet trenger",
     [...new Set(ftrAccounts.rows.flatMap((r) => Object.keys(r)))].sort().join(","),
     "email,handle,user_id",
   );
-  expect("admin 5: FTR-admin får ingenting fra UTR", (await accountsFor(larsbror, UTR)).rows.length, 0);
-  expect("admin 5: FTR-admin får ingenting fra TU", (await accountsFor(larsbror, TU)).rows.length, 0);
+  expect("admin 5: FTR-admin får ingenting fra UTR", (await accountsFor(miaminge, UTR)).rows.length, 0);
+  expect("admin 5: FTR-admin får ingenting fra TU", (await accountsFor(miaminge, TU)).rows.length, 0);
   expect("admin 5: UTR-admin får ingenting fra FTR", (await accountsFor(octavio, FTR)).rows.length, 0);
   expect("moderator 3: FTR-moderator får ingen e-poster", (await accountsFor(amina, FTR)).rows.length, 0);
   expect("moderator 3: TU-moderator (Kari) får ingen e-poster", (await accountsFor(kari, TU)).rows.length, 0);
   expect("moderator 3: vanlig medlem får ingen e-poster", (await accountsFor(kristoffer, FTR)).rows.length, 0);
   expect("admin: uautentisert kan ikke kalle funksjonen", (await accountsFor(anon, FTR)).error !== null, true);
-  const { data: adminProfiles } = await larsbror.from("profiles").select("id");
-  expect("admin: funksjonen åpner ikke profiles-tabellen", (adminProfiles ?? []).map((r) => r.id).join(","), ids.larsbror);
+  const { data: adminProfiles } = await miaminge.from("profiles").select("id");
+  expect("admin: funksjonen åpner ikke profiles-tabellen", (adminProfiles ?? []).map((r) => r.id).join(","), ids.miaminge);
 
   // ── 20: the member-directory privacy is exactly as before ──
   // The applicant joined FTR above and has not taken part in anything there.
@@ -580,7 +598,7 @@ async function main() {
     (await visibleRows(kristoffer, silentFtr)).length,
     0,
   );
-  expect("20: FTR-admin ser profilen (administrerer medlemslisten)", (await visibleRows(larsbror, silentFtr)).length >= 1, true);
+  expect("20: FTR-admin ser profilen (administrerer medlemslisten)", (await visibleRows(miaminge, silentFtr)).length >= 1, true);
   const { count: utrMembersNow } = await admin
     .from("memberships")
     .select("id", { count: "exact", head: true })
@@ -613,7 +631,7 @@ async function main() {
     `${TU}:K. (TU)`,
   );
 
-  const since = new Date().toISOString();
+  const since = notificationsFromNow();
   const tuPost = await kari
     .from("posts")
     .insert({ community_id: TU, body: "Kontroll: kunngjøring", kind: "announcement" })
@@ -625,13 +643,15 @@ async function main() {
   expect("19: kunngjøringsvarselet navngir TU-profilen", announcement?.body.startsWith("K. (TU) publiserte"), true);
   expect("19: kunngjøringsvarselet nevner ikke kontonavnet", announcement?.body.includes("Kari Moen"), false);
 
-  // A community-wide post: the silent member belongs to no local group, and a
-  // lokallag post is readable only by that group and the community's staff.
+  // A community-wide post: the silent member belongs to no local group or
+  // team, and a lokallag or team post is readable only by that group and staff.
   const { data: ftrPost } = await admin
     .from("posts")
     .select("id")
     .eq("community_id", FTR)
     .is("local_group_id", null)
+    .is("subgroup_id", null)
+    .order("created_at", { ascending: true })
     .limit(1)
     .single();
   const silentClient = applicant;
@@ -651,7 +671,7 @@ async function main() {
   });
   expect("18: UTR-samtale kan startes", utrConversation.error, null);
   if (utrConversation.data) created.conversations.push(utrConversation.data);
-  const dmSince = new Date().toISOString();
+  const dmSince = notificationsFromNow();
   await ingrid.from("direct_messages").insert({ conversation_id: utrConversation.data!, body: "Kontroll: DM" });
   const utrDm = await latestNotification(ids.jonas, "direct_message", dmSince);
   expect("18: UTR-DM-varsel bruker UTR-pseudonymet", utrDm?.title, "Ny melding fra Lavfrekvens");
@@ -667,7 +687,7 @@ async function main() {
   });
   expect("18: TU-samtale kan startes mellom moderatorer", tuConversation.error, null);
   if (tuConversation.data) created.conversations.push(tuConversation.data);
-  const tuDmSince = new Date().toISOString();
+  const tuDmSince = notificationsFromNow();
   await kari.from("direct_messages").insert({ conversation_id: tuConversation.data!, body: "Kontroll: TU-DM" });
   const tuDm = await latestNotification(ids.ingrid, "direct_message", tuDmSince);
   expect("18: TU-DM-varsel bruker Karis TU-profil", tuDm?.title, "Ny melding fra K. (TU)");

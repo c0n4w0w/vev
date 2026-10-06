@@ -116,9 +116,9 @@ async function insertEvent(
 }
 
 async function main() {
-  const [kari, lars, emma, robin] = await Promise.all([
+  const [kari, mia, emma, robin] = await Promise.all([
     emailFor("karimoen").then(signIn),
-    emailFor("larsbror").then(signIn),
+    emailFor("miaminge").then(signIn),
     emailFor("emmamortensen").then(signIn),
     emailFor("robinsaether").then(signIn),
   ]);
@@ -169,7 +169,7 @@ async function main() {
   const tuPostWithFtrGroup = await insertPost(emma, "tryggere-ungdom", ftrTrondelag);
   expect("TU-innlegg kan ikke bruke FTR-lokallag", tuPostWithFtrGroup.error ? "avvist" : "tillatt", "avvist");
 
-  const ftrEventWithTuGroup = await insertEvent(lars, "tryggere-ruspolitikk", tuOslo);
+  const ftrEventWithTuGroup = await insertEvent(mia, "tryggere-ruspolitikk", tuOslo);
   expect("FTR-arrangement kan ikke bruke TU-lokallag", ftrEventWithTuGroup.error ? "avvist" : "tillatt", "avvist");
 
   const tuEventWithFtrGroup = await insertEvent(emma, "tryggere-ungdom", ftrTrondelag);
@@ -178,7 +178,7 @@ async function main() {
   const nationalPost = await insertPost(kari, "tryggere-ruspolitikk", null);
   expect("community-wide innlegg med null lokallag er gyldig", nationalPost.error?.message ?? "ok", "ok");
 
-  const nationalEvent = await insertEvent(lars, "tryggere-ruspolitikk", null);
+  const nationalEvent = await insertEvent(mia, "tryggere-ruspolitikk", null);
   expect("community-wide arrangement med null lokallag er gyldig", nationalEvent.error?.message ?? "ok", "ok");
 
   const { data: anonPosts } = await anon.from("posts").select("id").eq("local_group_id", ftrTrondelag);

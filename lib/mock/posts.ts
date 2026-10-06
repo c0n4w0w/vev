@@ -11,6 +11,8 @@ import type { Post } from "@/lib/types";
 export type SeedPost = Omit<Post, "commentCount" | "reactions"> & {
   /** Human-readable fixture key; the seed resolves it to posts.local_group_id. */
   localGroupName?: string;
+  /** Subgroup slug; the seed resolves it to posts.subgroup_id. */
+  subgroupSlug?: string;
   /**
    * Seed source for built-in reaction rows. The database stores one row per
    * person per emoji and derives the aggregate; this aggregate-looking shape
@@ -28,10 +30,24 @@ export type SeedPost = Omit<Post, "commentCount" | "reactions"> & {
  * by an admin or moderator of its community (`posts_insert` enforces the same
  * for real writes, and `scripts/check-content.ts` for these fixtures). Members
  * take part through comments, reactions and channels. A post with
- * `localGroupName` is readable only by that group and the community's staff.
+ * `localGroupName` is readable only by that group and the community's admins;
+ * one with `subgroupSlug` only by that subgroup's members and the community's
+ * moderators and admins.
  */
 export const posts: SeedPost[] = [
   // ── Tryggere Ruspolitikk ──────────────────────────────────────────────
+  {
+    id: "p-tr-safe-space-1",
+    communityId: "tryggere-ruspolitikk",
+    subgroupSlug: "safe-space-frivillige",
+    authorId: "erlend-thonstad",
+    kind: "post",
+    title: "Vaktliste for Safe-Space i høst",
+    body:
+      "Vaktlisten for høstens arrangementer ligger i #Safe-Space frivillige. Skriv deg på de kveldene du kan, så setter vi opp par med minst én erfaren frivillig på hver vakt.",
+    createdAt: "2026-09-18T10:15:00+02:00",
+    reactions: [{ emoji: "👍", userIds: ["kristoffer"] }],
+  },
   {
     id: "p-tr-local-1",
     communityId: "tryggere-ruspolitikk",

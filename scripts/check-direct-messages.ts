@@ -236,7 +236,7 @@ async function main() {
   const jonas = await signIn("jonas");
   const _oskar = await signIn("oskar");
   const tobias = await signIn("tobias");
-  const lars = await signIn("larsbror");
+  const mia = await signIn("miaminge");
   const emma = await signIn("emmamortensen");
   const anon = anonymous();
 
@@ -458,14 +458,14 @@ async function main() {
     });
     expect("moderator kan ikke koble organisasjonsperson", moderatorLink.error !== null, true);
 
-    const broadAdminUpdate = await lars
+    const broadAdminUpdate = await mia
       .from("community_people")
       .update({ user_id: petterId } as never)
       .eq("id", linkedAuthorized.data!.id)
       .select("id");
     expect("administrator har ikke bred community_people update", broadAdminUpdate.error !== null, true);
 
-    const trAdminTuPerson = await lars.rpc("set_community_person_user", {
+    const trAdminTuPerson = await mia.rpc("set_community_person_user", {
       p_person_id: tuPerson.data!.id,
       p_user_id: nadiaId,
     });
@@ -477,27 +477,27 @@ async function main() {
     });
     expect("TU-admin kan ikke koble TU-person til FTR-medlem", tuAdminFtrOnlyMember.error !== null, true);
 
-    const outsideMember = await lars.rpc("set_community_person_user", {
+    const outsideMember = await mia.rpc("set_community_person_user", {
       p_person_id: linkedAuthorized.data!.id,
       p_user_id: oskarId,
     });
     expect("FTR-person kan ikke kobles til UTR-medlem", outsideMember.error !== null, true);
 
     await setMembershipStatus(petterId, TR, "requested");
-    const inactiveMember = await lars.rpc("set_community_person_user", {
+    const inactiveMember = await mia.rpc("set_community_person_user", {
       p_person_id: linkedUnauthorized.data!.id,
       p_user_id: petterId,
     });
     expect("administrator kan ikke koble til ikke-aktivt medlemskap", inactiveMember.error !== null, true);
     await setMembershipStatus(petterId, TR, "active");
 
-    const adminLink = await lars.rpc("set_community_person_user", {
+    const adminLink = await mia.rpc("set_community_person_user", {
       p_person_id: linkedAuthorized.data!.id,
       p_user_id: nadiaId,
     });
     expect("administrator kan koble organisasjonsperson", adminLink.error?.message ?? "ok", "ok");
 
-    const adminLinkList = await lars.rpc("community_person_account_links", {
+    const adminLinkList = await mia.rpc("community_person_account_links", {
       p_community_id: TR,
     });
     expect(
@@ -506,19 +506,19 @@ async function main() {
       true,
     );
 
-    const adminUnlink = await lars.rpc("set_community_person_user", {
+    const adminUnlink = await mia.rpc("set_community_person_user", {
       p_person_id: linkedAuthorized.data!.id,
       p_user_id: null as unknown as string,
     });
     expect("administrator kan fjerne kobling", adminUnlink.error?.message ?? "ok", "ok");
 
-    const adminRelink = await lars.rpc("set_community_person_user", {
+    const adminRelink = await mia.rpc("set_community_person_user", {
       p_person_id: linkedAuthorized.data!.id,
       p_user_id: nadiaId,
     });
     expect("administrator kan koble på nytt", adminRelink.error?.message ?? "ok", "ok");
 
-    const unauthorizedLink = await lars.rpc("set_community_person_user", {
+    const unauthorizedLink = await mia.rpc("set_community_person_user", {
       p_person_id: linkedUnauthorized.data!.id,
       p_user_id: petterId,
     });
@@ -561,7 +561,7 @@ async function main() {
     if (orgConversationId) createdConversationIds.add(orgConversationId);
     expect("organisasjonsperson-handling åpner ekte samtale", orgStart.error?.message ?? "ok", "ok");
 
-    const finalUnlink = await lars.rpc("set_community_person_user", {
+    const finalUnlink = await mia.rpc("set_community_person_user", {
       p_person_id: linkedAuthorized.data!.id,
       p_user_id: null as unknown as string,
     });

@@ -164,7 +164,7 @@ async function main() {
   //   ingrid — moderator in Tryggere/FTR and TU, member in UTR
   //   jonas  — ordinary member of UTR, and the control for recipient isolation
   //   oskar  — an account with a pending access request to Tryggere
-  //   lars   — administrator of Tryggere, so he can approve that request
+  //   mia   — administrator of Tryggere, so he can approve that request
   const [ingrid, jonas] = await Promise.all([
     signIn(await emailFor("ingrid")),
     signIn(await emailFor("jonas")),
@@ -483,12 +483,12 @@ async function main() {
   // `posts`, so there is no callable generator to test — what these cases
   // exercise is the ordinary publish path, through PostgREST under the same
   // policies the composer uses.
-  const [amina, nadia, linn, marte, lars, octavio] = await Promise.all([
+  const [amina, nadia, linn, marte, mia, octavio] = await Promise.all([
     signIn(await emailFor("amina")), // moderator, Tryggere Ruspolitikk
     signIn(await emailFor("nadia")), // moderator, Tryggere Ruspolitikk
     signIn(await emailFor("linn")), // ordinary member, Tryggere Ruspolitikk
     signIn(await emailFor("marte")), // moderator, Under The Rug
-    signIn(await emailFor("larsbror")), // administrator, Tryggere Ruspolitikk
+    signIn(await emailFor("miaminge")), // administrator, Tryggere Ruspolitikk
     signIn(await emailFor("octavio")), // administrator, Under The Rug
   ]);
 
@@ -529,7 +529,7 @@ async function main() {
   expect("og ingen varsler ble laget", (await notificationsSince(TR)).length, 0);
 
   const trActive = await activeIn(TR);
-  expect("Tryggere har ti aktive medlemmer", trActive, 10);
+  expect("Tryggere har tolv aktive medlemmer", trActive, 12);
 
   // B. Fan-out, from staff.
   const adminPost = await publish(amina, TR, { title: "Sjekk: kunngjøring fra administrator" });
@@ -773,7 +773,7 @@ async function main() {
   expect(
     "administratoren i fellesskapet fikk beskjed",
     (await handlesOf(staffNotices)).join(","),
-    "larsbror",
+    "miaminge",
   );
   expect("og ingen andre", staffNotices.length, 1);
 
@@ -873,7 +873,7 @@ async function main() {
     await admin.from("access_requests").select("id").eq("email", sofieEmail).eq("status", "pending").single()
   ).data!;
 
-  const rejected = await lars.rpc("reject_access_request", { p_request_id: sofieRequest.id });
+  const rejected = await mia.rpc("reject_access_request", { p_request_id: sofieRequest.id });
   expect("administrator kan avslå", rejected.data, true);
 
   const rejection = await noticesFor("Forespørselen om tilgang%");
@@ -892,7 +892,7 @@ async function main() {
   expect("lenken er intern", internalHref(rejection[0]?.href ?? ""), rejection[0]?.href);
 
   // Repeating the rejection changes nothing and says nothing twice.
-  const rejectAgain = await lars.rpc("reject_access_request", { p_request_id: sofieRequest.id });
+  const rejectAgain = await mia.rpc("reject_access_request", { p_request_id: sofieRequest.id });
   expect("en gjentatt avslagshandling gjør ingenting", rejectAgain.data, false);
   expect("og lager ikke et varsel til", (await noticesFor("Forespørselen om tilgang%")).length, 1);
 
@@ -902,7 +902,7 @@ async function main() {
   const strangerRequest = (
     await admin.from("access_requests").select("id").eq("email", stranger).eq("status", "pending").single()
   ).data!;
-  const rejectedStranger = await lars.rpc("reject_access_request", { p_request_id: strangerRequest.id });
+  const rejectedStranger = await mia.rpc("reject_access_request", { p_request_id: strangerRequest.id });
   expect("avslag virker også uten konto", rejectedStranger.data, true);
   expect(
     "men det finnes ingen å varsle",
@@ -923,7 +923,7 @@ async function main() {
     await admin.from("notifications").select("*", { count: "exact", head: true })
   ).count;
 
-  const approved = await lars.rpc("approve_access_request", { p_request_id: approvalRequest.id });
+  const approved = await mia.rpc("approve_access_request", { p_request_id: approvalRequest.id });
   const approvedRow = (approved.data as { outcome: string; token: string }[] | null)?.[0];
   expect("administrator kan godkjenne", (approved.data ?? []).length, 1);
   expect("utfallet er en invitasjon, ikke en direkte aktivering", approvedRow?.outcome, "invited");
@@ -938,7 +938,7 @@ async function main() {
     1,
   );
 
-  const approveAgain = await lars.rpc("approve_access_request", { p_request_id: approvalRequest.id });
+  const approveAgain = await mia.rpc("approve_access_request", { p_request_id: approvalRequest.id });
   expect(
     "og en gjentatt godkjenning lager verken invitasjon eller varsel",
     (await admin.from("invitations").select("*", { count: "exact", head: true }).eq("request_id", approvalRequest.id)).count,
@@ -985,7 +985,7 @@ async function main() {
         .eq("community_id", TR)
     ).count! > 0;
 
-  const oskarApproval = await lars.rpc("approve_access_request", { p_request_id: oskarRequest!.id });
+  const oskarApproval = await mia.rpc("approve_access_request", { p_request_id: oskarRequest!.id });
   const oskarOutcome = (oskarApproval.data as { outcome: string; token: string | null }[] | null)?.[0];
   expect("administrator kan godkjenne en konto som finnes fra før", oskarOutcome?.outcome, "activated");
   expect("og godkjenningen gir ingen token — det er ingen invitasjon å sende", oskarOutcome?.token, null);
@@ -1019,7 +1019,7 @@ async function main() {
   // Re-approving (a retried click) must not create a second membership row or
   // a second notice — the membership upsert is a no-op and `v_just_approved`
   // is false the second time through.
-  const oskarApproveAgain = await lars.rpc("approve_access_request", { p_request_id: oskarRequest!.id });
+  const oskarApproveAgain = await mia.rpc("approve_access_request", { p_request_id: oskarRequest!.id });
   const oskarAgainOutcome = (oskarApproveAgain.data as { outcome: string }[] | null)?.[0];
   expect("en gjentatt godkjenning rapporterer samme utfall", oskarAgainOutcome?.outcome, "activated");
   expect(
@@ -1089,7 +1089,7 @@ async function main() {
     .eq("status", "pending")
     .single();
 
-  const freshApproval = await lars.rpc("approve_access_request", { p_request_id: freshRequest!.id });
+  const freshApproval = await mia.rpc("approve_access_request", { p_request_id: freshRequest!.id });
   const freshOutcome = (freshApproval.data as { outcome: string; token: string | null }[] | null)?.[0];
   expect("godkjenning uten konto gir en invitasjon", freshOutcome?.outcome, "invited");
   const invitationToken = freshOutcome?.token;
@@ -1263,7 +1263,12 @@ async function main() {
     expect(`${row.id}: mottakeren er aktivt medlem der`, role.endsWith("|active"), true);
 
     if (row.href.endsWith("/requests")) {
-      expect(`${row.id}: bare administratorer får forespørselsvarsler`, role, "admin|active");
+      // Lars's two notices are history from when he was FTR's administrator.
+      // Mia Minge has since taken over the role and his membership is now
+      // moderator; the notices are left as they were rather than rewritten.
+      // Every other request notice must still go to a current administrator.
+      const historical = row.userId === "lars-bror-kristiansen" && role === "moderator|active";
+      expect(`${row.id}: bare administratorer får forespørselsvarsler`, historical ? "admin|active" : role, "admin|active");
     }
   }
 
@@ -1327,7 +1332,7 @@ async function main() {
   const { count: memberships } = await admin
     .from("memberships")
     .select("*", { count: "exact", head: true });
-  expect("medlemskapene er tilbake til 30", memberships, 30);
+  expect("medlemskapene er tilbake til 32", memberships, 32);
 
   const { count: invitations } = await admin
     .from("invitations")

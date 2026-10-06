@@ -41,6 +41,7 @@ export const community: Record<keyof typeof nb, string> = {
   "post.announcement": "Announcement",
   "post.pinned": "Pinned",
   // Read before the group name by screen readers: "Local group: FTR Oslo".
+  "post.subgroupPrefix": "Team:",
   "post.scopePrefix": "Local group:",
   "post.titlePlaceholder": "Title",
   "post.pin": "Pin post",
@@ -55,6 +56,8 @@ export const community: Record<keyof typeof nb, string> = {
   "composer.publish": "Publish",
   "composer.publishing": "Publishing…",
   "composer.visibility": "Visibility / area",
+  "composer.localGroupsHeading": "Local groups",
+  "composer.subgroupsHeading": "Teams",
   "composer.wholeCommunity": "Whole community",
   "composer.visibleToAll": "Visible to all members",
   "composer.asAnnouncement": "Publish as announcement",
@@ -123,6 +126,12 @@ export const community: Record<keyof typeof nb, string> = {
   "channel.announcementsOnly": "Announcements only",
   "channel.start": "This is the start of #{name}",
   "channel.membersOnly": "This conversation is visible only to members of {name}.",
+  "channel.membersOnlyLocal": "This conversation is visible only to members of {name} and administrators of {community}.",
+  "channel.membersOnlySubgroup":
+    "This conversation is visible only to members of {name} and moderators and administrators of {community}.",
+  "channel.footerLocal": "Messages are visible only to members of {name} and administrators of {community}.",
+  "channel.footerSubgroup":
+    "Messages are visible only to members of {name} and moderators and administrators of {community}.",
   "channel.placeholder": "Message #{name}",
   "channel.send": "Send message",
   "channel.readOnly": "Only moderators and administrators can post in this channel.",
@@ -198,6 +207,28 @@ export const community: Record<keyof typeof nb, string> = {
   "lokallag.affiliated": "You belong to",
   "lokallag.retired":
     "This local group has been retired. You keep your affiliation, but it can't be selected again.",
+  "subgroups.metaTitle": "Teams · {name}",
+  "subgroups.title": "Teams",
+  "subgroups.lead":
+    "Private teams in {name}. Members see the team's channel, posts and events, together with the community's moderators and administrators. Add and remove members here.",
+  "subgroups.none.title": "No teams to manage",
+  "subgroups.none.body":
+    "Teams are managed by the community's administrators and by people given responsibility for a team.",
+  "subgroups.membersHeading": "Members of {name}",
+  "subgroups.empty": "The team has no members yet.",
+  "subgroups.manager": "Team manager",
+  "subgroups.remove": "Remove",
+  "subgroups.removeNamed": "Remove {name} from the team",
+  "subgroups.add": "Add member",
+  "subgroups.searchLabel": "Search for a member to add",
+  "subgroups.searchPlaceholder": "Search by name (at least two characters)",
+  "subgroups.search": "Search",
+  "subgroups.searchResults": "Matches",
+  "subgroups.noMatches": "No active members outside the team match the search.",
+  "subgroups.addNamed": "Add {name} to the team",
+  "subgroups.removeNote":
+    "Removing someone from the team only removes the team membership. They stay a member of the community, keep their role and local group, and what they wrote stays.",
+  "subgroups.openChat": "Open the team chat",
   "lokallag.change": "Change local group",
   "lokallag.openChat": "Open the local group chat",
   "lokallag.nextActivity": "Next activity",

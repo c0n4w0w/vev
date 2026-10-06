@@ -60,9 +60,16 @@ export function ChannelView({
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const insertText = useComposerInsert(composerRef, draft, setDraft);
-  // Who can read this conversation: the local group for a lokallag channel
-  // (whose name is the group's), otherwise the whole community.
-  const audienceName = channel.localGroupId ? channel.name : community.name;
+  // Who can read this conversation, stated as the database decides it
+  // (content_scope_admits): the whole community; a lokallag and the
+  // community's admins; or a team and the community's moderators and admins.
+  // A private channel's name is its group's name.
+  const audience = channel.localGroupId
+    ? { note: "channel.membersOnlyLocal", footer: "channel.footerLocal" } as const
+    : channel.subgroupId
+      ? { note: "channel.membersOnlySubgroup", footer: "channel.footerSubgroup" } as const
+      : { note: "channel.membersOnly", footer: "channel.footer" } as const;
+  const audienceVars = { name: channel.localGroupId || channel.subgroupId ? channel.name : community.name, community: community.name };
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -135,7 +142,7 @@ export function ChannelView({
         <div className="mx-auto max-w-3xl">
           <ChannelIntroCard
             communityId={community.id}
-            audienceName={audienceName}
+            audienceNote={t(audience.note, audienceVars)}
             channel={channel}
             canEdit={canEdit}
             accent={community.branding.accent}
@@ -280,7 +287,7 @@ export function ChannelView({
             </p>
           ) : null}
           <p className="mt-2 text-[11px] text-ink-3">
-            {t("channel.footer", { name: audienceName })}
+            {t(audience.footer, audienceVars)}
             {lastActivityLabel ? ` ${t("channel.lastActivity", { when: lastActivityLabel })}` : ""}
           </p>
         </div>

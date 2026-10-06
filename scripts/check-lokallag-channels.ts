@@ -1,10 +1,12 @@
 /**
  * Checks private lokallag chat channels under real authenticated sessions.
  *
- * The rule (20261001100000_lokallag_channels): a channel with
- * `local_group_id` set is readable and writable only by active members whose
- * membership is in exactly that group. No admin or moderator override, no
- * cross-community reach. Community-wide channels keep their old rule.
+ * The rule (20261001100000_lokallag_channels, widened for admins in
+ * 20261005100000_community_subgroups): a channel with `local_group_id` set is
+ * readable and writable by active members whose membership is in exactly that
+ * group, and by the community's active admins. Moderators get no override, and
+ * nothing reaches across communities. Community-wide channels keep their old
+ * rule.
  *
  * Every access check goes through ordinary anon-key clients signed in as
  * fixture accounts, running the same queries the app runs (`loadChannels`,
@@ -207,7 +209,8 @@ async function main() {
   const kristoffer = await signIn("kristoffer"); // FTR Oslo, member
   const eli = await signIn("elironning"); // FTR Trøndelag, member
   const elise = await signIn("elise"); // FTR, no local group
-  const lars = await signIn("larsbror"); // FTR admin, no local group
+  const mia = await signIn("miaminge"); // FTR admin, no local group
+  const lars = await signIn("larsbror"); // FTR moderator (former admin), no local group
   const ingrid = await signIn("ingrid"); // FTR moderator, no local group
   const nadia = await signIn("nadia"); // FTR moderator, FTR Vestland
   const amina = await signIn("amina"); // FTR moderator, FTR Oslo
@@ -220,11 +223,12 @@ async function main() {
   expect("kristoffer er i FTR Oslo", await membershipGroup("kristoffer", FTR), ftrOslo);
   expect("eli er i FTR Trøndelag", await membershipGroup("elironning", FTR), ftrTrondelag);
   expect("elise har ikke lokallag", await membershipGroup("elise", FTR), null);
-  expect("lars har ikke lokallag", await membershipGroup("larsbror", FTR), null);
+  expect("mia har ikke lokallag", await membershipGroup("miaminge", FTR), null);
+  expect("ingrid har ikke lokallag", await membershipGroup("ingrid", FTR), null);
   expect("petter er i FTR Trøndelag", await membershipGroup("petter", FTR), ftrTrondelag);
 
   const petterOriginal = await membershipGroup("petter", FTR);
-  const larsOriginal = await membershipGroup("larsbror", FTR);
+  const ingridOriginal = await membershipGroup("ingrid", FTR);
   const notificationsBefore = await notificationCount();
 
   try {
@@ -263,50 +267,54 @@ async function main() {
       // No API role may call the internal helpers.
       const { error: memberEnsure } = await kristoffer.rpc("ensure_local_group_channel", { p_local_group_id: ftrOslo });
       expect("A2 medlem kan ikke kalle ensure_local_group_channel", Boolean(memberEnsure), true);
-      const { error: memberAdmits } = await kristoffer.rpc("channel_scope_admits", {
+      const { error: memberAdmits } = await kristoffer.rpc("content_scope_admits", {
         p_user_id: await profileId("elironning"),
         p_community_id: FTR,
         p_local_group_id: ftrTrondelag,
+        p_subgroup_id: null as unknown as string,
       });
       expect("A2 medlem kan ikke spørre om andres tilgang", Boolean(memberAdmits), true);
     }
 
     // A3–A5, H31: a new group through the admin path, renamed and retired.
+    // Mia (admin) administers it and — as admin — reads it without joining.
+    // Ingrid (moderator, no lokallag) shows the membership path: she gets in
+    // only by choosing the group, and is out again when she leaves it.
     {
       const name = `${GROUP_PREFIX} Nord`;
-      const { data: newGroup, error } = await lars.rpc("create_local_group", { p_community_id: FTR, p_name: name });
+      const { data: newGroup, error } = await mia.rpc("create_local_group", { p_community_id: FTR, p_name: name });
       expect("A3 admin oppretter lokallag", Boolean(newGroup) && !error, true);
       const [channel] = await channelFor(newGroup!);
       expect("A3 nytt lokallag får kanal automatisk", Boolean(channel), true);
       expect("A3 kanalen heter som lokallaget", channel?.name, name);
       expect("A3 kanalen er i samme fellesskap", channel?.community_id, FTR);
-      expect("A3 admin uten tilhørighet ser ikke den nye kanalen", await directChannel(lars, channel.id), null);
+      expect("A3 admin ser den nye kanalen uten å være medlem", (await directChannel(mia, channel.id))?.id, channel.id);
+      expect("A3 moderator uten tilhørighet ser ikke den nye kanalen", await directChannel(ingrid, channel.id), null);
 
-      // The creating admin joins it — the only way staff get in — and writes.
-      expect("A3 admin velger det nye lokallaget", await setMyGroup(lars, FTR, newGroup!), true);
-      expect("E19 admin som er medlem av lokallaget ser kanalen", (await directChannel(lars, channel.id))?.id, channel.id);
-      const sent = await send(lars, channel.id, "før navnebytte");
-      expect("E19 admin som er medlem kan skrive", sent.error, null);
+      expect("A3 moderator velger det nye lokallaget", await setMyGroup(ingrid, FTR, newGroup!), true);
+      expect("E19 moderator som er medlem av lokallaget ser kanalen", (await directChannel(ingrid, channel.id))?.id, channel.id);
+      const sent = await send(ingrid, channel.id, "før navnebytte");
+      expect("E19 moderator som er medlem kan skrive", sent.error, null);
 
       const renamed = `${GROUP_PREFIX} Nord-Norge`;
-      const { data: renameOk } = await lars.rpc("rename_local_group", { p_local_group_id: newGroup!, p_name: renamed });
+      const { data: renameOk } = await mia.rpc("rename_local_group", { p_local_group_id: newGroup!, p_name: renamed });
       expect("A4 admin gir lokallaget nytt navn", renameOk, true);
       const [afterRename] = await channelFor(newGroup!);
       expect("A4 kanal-id er uendret etter navnebytte", afterRename?.id, channel.id);
       expect("A4 kanalnavnet følger nytt navn", afterRename?.name, renamed);
-      const history = await readMessages(lars, channel.id);
+      const history = await readMessages(ingrid, channel.id);
       expect("H31 meldingen er fortsatt knyttet til kanalen etter navnebytte", history.some((m) => m.id === sent.id), true);
 
       const long = `${GROUP_PREFIX} ${"x".repeat(80 - GROUP_PREFIX.length - 1)}`;
       expect("A4 testnavnet er på grensen (80)", long.length, 80);
-      await lars.rpc("rename_local_group", { p_local_group_id: newGroup!, p_name: long });
+      await mia.rpc("rename_local_group", { p_local_group_id: newGroup!, p_name: long });
       const [afterLong] = await channelFor(newGroup!);
       expect("A4 langt lokallagsnavn kortes til 40 tegn i kanalen", afterLong?.name.length, 40);
       expect("A4 langt navn endrer ikke kanal-id", afterLong?.id, channel.id);
 
       // Admin editing of the channel itself is refused for lokallag channels,
-      // even for an admin who is in the group.
-      const { data: edited } = await lars.rpc("set_channel_details", {
+      // even for an admin who can read it.
+      const { data: edited } = await mia.rpc("set_channel_details", {
         p_community_id: FTR,
         p_channel_id: channel.id,
         p_name: "overstyrt",
@@ -314,22 +322,23 @@ async function main() {
       });
       expect("A4 set_channel_details avviser lokallagskanaler", (edited ?? []).length, 0);
 
-      const { data: retireOk } = await lars.rpc("set_local_group_active", { p_local_group_id: newGroup!, p_active: false });
+      const { data: retireOk } = await mia.rpc("set_local_group_active", { p_local_group_id: newGroup!, p_active: false });
       expect("A5 admin avvikler lokallaget", retireOk, true);
       const [afterRetire] = await channelFor(newGroup!);
       expect("A5 kanalen finnes etter avvikling", afterRetire?.id, channel.id);
-      expect("A5 meldingene finnes etter avvikling", (await readMessages(lars, channel.id)).some((m) => m.id === sent.id), true);
-      expect("A5 medlem som beholdes i avviklet lokallag har fortsatt tilgang", (await directChannel(lars, channel.id))?.id, channel.id);
+      expect("A5 meldingene finnes etter avvikling", (await readMessages(ingrid, channel.id)).some((m) => m.id === sent.id), true);
+      expect("A5 medlem som beholdes i avviklet lokallag har fortsatt tilgang", (await directChannel(ingrid, channel.id))?.id, channel.id);
       expect("A5 avviklet lokallag kan ikke velges av nye", await setMyGroup(kristoffer, FTR, newGroup!), false);
       expect("A5 kristoffer er fortsatt i FTR Oslo", await membershipGroup("kristoffer", FTR), ftrOslo);
 
-      const { data: reactivate } = await lars.rpc("set_local_group_active", { p_local_group_id: newGroup!, p_active: true });
+      const { data: reactivate } = await mia.rpc("set_local_group_active", { p_local_group_id: newGroup!, p_active: true });
       expect("A5 lokallaget kan gjeninnføres", reactivate, true);
       expect("A5 gjeninnføring gir fortsatt bare én kanal", (await channelFor(newGroup!)).length, 1);
 
-      expect("A3 admin går tilbake til ingen lokallag", await setMyGroup(lars, FTR, larsOriginal), true);
-      expect("A3 admin uten tilhørighet mister tilgangen igjen", await directChannel(lars, channel.id), null);
-      expect("A3 admin uten tilhørighet kan ikke lese meldingene", (await readMessages(lars, channel.id)).length, 0);
+      expect("A3 moderator går tilbake til ingen lokallag", await setMyGroup(ingrid, FTR, ingridOriginal), true);
+      expect("A3 moderator uten tilhørighet mister tilgangen igjen", await directChannel(ingrid, channel.id), null);
+      expect("A3 moderator uten tilhørighet kan ikke lese meldingene", (await readMessages(ingrid, channel.id)).length, 0);
+      expect("A3 admin leser fortsatt meldingene", (await readMessages(mia, channel.id)).some((m) => m.id === sent.id), true);
 
       // A group that is created already retired gets no channel: that would be
       // new access to a group nobody can join. Reinstating it creates one.
@@ -397,19 +406,29 @@ async function main() {
 
     // ── E. Staff ────────────────────────────────────────────────────────
     {
-      expect("E17 FTR-admin utenfor Oslo ser ikke Oslo-kanalen", await directChannel(lars, osloChannel.id), null);
-      expect("E17 FTR-admin utenfor Oslo leser ingen Oslo-meldinger", (await readMessages(lars, osloChannel.id)).length, 0);
-      expect("E17 FTR-admin utenfor Oslo kan ikke skrive i Oslo", (await send(lars, osloChannel.id, "nei")).id, null);
-      expect("E17 FTR-admin ser ingen lokallagskanaler i sidepanelet", (await visibleChannels(lars, FTR)).filter((c) => c.local_group_id).length, 0);
-      const { data: edited } = await lars.rpc("set_channel_details", {
+      // Admins of the community reach every lokallag chat in it.
+      expect("E17 FTR-admin utenfor Oslo ser Oslo-kanalen", (await directChannel(mia, osloChannel.id))?.id, osloChannel.id);
+      expect("E17 FTR-admin utenfor Oslo leser Oslo-meldinger", (await readMessages(mia, osloChannel.id)).some((m) => m.id === osloSeed.id), true);
+      expect("E17 FTR-admin utenfor Oslo kan skrive i Oslo", (await send(mia, osloChannel.id, "admin i oslo")).error, null);
+      expect("E17 FTR-admin ser Trøndelag-kanalen", (await directChannel(mia, trondelagChannel.id))?.id, trondelagChannel.id);
+      expect("E17 FTR-admin leser Trøndelag-meldinger", (await readMessages(mia, trondelagChannel.id)).some((m) => m.id === trSeed.id), true);
+      expect("E17 FTR-admin kan skrive i Trøndelag", (await send(mia, trondelagChannel.id, "admin i trøndelag")).error, null);
+      const { data: ftrGroups } = await admin.from("community_local_groups").select("id").eq("community_id", FTR).eq("active", true);
+      const adminLocal = (await visibleChannels(mia, FTR)).filter((c) => c.local_group_id).map((c) => c.local_group_id);
+      expect("E17 FTR-admin ser alle FTRs lokallagskanaler", (ftrGroups ?? []).every((g) => adminLocal.includes(g.id)), true);
+      const { data: canReadTr } = await mia.rpc("can_read_channel", { chid: trondelagChannel.id });
+      expect("E17 can_read_channel(Trøndelag) er true for FTR-admin", canReadTr, true);
+      const { data: edited } = await mia.rpc("set_channel_details", {
         p_community_id: FTR,
         p_channel_id: osloChannel.id,
-        p_name: "lekket",
-        p_purpose: "lekket",
+        p_name: "endret",
+        p_purpose: "endret",
       });
-      expect("E17 admin-redigering avslører ikke Oslo-kanalen", (edited ?? []).length, 0);
+      expect("E17 admin-redigering av lokallagskanal er fortsatt avvist", (edited ?? []).length, 0);
       expect("E17 Oslo-kanalen er uendret etter forsøket", (await channelFor(ftrOslo))[0]?.name, "FTR Oslo");
 
+      expect("E18 tidligere admin (nå moderator) uten lokallag ser ikke Oslo", await directChannel(lars, osloChannel.id), null);
+      expect("E18 tidligere admin (nå moderator) leser ikke Oslo", (await readMessages(lars, osloChannel.id)).length, 0);
       expect("E18 FTR-moderator uten lokallag ser ikke Oslo", await directChannel(ingrid, osloChannel.id), null);
       expect("E18 FTR-moderator uten lokallag leser ikke Oslo", (await readMessages(ingrid, osloChannel.id)).length, 0);
       expect("E18 FTR-moderator i Vestland ser ikke Oslo", await directChannel(nadia, osloChannel.id), null);
@@ -420,6 +439,8 @@ async function main() {
       expect("E19 moderator i FTR Oslo ser ikke Trøndelag", await directChannel(amina, trondelagChannel.id), null);
 
       expect("E20 TU-admin ser ikke FTR Oslo", await directChannel(emma, osloChannel.id), null);
+      expect("E20 TU-admin kan ikke skrive i FTR Oslo", (await send(emma, osloChannel.id, "nei")).id, null);
+      expect("E20 FTR-admin ser ikke TU Oslo", await directChannel(mia, tuOsloChannel.id), null);
       expect("E20 TU-admin leser ikke FTR Oslo", (await readMessages(emma, osloChannel.id)).length, 0);
       expect("E20 TU Oslo-medlem ser ikke FTR Oslo", await directChannel(hanne, osloChannel.id), null);
       expect("E20 TU Oslo-medlem kan ikke skrive i FTR Oslo", (await send(hanne, osloChannel.id, "nei")).id, null);
@@ -501,7 +522,7 @@ async function main() {
       expect("G sletting av Trøndelag-meldinger gir ingen rader", (del.data ?? []).length, 0);
       const ownUpd = await kristoffer.from("messages").update({ body: "endret" }).eq("channel_id", osloChannel.id).select();
       expect("G meldinger kan fortsatt ikke redigeres via API (uendret regel)", (ownUpd.data ?? []).length, 0);
-      const move = await lars.from("channels").update({ local_group_id: null }).eq("id", osloChannel.id).select();
+      const move = await mia.from("channels").update({ local_group_id: null }).eq("id", osloChannel.id).select();
       expect("G admin kan ikke gjøre en lokallagskanal felles", (move.data ?? []).length, 0);
       expect("G Oslo-kanalen er fortsatt knyttet til Oslo", (await channelFor(ftrOslo))[0]?.id, osloChannel.id);
     }
@@ -516,7 +537,7 @@ async function main() {
 
       const general = fixtureChannels.find((c) => c.communityId === FTR && c.groupId === "generelt" && !c.readOnly)!;
       const { count: total } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("channel_id", general.id);
-      for (const [who, client] of [["uten lokallag", elise], ["admin", lars], ["Oslo-medlem", kristoffer]] as const) {
+      for (const [who, client] of [["uten lokallag", elise], ["admin", mia], ["Oslo-medlem", kristoffer]] as const) {
         expect(`H32 ${who} leser hele #${general.name}`, (await readMessages(client, general.id)).length, total);
       }
       const sent = await send(elise, general.id, "fellesskap");
@@ -526,13 +547,13 @@ async function main() {
     }
   } finally {
     await setMyGroup(petter, FTR, petterOriginal);
-    await admin.from("memberships").update({ local_group_id: larsOriginal }).eq("community_id", FTR).eq("user_id", await profileId("larsbror"));
+    await admin.from("memberships").update({ local_group_id: ingridOriginal }).eq("community_id", FTR).eq("user_id", await profileId("ingrid"));
     await admin.from("messages").delete().in("id", createdMessageIds);
     await cleanup();
   }
 
   expect("opprydding: Petter er tilbake i FTR Trøndelag", await membershipGroup("petter", FTR), ftrTrondelag);
-  expect("opprydding: Lars er tilbake uten lokallag", await membershipGroup("larsbror", FTR), null);
+  expect("opprydding: Ingrid er tilbake uten lokallag", await membershipGroup("ingrid", FTR), null);
   const { count: leftovers } = await admin.from("messages").select("id", { count: "exact", head: true }).like("body", `${BODY}%`);
   expect("opprydding: ingen testmeldinger igjen", leftovers, 0);
   const { count: groupsLeft } = await admin.from("community_local_groups").select("id", { count: "exact", head: true }).like("name", `${GROUP_PREFIX}%`);
