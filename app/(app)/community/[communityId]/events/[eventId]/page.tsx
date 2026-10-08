@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { EventRsvp } from "@/components/community/EventRsvp";
 import { Avatar, Badge, PageContainer, Panel } from "@/components/ui/primitives";
+import { subgroupBadgeTone } from "@/components/community/subgroupBadgeTone";
 import { IconArrowLeft, IconClock, IconGlobe, IconLock, IconMapPin } from "@/components/ui/icons";
 import { getCommunityById, getCommunityPersona, getEvent, now } from "@/lib/data";
 import { formatEventRange, timeUntil } from "@/lib/format";
@@ -61,9 +62,15 @@ export default async function EventDetailPage({
       </h1>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Badge tone={event.isPublic ? "fjord" : "neutral"}>
+        <Badge tone={event.isPublic ? "fjord" : subgroupBadgeTone(event.subgroupSlug, "neutral")}>
           {event.isPublic ? <IconGlobe size={11} /> : <IconLock size={11} />}
-          {event.isPublic ? t("events.public") : t("events.membersOnly")}
+          {/* A subgroup event names its team, as the event card does; a
+              lokallag or community-wide event stays "members only". */}
+          {event.isPublic
+            ? t("events.public")
+            : event.subgroupId && event.scopeName
+              ? event.scopeName
+              : t("events.membersOnly")}
         </Badge>
         <Badge tone="outline">
           {past ? t("events.completed") : timeUntil(event.startsAt, locale)}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Avatar, Badge, Panel, RichText, cn } from "@/components/ui/primitives";
+import { subgroupBadgeTone } from "@/components/community/subgroupBadgeTone";
 import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconLock, IconMapPin, IconMegaphone, IconPin } from "@/components/ui/icons";
 import { CommentThread } from "@/components/community/CommentThread";
@@ -64,7 +65,7 @@ export function PostBadges({ post, locale }: { post: Post; locale: Locale }) {
         </Badge>
       ) : null}
       {post.subgroup ? (
-        <Badge tone="outline" className="max-w-full">
+        <Badge tone={subgroupBadgeTone(post.subgroup.slug, "outline")} className="max-w-full">
           <IconLock size={11} className="shrink-0" />
           <span className="sr-only">{t("post.subgroupPrefix")} </span>
           <span className="truncate">{post.subgroup.name}</span>

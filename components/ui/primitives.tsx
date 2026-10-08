@@ -148,14 +148,17 @@ const badgeTones = {
   fjord: "bg-fjord-soft text-fjord border-[#cddce4]",
   rust: "bg-rust-soft text-rust border-[#e7cec4]",
   outline: "bg-transparent text-ink-3 border-line",
+  plum: "bg-[#633066]/[0.08] text-[#633066] border-[#633066]/30",
 } as const;
+
+export type BadgeTone = keyof typeof badgeTones;
 
 export function Badge({
   children,
   tone = "neutral",
   className,
   ...props
-}: ComponentProps<"span"> & { tone?: keyof typeof badgeTones }) {
+}: ComponentProps<"span"> & { tone?: BadgeTone }) {
   return (
     <span
       className={cn(

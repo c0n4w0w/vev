@@ -282,7 +282,7 @@ export interface Post {
    */
   localGroup?: { id: string; name: string };
   /** Optional subgroup scope, loaded the same way. Never set with a local group. */
-  subgroup?: { id: string; name: string };
+  subgroup?: { id: string; name: string; slug: string };
   authorId: string;
   /** Optional headline; short updates have none. */
   title?: string;
@@ -312,6 +312,8 @@ export interface CommunityEvent {
    * event under the same row level security. Absent for community-wide events.
    */
   scopeName?: string;
+  /** Slug of the subgroup the event is limited to, when it is. */
+  subgroupSlug?: string;
   title: string;
   description: string;
   /** ISO timestamp for the start. */

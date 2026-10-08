@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Avatar, Badge, Panel, cn } from "@/components/ui/primitives";
+import { subgroupBadgeTone } from "@/components/community/subgroupBadgeTone";
 import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconClock, IconGlobe, IconLock, IconMapPin } from "@/components/ui/icons";
 import { formatDateParts, formatEventRange, formatTime, timeUntil } from "@/lib/format";
@@ -153,7 +154,7 @@ export function EventCard({
           <p className="mt-3 text-[13px] leading-relaxed text-ink-2">{event.description}</p>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Badge tone={event.isPublic ? "fjord" : "neutral"}>
+            <Badge tone={event.isPublic ? "fjord" : subgroupBadgeTone(event.subgroupSlug, "neutral")}>
               {event.isPublic ? <IconGlobe size={11} /> : <IconLock size={11} />}
               {/* A lokallag or group event is limited to that group, so it
                   names the group rather than "members only". */}

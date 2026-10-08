@@ -219,11 +219,11 @@ function toDirectMessage(row: DirectMessageRow): DirectMessage {
  * the embed cannot surface a group the post does not already point at.
  */
 const POST_SELECT =
-  "*, local_group:community_local_groups!posts_local_group_fkey(id, name), subgroup:community_subgroups!posts_subgroup_fkey(id, name)" as const;
+  "*, local_group:community_local_groups!posts_local_group_fkey(id, name), subgroup:community_subgroups!posts_subgroup_fkey(id, name, slug)" as const;
 
 type PostWithGroupRow = PostRow & {
   local_group: { id: string; name: string } | null;
-  subgroup: { id: string; name: string } | null;
+  subgroup: { id: string; name: string; slug: string } | null;
 };
 
 function toPost(row: PostWithGroupRow): Post {
@@ -232,7 +232,7 @@ function toPost(row: PostWithGroupRow): Post {
     communityId: row.community_id,
     localGroupId: row.local_group_id ?? undefined,
     localGroup: row.local_group ? { id: row.local_group.id, name: row.local_group.name } : undefined,
-    subgroup: row.subgroup ? { id: row.subgroup.id, name: row.subgroup.name } : undefined,
+    subgroup: row.subgroup ? { id: row.subgroup.id, name: row.subgroup.name, slug: row.subgroup.slug } : undefined,
     authorId: row.author_id,
     title: row.title ?? undefined,
     body: row.body,
@@ -252,11 +252,11 @@ function toPost(row: PostWithGroupRow): Post {
  * row does not already point at.
  */
 const EVENT_SELECT =
-  "*, local_group:community_local_groups!events_local_group_fkey(name), subgroup:community_subgroups!events_subgroup_fkey(name)" as const;
+  "*, local_group:community_local_groups!events_local_group_fkey(name), subgroup:community_subgroups!events_subgroup_fkey(name, slug)" as const;
 
 type EventWithScopeRow = EventRow & {
   local_group?: { name: string } | null;
-  subgroup?: { name: string } | null;
+  subgroup?: { name: string; slug: string } | null;
 };
 
 function toEvent(row: EventWithScopeRow, attendeeIds: string[]): CommunityEvent {
@@ -265,6 +265,7 @@ function toEvent(row: EventWithScopeRow, attendeeIds: string[]): CommunityEvent 
     communityId: row.community_id,
     localGroupId: row.local_group_id ?? undefined,
     subgroupId: row.subgroup_id ?? undefined,
+    subgroupSlug: row.subgroup?.slug ?? undefined,
     scopeName: row.local_group?.name ?? row.subgroup?.name ?? undefined,
     title: row.title,
     description: row.description,
