@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Avatar, ElevatedRoleBadge, cn } from "@/components/ui/primitives";
+import { Avatar, cn } from "@/components/ui/primitives";
 import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import {
   IconAttach,
@@ -15,7 +15,6 @@ import {
   IconFeed,
   IconHash,
   IconHome,
-  IconLock,
   IconMapPin,
   IconMenu,
   IconMail,
@@ -251,7 +250,6 @@ function SidebarContent({
   inDrawer?: boolean;
 }) {
   const t = useT();
-  const locale = current ? communityLocale(current.community) : PLATFORM_LOCALE;
   const accent = current?.community.branding.accent;
   const activeDirectConversation = current?.recentDirectConversations.find(
     (conversation) =>
@@ -261,22 +259,14 @@ function SidebarContent({
     (current?.unreadDirectCount ?? 0) - (activeDirectConversation?.unread ? 1 : 0);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className={cn("border-b border-line px-3 py-3", inDrawer && "pr-12")}>
         <CommunitySwitcher data={data} current={current} onNavigate={onNavigate} />
       </div>
 
-      <nav className="scroll-quiet flex-1 overflow-y-auto px-3 py-4">
+      <nav className="scroll-quiet min-h-0 flex-1 overflow-y-auto px-3 py-4">
         {current ? (
           <>
-            <div className="mb-4 flex items-center gap-2 px-2.5">
-              <ElevatedRoleBadge role={current.membership.role} locale={locale} />
-              <span className="inline-flex items-center gap-1 text-[11px] text-ink-3">
-                <IconLock size={12} />
-                {t("shell.closed")}
-              </span>
-            </div>
-
             <p className="label mb-2 px-2.5">{t("shell.nav.main")}</p>
             <ul className="space-y-px">
               {communityNav(
