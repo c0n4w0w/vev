@@ -550,7 +550,7 @@ export function UtrPortal({
               className={`${tracked} inline-flex items-center gap-2 text-(--utr-on-night-2) transition-colors hover:text-(--utr-on-night)`}
             >
               {t("utr.footer.poweredBy")}
-              <Wordmark className="text-(--utr-on-night)! normal-case tracking-normal" />
+              <Wordmark tone="cream" size="footer" />
             </Link>
           </div>
         </div>

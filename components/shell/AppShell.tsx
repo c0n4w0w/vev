@@ -30,6 +30,7 @@ import type { ShellCommunity, ShellData } from "@/components/shell/shell-data";
 import { communityLocale, type Translator } from "@/lib/i18n";
 import { PLATFORM_LOCALE } from "@/lib/i18n/locales";
 import { LocaleProvider, useLocale, useT } from "@/lib/i18n/react";
+import { Wordmark } from "@/components/shell/Wordmark";
 
 // ── Nav building blocks ─────────────────────────────────────────────────
 
@@ -595,7 +596,7 @@ function ShellFrame({ data, children }: { data: ShellData; children: ReactNode }
             </span>
           </span>
         ) : (
-          <span className="font-display text-base text-ink">TING</span>
+          <Wordmark size="app" />
         )}
       </header>
 

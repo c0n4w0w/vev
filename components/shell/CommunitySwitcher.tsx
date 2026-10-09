@@ -77,7 +77,7 @@ export function CommunitySwitcher({
           </>
         ) : (
           <>
-            <Wordmark className="flex-1" />
+            <Wordmark size="app" />
           </>
         )}
         <IconChevronDown

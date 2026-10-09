@@ -384,7 +384,7 @@ export function TryggerePortal({
             className={`inline-flex items-center gap-2 text-xs transition-colors hover:text-[#46525f] ${ink3}`}
           >
             Drevet av
-            <Wordmark className="scale-90" />
+            <Wordmark size="footer" />
           </Link>
         </div>
       </footer>

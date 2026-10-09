@@ -276,7 +276,7 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
             className="inline-flex items-center gap-2 text-xs text-ink-3 transition-colors hover:text-ink-2"
           >
             Drevet av
-            <Wordmark className="scale-90" />
+            <Wordmark size="footer" />
           </Link>
         </div>
       </footer>
