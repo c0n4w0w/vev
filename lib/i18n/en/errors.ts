@@ -79,6 +79,23 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.rsvpRefused": "Your sign-up couldn't be saved. Try again.",
   "err.eventCreateRefused":
     "The event wasn't created. Only administrators, and lokallag leaders for their own lokallag, can add events.",
+  "err.eventEditRefused":
+    "The change wasn't saved. Only administrators, and lokallag leaders for their own lokallag, can edit events.",
+  "err.eventCapacityBelowAttendees": "Capacity can't be lower than the number signed up ({count}).",
+  "err.eventManageRefused":
+    "That wasn't done. Only administrators, and lokallag leaders for their own lokallag, can cancel or restore events.",
+  "err.eventAlreadyCancelled": "The event is already cancelled.",
+  "err.eventNotCancelled": "The event isn't cancelled.",
+  "err.eventAlreadyEnded": "The event has already taken place.",
+  "err.eventRestoreOverCapacity":
+    "The event can't be restored because more people are signed up than there are places. Increase the capacity first.",
+  "err.eventDeleteRefused":
+    "The event wasn't deleted. Only administrators of the community can permanently delete events.",
+  "err.eventDeleteUnconfirmed": "Confirm that you understand the deletion can't be undone.",
+  "err.attendeeRemoveRefused":
+    "The registration wasn't removed. Only administrators, and lokallag leaders for their own lokallag, can remove registrations.",
+  "err.attendeeRemoveCancelled": "The event is cancelled, and its registrations are kept as history.",
+  "err.attendeeRemoveNotAttending": "That person is no longer signed up.",
   "err.eventTitleRequired": "The event needs a title.",
   "err.eventTitleTooLong": "The title can be at most 120 characters.",
   "err.eventLocationRequired": "Enter a location.",

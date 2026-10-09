@@ -1,10 +1,20 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { EventAdminMenu } from "@/components/community/EventAdminMenu";
+import { EventRosterList } from "@/components/community/EventRosterList";
 import { EventRsvp } from "@/components/community/EventRsvp";
 import { Avatar, Badge, PageContainer, Panel } from "@/components/ui/primitives";
 import { subgroupBadgeTone } from "@/components/community/subgroupBadgeTone";
 import { IconArrowLeft, IconClock, IconGlobe, IconLock, IconMapPin } from "@/components/ui/icons";
-import { getCommunityById, getCommunityPersona, getEvent, getEventRoster, now } from "@/lib/data";
+import {
+  canDeleteEvent,
+  canManageEvent,
+  getCommunityById,
+  getCommunityPersona,
+  getEvent,
+  getEventRoster,
+  now,
+} from "@/lib/data";
 import { formatEventRange, timeUntil } from "@/lib/format";
 import { communityLocale, communityTranslator, tn, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
@@ -34,6 +44,16 @@ export async function generateMetadata({
  * lokallag event, its lokallagsleder — also see the roster, which is fetched
  * only for them: `getEventRoster` asks the database first and returns
  * nothing otherwise.
+ *
+ * The same people get one compact "Administrer" menu under the badges: edit
+ * (the full editor, description included) and cancel/restore. Permanent
+ * deletion appears in it for the community's admins only. All of it is
+ * presentation — the database decides every write (can_manage_event;
+ * deletion: admins).
+ *
+ * A cancelled event keeps its page: the details stay, an "Avlyst" badge and
+ * notice replace the RSVP controls, and the roster stays visible to its
+ * managers as history.
  */
 export default async function EventDetailPage({
   params,
@@ -47,12 +67,18 @@ export default async function EventDetailPage({
   const locale = communityLocale(community);
   const t = translator(locale);
 
-  const [host, roster] = await Promise.all([
+  const [host, roster, canManage, canDelete] = await Promise.all([
     event.hostId ? getCommunityPersona(community.id, event.hostId) : undefined,
     getEventRoster(community.id, event.id),
+    canManageEvent(event.id),
+    canDeleteEvent(event.id),
   ]);
   const accent = community.branding.accent;
   const past = Date.parse(event.endsAt) < now().getTime();
+  const cancelled = Boolean(event.cancelledAt);
+  const scopeLabel = event.isPublic
+    ? t("events.public")
+    : (event.scopeName ?? t("events.membersOnly"));
 
   return (
     <PageContainer width="narrow">
@@ -70,6 +96,7 @@ export default async function EventDetailPage({
       </h1>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
+        {cancelled ? <Badge tone="rust">{t("events.cancelled")}</Badge> : null}
         <Badge tone={event.isPublic ? "fjord" : subgroupBadgeTone(event.subgroupSlug, "neutral")}>
           {event.isPublic ? <IconGlobe size={11} /> : <IconLock size={11} />}
           {/* A subgroup event names its team, as the event card does; a
@@ -80,10 +107,35 @@ export default async function EventDetailPage({
               ? event.scopeName
               : t("events.membersOnly")}
         </Badge>
-        <Badge tone="outline">
-          {past ? t("events.completed") : timeUntil(event.startsAt, locale)}
-        </Badge>
+        {cancelled ? null : (
+          <Badge tone="outline">
+            {past ? t("events.completed") : timeUntil(event.startsAt, locale)}
+          </Badge>
+        )}
       </div>
+
+      {canManage || canDelete ? (
+        <EventAdminMenu
+          communityId={community.id}
+          communityName={community.name}
+          event={{
+            id: event.id,
+            title: event.title,
+            description: event.description,
+            startsAt: event.startsAt,
+            endsAt: event.endsAt,
+            location: event.location,
+            capacity: event.capacity,
+            attendeeCount: event.attendeeCount,
+            scopeLabel,
+          }}
+          cancelled={cancelled}
+          ended={past}
+          canManage={canManage}
+          canDelete={canDelete}
+          accent={accent}
+        />
+      ) : null}
 
       <dl className="mt-6 space-y-2.5 text-[0.9375rem] text-ink-2">
         <div className="flex items-start gap-2">
@@ -107,7 +159,12 @@ export default async function EventDetailPage({
       ) : null}
 
       <Panel className="mt-8 p-5">
-        {past ? (
+        {cancelled ? (
+          <div>
+            <p className="text-[0.9375rem] text-ink">{t("events.cancelledNote")}</p>
+            <p className="mt-1 text-[13px] text-ink-3">{tn(locale, "count.attending", event.attendeeCount)}</p>
+          </div>
+        ) : past ? (
           <p className="text-[13px] text-ink-3">
             {tn(locale, "events.pastNote", event.attendeeCount)}
           </p>
@@ -131,14 +188,14 @@ export default async function EventDetailPage({
           {roster.length === 0 ? (
             <p className="mt-2 text-[13px] text-ink-3">{t("events.roster.empty")}</p>
           ) : (
-            <ul className="mt-3 space-y-2">
-              {roster.map((attendee) => (
-                <li key={attendee.id} className="flex items-center gap-2.5">
-                  <Avatar user={{ ...attendee, communityId: community.id }} size="xs" />
-                  <span className="min-w-0 truncate text-[0.9375rem] text-ink">{attendee.name}</span>
-                </li>
-              ))}
-            </ul>
+            <EventRosterList
+              communityId={community.id}
+              eventId={event.id}
+              attendees={roster}
+              // Organisers may take someone off a scheduled, upcoming event;
+              // a cancelled or past event's list is history.
+              canRemove={canManage && !cancelled && !past}
+            />
           )}
           <p className="mt-3 text-[12px] text-ink-3">{t("events.roster.note")}</p>
         </section>

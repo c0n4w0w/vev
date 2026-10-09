@@ -341,6 +341,11 @@ export interface CommunityEvent {
   /** Whether the signed-in person has a current RSVP. */
   attending: boolean;
   capacity?: number;
+  /**
+   * Set when the event is cancelled. A cancelled event keeps every detail and
+   * RSVP, accepts no RSVP changes and is never listed as upcoming.
+   */
+  cancelledAt?: string;
 }
 
 /** One current attendee on an event's roster, as they appear in its community. */

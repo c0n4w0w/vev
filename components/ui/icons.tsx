@@ -55,6 +55,45 @@ export const IconCalendar = (p: IconProps) => (
   </Svg>
 );
 
+/** A calendar struck through — cancelling an event. */
+export const IconCalendarX = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.2" y="5" width="17.6" height="15.8" rx="1.6" />
+    <path d="M3.2 9.6h17.6M8 3.2v3.6M16 3.2v3.6M9.8 13.2l4.4 4.4M14.2 13.2l-4.4 4.4" />
+  </Svg>
+);
+
+/** A calendar with a tick — restoring a cancelled event. */
+export const IconCalendarCheck = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.2" y="5" width="17.6" height="15.8" rx="1.6" />
+    <path d="M3.2 9.6h17.6M8 3.2v3.6M16 3.2v3.6M9 15.2l2.2 2.2 3.9-4.1" />
+  </Svg>
+);
+
+/** Three dots — "more actions" on a row. */
+export const IconMore = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="5.5" cy="12" r="1.1" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none" />
+    <circle cx="18.5" cy="12" r="1.1" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
+/** A person with a minus — removing someone from a list. */
+export const IconUserMinus = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="9.5" cy="8.2" r="3.6" />
+    <path d="M3 20c.6-3.6 3.3-5.8 6.5-5.8s5.9 2.2 6.5 5.8M15.6 11h5.4" />
+  </Svg>
+);
+
+export const IconTrash = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 7h16M9.6 7V4.6h4.8V7M6.2 7l.9 12.3a1.6 1.6 0 0 0 1.6 1.5h6.6a1.6 1.6 0 0 0 1.6-1.5L17.8 7M10 11v6M14 11v6" />
+  </Svg>
+);
+
 export const IconBell = (p: IconProps) => (
   <Svg {...p}>
     <path d="M6 10a6 6 0 0 1 12 0c0 3.2.7 5 1.6 6.1H4.4C5.3 15 6 13.2 6 10Z" />

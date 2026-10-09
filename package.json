@@ -21,6 +21,8 @@
     "check:custom-emojis": "tsx scripts/check-custom-emojis.ts",
     "check:demo-entry": "tsx scripts/check-demo-entry.ts",
     "check:direct-messages": "tsx scripts/check-direct-messages.ts",
+    "check:event-attendee-removal": "tsx scripts/check-event-attendee-removal.ts",
+    "check:event-lifecycle": "tsx scripts/check-event-lifecycle.ts",
     "check:event-roster": "tsx scripts/check-event-roster.ts",
     "check:events": "tsx scripts/check-events.ts",
     "check:feed-publishing": "tsx scripts/check-feed-publishing.ts",

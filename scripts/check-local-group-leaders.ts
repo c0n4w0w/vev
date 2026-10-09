@@ -110,9 +110,15 @@ async function update(client: Client, eventId: string, patch: Record<string, unk
   const { data, error } = await client.from("events").update(patch as never).eq("id", eventId).select("id");
   return error ? "avvist" : (data ?? []).length === 1 ? "endret" : "avvist";
 }
-async function cancel(client: Client, eventId: string) {
+/** Permanent deletion — admins of the community only (20261012100000). */
+async function remove(client: Client, eventId: string) {
   const { data, error } = await client.from("events").delete().eq("id", eventId).select("id");
-  return error ? "avvist" : (data ?? []).length === 1 ? "avlyst" : "avvist";
+  return error ? "avvist" : (data ?? []).length === 1 ? "slettet" : "avvist";
+}
+/** Cancelling: the event and its RSVPs stay (cancel_event). */
+async function cancelRpc(client: Client, eventId: string) {
+  const { data, error } = await client.rpc("cancel_event", { p_event_id: eventId });
+  return error ? "error" : data;
 }
 async function canLead(client: Client, localGroupId: string) {
   return (await client.rpc("can_lead_local_group", { p_local_group_id: localGroupId })).data === true;
@@ -221,13 +227,16 @@ async function main() {
   expect("leder kan ikke endre verten", await update(c.petter, own.id!, { host_id: ids.karimoen }), "avvist");
   expect("leder kan ikke endre Oslo-arrangement", await update(c.petter, adminOslo.id!, { title: `${MARK} endret` }), "avvist");
   expect("leder kan ikke endre fellesskapsarrangement", await update(c.petter, adminWide.id!, { title: `${MARK} endret` }), "avvist");
-  expect("leder kan ikke avlyse fellesskapsarrangement", await cancel(c.petter, adminWide.id!), "avvist");
+  expect("leder kan ikke slette fellesskapsarrangement", await remove(c.petter, adminWide.id!), "avvist");
+  expect("leder kan ikke avlyse fellesskapsarrangement", await cancelRpc(c.petter, adminWide.id!), "refused");
   expect("moderator kan ikke endre lederens arrangement", await update(c.karimoen, own.id!, { title: `${MARK} endret` }), "avvist");
-  expect("medlem kan ikke avlyse lederens arrangement", await cancel(c.elironning, own.id!), "avvist");
-  expect("annet fellesskaps admin kan ikke avlyse", await cancel(c.emmamortensen, own.id!), "avvist");
+  expect("medlem kan ikke slette lederens arrangement", await remove(c.elironning, own.id!), "avvist");
+  expect("medlem kan ikke avlyse lederens arrangement", await cancelRpc(c.elironning, own.id!), "refused");
+  expect("annet fellesskaps admin kan ikke slette", await remove(c.emmamortensen, own.id!), "avvist");
+  expect("annet fellesskaps admin kan ikke avlyse", await cancelRpc(c.emmamortensen, own.id!), "refused");
   expect("admin kan endre lederens arrangement", await update(c.miaminge, own.id!, { title: `${MARK} arrangement (admin)` }), "endret");
-  expect("admin kan flytte et lokallagsarrangement til et annet lokallag", await update(c.miaminge, adminOslo.id!, { local_group_id: trondelag }), "endret");
-  await update(c.miaminge, adminOslo.id!, { local_group_id: oslo });
+  // An event's audience is fixed at creation (20261012100000), for admins too.
+  expect("admin kan ikke flytte et lokallagsarrangement til et annet lokallag", await update(c.miaminge, adminOslo.id!, { local_group_id: trondelag }), "avvist");
 
   // ── Granting ──────────────────────────────────────────────────────────
   expect("leder kan ikke utnevne andre ledere", await grant(c.petter, trondelag, ids.elironning), false);
@@ -360,7 +369,7 @@ async function main() {
     expect("UI: Eli kan ikke lenger administrere sitt arrangement", await canManage(c.elironning, eliEvent.id!), false);
     expect("UI: Eli ser ikke lenger påmeldte", (await rosterNames(c.elironning, adminTrondelag.id!)).length, 0);
     expect("UI: Petter er fortsatt leder etter at Eli ble fjernet", await canLead(c.petter, trondelag), true);
-    expect("UI: admin kan avlyse arrangementet Eli opprettet", await cancel(c.miaminge, eliEvent.id!), "avlyst");
+    expect("UI: admin kan slette arrangementet Eli opprettet", await remove(c.miaminge, eliEvent.id!), "slettet");
   }
 
   // ── 11. Revocation is immediate ───────────────────────────────────────
@@ -370,7 +379,7 @@ async function main() {
     expect("11. kan ikke opprette", created(await create(c.petter, FTR, { local_group_id: trondelag })), "avvist");
     expect("11. kan ikke administrere eget arrangement", await canManage(c.petter, own.id!), false);
     expect("11. kan ikke endre eget arrangement", await update(c.petter, own.id!, { location: "Et annet sted" }), "avvist");
-    expect("11. kan ikke avlyse eget arrangement", await cancel(c.petter, own.id!), "avvist");
+    expect("11. kan ikke avlyse eget arrangement", await cancelRpc(c.petter, own.id!), "refused");
     expect("11. ser ikke lenger listen for admin-opprettet lokallagsarrangement", (await rosterNames(c.petter, adminTrondelag.id!)).length, 0);
     // Being the host is not a standing right: he is still an ordinary
     // Trøndelag member and can read the event, but attendee identities follow
@@ -384,9 +393,12 @@ async function main() {
   }
   expect("11. leder igjen etter ny utnevnelse", await canLead(c.petter, trondelag), true);
 
-  expect("leder kan avlyse eget arrangement", await cancel(c.petter, own.id!), "avlyst");
+  // A lokallagsleder cancels; only an admin deletes.
+  expect("leder kan ikke slette eget arrangement permanent", await remove(c.petter, own.id!), "avvist");
+  expect("leder kan avlyse eget arrangement", await cancelRpc(c.petter, own.id!), "ok");
   const { count: rsvpsLeft } = await admin.from("event_attendees").select("user_id", { count: "exact", head: true }).eq("event_id", own.id!);
-  expect("avlysning fjerner påmeldingene med arrangementet", rsvpsLeft, 0);
+  expect("avlysning beholder påmeldingene", rsvpsLeft, 1);
+  expect("admin kan slette det avlyste arrangementet", await remove(c.miaminge, own.id!), "slettet");
 
   await cleanup();
   const { count: leftovers } = await admin.from("events").select("id", { count: "exact", head: true }).like("title", `${MARK}%`);

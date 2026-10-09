@@ -281,6 +281,7 @@ function toEvent(row: EventWithScopeRow, attendance: Attendance): CommunityEvent
     attendeeCount: attendance.attendeeCount,
     attending: attendance.attending,
     capacity: row.capacity ?? undefined,
+    cancelledAt: row.cancelled_at ?? undefined,
   };
 }
 
@@ -2600,9 +2601,19 @@ export async function getCommunityEvents(communityId: string): Promise<Community
   return withAttendees(rows(data));
 }
 
+/**
+ * Scheduled events that have not ended. Cancelled events are never "coming
+ * up" — they are listed by `getCancelledCommunityEvents` instead.
+ */
 export async function getUpcomingCommunityEvents(communityId: string) {
   const events = await getCommunityEvents(communityId);
-  return events.filter((event) => Date.parse(event.endsAt) >= now().getTime());
+  return events.filter((event) => !event.cancelledAt && Date.parse(event.endsAt) >= now().getTime());
+}
+
+/** Cancelled events, most recently scheduled first — the event history's own list. */
+export async function getCancelledCommunityEvents(communityId: string) {
+  const events = await getCommunityEvents(communityId);
+  return events.filter((event) => Boolean(event.cancelledAt)).reverse();
 }
 
 export async function getUpcomingLocalGroupEvents(
@@ -2616,23 +2627,30 @@ export async function getUpcomingLocalGroupEvents(
     .select(EVENT_SELECT)
     .eq("community_id", communityId)
     .eq("local_group_id", localGroupId)
+    .is("cancelled_at", null)
     .gte("ends_at", now().toISOString())
     .order("starts_at", { ascending: true })
     .limit(limit);
   return withAttendees(rows(data));
 }
 
+/** Scheduled events that took place. Cancelled ones have their own list. */
 export async function getPastCommunityEvents(communityId: string) {
   const events = await getCommunityEvents(communityId);
-  return events.filter((event) => Date.parse(event.endsAt) < now().getTime()).reverse();
+  return events.filter((event) => !event.cancelledAt && Date.parse(event.endsAt) < now().getTime()).reverse();
 }
 
-/** Upcoming events across the caller's communities. Scoped by RLS, as above. */
+/**
+ * Upcoming scheduled events across the caller's communities — Home, the
+ * combined calendar, the profile count. Scoped by RLS, as above; cancelled
+ * events are left out.
+ */
 export async function getEventsForUser(_userId: string): Promise<CommunityEvent[]> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("events")
     .select(EVENT_SELECT)
+    .is("cancelled_at", null)
     .gte("ends_at", now().toISOString())
     .order("starts_at", { ascending: true });
   return withAttendees(rows(data));
@@ -2721,6 +2739,120 @@ export async function getEvent(eventId: string): Promise<CommunityEvent | undefi
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.from("events").select(EVENT_SELECT).eq("id", eventId).maybeSingle();
   return data ? (await withAttendees([data]))[0] : undefined;
+}
+
+// ── Managing an event ───────────────────────────────────────────────────
+//
+// Every write below is decided by the database from auth.uid():
+//   edit            events_update — can_manage_event (admin of the community,
+//                   or the lokallag's lokallagsleder), with the field rules
+//                   and a capacity floor at the current RSVPs
+//   cancel/restore  cancel_event() / restore_event() — can_manage_event
+//   delete          events_delete — admins of the community only
+// The page asks can_manage_event / can_delete_event only to decide what to
+// show.
+
+export type EventEditResult =
+  | { ok: true }
+  | { ok: false; error: "capacity" | "refused" };
+
+/** The fields an edit may change. Community, host, scope and visibility are not among them. */
+export type EventEditFields = {
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  capacity: number | null;
+};
+
+/** Saves the edit form: title, description, time, place and capacity. */
+export async function updateEvent(eventId: string, fields: EventEditFields): Promise<EventEditResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("events")
+    .update({
+      title: fields.title,
+      description: fields.description,
+      starts_at: fields.startsAt,
+      ends_at: fields.endsAt,
+      location: fields.location,
+      capacity: fields.capacity,
+    })
+    .eq("id", eventId)
+    .select("id");
+  if (error) {
+    return { ok: false, error: error.message.includes("capacity_below_attendees") ? "capacity" : "refused" };
+  }
+  // No row back: the policy did not let this caller see the row as theirs to edit.
+  return (data ?? []).length === 1 ? { ok: true } : { ok: false, error: "refused" };
+}
+
+export type EventLifecycleResult =
+  | "ok"
+  | "refused"
+  | "already_cancelled"
+  | "not_cancelled"
+  | "ended"
+  | "over_capacity";
+
+function lifecycleResult(data: unknown, error: unknown): EventLifecycleResult {
+  if (error || typeof data !== "string") return "refused";
+  const known: EventLifecycleResult[] = ["ok", "refused", "already_cancelled", "not_cancelled", "ended", "over_capacity"];
+  return (known as string[]).includes(data) ? (data as EventLifecycleResult) : "refused";
+}
+
+/** Cancels an event: keeps it and every RSVP, freezes sign-ups, tells attendees. */
+export async function cancelEvent(eventId: string): Promise<EventLifecycleResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("cancel_event", { p_event_id: eventId });
+  return lifecycleResult(data, error);
+}
+
+/** Restores a cancelled event, only if its current RSVPs still fit. */
+export async function restoreEvent(eventId: string): Promise<EventLifecycleResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("restore_event", { p_event_id: eventId });
+  return lifecycleResult(data, error);
+}
+
+export type AttendeeRemovalResult = "ok" | "refused" | "cancelled" | "ended" | "not_attending";
+
+/**
+ * Removes one person's registration from a scheduled, upcoming event the
+ * caller may manage, and notifies them (remove_event_attendee). Not a ban:
+ * they may sign up again if there is room.
+ */
+export async function removeEventAttendee(eventId: string, userId: string): Promise<AttendeeRemovalResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("remove_event_attendee", {
+    p_event_id: eventId,
+    p_user_id: userId,
+  });
+  const known: AttendeeRemovalResult[] = ["ok", "refused", "cancelled", "ended", "not_attending"];
+  if (error || typeof data !== "string" || !(known as string[]).includes(data)) return "refused";
+  return data as AttendeeRemovalResult;
+}
+
+/** Permanently deletes an event and its RSVPs. Admins of its community only. */
+export async function deleteEvent(eventId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from("events").delete().eq("id", eventId).select("id");
+  return !error && (data ?? []).length === 1;
+}
+
+/** Whether the signed-in person may edit, cancel and restore this event. */
+export async function canManageEvent(eventId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("can_manage_event", { p_event_id: eventId });
+  return data === true;
+}
+
+/** Whether the signed-in person may permanently delete this event. */
+export async function canDeleteEvent(eventId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("can_delete_event", { p_event_id: eventId });
+  return data === true;
 }
 
 /**

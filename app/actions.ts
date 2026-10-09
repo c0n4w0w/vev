@@ -11,6 +11,12 @@ import {
   removeLocalGroupLeader,
   getCommunityPersona,
   createEvent,
+  updateEvent,
+  cancelEvent,
+  restoreEvent,
+  deleteEvent,
+  removeEventAttendee,
+  getEvent,
   createDirectMessage as persistDirectMessage,
   createMessage as persistMessage,
   clearCommunityAvatar,
@@ -71,6 +77,7 @@ import {
   EVENT_FULL,
   RSVP_REFUSED,
   type EventFormState,
+  type EventLifecycleFormState,
   type RsvpFormState,
 } from "@/lib/event-form";
 import {
@@ -616,13 +623,64 @@ export async function rsvpEventAction(
 }
 
 /**
- * Creates an event.
+ * The fields the composer and the edit form share, checked the same way for
+ * both. The date and the two times arrive as separate fields because that is
+ * how a person fills them in; they are combined here into the instants the
+ * columns want. Everything this checks, the events policies check again —
+ * this exists to give a person a sentence rather than a failed write.
  *
- * The date and the two times arrive as separate fields because that is how a
- * person fills them in; they are combined here into the instants the column
- * wants. Everything this checks, `events_insert` checks again — this exists to
- * give a person a sentence rather than a failed insert.
+ * `endDate` is optional and defaults to `date`; the edit form sends it only
+ * for an event that already spans more than one day, so saving one cannot
+ * quietly fold it into a single day.
  */
+function readEventFields(
+  formData: FormData,
+  t: Translator,
+):
+  | {
+      ok: true;
+      fields: {
+        title: string;
+        description: string;
+        location: string;
+        startsAt: Date;
+        endsAt: Date;
+        capacity: number | undefined;
+      };
+    }
+  | { ok: false; error: string } {
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
+  const date = String(formData.get("date") ?? "");
+  const endDate = String(formData.get("endDate") ?? "") || date;
+  const startTime = String(formData.get("startTime") ?? "");
+  const endTime = String(formData.get("endTime") ?? "");
+
+  if (!title) return { ok: false, error: t("err.eventTitleRequired") };
+  if (title.length > 120) return { ok: false, error: t("err.eventTitleTooLong") };
+  if (!location) return { ok: false, error: t("err.eventLocationRequired") };
+  if (location.length > 120) return { ok: false, error: t("err.eventLocationTooLong") };
+  if (description.length > 4000) return { ok: false, error: t("err.eventDescriptionTooLong") };
+  if (!date || !startTime || !endTime) return { ok: false, error: t("err.eventDatesRequired") };
+
+  // Resolved against the community's own zone rather than the server's, so
+  // 18:00 means 18:00 in Oslo wherever this happens to be running.
+  const startsAt = osloInstant(date, startTime);
+  const endsAt = osloInstant(endDate, endTime);
+  if (!startsAt || !endsAt) return { ok: false, error: t("err.eventDatesUnreadable") };
+  if (endsAt <= startsAt) return { ok: false, error: t("err.eventEndsBeforeStart") };
+
+  const rawCapacity = String(formData.get("capacity") ?? "").trim();
+  const capacity = rawCapacity ? Number(rawCapacity) : undefined;
+  if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1)) {
+    return { ok: false, error: t("err.eventCapacityInvalid") };
+  }
+
+  return { ok: true, fields: { title, description, location, startsAt, endsAt, capacity } };
+}
+
+/** Creates an event. */
 export async function createEventAction(
   _prev: EventFormState,
   formData: FormData,
@@ -631,43 +689,10 @@ export async function createEventAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
-  const title = String(formData.get("title") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim();
-  const location = String(formData.get("location") ?? "").trim();
-  const date = String(formData.get("date") ?? "");
-  const startTime = String(formData.get("startTime") ?? "");
-  const endTime = String(formData.get("endTime") ?? "");
-
   const t = await translatorFor(communityId);
 
-  if (!title) return { status: "error", error: t("err.eventTitleRequired") };
-  if (title.length > 120) return { status: "error", error: t("err.eventTitleTooLong") };
-  if (!location) return { status: "error", error: t("err.eventLocationRequired") };
-  if (location.length > 120) return { status: "error", error: t("err.eventLocationTooLong") };
-  if (description.length > 4000) {
-    return { status: "error", error: t("err.eventDescriptionTooLong") };
-  }
-  if (!date || !startTime || !endTime) {
-    return { status: "error", error: t("err.eventDatesRequired") };
-  }
-
-  // Resolved against the community's own zone rather than the server's, so
-  // 18:00 means 18:00 in Oslo wherever this happens to be running.
-  const startsAt = osloInstant(date, startTime);
-  const endsAt = osloInstant(date, endTime);
-
-  if (!startsAt || !endsAt) {
-    return { status: "error", error: t("err.eventDatesUnreadable") };
-  }
-  if (endsAt <= startsAt) {
-    return { status: "error", error: t("err.eventEndsBeforeStart") };
-  }
-
-  const rawCapacity = String(formData.get("capacity") ?? "").trim();
-  const capacity = rawCapacity ? Number(rawCapacity) : undefined;
-  if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1)) {
-    return { status: "error", error: t("err.eventCapacityInvalid") };
-  }
+  const read = readEventFields(formData, t);
+  if (!read.ok) return { status: "error", error: read.error };
 
   const scope = parseContentScope(String(formData.get("scope") ?? ""));
   const isPublic = formData.get("isPublic") === "on";
@@ -680,19 +705,182 @@ export async function createEventAction(
   const result = await createEvent({
     communityId,
     ...scope,
-    title,
-    description,
-    location,
-    startsAt: startsAt.toISOString(),
-    endsAt: endsAt.toISOString(),
+    title: read.fields.title,
+    description: read.fields.description,
+    location: read.fields.location,
+    startsAt: read.fields.startsAt.toISOString(),
+    endsAt: read.fields.endsAt.toISOString(),
     isPublic,
-    capacity,
+    capacity: read.fields.capacity,
   });
 
   if (!result.ok) return { status: "error", error: t(EVENT_CREATE_REFUSED) };
 
   revalidateEvents(communityId, result.id);
   return { status: "ok" };
+}
+
+/**
+ * Edits an event's title, description, time, place and capacity.
+ *
+ * Only those. The form carries no community, host, scope or visibility, and
+ * nothing here would send them: an edit cannot move an event to another
+ * community or audience, or hand it to someone else. Who may edit is
+ * events_update's decision (can_manage_event); capacity below the current
+ * RSVPs is refused here with the count, and again by the database.
+ */
+export async function updateEventAction(
+  _prev: EventFormState,
+  formData: FormData,
+): Promise<EventFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const eventId = String(formData.get("eventId") ?? "");
+  const t = await translatorFor(communityId);
+
+  const read = readEventFields(formData, t);
+  if (!read.ok) return { status: "error", error: read.error };
+
+  const event = await getEvent(eventId);
+  if (!event || event.communityId !== communityId) {
+    return { status: "error", error: t("err.eventEditRefused") };
+  }
+  if (read.fields.capacity !== undefined && read.fields.capacity < event.attendeeCount) {
+    return {
+      status: "error",
+      error: t("err.eventCapacityBelowAttendees", { count: event.attendeeCount }),
+    };
+  }
+
+  const result = await updateEvent(eventId, {
+    title: read.fields.title,
+    description: read.fields.description,
+    location: read.fields.location,
+    startsAt: read.fields.startsAt.toISOString(),
+    endsAt: read.fields.endsAt.toISOString(),
+    capacity: read.fields.capacity ?? null,
+  });
+  if (!result.ok) {
+    return {
+      status: "error",
+      error:
+        result.error === "capacity"
+          ? t("err.eventCapacityBelowAttendees", { count: event.attendeeCount })
+          : t("err.eventEditRefused"),
+    };
+  }
+
+  revalidateEvents(communityId, eventId);
+  return { status: "ok" };
+}
+
+const LIFECYCLE_ERRORS = {
+  refused: "err.eventManageRefused",
+  already_cancelled: "err.eventAlreadyCancelled",
+  not_cancelled: "err.eventNotCancelled",
+  ended: "err.eventAlreadyEnded",
+  over_capacity: "err.eventRestoreOverCapacity",
+} as const satisfies Record<string, MessageKey>;
+
+/** Cancels an event. It stays, with every RSVP; sign-ups close. */
+export async function cancelEventAction(
+  _prev: EventLifecycleFormState,
+  formData: FormData,
+): Promise<EventLifecycleFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const eventId = String(formData.get("eventId") ?? "");
+  const t = await translatorFor(communityId);
+
+  const result = await cancelEvent(eventId);
+  if (result !== "ok") return { status: "error", error: t(LIFECYCLE_ERRORS[result]) };
+
+  revalidateEvents(communityId, eventId);
+  return { status: "ok", message: t("events.manage.cancelledNotice") };
+}
+
+/** Restores a cancelled event — a separate, explicit action, never a side effect of editing. */
+export async function restoreEventAction(
+  _prev: EventLifecycleFormState,
+  formData: FormData,
+): Promise<EventLifecycleFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const eventId = String(formData.get("eventId") ?? "");
+  const t = await translatorFor(communityId);
+
+  const result = await restoreEvent(eventId);
+  if (result !== "ok") return { status: "error", error: t(LIFECYCLE_ERRORS[result]) };
+
+  revalidateEvents(communityId, eventId);
+  return { status: "ok", message: t("events.manage.restoredNotice") };
+}
+
+/**
+ * Takes one person's registration off an event (organisers only —
+ * remove_event_attendee decides). Only ids travel in the form; the person is
+ * told by an in-app notification written in the same transaction. The name in
+ * the success message is the community display name the caller already sees
+ * on the roster.
+ */
+export async function removeEventAttendeeAction(
+  _prev: EventLifecycleFormState,
+  formData: FormData,
+): Promise<EventLifecycleFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const eventId = String(formData.get("eventId") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const t = await translatorFor(communityId);
+
+  const result = await removeEventAttendee(eventId, userId);
+  if (result !== "ok") {
+    const key = {
+      refused: "err.attendeeRemoveRefused",
+      cancelled: "err.attendeeRemoveCancelled",
+      ended: "err.eventAlreadyEnded",
+      not_attending: "err.attendeeRemoveNotAttending",
+    } as const satisfies Record<Exclude<typeof result, "ok">, MessageKey>;
+    return { status: "error", error: t(key[result]) };
+  }
+
+  const person = await getCommunityPersona(communityId, userId);
+  revalidateEvents(communityId, eventId);
+  return { status: "ok", message: t("events.roster.removed", { name: person.name }) };
+}
+
+/**
+ * Permanently deletes an event and its RSVPs. Admins of its community only —
+ * events_delete decides. The form must also carry the second, explicit
+ * acknowledgement; without it nothing is sent to the database.
+ */
+export async function deleteEventAction(
+  _prev: EventLifecycleFormState,
+  formData: FormData,
+): Promise<EventLifecycleFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const eventId = String(formData.get("eventId") ?? "");
+  const t = await translatorFor(communityId);
+  if (formData.get("acknowledged") !== "on") {
+    return { status: "error", error: t("err.eventDeleteUnconfirmed") };
+  }
+
+  const ok = await deleteEvent(eventId);
+  if (!ok) return { status: "error", error: t("err.eventDeleteRefused") };
+
+  revalidateEvents(communityId);
+  redirect(`/community/${communityId}/events`);
 }
 
 // ── Subgroups (teams) ───────────────────────────────────────────────────

@@ -1833,6 +1833,8 @@ export type Database = {
       }
       events: {
         Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
           capacity: number | null
           community_id: string
           description: string
@@ -1847,6 +1849,8 @@ export type Database = {
           title: string
         }
         Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           capacity?: number | null
           community_id: string
           description: string
@@ -1861,6 +1865,8 @@ export type Database = {
           title: string
         }
         Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           capacity?: number | null
           community_id?: string
           description?: string
@@ -1875,6 +1881,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "events_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "events_community_id_fkey"
             columns: ["community_id"]
@@ -2094,6 +2107,7 @@ export type Database = {
           body: string
           community_id: string | null
           created_at: string
+          event_id: string | null
           href: string
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -2106,6 +2120,7 @@ export type Database = {
           body: string
           community_id?: string | null
           created_at?: string
+          event_id?: string | null
           href: string
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -2118,6 +2133,7 @@ export type Database = {
           body?: string
           community_id?: string | null
           created_at?: string
+          event_id?: string | null
           href?: string
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
@@ -2132,6 +2148,13 @@ export type Database = {
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -2477,6 +2500,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      can_delete_event: { Args: { p_event_id: string }; Returns: boolean }
       can_discard_collaboration_file_object: {
         Args: { p_name: string }
         Returns: boolean
@@ -2557,6 +2581,7 @@ export type Database = {
       }
       can_view_event_roster: { Args: { p_event_id: string }; Returns: boolean }
       can_view_member_directory: { Args: { cid: string }; Returns: boolean }
+      cancel_event: { Args: { p_event_id: string }; Returns: string }
       collaboration_assignees_valid: {
         Args: {
           p_assignee_ids: string[]
@@ -2808,6 +2833,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      event_open_for_rsvp: { Args: { p_event_id: string }; Returns: boolean }
       has_collaboration_access: {
         Args: { p_collaboration_id: string }
         Returns: boolean
@@ -2896,6 +2922,10 @@ export type Database = {
       normalize_channel_name: { Args: { p_name: string }; Returns: string }
       normalize_display_name: { Args: { p_value: string }; Returns: string }
       normalize_email: { Args: { p_email: string }; Returns: string }
+      notify_event_attendees: {
+        Args: { p_cancelled: boolean; p_event_id: string }
+        Returns: undefined
+      }
       organization_person_dm_actions: {
         Args: { p_community_id: string }
         Returns: {
@@ -2972,6 +3002,10 @@ export type Database = {
         Args: { p_file_id: string }
         Returns: boolean
       }
+      remove_event_attendee: {
+        Args: { p_event_id: string; p_user_id: string }
+        Returns: string
+      }
       remove_local_group_manager: {
         Args: { p_local_group_id: string; p_user_id: string }
         Returns: boolean
@@ -3005,6 +3039,7 @@ export type Database = {
         Args: { p_accept: boolean; p_sponsorship_id: string }
         Returns: boolean
       }
+      restore_event: { Args: { p_event_id: string }; Returns: string }
       revoke_collaboration_sponsorship: {
         Args: { p_sponsorship_id: string }
         Returns: boolean

@@ -13,6 +13,7 @@ import {
   getLocalGroups,
   getSubgroups,
   getMembership,
+  getCancelledCommunityEvents,
   getPastCommunityEvents,
   getUpcomingCommunityEvents,
 } from "@/lib/data";
@@ -39,9 +40,10 @@ export default async function CommunityEventsPage({
   const locale = communityLocale(community);
   const t = translator(locale);
 
-  const [upcoming, past, membership, groups, subgroups] = await Promise.all([
+  const [upcoming, past, cancelled, membership, groups, subgroups] = await Promise.all([
     getUpcomingCommunityEvents(community.id),
     getPastCommunityEvents(community.id),
+    getCancelledCommunityEvents(community.id),
     getMembership(user.id, community.id),
     getLocalGroups(community.id),
     getSubgroups(community.id),
@@ -53,7 +55,7 @@ export default async function CommunityEventsPage({
   const isAdmin = membership?.role === "admin";
   const publicCount = upcoming.filter((event) => event.isPublic).length;
   const hosts = await getCommunityPersonas(community.id, [
-    ...new Set([...upcoming, ...past].map((e) => e.hostId).filter(Boolean)),
+    ...new Set([...upcoming, ...cancelled, ...past].map((e) => e.hostId).filter(Boolean)),
   ]);
 
   return (
@@ -96,6 +98,24 @@ export default async function CommunityEventsPage({
           ))}
         </div>
       )}
+
+      {/* Cancelled events are history, not "coming up": listed on their own,
+          below the schedule, with the details they were announced with. */}
+      {cancelled.length > 0 ? (
+        <section className="mt-12">
+          <SectionHeading>{t("events.cancelledSection")}</SectionHeading>
+          <div className="space-y-4 opacity-80">
+            {cancelled.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                community={community}
+                host={hosts.get(event.hostId)}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {past.length > 0 ? (
         <section className="mt-12">

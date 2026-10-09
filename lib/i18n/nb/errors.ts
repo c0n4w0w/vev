@@ -81,6 +81,23 @@ export const errors = {
   "err.rsvpRefused": "Påmeldingen kunne ikke lagres. Prøv igjen.",
   "err.eventCreateRefused":
     "Arrangementet ble ikke opprettet. Bare administratorer, og lokallagsledere for sitt eget lokallag, kan legge inn arrangementer.",
+  "err.eventEditRefused":
+    "Endringen ble ikke lagret. Bare administratorer, og lokallagsledere for sitt eget lokallag, kan endre arrangementer.",
+  "err.eventCapacityBelowAttendees": "Antall plasser kan ikke være lavere enn antall påmeldte ({count}).",
+  "err.eventManageRefused":
+    "Handlingen ble ikke utført. Bare administratorer, og lokallagsledere for sitt eget lokallag, kan avlyse eller gjenopprette arrangementer.",
+  "err.eventAlreadyCancelled": "Arrangementet er allerede avlyst.",
+  "err.eventNotCancelled": "Arrangementet er ikke avlyst.",
+  "err.eventAlreadyEnded": "Arrangementet er allerede gjennomført.",
+  "err.eventRestoreOverCapacity":
+    "Arrangementet kan ikke gjenopprettes fordi det er flere påmeldte enn plasser. Øk antall plasser først.",
+  "err.eventDeleteRefused":
+    "Arrangementet ble ikke slettet. Bare administratorer i fellesskapet kan slette arrangementer permanent.",
+  "err.eventDeleteUnconfirmed": "Bekreft at du forstår at slettingen ikke kan angres.",
+  "err.attendeeRemoveRefused":
+    "Påmeldingen ble ikke fjernet. Bare administratorer, og lokallagsledere for sitt eget lokallag, kan fjerne påmeldinger.",
+  "err.attendeeRemoveCancelled": "Arrangementet er avlyst, og påmeldingene tas vare på som historikk.",
+  "err.attendeeRemoveNotAttending": "Personen er ikke lenger påmeldt.",
   "err.eventTitleRequired": "Arrangementet må ha en tittel.",
   "err.eventTitleTooLong": "Tittelen kan være høyst 120 tegn.",
   "err.eventLocationRequired": "Legg inn et sted.",

@@ -67,6 +67,9 @@ export function EventCard({
   const locale = localeOverride ?? communityLocale(community);
   const t = translator(locale);
   const accent = community.branding.accent;
+  // A cancelled event says so instead of counting down, and nobody is
+  // "attending" it any more — its RSVPs are history.
+  const cancelled = Boolean(event.cancelledAt);
 
   if (variant === "compact") {
     return (
@@ -96,10 +99,14 @@ export function EventCard({
               {formatTime(event.startsAt, locale)}–{formatTime(event.endsAt, locale)} · {event.location}
             </p>
             <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-3">
-              <span>{timeUntil(event.startsAt, locale)}</span>
+              {cancelled ? (
+                <span className="font-medium text-rust">{t("events.cancelled")}</span>
+              ) : (
+                <span>{timeUntil(event.startsAt, locale)}</span>
+              )}
               <span aria-hidden="true">·</span>
               <span>{tn(locale, "count.attending", event.attendeeCount)}</span>
-              {attending ? (
+              {attending && !cancelled ? (
                 <span className="font-medium" style={{ color: accent }}>
                   {t("events.attendingYou")}
                 </span>
@@ -154,14 +161,15 @@ export function EventCard({
           <p className="mt-3 text-[13px] leading-relaxed text-ink-2">{event.description}</p>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
+            {cancelled ? <Badge tone="rust">{t("events.cancelled")}</Badge> : null}
             <Badge tone={event.isPublic ? "fjord" : subgroupBadgeTone(event.subgroupSlug, "neutral")}>
               {event.isPublic ? <IconGlobe size={11} /> : <IconLock size={11} />}
               {/* A lokallag or group event is limited to that group, so it
                   names the group rather than "members only". */}
               {event.isPublic ? t("events.public") : (event.scopeName ?? t("events.membersOnly"))}
             </Badge>
-            <Badge tone="outline">{timeUntil(event.startsAt, locale)}</Badge>
-            {attending ? <Badge tone="skog">{t("events.attendingYou")}</Badge> : null}
+            {cancelled ? null : <Badge tone="outline">{timeUntil(event.startsAt, locale)}</Badge>}
+            {attending && !cancelled ? <Badge tone="skog">{t("events.attendingYou")}</Badge> : null}
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3">

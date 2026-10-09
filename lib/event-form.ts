@@ -25,3 +25,11 @@ export const EVENT_FULL = "err.eventFull" as const;
 export const RSVP_REFUSED = "err.rsvpRefused" as const;
 
 export const EVENT_CREATE_REFUSED = "err.eventCreateRefused" as const;
+
+/** Cancel / restore / delete. */
+export type EventLifecycleFormState =
+  | { status: "idle" }
+  | { status: "ok"; message: string }
+  | { status: "error"; error: string };
+
+export const emptyEventLifecycleFormState: EventLifecycleFormState = { status: "idle" };
