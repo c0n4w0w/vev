@@ -267,6 +267,19 @@ export const community = {
   "lokallag.restore": "Gjenopprett",
   "lokallag.newPlaceholder": "Nytt lokallag",
   "lokallag.add": "Legg til",
+  "lokallag.leaders.heading": "Lokallagsledere",
+  "lokallag.leaders.none": "Ingen lokallagsleder utnevnt.",
+  "lokallag.leaders.add": "Legg til leder",
+  "lokallag.leaders.pick": "Velg medlem av {name}",
+  "lokallag.leaders.appoint": "Utnevn",
+  "lokallag.leaders.noCandidates": "Ingen andre aktive medlemmer i {name} kan utnevnes.",
+  "lokallag.leaders.remove": "Fjern",
+  "lokallag.leaders.removeNamed": "Fjern {name} som lokallagsleder",
+  "lokallag.leaders.confirmRemove": "Fjerne {name} som lokallagsleder?",
+  "lokallag.leaders.appointed": "{name} er utnevnt til lokallagsleder.",
+  "lokallag.leaders.removed": "{name} er ikke lenger lokallagsleder.",
+  "lokallag.leaders.note":
+    "Lokallagsledere kan opprette og administrere arrangementer for sitt eget lokallag og se hvem som er påmeldt. Bare aktive medlemmer av lokallaget kan utnevnes, og vervet faller bort hvis de bytter eller forlater lokallaget.",
   "lokallag.retiredNote":
     "Et avviklet lokallag kan ikke velges av nye medlemmer, men de som allerede er tilknyttet beholder det. Lokallag slettes ikke.",
 } as const;

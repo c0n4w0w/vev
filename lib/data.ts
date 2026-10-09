@@ -54,6 +54,7 @@ import type {
   DirectMessage,
   Subgroup,
   SubgroupRosterEntry,
+  LocalGroupLeadership,
 } from "@/lib/types";
 import { initialsFor } from "@/lib/format";
 import { parseLocale, type Locale, type MessageKey } from "@/lib/i18n";
@@ -900,6 +901,79 @@ export async function setLocalGroupActive(
   const { data, error } = await supabase.rpc("set_local_group_active", {
     p_local_group_id: localGroupId,
     p_active: active,
+  });
+  return !error && data === true;
+}
+
+// ── Lokallagsledere ─────────────────────────────────────────────────────
+//
+// Appointing and removing go through add_local_group_manager() and
+// remove_local_group_manager(), which decide everything from auth.uid(): only
+// an active admin of the lokallag's community, and only an active member of
+// exactly that lokallag. Nothing here widens that; the reads below are what an
+// administrator can already see under row level security.
+
+/**
+ * Leaders and appointable members per lokallag, for the administration
+ * section. Empty for anyone who is not an admin of the community: the grant
+ * table answers admins (and each leader's own row) only, and the member list
+ * follows the community's directory rule.
+ */
+export async function getLocalGroupLeadership(
+  communityId: string,
+): Promise<Map<string, LocalGroupLeadership>> {
+  const supabase = await createSupabaseServerClient();
+  const [{ data: grants }, members] = await Promise.all([
+    supabase
+      .from("community_local_group_managers")
+      .select("local_group_id, user_id")
+      .eq("community_id", communityId),
+    getCommunityMembers(communityId),
+  ]);
+
+  const byGroup = new Map<string, LocalGroupLeadership>();
+  const entry = (groupId: string) => {
+    if (!byGroup.has(groupId)) byGroup.set(groupId, { leaders: [], candidates: [] });
+    return byGroup.get(groupId)!;
+  };
+  const nameOf = new Map(members.map((m) => [m.membership.userId, m.persona.name]));
+  const leaderKeys = new Set<string>();
+
+  for (const grant of rows(grants)) {
+    leaderKeys.add(`${grant.local_group_id}|${grant.user_id}`);
+    entry(grant.local_group_id).leaders.push({
+      userId: grant.user_id,
+      name: nameOf.get(grant.user_id) ?? "Ukjent",
+    });
+  }
+  for (const { membership, persona } of members) {
+    if (!membership.localGroupId) continue;
+    if (leaderKeys.has(`${membership.localGroupId}|${membership.userId}`)) continue;
+    entry(membership.localGroupId).candidates.push({ userId: membership.userId, name: persona.name });
+  }
+  for (const leadership of byGroup.values()) {
+    leadership.leaders.sort((a, b) => a.name.localeCompare(b.name, "nb"));
+    leadership.candidates.sort((a, b) => a.name.localeCompare(b.name, "nb"));
+  }
+  return byGroup;
+}
+
+/** Appoints a lokallagsleder. The database decides whether the caller may. */
+export async function addLocalGroupLeader(localGroupId: string, userId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("add_local_group_manager", {
+    p_local_group_id: localGroupId,
+    p_user_id: userId,
+  });
+  return !error && data === true;
+}
+
+/** Removes a lokallagsleder appointment; effective on the next request. */
+export async function removeLocalGroupLeader(localGroupId: string, userId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("remove_local_group_manager", {
+    p_local_group_id: localGroupId,
+    p_user_id: userId,
   });
   return !error && data === true;
 }

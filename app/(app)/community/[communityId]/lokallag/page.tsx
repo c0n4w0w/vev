@@ -17,6 +17,7 @@ import { IconArrowRight, IconMapPin } from "@/components/ui/icons";
 import {
   canLeadLocalGroup,
   getCommunityById,
+  getLocalGroupLeadership,
   getLocalGroupChannel,
   getLocalGroupLeader,
   getLocalGroupMemberCounts,
@@ -129,6 +130,9 @@ export default async function LocalGroupsPage({
   }
 
   const isAdmin = membership?.role === "admin";
+  // Only loaded for admins; for anyone else the grant table and member list
+  // would answer with nothing (or the directory) anyway.
+  const leadership = isAdmin ? await getLocalGroupLeadership(community.id) : new Map();
   const selected = groups.find((group) => group.id === membership?.localGroupId);
   const selectable = groups.filter((group) => group.active);
   const welcome = velkommen === "1";
@@ -365,6 +369,7 @@ export default async function LocalGroupsPage({
             communityId={community.id}
             groups={groups}
             memberCounts={memberCounts}
+            leadership={leadership}
           />
         </div>
       ) : null}

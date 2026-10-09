@@ -157,6 +157,16 @@ export interface LocalGroup {
 }
 
 /**
+ * Who leads one lokallag, and who could be appointed — for that community's
+ * administrators only. Names are community display names.
+ */
+export interface LocalGroupLeadership {
+  leaders: { userId: string; name: string }[];
+  /** Active members of exactly this lokallag who are not leaders yet. */
+  candidates: { userId: string; name: string }[];
+}
+
+/**
  * A private organisational team inside a community ("Safe-Space frivillige").
  * Not a lokallag: membership is explicit and sits alongside a member's
  * lokallag. Only people who may read or manage it can see that it exists.

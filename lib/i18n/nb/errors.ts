@@ -94,6 +94,11 @@ export const errors = {
     "Lokallaget kunne ikke velges. Det kan være avviklet, eller høre til et annet fellesskap.",
   "err.localGroupAdminRefused":
     "Endringen ble ikke utført. Bare administratorer i dette fellesskapet kan endre lokallag.",
+  "err.localGroupLeaderPick": "Velg et medlem først.",
+  "err.localGroupLeaderAddRefused":
+    "Lederen ble ikke utnevnt. Bare administratorer kan utnevne lokallagsledere, og bare aktive medlemmer av dette lokallaget kan utnevnes.",
+  "err.localGroupLeaderRemoveRefused":
+    "Lederen ble ikke fjernet. Bare administratorer kan fjerne lokallagsledere, eller personen var allerede fjernet.",
   "err.eventScopedNotPublic":
     "Et arrangement for et lokallag eller en gruppe kan ikke være åpent. Fjern avhukingen for åpent arrangement, eller velg hele fellesskapet.",
   "err.subgroupPickMember": "Velg et medlem å legge til.",

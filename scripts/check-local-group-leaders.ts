@@ -314,6 +314,55 @@ async function main() {
     if (!(await isGranted(trondelag, ids.petter))) await grant(c.miaminge, trondelag, ids.petter);
   }
 
+  // ── The administration UI's flows (Lokallag → Administrer lokallag) ───
+  //
+  // The panel reads the grant table and the member list as the admin, and
+  // writes only through add/remove_local_group_manager — the same calls below.
+  {
+    const { data: adminGrants } = await c.miaminge.from("community_local_group_managers").select("user_id").eq("local_group_id", trondelag);
+    expect("UI: admin leser lederlisten for lokallaget", JSON.stringify((adminGrants ?? []).map((r) => r.user_id)), JSON.stringify([ids.petter]));
+    const { data: adminMembers } = await c.miaminge.from("memberships").select("user_id").eq("community_id", FTR).eq("local_group_id", trondelag).eq("status", "active");
+    expect("UI: admin ser hvem i lokallaget som kan utnevnes", (adminMembers ?? []).some((m) => m.user_id === ids.elironning), true);
+    const { data: memberGrants } = await c.kristoffer.from("community_local_group_managers").select("user_id").eq("community_id", FTR);
+    expect("UI: vanlig medlem får ingen lederliste", (memberGrants ?? []).length, 0);
+    const { data: moderatorGrants } = await c.karimoen.from("community_local_group_managers").select("user_id").eq("community_id", FTR);
+    expect("UI: moderator får ingen lederliste", (moderatorGrants ?? []).length, 0);
+
+    // Multiple leaders for one lokallag.
+    expect("UI: Eli har ingen rettigheter før utnevnelse", created(await create(c.elironning, FTR, { local_group_id: trondelag })), "avvist");
+    expect("UI: admin utnevner Eli som andre leder i Trøndelag", await grant(c.miaminge, trondelag, ids.elironning), true);
+    expect("UI: å utnevne samme person igjen er ufarlig", await grant(c.miaminge, trondelag, ids.elironning), true);
+    const { data: both } = await c.miaminge.from("community_local_group_managers").select("user_id").eq("local_group_id", trondelag);
+    expect("UI: lokallaget har nå to ledere", (both ?? []).length, 2);
+    expect("UI: Petter er fortsatt leder", await canLead(c.petter, trondelag), true);
+    expect("UI: Eli er leder", await canLead(c.elironning, trondelag), true);
+    const eliEvent = await create(c.elironning, FTR, { local_group_id: trondelag });
+    expect("UI: ny leder kan opprette for eget lokallag", created(eliEvent), "opprettet");
+    expect("UI: ny leder er vert for sitt arrangement", eliEvent.hostId, ids.elironning);
+    expect("UI: ny leder kan ikke opprette for Oslo", created(await create(c.elironning, FTR, { local_group_id: oslo })), "avvist");
+    expect("UI: ny leder kan ikke opprette fellesskapsarrangement", created(await create(c.elironning, FTR)), "avvist");
+    expect("UI: medleder kan administrere den andre lederens arrangement", await canManage(c.petter, eliEvent.id!), true);
+    expect("UI: ny leder ser påmeldte i lokallaget", (await rosterNames(c.elironning, adminTrondelag.id!)).length, 1);
+
+    // Refusals the panel's error message covers.
+    expect("UI: lokallagsleder kan ikke utnevne", await grant(c.petter, trondelag, ids.karimoen), false);
+    expect("UI: moderator kan ikke fjerne en leder", await revoke(c.karimoen, trondelag, ids.elironning), false);
+    expect("UI: lokallagsleder kan ikke fjerne en annen leder", await revoke(c.petter, trondelag, ids.elironning), false);
+    expect("UI: vanlig medlem kan ikke utnevne seg selv", await grant(c.kristoffer, oslo, ids.kristoffer), false);
+    expect("UI: feil lokallag — Trøndelag-medlem kan ikke bli leder i Oslo", await grant(c.miaminge, oslo, ids.elironning), false);
+    expect("UI: feil lokallag — Oslo-medlem kan ikke bli leder i Trøndelag", await grant(c.miaminge, trondelag, ids.kristoffer), false);
+    expect("UI: FTR-admin kan ikke utnevne i TU", await grant(c.miaminge, (await admin.from("community_local_groups").select("id").eq("community_id", "tryggere-ungdom").eq("name", "TU Trøndelag").single()).data!.id, ids.petter), false);
+    expect("UI: å fjerne noen som ikke er leder gir avvisning", await revoke(c.miaminge, trondelag, ids.karimoen), false);
+
+    // Removing one leader leaves the other untouched.
+    expect("UI: admin fjerner Eli som leder", await revoke(c.miaminge, trondelag, ids.elironning), true);
+    expect("UI: Eli kan ikke lenger opprette", created(await create(c.elironning, FTR, { local_group_id: trondelag })), "avvist");
+    expect("UI: Eli kan ikke lenger administrere sitt arrangement", await canManage(c.elironning, eliEvent.id!), false);
+    expect("UI: Eli ser ikke lenger påmeldte", (await rosterNames(c.elironning, adminTrondelag.id!)).length, 0);
+    expect("UI: Petter er fortsatt leder etter at Eli ble fjernet", await canLead(c.petter, trondelag), true);
+    expect("UI: admin kan avlyse arrangementet Eli opprettet", await cancel(c.miaminge, eliEvent.id!), "avlyst");
+  }
+
   // ── 11. Revocation is immediate ───────────────────────────────────────
   try {
     expect("11. admin fjerner Petter som leder", await revoke(c.miaminge, trondelag, ids.petter), true);

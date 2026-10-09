@@ -7,6 +7,9 @@ import {
   approveAccessRequest,
   createComment as persistComment,
   createLocalGroup,
+  addLocalGroupLeader,
+  removeLocalGroupLeader,
+  getCommunityPersona,
   createEvent,
   createDirectMessage as persistDirectMessage,
   createMessage as persistMessage,
@@ -74,6 +77,7 @@ import {
   ADMIN_REFUSED,
   SELECTION_REFUSED,
   type LocalGroupFormState,
+  type LocalGroupLeaderFormState,
 } from "@/lib/local-group-form";
 import type { MessageFormState } from "@/lib/message-form";
 import { parseContentScope, type SubgroupFormState } from "@/lib/subgroup-form";
@@ -839,6 +843,59 @@ export async function setLocalGroupActiveAction(
 
   revalidateLocalGroups(communityId);
   return { status: "ok" };
+}
+
+// ── Lokallagsledere ─────────────────────────────────────────────────────
+//
+// Only ids travel in the form. Whether the caller is an active admin of the
+// lokallag's community, and whether the person is an active member of exactly
+// that lokallag, is decided by add_local_group_manager() and
+// remove_local_group_manager() from auth.uid() — hiding these controls from
+// everyone else is presentation, not the check.
+
+function revalidateLeadership(communityId: string) {
+  revalidateLocalGroups(communityId);
+  // A leader's event composer and roster access follow the appointment.
+  revalidatePath(`/community/${communityId}/events`, "layout");
+}
+
+export async function addLocalGroupLeaderAction(
+  _prev: LocalGroupLeaderFormState,
+  formData: FormData,
+): Promise<LocalGroupLeaderFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
+  const userId = String(formData.get("userId") ?? "");
+  if (!userId) return { status: "error", error: t("err.localGroupLeaderPick") };
+
+  const ok = await addLocalGroupLeader(String(formData.get("localGroupId") ?? ""), userId);
+  if (!ok) return { status: "error", error: t("err.localGroupLeaderAddRefused") };
+
+  const person = await getCommunityPersona(communityId, userId);
+  revalidateLeadership(communityId);
+  return { status: "ok", message: t("lokallag.leaders.appointed", { name: person.name }) };
+}
+
+export async function removeLocalGroupLeaderAction(
+  _prev: LocalGroupLeaderFormState,
+  formData: FormData,
+): Promise<LocalGroupLeaderFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
+  const userId = String(formData.get("userId") ?? "");
+
+  const ok = await removeLocalGroupLeader(String(formData.get("localGroupId") ?? ""), userId);
+  if (!ok) return { status: "error", error: t("err.localGroupLeaderRemoveRefused") };
+
+  const person = await getCommunityPersona(communityId, userId);
+  revalidateLeadership(communityId);
+  return { status: "ok", message: t("lokallag.leaders.removed", { name: person.name }) };
 }
 
 // ── Custom emojis ───────────────────────────────────────────────────────

@@ -269,6 +269,19 @@ export const community: Record<keyof typeof nb, string> = {
   "lokallag.restore": "Restore",
   "lokallag.newPlaceholder": "New local group",
   "lokallag.add": "Add",
+  "lokallag.leaders.heading": "Local group leaders",
+  "lokallag.leaders.none": "No leader appointed.",
+  "lokallag.leaders.add": "Add leader",
+  "lokallag.leaders.pick": "Choose a member of {name}",
+  "lokallag.leaders.appoint": "Appoint",
+  "lokallag.leaders.noCandidates": "No other active members of {name} can be appointed.",
+  "lokallag.leaders.remove": "Remove",
+  "lokallag.leaders.removeNamed": "Remove {name} as local group leader",
+  "lokallag.leaders.confirmRemove": "Remove {name} as local group leader?",
+  "lokallag.leaders.appointed": "{name} is now a local group leader.",
+  "lokallag.leaders.removed": "{name} is no longer a local group leader.",
+  "lokallag.leaders.note":
+    "Local group leaders can create and manage events for their own local group and see who has signed up. Only active members of the local group can be appointed, and the role ends if they switch or leave the local group.",
   "lokallag.retiredNote":
     "A retired local group can't be chosen by new members, but those already affiliated keep it. Local groups are never deleted.",
 };

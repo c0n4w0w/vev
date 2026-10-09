@@ -92,6 +92,11 @@ export const errors: Record<keyof typeof nb, string> = {
     "That local group couldn't be selected. It may have been retired, or belong to another community.",
   "err.localGroupAdminRefused":
     "The change wasn't made. Only administrators of this community can edit local groups.",
+  "err.localGroupLeaderPick": "Choose a member first.",
+  "err.localGroupLeaderAddRefused":
+    "The leader wasn't appointed. Only administrators can appoint local group leaders, and only active members of this local group can be appointed.",
+  "err.localGroupLeaderRemoveRefused":
+    "The leader wasn't removed. Only administrators can remove local group leaders, or the person had already been removed.",
   "err.eventScopedNotPublic":
     "An event for a local group or a team can't be open to the public. Untick the public option, or choose the whole community.",
   "err.subgroupPickMember": "Choose a member to add.",

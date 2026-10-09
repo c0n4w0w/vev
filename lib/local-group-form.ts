@@ -16,3 +16,14 @@ export const SELECTION_REFUSED = "err.localGroupSelectionRefused" as const;
 
 /** Shown when the database declines an administrator's change. */
 export const ADMIN_REFUSED = "err.localGroupAdminRefused" as const;
+
+/**
+ * Appointing or removing a lokallagsleder. Success carries a sentence naming
+ * the person, so the admin sees what changed without hunting for it.
+ */
+export type LocalGroupLeaderFormState =
+  | { status: "idle" }
+  | { status: "ok"; message: string }
+  | { status: "error"; error: string };
+
+export const emptyLocalGroupLeaderFormState: LocalGroupLeaderFormState = { status: "idle" };
