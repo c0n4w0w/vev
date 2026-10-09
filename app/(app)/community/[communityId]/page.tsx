@@ -266,7 +266,7 @@ export default async function CommunityOverviewPage({
                       event={event}
                       community={community}
                       host={people.get(event.hostId)}
-                      attending={event.attendeeIds.includes(user.id)}
+                      attending={event.attending}
                       variant="compact"
                     />
                   ))}

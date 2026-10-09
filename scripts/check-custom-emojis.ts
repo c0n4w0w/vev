@@ -327,7 +327,19 @@ async function main() {
   }
 
   // ── Reactions still work, and still refuse a foreign emoji ────────────
-  const { data: post } = await admin.from("posts").select("id").eq("community_id", TR).limit(1).single();
+  // A community-wide post, chosen deterministically. `limit(1)` alone returned
+  // whichever row the heap held first, which after one run could be a lokallag
+  // post Ingrid (moderator, no lokallag) correctly cannot read.
+  const { data: post } = await admin
+    .from("posts")
+    .select("id")
+    .eq("community_id", TR)
+    .is("local_group_id", null)
+    .is("subgroup_id", null)
+    .order("created_at", { ascending: false })
+    .order("id")
+    .limit(1)
+    .single();
   const ownReaction = await ingrid.client
     .from("post_reactions")
     .insert({ post_id: post!.id, user_id: ingrid.id, emoji_id: trParty!.id })

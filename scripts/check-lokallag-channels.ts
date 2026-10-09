@@ -228,6 +228,10 @@ async function main() {
   expect("petter er i FTR Trøndelag", await membershipGroup("petter", FTR), ftrTrondelag);
 
   const petterOriginal = await membershipGroup("petter", FTR);
+  // Petter is FTR Trøndelag's lokallagsleder. Moving him out of the lokallag
+  // below deletes that grant, and moving back deliberately does not restore it
+  // (20261010100000), so it is snapshotted here and put back in `finally`.
+  const { data: grantsBefore } = await admin.from("community_local_group_managers").select("*").eq("community_id", FTR);
   const ingridOriginal = await membershipGroup("ingrid", FTR);
   const notificationsBefore = await notificationCount();
 
@@ -547,12 +551,21 @@ async function main() {
     }
   } finally {
     await setMyGroup(petter, FTR, petterOriginal);
+    if ((grantsBefore ?? []).length > 0) {
+      await admin
+        .from("community_local_group_managers")
+        .upsert(grantsBefore!, { onConflict: "local_group_id,user_id", ignoreDuplicates: true });
+    }
     await admin.from("memberships").update({ local_group_id: ingridOriginal }).eq("community_id", FTR).eq("user_id", await profileId("ingrid"));
     await admin.from("messages").delete().in("id", createdMessageIds);
     await cleanup();
   }
 
   expect("opprydding: Petter er tilbake i FTR Trøndelag", await membershipGroup("petter", FTR), ftrTrondelag);
+  const { data: grantsAfter } = await admin.from("community_local_group_managers").select("local_group_id, user_id").eq("community_id", FTR);
+  const grantKey = (rows: { local_group_id: string; user_id: string }[] | null) =>
+    JSON.stringify((rows ?? []).map((r) => `${r.local_group_id}/${r.user_id}`).sort());
+  expect("opprydding: lokallagsledere er som før", grantKey(grantsAfter), grantKey(grantsBefore));
   expect("opprydding: Ingrid er tilbake uten lokallag", await membershipGroup("ingrid", FTR), null);
   const { count: leftovers } = await admin.from("messages").select("id", { count: "exact", head: true }).like("body", `${BODY}%`);
   expect("opprydding: ingen testmeldinger igjen", leftovers, 0);

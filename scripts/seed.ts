@@ -29,7 +29,7 @@ import { avatarPng, communityProfiles } from "@/lib/mock/community-profiles";
 import { accessRequests } from "@/lib/mock/access-requests";
 import { comments } from "@/lib/mock/comments";
 import { communityPolicies } from "@/lib/mock/community-policies";
-import { localGroupAssignments, localGroups } from "@/lib/mock/local-groups";
+import { localGroupAssignments, localGroupManagers, localGroups } from "@/lib/mock/local-groups";
 import { subgroupManagers, subgroupMembers, subgroups } from "@/lib/mock/subgroups";
 import { customEmojis } from "@/lib/mock/emojis";
 import { events } from "@/lib/mock/events";
@@ -438,6 +438,24 @@ async function main() {
     `  ${applied} lokallagstilknytninger ` +
       `(${allMemberships.length - applied} uten lokallag)`,
   );
+
+  // Lokallagsledere, after the affiliations: a grant names a lokallag the
+  // person is in, and the composite foreign keys refuse a lokallag or person
+  // outside the community.
+  const managerRows = localGroupManagers.flatMap((manager) => {
+    const groupId = localGroupId.get(`${manager.communityId}|${manager.localGroupName}`);
+    const userId = uid.get(manager.userId);
+    if (!groupId) {
+      console.error(`\n✗ ukjent lokallag for lokallagsleder: ${manager.localGroupName}`);
+      process.exit(1);
+    }
+    return userId ? [{ local_group_id: groupId, community_id: manager.communityId, user_id: userId }] : [];
+  });
+  fail(
+    "lokallagsledere",
+    (await supabase.from("community_local_group_managers").insert(managerRows)).error,
+  );
+  console.log(`  ${managerRows.length} lokallagsledere`);
 
   // Subgroup members and managers, after the memberships they point at. The
   // composite foreign key refuses anyone without a membership in that

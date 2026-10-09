@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { EventCard } from "@/components/community/EventCard";
+import { EventComposer } from "@/components/community/EventComposer";
 import { LocalGroupAdmin } from "@/components/community/LocalGroupAdmin";
 import { LocalGroupPicker } from "@/components/community/LocalGroupPicker";
 import { OrganizationPersonCard } from "@/components/community/OrganizationPersonCard";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/primitives";
 import { IconArrowRight, IconMapPin } from "@/components/ui/icons";
 import {
+  canLeadLocalGroup,
   getCommunityById,
   getLocalGroupChannel,
   getLocalGroupLeader,
@@ -136,6 +138,11 @@ export default async function LocalGroupsPage({
         getRecentLocalGroupPosts(community.id, selected.id, 3),
       ])
     : [[], []];
+  // Creating an event here is locked to this lokallag: offered to its
+  // lokallagsleder and to the community's admins. Everyone else gets no form,
+  // and events_insert refuses them regardless.
+  const canCreateLocalEvent =
+    selected?.active === true && (isAdmin || (await canLeadLocalGroup(selected.id)));
   const [localLeader, localChannel] = selected
     ? await Promise.all([
         getLocalGroupLeader(community.id, selected.id),
@@ -218,6 +225,14 @@ export default async function LocalGroupsPage({
             >
               {t("lokallag.nextActivity")}
             </SectionHeading>
+            {canCreateLocalEvent ? (
+              <EventComposer
+                communityId={community.id}
+                communityName={community.name}
+                accent={community.branding.accent}
+                lockedLocalGroup={{ id: selected.id, name: selected.name }}
+              />
+            ) : null}
             {localEvents.length > 0 ? (
               <div className="space-y-3">
                 {localEvents.map((event, index) => (
@@ -226,7 +241,7 @@ export default async function LocalGroupsPage({
                     event={event}
                     community={community}
                     host={localPeople.get(event.hostId)}
-                    attending={event.attendeeIds.includes(user.id)}
+                    attending={event.attending}
                     variant={index === 0 ? "full" : "compact"}
                   />
                 ))}

@@ -465,13 +465,13 @@ async function main() {
     const { data: byName } = await elise.from("community_subgroups").select("id").ilike("name", "%safe%");
     expect("gruppen kan ikke søkes opp", (byName ?? []).length, 0);
 
-    // Erlend's and Mia's only FTR authorship is Safe-Space content. Under FTR's
-    // admin-only member directory that must not make them visible to an
-    // outsider, while a member who can read it does see them.
+    // Erlend's only FTR authorship is Safe-Space content. Under FTR's
+    // admin-only member directory that must not make him visible to an
+    // outsider, while a member who can read it does see him. (Mia hosts
+    // community-wide events as FTR's admin, so she is visible through those.)
     const seesProfile = async (client: Client, handle: string) =>
       (await client.rpc("can_view_community_profile", { p_community_id: FTR, p_user_id: ids[handle] })).data === true;
     expect("54. utenforstående ser ikke Erlend via Safe-Space-innlegg", await seesProfile(elise, "erlendthonstad"), false);
-    expect("54. utenforstående ser ikke Mia via Safe-Space-arrangement", await seesProfile(elise, "miaminge"), false);
     expect("54. medlem ser Erlend via innlegget", await seesProfile(kristoffer, "erlendthonstad"), true);
     expect("54. shares_visible_authorship teller ikke Safe-Space", (await elise.rpc("shares_visible_authorship", { other: ids.erlendthonstad })).data, false);
 

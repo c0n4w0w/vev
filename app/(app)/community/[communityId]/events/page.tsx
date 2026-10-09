@@ -46,8 +46,10 @@ export default async function CommunityEventsPage({
     getLocalGroups(community.id),
     getSubgroups(community.id),
   ]);
-  // Creation is an administrator's job, the same gate the membership queue
-  // uses. The database refuses everyone else regardless of what is rendered.
+  // The full composer, with every scope, is an administrator's. A
+  // lokallagsleder creates events from their own lokallag page, locked to that
+  // lokallag. The database refuses everyone else regardless of what is
+  // rendered.
   const isAdmin = membership?.role === "admin";
   const publicCount = upcoming.filter((event) => event.isPublic).length;
   const hosts = await getCommunityPersonas(community.id, [
@@ -89,7 +91,7 @@ export default async function CommunityEventsPage({
               event={event}
               community={community}
               host={hosts.get(event.hostId)}
-              attending={event.attendeeIds.includes(user.id)}
+              attending={event.attending}
             />
           ))}
         </div>

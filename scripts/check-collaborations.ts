@@ -314,10 +314,22 @@ async function membershipsOf(userIds: string[]): Promise<MembershipRow[]> {
 const created = new Set<string>();
 const touchedMemberships = new Map<string, MembershipRow>();
 const touchedGroups = new Map<string, boolean>();
+// Moving a membership out of its lokallag deletes that person's lokallagsleder
+// grant there (20261010100000), and moving back deliberately does not restore
+// it — so the grants are remembered with the membership and put back here.
+const touchedGrants: Database["public"]["Tables"]["community_local_group_managers"]["Row"][] = [];
 
 async function rememberMembership(userId: string, communityId: string) {
   const row = await membershipOf(userId, communityId);
-  if (!touchedMemberships.has(row.id)) touchedMemberships.set(row.id, row);
+  if (!touchedMemberships.has(row.id)) {
+    touchedMemberships.set(row.id, row);
+    const { data: grants } = await admin
+      .from("community_local_group_managers")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("community_id", communityId);
+    touchedGrants.push(...(grants ?? []));
+  }
 }
 
 async function rememberGroup(groupId: string) {
@@ -337,6 +349,11 @@ async function restore() {
   }
   for (const [groupId, active] of touchedGroups) {
     await admin.from("community_local_groups").update({ active }).eq("id", groupId);
+  }
+  if (touchedGrants.length > 0) {
+    await admin
+      .from("community_local_group_managers")
+      .upsert(touchedGrants, { onConflict: "local_group_id,user_id", ignoreDuplicates: true });
   }
   if (created.size > 0) {
     // Cascades to every collaboration_* table.

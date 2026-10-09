@@ -81,3 +81,18 @@ export const localGroupAssignments: LocalGroupAssignment[] = [
   { userId: "petter", communityId: "tryggere-ungdom", localGroupName: "TU Trøndelag" },
   // The Tryggere showcase personas have no local group here, on purpose.
 ];
+
+/**
+ * Lokallagsledere: who may create and manage events for one lokallag
+ * (`community_local_group_managers`). Each must also be assigned to that same
+ * lokallag above — a grant only counts while the person is in it.
+ *
+ * Deliberately an ordinary member rather than a moderator: leading a lokallag
+ * is a grant for one group, not a community role, and the demo should show
+ * that the two are independent. This is TING access, not the organisation's
+ * published contact list (`community-people.ts`), which may name someone with
+ * no account at all.
+ */
+export const localGroupManagers: LocalGroupAssignment[] = [
+  { userId: "petter", communityId: "tryggere-ruspolitikk", localGroupName: "FTR Trøndelag" },
+];

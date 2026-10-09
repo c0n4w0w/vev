@@ -41,7 +41,7 @@ export default async function EventsPage() {
   if (!user) redirect("/login");
 
   const events = await getEventsForUser(user.id);
-  const attending = events.filter((event) => event.attendeeIds.includes(user.id));
+  const attending = events.filter((event) => event.attending);
 
   // Communities and hosts are resolved before rendering, so the cards stay
   // plain presentational components.
@@ -84,7 +84,7 @@ export default async function EventsPage() {
                     event={event}
                     community={communities.get(event.communityId)!}
                     host={hosts.get(personaKey(event.communityId, event.hostId))}
-                    attending={event.attendeeIds.includes(user.id)}
+                    attending={event.attending}
                     showCommunity
                     locale={PLATFORM_LOCALE}
                   />

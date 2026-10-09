@@ -259,12 +259,27 @@ async function main() {
     expect("lagret sluttid vises som 20:00 i Oslo", osloClock.format(new Date(stored!.ends_at)), "20:00");
   }
 
-  // ── Events are not editable or deletable from a client ────────────────
-  const edit = await mia.from("events").update({ title: "Endret" }).eq("id", standvakt).select("id");
-  expect("arrangementer kan ikke endres fra klienten", (edit.data ?? []).length, 0);
-
-  const remove = await mia.from("events").delete().eq("id", standvakt).select("id");
-  expect("arrangementer kan ikke slettes fra klienten", (remove.data ?? []).length, 0);
+  // ── Editing and cancelling: managers only (20261010100000) ───────────
+  //
+  // Positive cases run against an event this check created, never a seeded
+  // one, so a regression cannot destroy fixture data.
+  const editable = await createEventAs(mia, "tryggere-ruspolitikk", { title: "CHECK redigerbar" });
+  if (editable.id) {
+    const edit = await mia.from("events").update({ location: "Bergen" }).eq("id", editable.id).select("id");
+    expect("administrator kan endre eget fellesskaps arrangement", (edit.data ?? []).length, 1);
+  }
+  for (const [who, client] of [["moderator", nadia], ["medlem", linn], ["annet fellesskaps moderator", robin]] as const) {
+    const edit = await client.from("events").update({ title: "Endret" }).eq("id", standvakt).select("id");
+    expect(`${who} kan ikke endre arrangementer`, (edit.data ?? []).length, 0);
+    const remove = await client.from("events").delete().eq("id", standvakt).select("id");
+    expect(`${who} kan ikke slette arrangementer`, (remove.data ?? []).length, 0);
+  }
+  if (editable.id) {
+    const moved = await mia.from("events").update({ community_id: "under-the-rug" } as never).eq("id", editable.id).select("id");
+    expect("et arrangement kan ikke flyttes til et annet fellesskap", Boolean(moved.error) || (moved.data ?? []).length === 0, true);
+    const remove = await mia.from("events").delete().eq("id", editable.id).select("id");
+    expect("administrator kan avlyse (slette) arrangement", (remove.data ?? []).length, 1);
+  }
 
   // ── Cross-community reads ─────────────────────────────────────────────
   const utrEventsAsTryggere = await linn.from("events").select("id").eq("id", nattrave);

@@ -29,7 +29,13 @@ const field =
   "h-10 w-full rounded-[5px] border border-line-2 bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-ink-3";
 
 /**
- * Creating an event, for administrators.
+ * Creating an event, for administrators — and, with `lockedLocalGroup`, for a
+ * lokallagsleder on their own lokallag's page.
+ *
+ * Locked, the audience is fixed to that one lokallag: there is no scope
+ * select and no "public" option (a lokallag event is never public), only a
+ * hidden field. That is presentation; `events_insert` refuses a lokallagsleder
+ * any other scope whatever the form sends.
  *
  * Collapsed until asked for: the page is for reading what is coming up, and an
  * open form above that list would push it down for the one person in the
@@ -46,12 +52,14 @@ export function EventComposer({
   accent,
   localGroups = [],
   subgroups = [],
+  lockedLocalGroup,
 }: {
   communityId: string;
   communityName: string;
   accent: string;
   localGroups?: LocalGroup[];
   subgroups?: Subgroup[];
+  lockedLocalGroup?: Pick<LocalGroup, "id" | "name">;
 }) {
   const t = useT();
   const [state, formAction] = useActionState(createEventAction, emptyEventFormState);
@@ -118,7 +126,15 @@ export function EventComposer({
           <input id="event-location" name="location" maxLength={120} className={field} />
         </div>
 
-        {localGroups.length + subgroups.length > 0 ? (
+        {lockedLocalGroup ? (
+          <div>
+            <input type="hidden" name="scope" value={`local:${lockedLocalGroup.id}`} />
+            <p className="label mb-1.5">{t("events.compose.visibility")}</p>
+            <p className="text-[13px] text-ink-2">
+              {t("events.compose.lockedScope", { name: lockedLocalGroup.name })}
+            </p>
+          </div>
+        ) : localGroups.length + subgroups.length > 0 ? (
           <div>
             <label htmlFor="event-local-group" className="label mb-1.5 block">
               {t("events.compose.visibility")}
@@ -156,12 +172,14 @@ export function EventComposer({
               className={field}
             />
           </div>
-          <label className="flex cursor-pointer items-start gap-2.5 pt-6 text-[13px] leading-snug text-ink-2">
-            <input type="checkbox" name="isPublic" className="mt-0.5" />
-            <span>
-              {t("events.compose.public", { name: communityName })}
-            </span>
-          </label>
+          {lockedLocalGroup ? null : (
+            <label className="flex cursor-pointer items-start gap-2.5 pt-6 text-[13px] leading-snug text-ink-2">
+              <input type="checkbox" name="isPublic" className="mt-0.5" />
+              <span>
+                {t("events.compose.public", { name: communityName })}
+              </span>
+            </label>
+          )}
         </div>
 
         {state.status === "error" ? (

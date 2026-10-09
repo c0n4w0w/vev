@@ -279,10 +279,22 @@ async function publicEvent(client: Client, slug: string) {
 const created = new Set<string>();
 const uploaded: { bucket: string; path: string }[] = [];
 const touchedMemberships = new Map<string, Database["public"]["Tables"]["memberships"]["Row"]>();
+// Moving a membership out of its lokallag deletes that person's lokallagsleder
+// grant there (20261010100000), and moving back deliberately does not restore
+// it — so the grants are remembered with the membership and put back here.
+const touchedGrants: Database["public"]["Tables"]["community_local_group_managers"]["Row"][] = [];
 
 async function rememberMembership(userId: string, communityId: string) {
   const { data } = await admin.from("memberships").select("*").eq("user_id", userId).eq("community_id", communityId).single();
-  if (data && !touchedMemberships.has(data.id)) touchedMemberships.set(data.id, data);
+  if (data && !touchedMemberships.has(data.id)) {
+    touchedMemberships.set(data.id, data);
+    const { data: grants } = await admin
+      .from("community_local_group_managers")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("community_id", communityId);
+    touchedGrants.push(...(grants ?? []));
+  }
 }
 
 async function restore() {
@@ -291,6 +303,11 @@ async function restore() {
       .from("memberships")
       .update({ status: row.status, role: row.role, local_group_id: row.local_group_id, joined_at: row.joined_at })
       .eq("id", row.id);
+  }
+  if (touchedGrants.length > 0) {
+    await admin
+      .from("community_local_group_managers")
+      .upsert(touchedGrants, { onConflict: "local_group_id,user_id", ignoreDuplicates: true });
   }
   const byBucket = new Map<string, string[]>();
   for (const { bucket, path } of uploaded) byBucket.set(bucket, [...(byBucket.get(bucket) ?? []), path]);

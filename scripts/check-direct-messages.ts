@@ -115,6 +115,11 @@ async function setAcceptsMemberDms(
   if (error) throw error;
 }
 
+// A membership that stops being active loses its lokallagsleder grants
+// (20261010100000), and reactivating it deliberately does not restore them —
+// so they are remembered with the status and put back in cleanup().
+const touchedGrants: Database["public"]["Tables"]["community_local_group_managers"]["Row"][] = [];
+
 async function setMembershipStatus(
   userId: string,
   communityId: string,
@@ -126,6 +131,12 @@ async function setMembershipStatus(
       communityId,
       status: await membershipStatus(userId, communityId),
     });
+    const { data: grants } = await admin
+      .from("community_local_group_managers")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("community_id", communityId);
+    touchedGrants.push(...(grants ?? []));
   }
   const { error } = await admin
     .from("memberships")
@@ -168,6 +179,11 @@ async function cleanup() {
       .update({ status: membership.status })
       .eq("user_id", membership.userId)
       .eq("community_id", membership.communityId);
+  }
+  if (touchedGrants.length > 0) {
+    await admin
+      .from("community_local_group_managers")
+      .upsert(touchedGrants, { onConflict: "local_group_id,user_id", ignoreDuplicates: true });
   }
 
   for (const setting of touchedDmSettings.reverse()) {

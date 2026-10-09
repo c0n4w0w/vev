@@ -45,7 +45,10 @@ export const posts: SeedPost[] = [
     title: "Vaktliste for Safe-Space i høst",
     body:
       "Vaktlisten for høstens arrangementer ligger i #Safe-Space frivillige. Skriv deg på de kveldene du kan, så setter vi opp par med minst én erfaren frivillig på hver vakt.",
-    createdAt: "2026-09-18T10:15:00+02:00",
+    // Same morning slot the day before FIXTURE_TODAY. It was dated the 18th —
+    // after the fixture clock's "now" — so on a seed run early in the day it
+    // landed hours in the future and outranked posts created at now().
+    createdAt: "2026-09-17T10:15:00+02:00",
     reactions: [{ emoji: "👍", userIds: ["kristoffer"] }],
   },
   {

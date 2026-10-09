@@ -78,7 +78,7 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.eventFull": "This event is full. There are no spots left right now.",
   "err.rsvpRefused": "Your sign-up couldn't be saved. Try again.",
   "err.eventCreateRefused":
-    "The event wasn't created. Only administrators of this community can add events.",
+    "The event wasn't created. Only administrators, and lokallag leaders for their own lokallag, can add events.",
   "err.eventTitleRequired": "The event needs a title.",
   "err.eventTitleTooLong": "The title can be at most 120 characters.",
   "err.eventLocationRequired": "Enter a location.",

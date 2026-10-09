@@ -1,13 +1,23 @@
 import type { CommunityEvent } from "@/lib/types";
 
-export type SeedEvent = CommunityEvent & {
+export type SeedEvent = Omit<CommunityEvent, "attendeeCount" | "attending"> & {
+  /** Fixture people signed up; the seed resolves them to event_attendees rows. */
+  attendeeIds: string[];
   /** Human-readable fixture key; the seed resolves it to events.local_group_id. */
   localGroupName?: string;
   /** Subgroup slug; the seed resolves it to events.subgroup_id. */
   subgroupSlug?: string;
 };
 
-/** `isPublic` events are the only ones that appear on a community's portal. */
+/**
+ * `isPublic` events are the only ones that appear on a community's portal.
+ *
+ * `hostId` is always someone `events_insert` would have let create the event:
+ * the community's admin, or — for a lokallag event — that lokallag's
+ * lokallagsleder (`localGroupManagers` in local-groups.ts). Moderators and
+ * ordinary members do not create events, so they do not host fixtures either;
+ * `check-content` enforces this.
+ */
 export const events: SeedEvent[] = [
   // ── Tryggere Ruspolitikk ──────────────────────────────────────────────
   {
@@ -36,7 +46,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-09-24T20:00:00+02:00",
     location: "Trondheim frivilligsentral",
     isPublic: false,
-    hostId: "demo-tryggere",
+    hostId: "petter",
     attendeeIds: ["demo-tryggere", "petter"],
     capacity: 24,
   },
@@ -50,7 +60,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-09-19T16:00:00+02:00",
     location: "Torgallmenningen, Bergen",
     isPublic: false,
-    hostId: "ingrid",
+    hostId: "mia-minge",
     attendeeIds: ["ingrid", "kristoffer"],
     capacity: 6,
   },
@@ -64,7 +74,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-09-30T20:00:00+02:00",
     location: "Litteraturhuset, Oslo",
     isPublic: true,
-    hostId: "amina",
+    hostId: "mia-minge",
     attendeeIds: ["amina", "nadia", "ingrid", "elise", "kristoffer"],
     capacity: 120,
   },
@@ -78,7 +88,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-11-05T16:00:00+01:00",
     location: "Oslo — lokale bekreftes",
     isPublic: true,
-    hostId: "amina",
+    hostId: "mia-minge",
     attendeeIds: ["amina", "linn", "nadia"],
     capacity: 90,
   },
@@ -92,7 +102,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-11-14T16:00:00+01:00",
     location: "Litteraturhuset, Oslo (og digitalt)",
     isPublic: false,
-    hostId: "amina",
+    hostId: "mia-minge",
     attendeeIds: ["amina", "ingrid", "nadia", "linn", "petter", "elise", "kristoffer"],
   },
   {
@@ -105,7 +115,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-09-23T19:00:00+02:00",
     location: "Tromsø bibliotek",
     isPublic: false,
-    hostId: "linn",
+    hostId: "mia-minge",
     attendeeIds: ["linn", "petter"],
   },
 
@@ -120,7 +130,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-09-10T19:00:00+02:00",
     location: "Aktivitetshuset K1, Sandefjord",
     isPublic: true,
-    hostId: "mathea",
+    hostId: "emma-mortensen",
     attendeeIds: ["mathea", "hanne", "petter", "adrian"],
     capacity: 30,
   },
@@ -134,7 +144,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-09-25T21:30:00+02:00",
     location: "Ungdomshuset 1880, Bergen",
     isPublic: true,
-    hostId: "adrian",
+    hostId: "emma-mortensen",
     attendeeIds: ["adrian", "hanne"],
     capacity: 25,
   },
@@ -148,7 +158,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-10-18T15:00:00+02:00",
     location: "Sundvolden",
     isPublic: false,
-    hostId: "hanne",
+    hostId: "emma-mortensen",
     attendeeIds: ["hanne", "mathea", "adrian", "petter", "ingrid"],
     capacity: 45,
   },
@@ -162,7 +172,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-09-22T12:00:00+02:00",
     location: "Ullern videregående skole, Oslo",
     isPublic: false,
-    hostId: "mathea",
+    hostId: "emma-mortensen",
     attendeeIds: ["mathea", "petter"],
     capacity: 4,
   },
@@ -178,7 +188,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-09-27T01:00:00+02:00",
     location: "Kabelgata 37, Oslo",
     isPublic: true,
-    hostId: "marte",
+    hostId: "octavio-esperanto",
     attendeeIds: ["marte", "vilde", "eirik", "oskar", "ingrid", "tobias", "sindre"],
     capacity: 180,
   },
@@ -192,7 +202,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-09-25T18:30:00+02:00",
     location: "Kabelgata 37, Oslo",
     isPublic: false,
-    hostId: "eirik",
+    hostId: "octavio-esperanto",
     attendeeIds: ["eirik", "ingrid", "oskar"],
     capacity: 8,
   },
@@ -206,7 +216,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-11-15T05:00:00+01:00",
     location: "Kabelgata 37, Oslo",
     isPublic: true,
-    hostId: "tobias",
+    hostId: "octavio-esperanto",
     attendeeIds: ["tobias", "marte", "sindre", "eirik", "jonas", "vilde"],
     capacity: 300,
   },
@@ -220,7 +230,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-09-16T20:00:00+02:00",
     location: "Tøyen, Oslo (og digitalt)",
     isPublic: false,
-    hostId: "vilde",
+    hostId: "octavio-esperanto",
     attendeeIds: ["vilde", "marte", "eirik", "ingrid", "oskar", "tobias", "sindre"],
   },
   {
@@ -233,7 +243,7 @@ export const events: SeedEvent[] = [
     endsAt: "2026-09-18T21:30:00+02:00",
     location: "Kabelgata 37, Oslo",
     isPublic: false,
-    hostId: "sindre",
+    hostId: "octavio-esperanto",
     attendeeIds: ["sindre", "eirik", "jonas"],
     capacity: 20,
   },

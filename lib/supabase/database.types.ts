@@ -1354,6 +1354,52 @@ export type Database = {
           },
         ]
       }
+      community_local_group_managers: {
+        Row: {
+          community_id: string
+          created_at: string
+          granted_by: string | null
+          local_group_id: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          granted_by?: string | null
+          local_group_id: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          granted_by?: string | null
+          local_group_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_local_group_managers_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_local_group_managers_local_group_id_community_id_fkey"
+            columns: ["local_group_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "community_local_groups"
+            referencedColumns: ["id", "community_id"]
+          },
+          {
+            foreignKeyName: "community_local_group_managers_user_id_community_id_fkey"
+            columns: ["user_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["user_id", "community_id"]
+          },
+        ]
+      }
       community_local_groups: {
         Row: {
           active: boolean
@@ -2399,6 +2445,10 @@ export type Database = {
           status: Database["public"]["Enums"]["access_request_status"]
         }[]
       }
+      add_local_group_manager: {
+        Args: { p_local_group_id: string; p_user_id: string }
+        Returns: boolean
+      }
       add_subgroup_member: {
         Args: { p_subgroup_id: string; p_user_id: string }
         Returns: boolean
@@ -2419,10 +2469,23 @@ export type Database = {
       }
       can_access_post: { Args: { pid: string }; Returns: boolean }
       can_access_subgroup: { Args: { p_subgroup_id: string }; Returns: boolean }
+      can_create_event: {
+        Args: {
+          p_community_id: string
+          p_local_group_id: string
+          p_subgroup_id: string
+        }
+        Returns: boolean
+      }
       can_discard_collaboration_file_object: {
         Args: { p_name: string }
         Returns: boolean
       }
+      can_lead_local_group: {
+        Args: { p_local_group_id: string }
+        Returns: boolean
+      }
+      can_manage_event: { Args: { p_event_id: string }; Returns: boolean }
       can_manage_subgroup: { Args: { p_subgroup_id: string }; Returns: boolean }
       can_moderate: { Args: { cid: string }; Returns: boolean }
       can_moderate_post: { Args: { pid: string }; Returns: boolean }
@@ -2492,6 +2555,7 @@ export type Database = {
         Args: { p_community_id: string; p_user_id: string }
         Returns: boolean
       }
+      can_view_event_roster: { Args: { p_event_id: string }; Returns: boolean }
       can_view_member_directory: { Args: { cid: string }; Returns: boolean }
       collaboration_assignees_valid: {
         Args: {
@@ -2728,6 +2792,22 @@ export type Database = {
         Args: { p_subgroup_id: string }
         Returns: string
       }
+      event_attendance: {
+        Args: { p_event_ids: string[] }
+        Returns: {
+          attendee_count: number
+          attending: boolean
+          event_id: string
+        }[]
+      }
+      event_attendee_roster: {
+        Args: { p_event_id: string }
+        Returns: {
+          avatar_path: string
+          display_name: string
+          user_id: string
+        }[]
+      }
       has_collaboration_access: {
         Args: { p_collaboration_id: string }
         Returns: boolean
@@ -2787,6 +2867,10 @@ export type Database = {
         Returns: boolean
       }
       local_group_channel_name: { Args: { p_name: string }; Returns: string }
+      local_group_manage_admits: {
+        Args: { p_local_group_id: string; p_user_id: string }
+        Returns: boolean
+      }
       local_group_member_counts: {
         Args: { p_community_id: string }
         Returns: {
@@ -2886,6 +2970,10 @@ export type Database = {
       }
       remove_collaboration_file: {
         Args: { p_file_id: string }
+        Returns: boolean
+      }
+      remove_local_group_manager: {
+        Args: { p_local_group_id: string; p_user_id: string }
         Returns: boolean
       }
       remove_subgroup_member: {

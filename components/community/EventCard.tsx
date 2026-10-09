@@ -98,7 +98,7 @@ export function EventCard({
             <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-3">
               <span>{timeUntil(event.startsAt, locale)}</span>
               <span aria-hidden="true">·</span>
-              <span>{tn(locale, "count.attending", event.attendeeIds.length)}</span>
+              <span>{tn(locale, "count.attending", event.attendeeCount)}</span>
               {attending ? (
                 <span className="font-medium" style={{ color: accent }}>
                   {t("events.attendingYou")}
@@ -175,11 +175,11 @@ export function EventCard({
             >
               {event.capacity
                 ? t("events.attendanceOf", {
-                    attending: tn(locale, "count.attending", event.attendeeIds.length),
-                    count: event.attendeeIds.length,
+                    attending: tn(locale, "count.attending", event.attendeeCount),
+                    count: event.attendeeCount,
                     capacity: event.capacity,
                   })
-                : tn(locale, "count.attending", event.attendeeIds.length)}
+                : tn(locale, "count.attending", event.attendeeCount)}
             </Link>
           </div>
         </div>

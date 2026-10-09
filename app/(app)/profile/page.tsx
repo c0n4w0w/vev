@@ -151,7 +151,7 @@ export default async function ProfilePage() {
               <dt className="text-ink-2">Påmeldt</dt>
               <dd className="font-medium text-ink">
                 {plural(
-                  events.filter((event) => event.attendeeIds.includes(user.id)).length,
+                  events.filter((event) => event.attending).length,
                   "arrangement",
                   "arrangementer",
                 )}

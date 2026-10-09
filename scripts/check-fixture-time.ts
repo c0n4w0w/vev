@@ -23,8 +23,10 @@
  * `npm run check:fixture-time`.
  */
 import { FIXTURE_TODAY, fixtureTimeOffset, shiftDate, shiftTimestamp } from "@/lib/mock/fixture-time";
+import { comments } from "@/lib/mock/comments";
 import { events } from "@/lib/mock/events";
 import { messages } from "@/lib/mock/messages";
+import { notifications } from "@/lib/mock/notifications";
 import { posts } from "@/lib/mock/posts";
 
 const ZONE = "Europe/Oslo";
@@ -65,7 +67,27 @@ const references = [
   "2026-10-27T23:58:12+01:00", // just after the autumn transition
   "2027-03-30T00:03:00+02:00", // just after the spring transition
   "2027-01-01T12:00:00+01:00", // deep winter, a long way out
+  "2026-10-09T01:14:00+02:00", // just after midnight, three weeks on: the run that seeded a post hours ahead
 ];
+
+/**
+ * Everything that records something having *happened* — posts, comments,
+ * messages, notifications. `FIXTURE_TODAY` is defined as the newest of these,
+ * so none may be later than it: shifted by whole weeks rounded down, a later
+ * one can land after the moment the seed ran, outrank content created at
+ * now(), and read as "om 3 timer". Events are the exception — they are
+ * supposed to be in the future.
+ */
+const pastTimestamps: [string, string][] = [
+  ...posts.map((post) => [`innlegg ${post.id}`, post.createdAt] as [string, string]),
+  ...comments.map((comment) => [`kommentar ${comment.id}`, comment.createdAt] as [string, string]),
+  ...messages.map((message) => [`melding ${message.id}`, message.createdAt] as [string, string]),
+  ...notifications.map((notification) => [`varsel ${notification.id}`, notification.createdAt] as [string, string]),
+];
+
+for (const [label, iso] of pastTimestamps) {
+  expect(`${label} er ikke nyere enn FIXTURE_TODAY`, String(Date.parse(iso) <= Date.parse(FIXTURE_TODAY)), "true");
+}
 
 /** Every timestamp the seed actually shifts. */
 const fixtureTimestamps = [
@@ -91,6 +113,16 @@ for (const reference of references) {
 
   for (const iso of fixtureTimestamps) {
     expect(`${iso} keeps its Oslo weekday and time`, wallClock(shiftTimestamp(iso, offset)), wallClock(iso));
+  }
+
+  // The property that actually broke: seeded at this moment, nothing that
+  // has happened may be dated after it.
+  for (const [label, iso] of pastTimestamps) {
+    expect(
+      `${label} ligger ikke i fremtiden når seeden kjører ${reference}`,
+      String(Date.parse(shiftTimestamp(iso, offset)) <= Date.parse(reference)),
+      "true",
+    );
   }
 
   // Date-only values have no clock to preserve, but they must still land on

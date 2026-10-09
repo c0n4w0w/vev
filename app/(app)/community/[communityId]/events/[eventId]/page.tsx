@@ -4,7 +4,7 @@ import { EventRsvp } from "@/components/community/EventRsvp";
 import { Avatar, Badge, PageContainer, Panel } from "@/components/ui/primitives";
 import { subgroupBadgeTone } from "@/components/community/subgroupBadgeTone";
 import { IconArrowLeft, IconClock, IconGlobe, IconLock, IconMapPin } from "@/components/ui/icons";
-import { getCommunityById, getCommunityPersona, getEvent, now } from "@/lib/data";
+import { getCommunityById, getCommunityPersona, getEvent, getEventRoster, now } from "@/lib/data";
 import { formatEventRange, timeUntil } from "@/lib/format";
 import { communityLocale, communityTranslator, tn, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
@@ -28,6 +28,12 @@ export async function generateMetadata({
  * nothing to anyone else, so an event id from another community is simply not
  * found rather than refused, which is the same answer the rest of the product
  * gives about rooms you are not in.
+ *
+ * Who is attending is not part of that. Members see the count; the people
+ * who may manage the event right now — the community's admins and, for a
+ * lokallag event, its lokallagsleder — also see the roster, which is fetched
+ * only for them: `getEventRoster` asks the database first and returns
+ * nothing otherwise.
  */
 export default async function EventDetailPage({
   params,
@@ -41,8 +47,10 @@ export default async function EventDetailPage({
   const locale = communityLocale(community);
   const t = translator(locale);
 
-  const host = event.hostId ? await getCommunityPersona(community.id, event.hostId) : undefined;
-  const attending = event.attendeeIds.includes(user.id);
+  const [host, roster] = await Promise.all([
+    event.hostId ? getCommunityPersona(community.id, event.hostId) : undefined,
+    getEventRoster(community.id, event.id),
+  ]);
   const accent = community.branding.accent;
   const past = Date.parse(event.endsAt) < now().getTime();
 
@@ -101,19 +109,40 @@ export default async function EventDetailPage({
       <Panel className="mt-8 p-5">
         {past ? (
           <p className="text-[13px] text-ink-3">
-            {tn(locale, "events.pastNote", event.attendeeIds.length)}
+            {tn(locale, "events.pastNote", event.attendeeCount)}
           </p>
         ) : (
           <EventRsvp
             eventId={event.id}
             communityId={community.id}
             accent={accent}
-            initialAttending={attending}
-            attendeeCount={event.attendeeIds.length}
+            initialAttending={event.attending}
+            attendeeCount={event.attendeeCount}
             capacity={event.capacity}
           />
         )}
       </Panel>
+
+      {roster ? (
+        <section className="mt-6" aria-labelledby="event-roster-heading">
+          <h2 id="event-roster-heading" className="label">
+            {t("events.roster.heading", { count: roster.length })}
+          </h2>
+          {roster.length === 0 ? (
+            <p className="mt-2 text-[13px] text-ink-3">{t("events.roster.empty")}</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {roster.map((attendee) => (
+                <li key={attendee.id} className="flex items-center gap-2.5">
+                  <Avatar user={{ ...attendee, communityId: community.id }} size="xs" />
+                  <span className="min-w-0 truncate text-[0.9375rem] text-ink">{attendee.name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-[12px] text-ink-3">{t("events.roster.note")}</p>
+        </section>
+      ) : null}
 
       <div className="mt-6 flex items-center gap-2.5 text-[13px] text-ink-3">
         {host ? <Avatar user={host} size="xs" /> : null}

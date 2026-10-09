@@ -38,6 +38,7 @@ import type {
   CommunityEmoji,
   CommunityEvent,
   CommunityPublic,
+  EventAttendee,
   Membership,
   Message,
   Reaction,
@@ -259,7 +260,9 @@ type EventWithScopeRow = EventRow & {
   subgroup?: { name: string; slug: string } | null;
 };
 
-function toEvent(row: EventWithScopeRow, attendeeIds: string[]): CommunityEvent {
+type Attendance = { attendeeCount: number; attending: boolean };
+
+function toEvent(row: EventWithScopeRow, attendance: Attendance): CommunityEvent {
   return {
     id: row.id,
     communityId: row.community_id,
@@ -274,7 +277,8 @@ function toEvent(row: EventWithScopeRow, attendeeIds: string[]): CommunityEvent 
     location: row.location,
     isPublic: row.is_public,
     hostId: row.host_id ?? "",
-    attendeeIds,
+    attendeeCount: attendance.attendeeCount,
+    attending: attendance.attending,
     capacity: row.capacity ?? undefined,
   };
 }
@@ -2486,19 +2490,30 @@ export function now(): Date {
   return new Date();
 }
 
-const loadAttendees = cache(async (): Promise<Map<string, string[]>> => {
+/**
+ * How many current RSVPs each event has, and whether one is the caller's.
+ *
+ * Counts only: `event_attendees_select` shows an ordinary member their own
+ * row and nobody else's, so who is attending never reaches a page that
+ * merely renders the event. `event_attendance` counts with the same
+ * rsvp_is_current() rule as the capacity trigger, so "6 av 6" and "fullt"
+ * always agree.
+ */
+async function withAttendees(eventRows: EventWithScopeRow[]): Promise<CommunityEvent[]> {
+  if (eventRows.length === 0) return [];
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.from("event_attendees").select("*");
-  const byEvent = new Map<string, string[]>();
-  for (const row of rows(data)) {
-    byEvent.set(row.event_id, [...(byEvent.get(row.event_id) ?? []), row.user_id]);
-  }
-  return byEvent;
-});
-
-async function withAttendees(rows: EventWithScopeRow[]): Promise<CommunityEvent[]> {
-  const attendees = await loadAttendees();
-  return rows.map((row) => toEvent(row, attendees.get(row.id) ?? []));
+  const { data } = await supabase.rpc("event_attendance", {
+    p_event_ids: eventRows.map((row) => row.id),
+  });
+  const byEvent = new Map(
+    rows(data).map((row) => [
+      row.event_id,
+      { attendeeCount: row.attendee_count, attending: row.attending },
+    ]),
+  );
+  return eventRows.map((row) =>
+    toEvent(row, byEvent.get(row.id) ?? { attendeeCount: 0, attending: false }),
+  );
 }
 
 export async function getCommunityEvents(communityId: string): Promise<CommunityEvent[]> {
@@ -2555,8 +2570,8 @@ export type EventWriteResult = { ok: true } | { ok: false; error: "full" | "refu
  * Signs the caller up for an event.
  *
  * `user_id` is deliberately absent: the column defaults to auth.uid(), and
- * `event_attendees_write` independently requires the row to be the caller's
- * own and the caller to be an active member of the event's community. There is
+ * `event_attendees_insert` independently requires the row to be the caller's
+ * own and the caller to be able to read the event. There is
  * no code path here that could carry a client-supplied attendee.
  *
  * A second RSVP hits the (event_id, user_id) primary key rather than creating
@@ -2590,9 +2605,10 @@ export async function leaveEvent(eventId: string): Promise<EventWriteResult> {
  * Creates an event in one community.
  *
  * `host_id` is omitted for the same reason as above — it defaults to
- * auth.uid() — and `events_insert` requires the caller to administer the
- * community named in the row. Field limits and the ends-after-starts rule are
- * in the policy too, so a caller that skips this function still meets them.
+ * auth.uid() — and `events_insert` requires `can_create_event()`: an admin of
+ * the community in any scope, or a lokallagsleder for their own lokallag.
+ * Field limits and the ends-after-starts rule are in the policy too, so a
+ * caller that skips this function still meets them.
  */
 export async function createEvent(input: {
   communityId: string;
@@ -2631,6 +2647,51 @@ export async function getEvent(eventId: string): Promise<CommunityEvent | undefi
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.from("events").select(EVENT_SELECT).eq("id", eventId).maybeSingle();
   return data ? (await withAttendees([data]))[0] : undefined;
+}
+
+/**
+ * Whether the signed-in person is an effective lokallagsleder of this
+ * lokallag: granted, active, and still in it (`can_lead_local_group`). Decides
+ * whether the lokallag page offers the event composer; `events_insert` decides
+ * whether the event is created.
+ */
+export async function canLeadLocalGroup(localGroupId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("can_lead_local_group", { p_local_group_id: localGroupId });
+  return data === true;
+}
+
+/**
+ * Who is attending one event, for the people allowed to know: whoever may
+ * manage it right now — its community's admins and, for a lokallag event,
+ * that lokallag's leaders (`can_view_event_roster`). Being its host grants
+ * nothing by itself. `undefined` for everyone else, so a page can tell "not
+ * yours to see" from "nobody yet" — the
+ * database itself returns no rows in both cases and the second question is
+ * asked of the same rule.
+ *
+ * Names and photos are the attendees' profiles in the event's community,
+ * never the account.
+ */
+export async function getEventRoster(
+  communityId: string,
+  eventId: string,
+): Promise<EventAttendee[] | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data: allowed } = await supabase.rpc("can_view_event_roster", { p_event_id: eventId });
+  if (allowed !== true) return undefined;
+  const { data } = await supabase.rpc("event_attendee_roster", { p_event_id: eventId });
+  return rows(data).map((row) => {
+    const name = row.display_name ?? "Ukjent";
+    return {
+      id: row.user_id,
+      name,
+      initials: row.display_name ? initialsFor(name) : "?",
+      avatarUrl: row.avatar_path
+        ? memberAvatarUrl(communityId, row.user_id, row.avatar_path)
+        : undefined,
+    };
+  });
 }
 
 // ── Notifications ───────────────────────────────────────────────────────

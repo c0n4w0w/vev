@@ -323,8 +323,22 @@ export interface CommunityEvent {
   /** Shown on the public portal when true. */
   isPublic: boolean;
   hostId: string;
-  attendeeIds: string[];
+  /**
+   * Current RSVPs — the same count the capacity rule uses. Who they are is
+   * not part of an event; see `getEventRoster`.
+   */
+  attendeeCount: number;
+  /** Whether the signed-in person has a current RSVP. */
+  attending: boolean;
   capacity?: number;
+}
+
+/** One current attendee on an event's roster, as they appear in its community. */
+export interface EventAttendee {
+  id: string;
+  name: string;
+  initials: string;
+  avatarUrl?: string;
 }
 
 export interface Comment {

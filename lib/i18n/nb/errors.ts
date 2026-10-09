@@ -80,7 +80,7 @@ export const errors = {
   "err.eventFull": "Arrangementet er fullt. Ingen flere plasser akkurat nå.",
   "err.rsvpRefused": "Påmeldingen kunne ikke lagres. Prøv igjen.",
   "err.eventCreateRefused":
-    "Arrangementet ble ikke opprettet. Bare administratorer i dette fellesskapet kan legge inn arrangementer.",
+    "Arrangementet ble ikke opprettet. Bare administratorer, og lokallagsledere for sitt eget lokallag, kan legge inn arrangementer.",
   "err.eventTitleRequired": "Arrangementet må ha en tittel.",
   "err.eventTitleTooLong": "Tittelen kan være høyst 120 tegn.",
   "err.eventLocationRequired": "Legg inn et sted.",

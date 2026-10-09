@@ -27,7 +27,7 @@ import { events } from "@/lib/mock/events";
 import { messages } from "@/lib/mock/messages";
 import { notifications } from "@/lib/mock/notifications";
 import { posts } from "@/lib/mock/posts";
-import { localGroups, localGroupAssignments } from "@/lib/mock/local-groups";
+import { localGroups, localGroupAssignments, localGroupManagers } from "@/lib/mock/local-groups";
 import { demoUserIds, users } from "@/lib/mock/users";
 import { demoPersonaMemberships, demoPersonas } from "@/lib/mock/demo-personas";
 
@@ -207,6 +207,22 @@ for (const event of events) {
   }
   const members = activeMembers(event.communityId);
   check("arrangementets vert er aktivt medlem", members.has(event.hostId), `${event.id}: ${event.hostId}`);
+  // The same rule as events_insert: the community's admin in any scope, or a
+  // lokallag event's own lokallagsleder. A moderator or member never hosts.
+  const hostIsAdmin = allMemberships.some(
+    (m) => m.communityId === event.communityId && m.userId === event.hostId && m.status === "active" && m.role === "admin",
+  );
+  const hostLeadsGroup =
+    Boolean(event.localGroupName) &&
+    !event.subgroupSlug &&
+    localGroupManagers.some(
+      (g) => g.communityId === event.communityId && g.userId === event.hostId && g.localGroupName === event.localGroupName,
+    );
+  check(
+    "arrangementets vert har rett til å opprette det (admin eller lokallagsleder)",
+    hostIsAdmin || hostLeadsGroup,
+    `${event.id}: ${event.hostId}`,
+  );
   for (const attendeeId of event.attendeeIds) {
     check("påmeldt er aktivt medlem", members.has(attendeeId), `${event.id}: ${attendeeId}`);
   }
@@ -378,6 +394,18 @@ for (const assignment of localGroupAssignments) {
     localGroupKeys.has(`${assignment.communityId}/${assignment.localGroupName}`),
     `${assignment.communityId}/${assignment.localGroupName}`,
   );
+}
+
+for (const manager of localGroupManagers) {
+  const where = `${manager.userId}/${manager.communityId}/${manager.localGroupName}`;
+  check(
+    "lokallagsleder er tilknyttet sitt eget lokallag",
+    localGroupAssignments.some(
+      (a) => a.userId === manager.userId && a.communityId === manager.communityId && a.localGroupName === manager.localGroupName,
+    ),
+    where,
+  );
+  check("lokallagsleder er aktivt medlem", activeMembers(manager.communityId).has(manager.userId), where);
 }
 
 for (const person of communityPeople) {

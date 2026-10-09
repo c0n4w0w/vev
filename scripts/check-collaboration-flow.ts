@@ -754,10 +754,18 @@ async function main() {
   // returned to admins only, and the search needs two characters and returns
   // at most ten matches, so nobody is handed the roster. Pinned by
   // check:safe-space.
+  //
+  // event_attendance and event_attendee_roster (private attendee roster)
+  // likewise. event_attendance returns counts only — no identities — for
+  // events the caller can read. event_attendee_roster names attendees by
+  // design, but only to can_view_event_roster() callers (the event's host and
+  // the people who may manage it, inside its own community), with the
+  // community display name and photo path only — never email, handle, account
+  // name or role. Pinned by check:event-roster.
   expect(
     "68/70: ingen nye mengdereturnerende funksjoner utenom collaboration_units",
     sql("select string_agg(p.proname, ',' order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proretset"),
-    "accept_invitation_token,access_request_history,approve_access_request,collaboration_units,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,invitation_preview,local_group_member_counts,organization_person_dm_actions,portal_by_slug,portal_events,resend_invitation,search_subgroup_candidates,set_channel_details,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person,subgroup_roster",
+    "accept_invitation_token,access_request_history,approve_access_request,collaboration_units,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,event_attendance,event_attendee_roster,invitation_preview,local_group_member_counts,organization_person_dm_actions,portal_by_slug,portal_events,resend_invitation,search_subgroup_candidates,set_channel_details,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person,subgroup_roster",
   );
   const unitsResult = sql("select pg_get_function_result('public.collaboration_units(uuid)'::regprocedure)");
   expect("68: collaboration_units returnerer ingen personfelt", /user|email|handle|member|profile|count/.test(unitsResult), false);

@@ -164,7 +164,7 @@ export default async function HomePage() {
                       event={event}
                       community={communityById.get(event.communityId)!}
                       host={people.get(personaKey(event.communityId, event.hostId))}
-                      attending={event.attendeeIds.includes(user.id)}
+                      attending={event.attending}
                       variant="compact"
                       showCommunity
                       locale={pageLocale}
