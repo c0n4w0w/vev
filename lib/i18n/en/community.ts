@@ -32,6 +32,22 @@ export const community: Record<keyof typeof nb, string> = {
   "overview.privacyNote":
     "Everything here is visible to members only. The public page at {url} shows only what {name} chooses to share.",
 
+  // ── Welcome card ("Kom i gang") — new members only, until dismissed ───
+  "overview.welcome.label": "Get started",
+  "overview.welcome.eyebrow": "Welcome to the community",
+  "overview.welcome.title": "Hi, and welcome to {name}!",
+  "overview.welcome.lead":
+    "Here you can get to know other members, keep up with what is happening and get involved.",
+  "overview.welcome.profile.title": "Make your profile your own",
+  "overview.welcome.profile.body": "Choose how you appear in this community.",
+  "overview.welcome.lokallag.title": "Find your local group",
+  "overview.welcome.lokallag.body": "See activities and conversations where you live.",
+  "overview.welcome.introductions.title": "Say hi to everyone",
+  "overview.welcome.introductions.body": "Get to know people in #{channel}.",
+  "overview.welcome.footer": "Everything is optional. Explore at your own pace.",
+  "overview.welcome.skip": "Skip",
+  "overview.welcome.close": "Close the welcome",
+
   // ── Feed and posts ────────────────────────────────────────────────────
   "feed.title": "Feed",
   "feed.lead": "Everything happening in {name} — posts and announcements, newest first.",

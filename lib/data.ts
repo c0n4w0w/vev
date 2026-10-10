@@ -2,9 +2,12 @@ import { messageBodyError } from "@/lib/message-form";
 import "server-only";
 
 import { cache } from "react";
+import { createClient, isAuthRetryableFetchError, type AuthError } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import type {
   ChannelRow,
+  Database,
   CommunityRow,
   EventRow,
   MembershipRow,
@@ -159,9 +162,12 @@ const MEMBERSHIP_COLUMNS =
  * Note the absence of `accepts_member_dms`. It is private to the person it
  * belongs to: `myAcceptsMemberDms()` reads the caller's own value, and
  * `can_send_dm()` reads it inside the database for an authorisation decision.
- * Nothing else sees it.
+ * Nothing else sees it. `onboarding_dismissed_at` is private the same way and
+ * is read only through `isOnboardingVisible()`.
  */
-function toMembership(row: Omit<MembershipRow, "accepts_member_dms">): Membership {
+function toMembership(
+  row: Omit<MembershipRow, "accepts_member_dms" | "onboarding_dismissed_at">,
+): Membership {
   return {
     id: row.id,
     userId: row.user_id,
@@ -2552,6 +2558,156 @@ export async function acceptInvitationToken(token: string): Promise<AcceptInvita
   return { ok: true, communityId: row.community_id, alreadyMember: row.reason === "already-member" };
 }
 
+// ── One-email sign-in from an approval email ────────────────────────────
+//
+// The approval email's link carries a Supabase sign-in token (see
+// lib/email-sign-in-link.ts) next to the TING invitation token. Redeeming
+// happens only on an explicit POST from the page the link opens — never on the
+// GET a mail scanner or link preview makes — and verifying and accepting run on
+// one request-scoped client, so the acceptance is made by the session that was
+// just proven, not by whatever cookies the request arrived with.
+
+/** Supabase did not answer, as opposed to refusing the token. */
+function authUnavailable(error: AuthError): boolean {
+  return isAuthRetryableFetchError(error) || (error.status ?? 0) >= 500;
+}
+
+type VerifiedLink =
+  | { ok: true; email: string; session: { access_token: string; refresh_token: string }; discard: () => Promise<void> }
+  | { ok: false; unavailable: boolean };
+
+/**
+ * Verifies an email sign-in token *without* touching this request's session.
+ *
+ * The check runs on a throwaway client that keeps nothing, so a spent,
+ * expired or foreign token changes nothing about who is signed in here.
+ * Only the caller decides to adopt the verified session (see `adopt`) — after
+ * it has confirmed the address is the one it expects.
+ */
+async function verifyEmailLink(tokenHash: string): Promise<VerifiedLink> {
+  const scratch = createClient<Database>(supabaseUrl(), supabaseAnonKey(), {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await scratch.auth.verifyOtp({ type: "email", token_hash: tokenHash });
+  if (error || !data.session || !data.user?.email) {
+    return { ok: false, unavailable: error ? authUnavailable(error) : false };
+  }
+  return {
+    ok: true,
+    email: data.user.email.toLowerCase(),
+    session: { access_token: data.session.access_token, refresh_token: data.session.refresh_token },
+    // A verified session that will not be used is revoked, not left lying around.
+    discard: async () => {
+      await scratch.auth.signOut({ scope: "local" });
+    },
+  };
+}
+
+/** Ends this request's current session (if any) and makes the verified one current. */
+async function adopt(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  verified: Extract<VerifiedLink, { ok: true }>,
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) await supabase.auth.signOut({ scope: "local" });
+  const { error } = await supabase.auth.setSession(verified.session);
+  return !error;
+}
+
+export type InvitationLinkOutcome =
+  | { status: "joined"; communityId: string }
+  /** Signed in as another account, and switching was not asked for. */
+  | { status: "mismatch" }
+  /** The sign-in token is spent, expired or replaced. The invitation may still be good. */
+  | { status: "link-expired" }
+  | { status: "unavailable" }
+  /** The invitation itself refused: `accept_invitation_token`'s reason. */
+  | { status: "refused"; reason: string };
+
+export async function redeemInvitationWithEmailLink(input: {
+  token: string;
+  tokenHash?: string;
+  switchAccount: boolean;
+}): Promise<InvitationLinkOutcome> {
+  const supabase = await createSupabaseServerClient();
+
+  // The invitation decides which address may be signed in here. A spent,
+  // revoked, expired or invented token names nobody, and nothing else runs.
+  const { data: previewRows } = await supabase.rpc("invitation_preview", { p_token: input.token });
+  const preview = (previewRows as InvitationPreviewRow[] | null)?.[0];
+  if (!preview) return { status: "refused", reason: "invalid" };
+  const invited = preview.email.toLowerCase();
+
+  const {
+    data: { user: current },
+  } = await supabase.auth.getUser();
+  const signedInAsInvited = current?.email?.toLowerCase() === invited;
+
+  if (!signedInAsInvited) {
+    // Never swap someone's identity underneath them. Only an explicit "sign
+    // out and continue as …" from the page gets here with switchAccount.
+    if (current && !input.switchAccount) return { status: "mismatch" };
+    if (!input.tokenHash) return { status: "link-expired" };
+
+    const verified = await verifyEmailLink(input.tokenHash);
+    if (!verified.ok) return verified.unavailable ? { status: "unavailable" } : { status: "link-expired" };
+    if (verified.email !== invited) {
+      // A genuine sign-in token, but for another address than this
+      // invitation's. It is not adopted; whoever was signed in stays so.
+      await verified.discard();
+      return { status: "refused", reason: "email-mismatch" };
+    }
+    if (!(await adopt(supabase, verified))) return { status: "unavailable" };
+  }
+
+  const { data: rows, error } = await supabase.rpc("accept_invitation_token", { p_token: input.token });
+  const row = (rows as AcceptInvitationRow[] | null)?.[0];
+  if (!error && row?.ok && row.community_id) return { status: "joined", communityId: row.community_id };
+  return { status: "refused", reason: row?.reason ?? "invalid" };
+}
+
+export type CommunityLinkOutcome =
+  | { status: "entered"; path: string }
+  | { status: "link-expired" }
+  | { status: "unavailable" };
+
+/**
+ * The existing-account variant: membership was activated at approval, so this
+ * only signs in and finds the way to the community. It grants nothing. The
+ * destination is built from the database — the community's id, and only if
+ * the now-signed-in account is an active member — never from the URL.
+ */
+export async function enterCommunityWithEmailLink(input: {
+  tokenHash: string;
+  communitySlug: string;
+}): Promise<CommunityLinkOutcome> {
+  const supabase = await createSupabaseServerClient();
+  const verified = await verifyEmailLink(input.tokenHash);
+  if (!verified.ok) return verified.unavailable ? { status: "unavailable" } : { status: "link-expired" };
+  // The page offers this only to someone who chose the email's link, so a
+  // session already here is set aside — but only now that the link is good.
+  if (!(await adopt(supabase, verified))) return { status: "unavailable" };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: portalRows } = await supabase.rpc("portal_by_slug", { p_slug: input.communitySlug });
+  const communityId = (portalRows as PortalCommunityRow[] | null)?.[0]?.id;
+  if (!communityId || !user) return { status: "entered", path: "/home" };
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("status")
+    .eq("user_id", user.id)
+    .eq("community_id", communityId)
+    .maybeSingle();
+  return {
+    status: "entered",
+    path: membership?.status === "active" ? `/community/${communityId}` : "/home",
+  };
+}
+
 // ── Events ──────────────────────────────────────────────────────────────
 
 /**
@@ -3104,6 +3260,30 @@ export async function updateMyCommunityProfile(input: {
   });
   if (error) return { ok: false, error: "err.profileSaveFailed" };
   return data === true ? { ok: true } : { ok: false, error: PROFILE_REFUSED };
+}
+
+// ── Welcome card ────────────────────────────────────────────────────────
+//
+// Per membership, never per account. Both functions name only a community;
+// whose row is read or written comes from auth.uid() inside the database, and
+// the column itself is not selectable by clients at all.
+
+/** Whether the caller's own active membership here still has its welcome card. */
+export async function isOnboardingVisible(communityId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("my_onboarding_visible", {
+    p_community_id: communityId,
+  });
+  return !error && data === true;
+}
+
+/** Dismisses the caller's own welcome card in one community. Idempotent. */
+export async function dismissMyOnboarding(communityId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("dismiss_my_onboarding", {
+    p_community_id: communityId,
+  });
+  return !error && data === true;
 }
 
 /** Same order as `swapCommunityAvatar`: swap the reference, then tidy up. */

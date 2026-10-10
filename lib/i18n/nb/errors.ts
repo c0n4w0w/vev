@@ -131,8 +131,10 @@ export const errors = {
   "err.requestFailed": "Vi kunne ikke sende forespørselen. Sjekk opplysningene og prøv igjen.",
   "ok.requestSent": "Takk. Forespørselen din er sendt til en administrator.",
   "err.approveFailed": "Forespørselen kunne ikke godkjennes.",
-  "ok.approvedActivated":
-    "Godkjent. {email} hadde allerede en TING-konto, så tilgangen er aktiv med det samme.",
+  "ok.approvedActivatedSent":
+    "Godkjent. {email} hadde allerede en TING-konto, så tilgangen er aktiv med det samme. En velkomst-e-post med innloggingslenke er sendt.",
+  "ok.approvedActivatedMailFailed":
+    "Godkjent. {email} hadde allerede en TING-konto, så tilgangen er aktiv – men velkomst-e-posten kunne ikke sendes.",
   "ok.approvedAlready":
     "Forespørselen var allerede godkjent. Lenken for å logge inn står ved lag.",
   "ok.approvedSent": "Godkjent. En lenke for å logge inn er sendt til {email}.",
@@ -149,5 +151,6 @@ export const errors = {
   "err.invitation.revoked":
     "Invitasjonen er erstattet av en nyere. Bruk den siste lenken du fikk.",
   "err.invitation.invalid": "Invitasjonen er ikke gyldig.",
+  "err.authUnavailable": "Vi får ikke kontakt med innloggingen akkurat nå. Lenken er ikke brukt opp – prøv igjen om litt.",
   "err.notificationsFailed": "Varslene kunne ikke merkes som lest. Prøv igjen.",
 } as const;

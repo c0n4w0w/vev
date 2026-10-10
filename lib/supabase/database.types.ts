@@ -1997,6 +1997,7 @@ export type Database = {
           invited_by: string | null
           joined_at: string
           local_group_id: string | null
+          onboarding_dismissed_at: string | null
           role: Database["public"]["Enums"]["community_role"]
           status: Database["public"]["Enums"]["membership_status"]
           title: string | null
@@ -2009,6 +2010,7 @@ export type Database = {
           invited_by?: string | null
           joined_at?: string
           local_group_id?: string | null
+          onboarding_dismissed_at?: string | null
           role?: Database["public"]["Enums"]["community_role"]
           status?: Database["public"]["Enums"]["membership_status"]
           title?: string | null
@@ -2021,6 +2023,7 @@ export type Database = {
           invited_by?: string | null
           joined_at?: string
           local_group_id?: string | null
+          onboarding_dismissed_at?: string | null
           role?: Database["public"]["Enums"]["community_role"]
           status?: Database["public"]["Enums"]["membership_status"]
           title?: string | null
@@ -2797,6 +2800,10 @@ export type Database = {
         }[]
       }
       direct_unread_count: { Args: { p_community_id: string }; Returns: number }
+      dismiss_my_onboarding: {
+        Args: { p_community_id: string }
+        Returns: boolean
+      }
       edit_collaboration_message: {
         Args: { p_body: string; p_message_id: string }
         Returns: boolean
@@ -2915,6 +2922,7 @@ export type Database = {
         Returns: boolean
       }
       mark_notifications_read: { Args: never; Returns: undefined }
+      my_onboarding_visible: { Args: { p_community_id: string }; Returns: boolean }
       my_accepts_member_dms: {
         Args: { p_community_id: string }
         Returns: boolean

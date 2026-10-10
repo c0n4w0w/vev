@@ -31,6 +31,22 @@ export const community = {
   "overview.privacyNote":
     "Innholdet her er kun synlig for medlemmer. Den offentlige siden på {url} viser bare det {name} selv velger å dele.",
 
+  // ── Welcome card ("Kom i gang") — new members only, until dismissed ───
+  "overview.welcome.label": "Kom i gang",
+  "overview.welcome.eyebrow": "Velkommen til fellesskapet",
+  "overview.welcome.title": "Hei, og velkommen til {name}!",
+  "overview.welcome.lead":
+    "Her kan du bli kjent med andre medlemmer, følge med på aktiviteter og engasjere deg i organisasjonen.",
+  "overview.welcome.profile.title": "Gjør profilen din personlig",
+  "overview.welcome.profile.body": "Velg hvordan du vil vises i fellesskapet.",
+  "overview.welcome.lokallag.title": "Finn lokallaget ditt",
+  "overview.welcome.lokallag.body": "Se aktiviteter og samtaler der du bor.",
+  "overview.welcome.introductions.title": "Si hei til de andre",
+  "overview.welcome.introductions.body": "Bli kjent i #{channel}.",
+  "overview.welcome.footer": "Alt er frivillig. Utforsk i ditt tempo.",
+  "overview.welcome.skip": "Hopp over",
+  "overview.welcome.close": "Lukk velkomsten",
+
   // ── Feed and posts ────────────────────────────────────────────────────
   "feed.title": "Feed",
   "feed.lead": "Alt som skjer i {name} — innlegg og kunngjøringer, nyeste først.",

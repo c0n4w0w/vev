@@ -7,7 +7,7 @@ import {
   rejectRequestAction,
   resendInvitationAction,
 } from "@/app/actions";
-import { emptyAccessFormState } from "@/lib/access-form";
+import { emptyAccessFormState, type AccessFormState } from "@/lib/access-form";
 import { Badge, EmptyState, Panel } from "@/components/ui/primitives";
 import { IconMail } from "@/components/ui/icons";
 import { formatFullDate, timeUntil } from "@/lib/format";
@@ -33,15 +33,26 @@ function RequestRow({
   request,
   communityId,
   accent,
+  onResult,
 }: {
   request: AccessRequest;
   communityId: string;
   accent: string;
+  /** A decided request leaves this list, and its row with it; the queue keeps the outcome. */
+  onResult: (state: AccessFormState) => void;
 }) {
   const t = useT();
   const locale = useLocale();
-  const [approveState, approve] = useActionState(approveRequestAction, emptyAccessFormState);
-  const [rejectState, reject] = useActionState(rejectRequestAction, emptyAccessFormState);
+  const [approveState, approve] = useActionState(async (prev: AccessFormState, formData: FormData) => {
+    const next = await approveRequestAction(prev, formData);
+    onResult(next);
+    return next;
+  }, emptyAccessFormState);
+  const [rejectState, reject] = useActionState(async (prev: AccessFormState, formData: FormData) => {
+    const next = await rejectRequestAction(prev, formData);
+    onResult(next);
+    return next;
+  }, emptyAccessFormState);
   const [confirmingReject, setConfirmingReject] = useState(false);
   const state = approveState.status !== "idle" ? approveState : rejectState;
 
@@ -219,6 +230,9 @@ export function RequestQueue({
 }) {
   const t = useT();
   const locale = useLocale();
+  // The last approve/reject outcome — including "approved, but the email
+  // could not be sent" — which would otherwise vanish with its row.
+  const [notice, setNotice] = useState<AccessFormState | null>(null);
   return (
     <div className="space-y-10">
       <section>
@@ -227,6 +241,17 @@ export function RequestQueue({
             ? t("requests.noneHeading")
             : tn(locale, "requests.waiting", requests.length)}
         </h2>
+
+        {notice && notice.status !== "idle" && notice.message ? (
+          <p
+            role="status"
+            className={`mb-3 rounded-[5px] border px-3 py-2 text-[13px] leading-relaxed ${
+              notice.status === "error" ? "border-rust/25 bg-rust-soft text-rust" : "border-line bg-surface text-ink-2"
+            }`}
+          >
+            {notice.message}
+          </p>
+        ) : null}
 
         {requests.length === 0 ? (
           <EmptyState
@@ -241,6 +266,7 @@ export function RequestQueue({
                 request={request}
                 communityId={communityId}
                 accent={accent}
+                onResult={setNotice}
               />
             ))}
           </Panel>

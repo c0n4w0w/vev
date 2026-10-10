@@ -27,7 +27,6 @@ import {
   removeSubgroupMember,
   deleteComment as removeComment,
   getCommunityById,
-  getLocalGroups,
   getPortalCommunity,
   getMembership,
   joinEvent,
@@ -36,6 +35,10 @@ import {
   markNotificationRead,
   deleteCommunityEmoji as removeEmoji,
   deletePost as removePost,
+  enterCommunityWithEmailLink,
+  getAccessRequests,
+  redeemInvitationWithEmailLink,
+  dismissMyOnboarding,
   rejectAccessRequest,
   renameLocalGroup,
   requestCommunityAccess,
@@ -90,6 +93,9 @@ import type { MessageFormState } from "@/lib/message-form";
 import { parseContentScope, type SubgroupFormState } from "@/lib/subgroup-form";
 import type { PostFormState } from "@/lib/post-form";
 import { sendInvitationEmail } from "@/lib/email/invitation";
+import { mintEmailSignInLink } from "@/lib/email-sign-in-link";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { InvitationLinkState } from "@/lib/invitation-link-form";
 import { osloInstant } from "@/lib/format";
 import {
   communityLocale,
@@ -1270,6 +1276,25 @@ export async function updateCommunityProfileAction(
 }
 
 /**
+ * Dismisses the "Kom i gang" welcome card for the caller's own membership in
+ * one community — from either "Hopp over" or the close icon.
+ *
+ * The community id is the only input, and it is not trusted for anything but
+ * naming the row: `dismiss_my_onboarding()` takes the user from auth.uid(),
+ * touches only that membership's dismissal timestamp, and refuses a community
+ * the caller is not an active member of. Repeating it is harmless.
+ */
+export async function dismissOnboardingAction(communityId: string): Promise<{ ok: boolean }> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  if (typeof communityId !== "string" || communityId === "") return { ok: false };
+
+  const ok = await dismissMyOnboarding(communityId);
+  if (ok) revalidatePath(`/community/${communityId}`);
+  return { ok };
+}
+
+/**
  * Updates the "Om fellesskapet" text on the community overview page.
  *
  * Visibility of the pencil that opens this form is decided by role, in the
@@ -1444,13 +1469,20 @@ export async function requestAccessAction(
 }
 
 /**
- * Approves a request. What happens next depends on what the database found:
- * an address with a usable TING account is activated on the spot, and
- * nothing is sent. An address with no account gets a claim-link email — sent
- * only when the database actually minted a token, so a second click, which
- * finds the request already approved and gets no token back, sends nothing.
- * That is what keeps approval idempotent all the way through to the
- * recipient's inbox.
+ * Approves a request, then sends the one email the person needs.
+ *
+ * What the database decided shapes the email, never the other way round:
+ *
+ * - `invited` (no usable TING account): the email carries the invitation and a
+ *   Supabase sign-in token, so a single click signs the person in and accepts.
+ *   Minting that token creates the account now, unconfirmed and with no
+ *   memberships (see lib/email-sign-in-link.ts).
+ * - `activated` (an existing account): access is already active. The email is
+ *   a convenient way in, not a condition — if it cannot be sent, the
+ *   membership stands and the admin is told the mail failed.
+ *
+ * Only a request that was still pending sends anything, so a second click or
+ * a stale page cannot mail the same person twice.
  */
 export async function approveRequestAction(
   _prev: AccessFormState,
@@ -1460,8 +1492,10 @@ export async function approveRequestAction(
   if (!user) redirect("/login");
 
   const communityId = String(formData.get("communityId") ?? "");
+  const requestId = String(formData.get("requestId") ?? "");
   const t = await translatorFor(communityId);
-  const minted = await approveAccessRequest(String(formData.get("requestId") ?? ""));
+  const wasPending = (await getAccessRequests(communityId)).some((request) => request.id === requestId);
+  const minted = await approveAccessRequest(requestId);
 
   if (!minted) {
     return { status: "error", message: t("err.approveFailed") };
@@ -1470,9 +1504,13 @@ export async function approveRequestAction(
   revalidatePath(`/community/${communityId}/requests`);
 
   if (minted.outcome === "activated") {
+    if (!wasPending) return { status: "ok", message: t("ok.approvedAlready") };
+    const sent = await deliverApprovalEmail({ ...minted, kind: "existing" }, t);
     return {
       status: "ok",
-      message: t("ok.approvedActivated", { email: minted.email }),
+      message: sent.ok
+        ? t("ok.approvedActivatedSent", { email: minted.email })
+        : t("ok.approvedActivatedMailFailed", { email: minted.email }),
     };
   }
 
@@ -1480,7 +1518,7 @@ export async function approveRequestAction(
     return { status: "ok", message: t("ok.approvedAlready") };
   }
 
-  const sent = await deliverInvitation(minted, t);
+  const sent = await deliverApprovalEmail({ ...minted, kind: "new" }, t);
   return sent.ok
     ? { status: "ok", message: t("ok.approvedSent", { email: minted.email }) }
     : { status: "error", message: sent.message };
@@ -1503,6 +1541,11 @@ export async function rejectRequestAction(
     : { status: "error", message: t("err.rejectFailed") };
 }
 
+/**
+ * Issues a fresh invitation and a fresh sign-in token, and revokes the old
+ * invitation. The account an earlier approval created is reused as it is —
+ * resending never deletes or recreates anyone.
+ */
 export async function resendInvitationAction(
   _prev: AccessFormState,
   formData: FormData,
@@ -1519,19 +1562,26 @@ export async function resendInvitationAction(
     return { status: "error", message: t("err.resendFailed") };
   }
 
-  const sent = await deliverInvitation(minted, t);
+  const sent = await deliverApprovalEmail({ ...minted, kind: "new" }, t);
   return sent.ok
     ? { status: "ok", message: t("ok.resent", { email: minted.email }) }
     : { status: "error", message: sent.message };
 }
 
 /**
- * Builds the absolute accept URL and hands the message to the provider. The
- * email is written in the community's language — it is about one community
- * and nothing else.
+ * Mints the sign-in token and hands the one approval email to the provider,
+ * in the community's language.
+ *
+ * Runs only after the database has authorised the approval or resend for the
+ * caller, and only for the address the database returned. The service-role
+ * client is created here, on the server, for `generateLink` alone; it never
+ * reaches a browser. If Supabase cannot mint a token, the email still goes
+ * out and the page falls back to asking for a sign-in link — slower, but the
+ * approval is never lost to an auth hiccup.
  */
-async function deliverInvitation(
+async function deliverApprovalEmail(
   minted: {
+    kind: "new" | "existing";
     token: string | null;
     email: string;
     communityId: string;
@@ -1539,30 +1589,115 @@ async function deliverInvitation(
   },
   t: Translator,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-  // `expiresAt` is only ever null alongside a null token (the 'activated'
-  // outcome, which never reaches this function, and an idempotent replay
-  // with no fresh token to send).
-  if (!minted.token || !minted.expiresAt) return { ok: false, message: t("err.noInvitation") };
+  if (minted.kind === "new" && (!minted.token || !minted.expiresAt)) {
+    return { ok: false, message: t("err.noInvitation") };
+  }
 
   const community = await getCommunityById(minted.communityId);
   const origin = await siteOrigin();
+  const signIn = await mintEmailSignInLink(createSupabaseAdminClient(), {
+    email: minted.email,
+    communityId: minted.communityId,
+  }).catch(() => null);
+
+  const params = new URLSearchParams();
+  if (signIn) params.set("innlogging", signIn.tokenHash);
+  let acceptUrl: string;
+  if (minted.kind === "new") {
+    acceptUrl = `${origin}/invitasjon/${minted.token}${params.size ? `?${params}` : ""}`;
+  } else if (signIn && community) {
+    params.set("f", community.slug);
+    acceptUrl = `${origin}/velkommen?${params}`;
+  } else {
+    acceptUrl = `${origin}/login?neste=${encodeURIComponent(`/community/${minted.communityId}`)}`;
+  }
 
   const result = await sendInvitationEmail({
     to: minted.email,
-    kind: "new",
+    kind: minted.kind,
     origin,
     communityName: community?.name ?? t("common.theCommunity"),
     locale: community ? communityLocale(community) : PLATFORM_LOCALE,
-    acceptUrl: `${origin}/invitasjon/${minted.token}`,
-    invitationExpiresAt: minted.expiresAt,
+    acceptUrl,
+    signInExpiresAt: signIn
+      ? // Never promise sign-in past the invitation's own expiry.
+        minted.expiresAt && minted.expiresAt < signIn.signInExpiresAt
+        ? minted.expiresAt
+        : signIn.signInExpiresAt
+      : undefined,
+    invitationExpiresAt: minted.expiresAt ?? undefined,
     accent: community?.branding.accent ?? "#1f4a3d",
   });
 
-  // The invitation exists either way; only the delivery failed. Saying so lets
+  // The approval stands either way; only the delivery failed. Saying so lets
   // an admin resend rather than wonder whether the approval took.
   return result.ok
     ? { ok: true }
     : { ok: false, message: t("err.emailNotSent", { error: result.error }) };
+}
+
+/**
+ * The button on the invitation page an approval email opens: signs in with
+ * the email's Supabase token (or uses the session already here, if it is the
+ * invited account) and accepts the invitation, then goes straight to the
+ * community's Overview.
+ *
+ * A POST, deliberately: the page's GET only renders, so a mail scanner or link
+ * preview that fetches the URL spends neither token. `switch` is set only by
+ * the explicit "sign out and continue as …" button; without it, a different
+ * account's session is refused, never replaced.
+ */
+export async function redeemInvitationLinkAction(
+  _prev: InvitationLinkState,
+  formData: FormData,
+): Promise<InvitationLinkState> {
+  const token = String(formData.get("token") ?? "");
+  const tokenHash = String(formData.get("innlogging") ?? "") || undefined;
+  const t = translator(parseLocale(formData.get("locale")));
+
+  const outcome = await redeemInvitationWithEmailLink({
+    token,
+    tokenHash,
+    switchAccount: formData.get("switch") === "1",
+  });
+
+  switch (outcome.status) {
+    case "joined":
+      revalidatePath("/", "layout");
+      redirect(`/community/${outcome.communityId}`);
+    case "mismatch":
+      return { status: "mismatch" };
+    case "link-expired":
+      return { status: "link-expired" };
+    case "unavailable":
+      return { status: "error", message: t("err.authUnavailable") };
+    case "refused":
+      return { status: "error", message: t(invitationFailure(outcome.reason)) };
+  }
+}
+
+/**
+ * The existing-account variant (`/velkommen`): signs in with the email's
+ * token and goes to the community. Access was activated at approval; this
+ * grants nothing, and the destination comes from the database.
+ */
+export async function enterCommunityLinkAction(
+  _prev: InvitationLinkState,
+  formData: FormData,
+): Promise<InvitationLinkState> {
+  const t = translator(parseLocale(formData.get("locale")));
+  const outcome = await enterCommunityWithEmailLink({
+    tokenHash: String(formData.get("innlogging") ?? ""),
+    communitySlug: String(formData.get("f") ?? ""),
+  });
+
+  if (outcome.status === "entered") {
+    revalidatePath("/", "layout");
+    redirect(outcome.path);
+  }
+  return outcome.status === "unavailable"
+    ? { status: "error", message: t("err.authUnavailable") }
+    : { status: "link-expired" };
 }
 
 /** Redeems a token for the signed-in account. */
@@ -1585,15 +1720,10 @@ export async function acceptInvitationAction(
   revalidatePath("/home");
   revalidatePath("/communities");
 
-  // Membership already exists at this point — the question that follows cannot
-  // withdraw it. Communities that use local groups get one chance to ask, with
-  // skipping a single click away; communities that do not are sent straight
-  // in, which is how this stays invisible where it does not apply.
-  const groups = await getLocalGroups(result.communityId!);
-  if (groups.some((group) => group.active)) {
-    redirect(`/community/${result.communityId}/lokallag?velkommen=1`);
-  }
-
+  // Straight to the Overview. A newly active membership is welcomed there by
+  // the "Kom i gang" card, which is also where choosing a lokallag is offered
+  // — optional, alongside the other first steps, rather than as a detour
+  // before the person has seen the community at all.
   redirect(`/community/${result.communityId}`);
 }
 

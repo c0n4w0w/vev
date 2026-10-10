@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
+import { redeemInvitationLinkAction } from "@/app/actions";
 import { AcceptInvitation } from "@/components/community/AcceptInvitation";
+import { EmailLinkSignIn } from "@/components/community/EmailLinkSignIn";
 import { Wordmark } from "@/components/shell/Wordmark";
 import { CommunityMark, Panel, buttonClass } from "@/components/ui/primitives";
 import { IconLock, IconMail } from "@/components/ui/icons";
@@ -13,7 +15,11 @@ import { LocaleProvider } from "@/lib/i18n/react";
 export async function generateMetadata({ params }: PageProps<"/invitasjon/[token]">) {
   const { token } = await params;
   const preview = await getInvitationPreview(token);
-  return { title: translator(preview?.communityLocale ?? PLATFORM_LOCALE)("inv.metaTitle") };
+  return {
+    title: translator(preview?.communityLocale ?? PLATFORM_LOCALE)("inv.metaTitle"),
+    // The URL can carry a sign-in token. Never hand it to another site.
+    referrer: "no-referrer" as const,
+  };
 }
 
 /**
@@ -27,8 +33,15 @@ export async function generateMetadata({ params }: PageProps<"/invitasjon/[token
  * Holding the link is not enough to join. Accepting requires a session whose
  * email matches the invited address, which the database checks.
  */
-export default async function InvitationPage({ params }: PageProps<"/invitasjon/[token]">) {
+export default async function InvitationPage({
+  params,
+  searchParams,
+}: PageProps<"/invitasjon/[token]">) {
   const { token } = await params;
+  // The Supabase sign-in token an approval email adds. Opening the page never
+  // uses it; only the button below does (see EmailLinkSignIn).
+  const { innlogging } = await searchParams;
+  const signInToken = typeof innlogging === "string" && innlogging ? innlogging : undefined;
   const preview = await getInvitationPreview(token);
   const user = await getSessionUser();
 
@@ -68,6 +81,13 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
   // and the accept step below both avoid asking "do you want this".
   const label = preview.autoActivate ? t("inv.label.approved") : t("inv.label.invitation");
   const lede = preview.autoActivate ? t("inv.lede.approved") : t("inv.lede.invited");
+  const loginForInvitation = `/login?e=${encodeURIComponent(preview.email)}&neste=${encodeURIComponent(`/invitasjon/${token}`)}`;
+  const recovery = {
+    title: t("inv.link.expired.title"),
+    body: t("inv.link.expired.body"),
+    href: loginForInvitation,
+    action: t("inv.link.expired.action"),
+  };
 
   return (
     <Shell locale={locale}>
@@ -97,32 +117,45 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
       <Panel className="mt-8 p-5">
         <p className="flex items-start gap-2 text-[13px] leading-relaxed text-ink-2">
           <IconMail size={14} className="mt-0.5 shrink-0 text-ink-3" />
-          {preview.autoActivate ? (
-            <>
-              {t("inv.approvedFor")}
-              <span className="font-mono text-ink">{preview.email}</span>
-              {t("inv.approvedAfter", { date: formatFullDate(preview.expiresAt, locale) })}
-            </>
-          ) : (
-            <>
-              {t("inv.sentTo")}
-              <span className="font-mono text-ink">{preview.email}</span>
-              {t("inv.sentAfter", { date: formatFullDate(preview.expiresAt, locale) })}
-            </>
-          )}
+          {/* One inline run of text: as direct flex children the three pieces
+              were laid out as separate columns. */}
+          <span className="min-w-0">
+            {preview.autoActivate ? (
+              <>
+                {t("inv.approvedFor")}
+                <span className="break-all font-mono text-ink">{preview.email}</span>
+                {t("inv.approvedAfter", { date: formatFullDate(preview.expiresAt, locale) })}
+              </>
+            ) : (
+              <>
+                {t("inv.sentTo")}
+                <span className="break-all font-mono text-ink">{preview.email}</span>
+                {t("inv.sentAfter", { date: formatFullDate(preview.expiresAt, locale) })}
+              </>
+            )}
+          </span>
         </p>
       </Panel>
 
       <div className="mt-6">
-        {!user ? (
+        {!user && signInToken ? (
+          // One email: the link already carries a Supabase sign-in token.
+          <LocaleProvider locale={locale}>
+            <p className="mb-4 text-[0.9375rem] leading-relaxed text-ink-2">{t("inv.link.lead")}</p>
+            <EmailLinkSignIn
+              action={redeemInvitationLinkAction}
+              fields={{ token, innlogging: signInToken }}
+              label={t("inv.link.button")}
+              accent={accent}
+              recovery={recovery}
+            />
+          </LocaleProvider>
+        ) : !user ? (
           <>
             <p className="mb-4 text-[0.9375rem] leading-relaxed text-ink-2">
               {preview.autoActivate ? t("inv.signIn.approved") : t("inv.signIn.invited")}
             </p>
-            <Link
-              href={`/login?e=${encodeURIComponent(preview.email)}&neste=${encodeURIComponent(`/invitasjon/${token}`)}`}
-              className={buttonClass()}
-            >
+            <Link href={loginForInvitation} className={buttonClass()}>
               {t("inv.continueWith", { email: preview.email })}
             </Link>
           </>
@@ -135,9 +168,24 @@ export default async function InvitationPage({ params }: PageProps<"/invitasjon/
             <p className="mb-4 rounded-[5px] border border-rust/25 bg-rust-soft px-3 py-2.5 text-[13px] leading-relaxed text-rust">
               {t("inv.mismatch", { signedIn: signedInAs ?? "", email: preview.email })}
             </p>
-            <Link href="/login" className={buttonClass({ variant: "secondary" })}>
-              {t("inv.switchAccount")}
-            </Link>
+            {signInToken ? (
+              // Never a silent switch: the other account stays signed in until
+              // this is pressed, and the invitation can only ever attach to
+              // the invited address.
+              <LocaleProvider locale={locale}>
+                <EmailLinkSignIn
+                  action={redeemInvitationLinkAction}
+                  fields={{ token, innlogging: signInToken, switch: "1" }}
+                  label={t("inv.link.switch", { email: preview.email })}
+                  accent={accent}
+                  recovery={recovery}
+                />
+              </LocaleProvider>
+            ) : (
+              <Link href="/login" className={buttonClass({ variant: "secondary" })}>
+                {t("inv.switchAccount")}
+              </Link>
+            )}
           </>
         )}
       </div>

@@ -65,6 +65,9 @@ import { internalHref } from "@/lib/notification-href";
 import { notifications as fixtureNotifications } from "@/lib/mock/notifications";
 import { demoPersonas } from "@/lib/mock/demo-personas";
 import { users } from "@/lib/mock/users";
+import { memberships as fixtureMemberships } from "@/lib/mock/communities";
+import { demoPersonaMemberships } from "@/lib/mock/demo-personas";
+import { accessRequests as fixtureRequests } from "@/lib/mock/access-requests";
 import type { Database } from "@/lib/supabase/database.types";
 
 config({ path: ".env.local" });
@@ -195,6 +198,37 @@ async function main() {
   // hard-coded counts below would have had to move one by one.
   const seededTotal = fixtureNotifications.length;
   const seededUnread = fixtureNotifications.filter((n) => !n.read).length;
+
+  // What the database held before this run, for every table the run touches.
+  //
+  // The suite makes two claims, and checks them separately: the seeded
+  // fixtures are intact, and this run leaves no trace. Neither claim is "the
+  // database holds nothing else". A local stack legitimately carries rows from
+  // other checks and from people trying the product — a disposable account
+  // approved into a community, its request notice to the admin, an
+  // outstanding invitation — and whole-table counts read those as failures of
+  // this suite. "No trace" is measured against this snapshot; "fixtures
+  // intact" against the fixture files, scoped to fixture accounts.
+  const countOf = async (table: "memberships" | "access_requests", filter?: { status: string }) => {
+    let query = admin.from(table).select("*", { count: "exact", head: true });
+    if (filter) query = query.eq("status", filter.status as never);
+    return (await query).count ?? 0;
+  };
+  const baseline = {
+    notifications: seededNotificationIds.length,
+    unread: readStateBefore.filter((row) => !row.read).length,
+    memberships: await countOf("memberships"),
+    requests: await countOf("access_requests"),
+    pendingRequests: await countOf("access_requests", { status: "pending" }),
+    invitationIds: ((await admin.from("invitations").select("id")).data ?? []).map((row) => row.id).sort(),
+  };
+
+  // The seeded accounts, by profile id: the scope of every fixture claim.
+  const fixtureHandles = [...users, ...demoPersonas].map((person) => person.handle);
+  const fixtureUserIds = (
+    await admin.from("profiles").select("id").in("handle", fixtureHandles)
+  ).data!.map((row) => row.id);
+  const allFixtureMemberships = [...fixtureMemberships, ...demoPersonaMemberships];
   const seededFor = (handle: string) =>
     fixtureNotifications.filter((n) => n.userId === handle);
 
@@ -237,7 +271,7 @@ async function main() {
   const { count: afterInserts } = await admin
     .from("notifications")
     .select("*", { count: "exact", head: true });
-  expect("ingen nye rader ble laget", afterInserts, seededTotal);
+  expect("ingen nye rader ble laget", afterInserts, baseline.notifications);
 
   // ── C. The read state, and only the read state ────────────────────────
   const flip = await ingrid
@@ -320,7 +354,7 @@ async function main() {
   const { count: afterDeletes } = await admin
     .from("notifications")
     .select("*", { count: "exact", head: true });
-  expect("alle radene er fortsatt der", afterDeletes, seededTotal);
+  expect("alle radene er fortsatt der", afterDeletes, baseline.notifications);
 
   // ── I. Marking one notification read ──────────────────────────────────
   //
@@ -528,8 +562,21 @@ async function main() {
   expect("medlem kan ikke publisere kunngjøring", memberTries.error !== null, true);
   expect("og ingen varsler ble laget", (await notificationsSince(TR)).length, 0);
 
+  // The fan-out below is measured against everyone active here, fixture or
+  // not; the seed's own claim is about the fixture accounts.
   const trActive = await activeIn(TR);
-  expect("Tryggere har tolv aktive medlemmer", trActive, 12);
+  const { count: trFixtureActive } = await admin
+    .from("memberships")
+    .select("*", { count: "exact", head: true })
+    .eq("community_id", TR)
+    .eq("status", "active")
+    .in("user_id", fixtureUserIds);
+  expect("Tryggere har tolv aktive fixture-medlemmer", trFixtureActive, 12);
+  expect(
+    "og fixture-filen sier det samme",
+    allFixtureMemberships.filter((m) => m.communityId === TR && m.status === "active").length,
+    12,
+  );
 
   // B. Fan-out, from staff.
   const adminPost = await publish(amina, TR, { title: "Sjekk: kunngjøring fra administrator" });
@@ -720,7 +767,7 @@ async function main() {
   expect(
     "varslene fra denne seksjonen er ryddet bort",
     (await admin.from("notifications").select("*", { count: "exact", head: true })).count,
-    seededTotal,
+    baseline.notifications,
   );
 
   // ── L. The access request lifecycle ───────────────────────────────────
@@ -1056,12 +1103,12 @@ async function main() {
   expect(
     "forespørslene fra denne seksjonen er ryddet bort",
     (await admin.from("access_requests").select("*", { count: "exact", head: true })).count,
-    2,
+    baseline.requests,
   );
   expect(
     "og varslene også",
     (await admin.from("notifications").select("*", { count: "exact", head: true })).count,
-    seededTotal,
+    baseline.notifications,
   );
 
   // ── 10. The one real generator, for the address that never gets a shortcut ─
@@ -1298,9 +1345,12 @@ async function main() {
     expect(`${row.id}: og mottakeren skrev den ikke selv`, post?.profiles.handle === asHandle(row.userId), false);
   }
 
-  // The seed is deterministic: what is in the database is exactly the fixture
-  // set, once each. A second seed cannot add to it, which is the property that
-  // matters when the seed is run repeatedly during a demo.
+  // The seed is deterministic: every fixture notification is in the database
+  // exactly once, with its seeded read state. A second seed cannot add to it,
+  // which is the property that matters when the seed is run repeatedly during
+  // a demo. Rows that are not fixtures — notices produced by real use of the
+  // local stack — are neither required nor forbidden here; that this run left
+  // none of its own behind is checked against the baseline below.
   const { data: live } = await admin
     .from("notifications")
     .select("title, read, href, profiles!inner(handle)");
@@ -1315,35 +1365,43 @@ async function main() {
   const wantRows = fixtureNotifications
     .map((n) => `${asHandle(n.userId)}|${n.title}|${n.read}|${n.href}`)
     .sort();
-  expect("databasen holder nøyaktig fixture-settet", liveRows.join("\n"), wantRows.join("\n"));
+  const liveCount = new Map<string, number>();
+  for (const key of liveRows) liveCount.set(key, (liveCount.get(key) ?? 0) + 1);
+  const notExactlyOnce = wantRows.filter((key) => liveCount.get(key) !== 1);
+  expect("hvert fixture-varsel finnes nøyaktig én gang, med seedet lest-status", notExactlyOnce.join("\n"), "");
 
   // ── Back to where we started ──────────────────────────────────────────
   const { count: finalCount } = await admin
     .from("notifications")
     .select("*", { count: "exact", head: true });
-  expect("like mange varsler som i seed", finalCount, seededTotal);
+  expect("like mange varsler som før kjøringen", finalCount, baseline.notifications);
+  expect("og fixture-settet er fortsatt med", (finalCount ?? 0) >= seededTotal, true);
 
   const { count: finalUnread } = await admin
     .from("notifications")
     .select("*", { count: "exact", head: true })
     .eq("read", false);
-  expect("og like mange uleste", finalUnread, seededUnread);
+  expect("og like mange uleste som før", finalUnread, baseline.unread);
 
-  const { count: memberships } = await admin
+  expect("medlemskapene er tilbake der de var", await countOf("memberships"), baseline.memberships);
+  const { count: fixtureMembershipCount } = await admin
     .from("memberships")
-    .select("*", { count: "exact", head: true });
-  expect("medlemskapene er tilbake til 32", memberships, 32);
+    .select("*", { count: "exact", head: true })
+    .in("user_id", fixtureUserIds);
+  expect("fixture-kontoene har sine 32 medlemskap", fixtureMembershipCount, 32);
+  expect("og fixture-filen sier det samme", allFixtureMemberships.length, 32);
 
-  const { count: invitations } = await admin
-    .from("invitations")
-    .select("*", { count: "exact", head: true });
-  expect("ingen invitasjon ble liggende igjen", invitations, 0);
+  const invitationIdsAfter = ((await admin.from("invitations").select("id")).data ?? []).map((row) => row.id).sort();
+  expect("ingen invitasjon ble liggende igjen", invitationIdsAfter.join(","), baseline.invitationIds.join(","));
 
-  const { count: pending } = await admin
+  expect("like mange ventende forespørsler som før", await countOf("access_requests", { status: "pending" }), baseline.pendingRequests);
+  const fixtureRequestEmails = fixtureRequests.map((request) => request.email);
+  const { count: fixturePending } = await admin
     .from("access_requests")
     .select("*", { count: "exact", head: true })
-    .eq("status", "pending");
-  expect("begge forespørslene venter igjen", pending, 2);
+    .eq("status", "pending")
+    .in("email", fixtureRequestEmails);
+  expect("begge fixture-forespørslene venter igjen", fixturePending, 2);
 
   expect("og målraden er uendret", JSON.stringify(await stored(target)), JSON.stringify(before));
 

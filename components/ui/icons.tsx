@@ -129,6 +129,12 @@ export const IconFeed = (p: IconProps) => (
   </Svg>
 );
 
+export const IconMessage = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4.5 6.2c0-1 .8-1.7 1.7-1.7h11.6c1 0 1.7.8 1.7 1.7v8.4c0 1-.8 1.7-1.7 1.7H10l-4.2 3.2v-3.2h.4c-1 0-1.7-.8-1.7-1.7Z" />
+  </Svg>
+);
+
 export const IconMegaphone = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4 10.2v3.6a1.6 1.6 0 0 0 1.6 1.6h2L14.8 19V5L7.6 8.6h-2A1.6 1.6 0 0 0 4 10.2Z" />

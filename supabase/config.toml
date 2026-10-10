@@ -234,7 +234,11 @@ max_frequency = "1s"
 # Number of characters used in the email OTP.
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
-otp_expiry = 3600
+# Raised from 3600 for the one-email approval flow: the approval email's
+# sign-in token lives this long (24 h, Supabase's maximum). It applies to every
+# email OTP and magic link. Local only — the hosted project has its own
+# setting, and SUPABASE_EMAIL_OTP_EXPIRY_SECONDS must match whichever is used.
+otp_expiry = 86400
 
 # Use a production-ready SMTP server
 # [auth.email.smtp]
@@ -243,10 +247,8 @@ otp_expiry = 3600
 # port = 587
 # user = "apikey"
 # pass = "env(SENDGRID_API_KEY)"
-# The sender local auth emails show. Mirrors the intended production sender;
-# locally it only labels what lands in Mailpit — nothing is delivered.
-admin_email = "ikke-svar@join-ting.no"
-sender_name = "TING"
+# admin_email = "admin@email.com"
+# sender_name = "Admin"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

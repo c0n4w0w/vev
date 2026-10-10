@@ -397,6 +397,10 @@ async function main() {
           joined_at: on(membership.joinedAt),
           title: membership.title ?? null,
           invited_by: membership.invitedBy ? uid.get(membership.invitedBy)! : null,
+          // Fixture members are established members, not people who just
+          // joined: their Overview has no welcome card. Pending fixtures stay
+          // NULL, so accepting one shows the card like any real activation.
+          onboarding_dismissed_at: membership.status === "active" ? new Date().toISOString() : null,
         })),
       )
     ).error,

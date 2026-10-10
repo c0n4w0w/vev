@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CommunityAboutSection } from "@/components/community/CommunityAboutSection";
+import { CommunityWelcomeCard } from "@/components/community/CommunityWelcomeCard";
 import { RelatedCommunityCard } from "@/components/community/RelatedCommunityCard";
 import { EventCard } from "@/components/community/EventCard";
 import { PostCard } from "@/components/community/PostCard";
@@ -29,14 +30,17 @@ import {
   getFeed,
   getGroupedChannels,
   getLatestMessage,
+  getLocalGroups,
   getMembership,
   getRelatedCommunity,
   getUpcomingCommunityEvents,
   getCommunityPersonas,
+  isOnboardingVisible,
 } from "@/lib/data";
 import { PUBLIC_HOST } from "@/lib/brand";
 import { timeAgo } from "@/lib/format";
 import { communityLocale, communityTranslator, tn, translator } from "@/lib/i18n";
+import { onboardingSteps } from "@/lib/onboarding";
 import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 
@@ -58,7 +62,7 @@ export default async function CommunityOverviewPage({
   const locale = communityLocale(community);
   const t = translator(locale);
 
-  const [membership, announcements, allPosts, upcoming, groups, customEmojis, related] = await Promise.all([
+  const [membership, announcements, allPosts, upcoming, groups, customEmojis, related, welcome] = await Promise.all([
     getMembership(user.id, community.id),
     getAnnouncements(community.id),
     getFeed(community.id),
@@ -68,12 +72,23 @@ export default async function CommunityOverviewPage({
     getCommunityEmojis(community.id),
     // Only the two configured Tryggere communities have one; others get undefined.
     getRelatedCommunity(user.id, community.slug),
+    // The caller's own membership here, asked of the database: shown only to
+    // someone who became an active member after the card existed and has not
+    // dismissed it. Every other member sees the Overview unchanged.
+    isOnboardingVisible(community.id),
   ]);
 
   const pinned = announcements.find((post) => post.pinned);
   const feed = allPosts.filter((post) => post.id !== pinned?.id).slice(0, 2);
   const events = upcoming.slice(0, 2);
   const accent = community.branding.accent;
+  const welcomeSteps = welcome
+    ? onboardingSteps({
+        communityId: community.id,
+        localGroups: await getLocalGroups(community.id),
+        channels: groups.flatMap((group) => group.channels),
+      })
+    : [];
   const membershipTitle = publicMemberTitle(membership?.title);
 
   // The cards below are the same interactive PostCard the feed renders, so
@@ -183,6 +198,15 @@ export default async function CommunityOverviewPage({
         */}
         <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-12">
           <div className="space-y-10">
+            {welcome ? (
+              <CommunityWelcomeCard
+                communityId={community.id}
+                communityName={community.name}
+                steps={welcomeSteps}
+                accent={accent}
+              />
+            ) : null}
+
             <CommunityAboutSection
               communityId={community.id}
               about={community.about}

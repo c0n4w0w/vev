@@ -129,8 +129,10 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.requestFailed": "We couldn't send your request. Check your details and try again.",
   "ok.requestSent": "Thank you. Your request has been sent to an administrator.",
   "err.approveFailed": "The request couldn't be approved.",
-  "ok.approvedActivated":
-    "Approved. {email} already had a TING account, so access is active right away.",
+  "ok.approvedActivatedSent":
+    "Approved. {email} already had a TING account, so access is active right away. A welcome email with a sign-in link has been sent.",
+  "ok.approvedActivatedMailFailed":
+    "Approved. {email} already had a TING account, so access is active – but the welcome email couldn't be sent.",
   "ok.approvedAlready": "The request was already approved. The sign-in link is still valid.",
   "ok.approvedSent": "Approved. A sign-in link has been sent to {email}.",
   "ok.rejected": "The request was rejected.",
@@ -146,5 +148,6 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.invitation.revoked":
     "This invitation has been replaced by a newer one. Use the most recent link you received.",
   "err.invitation.invalid": "This invitation isn't valid.",
+  "err.authUnavailable": "We can't reach sign-in right now. The link hasn't been used up – try again in a moment.",
   "err.notificationsFailed": "Notifications couldn't be marked as read. Try again.",
 };
