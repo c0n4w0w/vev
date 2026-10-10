@@ -166,17 +166,16 @@ export const portal = {
   "inv.activating": "Aktiverer tilgangen …",
   "inv.continue": "Fortsett",
 
-  // ── Invitation email ──────────────────────────────────────────────────
-  "email.invitation.subject": "Tilgangen din til {community} er godkjent",
-  "email.invitation.badge": "Godkjent",
-  "email.invitation.intro": "Tilgangen din til {community} på TING er godkjent.",
-  "email.invitation.body":
-    "En administrator i {community} har godkjent forespørselen din om tilgang. Det som gjenstår er å logge inn — har du ingen TING-konto ennå, blir den opprettet med det samme.",
-  "email.invitation.loginLabel": "Logg inn:",
-  "email.invitation.button": "Logg inn og få tilgang",
-  "email.invitation.expires": "Lenken virker fram til {date}, og kan bare brukes én gang.",
-  "email.invitation.about":
-    "TING er en egen digital plattform som organisasjoner bruker til å drive fellesskapet sitt. TING er ikke det samme som {community}, og styrer ikke det formelle medlemskapet ditt i organisasjonen.",
-  "email.invitation.ignore":
-    "Har du ikke bedt om dette, kan du se bort fra e-posten. Da skjer det ingenting, og ingen konto blir opprettet.",
+  // ── Approval email ("Kom i gang med TING") ─────────────────────────────
+  "email.welcome.subject": "Velkommen til {community} – tilgangen din er godkjent",
+  "email.welcome.heading": "Velkommen til {community}!",
+  "email.welcome.body":
+    "Søknaden din om tilgang til {community} er godkjent. Du kan nå bli med i fellesskapet vårt på TING.",
+  "email.welcome.bodyExisting":
+    "Søknaden din om tilgang til {community} er godkjent, og tilgangen er allerede aktiv på TING-kontoen din.",
+  "email.welcome.button": "Kom i gang med TING →",
+  "email.welcome.signIn": "Lenken er personlig og gir direkte innlogging frem til {date} kl. {time}.",
+  "email.welcome.personal": "Lenken er personlig.",
+  "email.welcome.invitationUntil": "Invitasjonen er gyldig til {date}.",
+  "email.welcome.ignore": "Har du ikke bedt om tilgang? Se bort fra denne e-posten.",
 } as const;

@@ -165,17 +165,16 @@ export const portal: Record<keyof typeof nb, string> = {
   "inv.activating": "Activating your access…",
   "inv.continue": "Continue",
 
-  // ── Invitation email ──────────────────────────────────────────────────
-  "email.invitation.subject": "Your access to {community} has been approved",
-  "email.invitation.badge": "Approved",
-  "email.invitation.intro": "Your access to {community} on TING has been approved.",
-  "email.invitation.body":
-    "An administrator of {community} has approved your request for access. All that's left is to sign in — if you don't have a TING account yet, one is created right away.",
-  "email.invitation.loginLabel": "Sign in:",
-  "email.invitation.button": "Sign in and get access",
-  "email.invitation.expires": "The link works until {date} and can only be used once.",
-  "email.invitation.about":
-    "TING is a separate digital platform that organizations use to run their communities. TING is not the same as {community}, and doesn't manage your formal membership of the organization.",
-  "email.invitation.ignore":
-    "If you didn't ask for this, you can ignore this email. Nothing will happen, and no account will be created.",
+  // ── Approval email ("Get started with TING") ──────────────────────────
+  "email.welcome.subject": "Welcome to {community} – your access has been approved",
+  "email.welcome.heading": "Welcome to {community}!",
+  "email.welcome.body":
+    "Your request for access to {community} has been approved. You can now join our community on TING.",
+  "email.welcome.bodyExisting":
+    "Your request for access to {community} has been approved, and access is already active on your TING account.",
+  "email.welcome.button": "Get started with TING →",
+  "email.welcome.signIn": "This link is personal and signs you in directly until {date} at {time}.",
+  "email.welcome.personal": "This link is personal.",
+  "email.welcome.invitationUntil": "The invitation is valid until {date}.",
+  "email.welcome.ignore": "Didn't ask for access? Just ignore this email.",
 };

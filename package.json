@@ -10,6 +10,7 @@
     "seed": "tsx scripts/seed.ts",
     "typecheck": "tsc --noEmit",
     "check:access-requests": "tsx scripts/check-access-requests.ts",
+    "check:auth-email": "tsx scripts/check-auth-email.ts",
     "check:channel-editing": "tsx scripts/check-channel-editing.ts",
     "check:collaboration-flow": "tsx scripts/check-collaboration-flow.ts",
     "check:collaboration-workspace": "tsx scripts/check-collaboration-workspace.ts",

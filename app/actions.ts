@@ -1549,10 +1549,12 @@ async function deliverInvitation(
 
   const result = await sendInvitationEmail({
     to: minted.email,
+    kind: "new",
+    origin,
     communityName: community?.name ?? t("common.theCommunity"),
     locale: community ? communityLocale(community) : PLATFORM_LOCALE,
     acceptUrl: `${origin}/invitasjon/${minted.token}`,
-    expiresAt: minted.expiresAt,
+    invitationExpiresAt: minted.expiresAt,
     accent: community?.branding.accent ?? "#1f4a3d",
   });
 

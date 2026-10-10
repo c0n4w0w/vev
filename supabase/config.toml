@@ -108,8 +108,10 @@ port = 54324
 # Uncomment to expose additional ports for testing user applications that send emails.
 # smtp_port = 54325
 # pop3_port = 54326
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# The sender local auth emails show. Mirrors the intended production sender;
+# locally it only labels what lands in Mailpit — nothing is delivered.
+admin_email = "ikke-svar@join-ting.no"
+sender_name = "TING"
 
 [storage]
 enabled = true
@@ -241,13 +243,28 @@ otp_expiry = 3600
 # port = 587
 # user = "apikey"
 # pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# The sender local auth emails show. Mirrors the intended production sender;
+# locally it only labels what lands in Mailpit — nothing is delivered.
+admin_email = "ikke-svar@join-ting.no"
+sender_name = "TING"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
+
+# TING's sign-in email. One template for both ways Supabase Auth signs
+# someone in by email: `magic_link` for an existing account, `confirmation`
+# for an address signing in for the first time where email confirmation is
+# on (hosted). Same words either way — the link signs the person in. The
+# approval email is TING's own (lib/email/invitation.ts), not one of these.
+[auth.email.template.magic_link]
+subject = "Logg inn på TING"
+content_path = "./supabase/templates/sign-in.html"
+
+[auth.email.template.confirmation]
+subject = "Logg inn på TING"
+content_path = "./supabase/templates/sign-in.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
