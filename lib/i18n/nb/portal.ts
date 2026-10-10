@@ -120,10 +120,19 @@ export const portal = {
   "login.title": "Velkommen tilbake",
   "login.lead":
     "Vi sender deg en lenke på e-post. Ingen passord å huske, og ingenting å miste hvis noen skulle få tak i maskinen din.",
-  "login.sentTitle": "Sjekk e-posten din",
-  "login.sentPre": "Hvis ",
-  "login.sentPost":
-    " har en konto hos oss, ligger det nå en innloggingslenke der. Lenken varer i én time.",
+  "login.sent.title": "Sjekk e-posten din",
+  "login.sent.pre": "Hvis adressen er registrert, har vi sendt en innloggingslenke til ",
+  "login.sent.invited.pre": "Vi har sendt en innloggingslenke til ",
+  "login.sent.post": ".",
+  "login.sent.another": "← Bruk en annen e-postadresse",
+  "login.linkLasts.one": "Lenken er gyldig i én time.",
+  "login.linkLasts.other": "Lenken er gyldig i {count} timer.",
+  "login.linkLastsMinutes.one": "Lenken er gyldig i ett minutt.",
+  "login.linkLastsMinutes.other": "Lenken er gyldig i {count} minutter.",
+  "login.invited.label": "Logg inn eller opprett konto",
+  "login.invited.title": "Fortsett til invitasjonen",
+  "login.invited.lead":
+    "Vi sender deg en lenke på e-post. Har du ingen TING-konto ennå, blir den opprettet når du bruker lenken. Ingen passord å huske.",
   "login.emailLabel": "E-postadresse",
   "login.emailPlaceholder": "navn@organisasjon.no",
   "login.send": "Send lenke",
@@ -131,11 +140,6 @@ export const portal = {
   "login.err.email": "e-postadressen mangler",
   "login.err.link": "lenken er brukt eller utløpt",
   "login.err.generic": "ukjent feil",
-  "login.community.title": "Skal du inn i et fellesskap?",
-  "login.community.body":
-    "Logg inn med e-postadressen din. Hvis du kom fra et fellesskap, sender vi deg tilbake dit etter innlogging.",
-  "login.backTo": "Tilbake til {name}",
-  "login.backHome": "Tilbake til forsiden",
 
   // ── Invitation page ───────────────────────────────────────────────────
   "inv.metaTitle": "Invitasjon",

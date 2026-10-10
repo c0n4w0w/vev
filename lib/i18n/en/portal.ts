@@ -119,10 +119,19 @@ export const portal: Record<keyof typeof nb, string> = {
   "login.title": "Welcome back",
   "login.lead":
     "We'll email you a link. No password to remember, and nothing to lose if someone gets hold of your computer.",
-  "login.sentTitle": "Check your email",
-  "login.sentPre": "If ",
-  "login.sentPost":
-    " has an account with us, a sign-in link is now waiting there. The link is valid for one hour.",
+  "login.sent.title": "Check your email",
+  "login.sent.pre": "If the address is registered, we've sent a sign-in link to ",
+  "login.sent.invited.pre": "We've sent a sign-in link to ",
+  "login.sent.post": ".",
+  "login.sent.another": "← Use a different email address",
+  "login.linkLasts.one": "The link is valid for one hour.",
+  "login.linkLasts.other": "The link is valid for {count} hours.",
+  "login.linkLastsMinutes.one": "The link is valid for one minute.",
+  "login.linkLastsMinutes.other": "The link is valid for {count} minutes.",
+  "login.invited.label": "Log in or create an account",
+  "login.invited.title": "Continue to your invitation",
+  "login.invited.lead":
+    "We'll email you a link. If you don't have a TING account yet, it is created when you use the link. No password to remember.",
   "login.emailLabel": "Email address",
   "login.emailPlaceholder": "name@example.com",
   "login.send": "Send link",
@@ -130,11 +139,6 @@ export const portal: Record<keyof typeof nb, string> = {
   "login.err.email": "the email address is missing",
   "login.err.link": "the link has been used or has expired",
   "login.err.generic": "unknown error",
-  "login.community.title": "Heading into a community?",
-  "login.community.body":
-    "Sign in with your email address. If you came from a community, we'll send you back there after you sign in.",
-  "login.backTo": "Back to {name}",
-  "login.backHome": "Back to the front page",
 
   // ── Invitation page ───────────────────────────────────────────────────
   "inv.metaTitle": "Invitation",
