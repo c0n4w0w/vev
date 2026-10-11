@@ -13,7 +13,7 @@ import {
   SectionHeading,
   buttonClass,
 } from "@/components/ui/primitives";
-import { IconArrowRight, IconMapPin } from "@/components/ui/icons";
+import { IconArrowLeft, IconArrowRight, IconMapPin } from "@/components/ui/icons";
 import {
   canLeadLocalGroup,
   getCommunityById,
@@ -100,7 +100,7 @@ export default async function LocalGroupsPage({
   searchParams,
 }: PageProps<"/community/[communityId]/lokallag">) {
   const { communityId } = await params;
-  const { velkommen } = await searchParams;
+  const { velkommen, endre } = await searchParams;
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
@@ -136,6 +136,7 @@ export default async function LocalGroupsPage({
   const selected = groups.find((group) => group.id === membership?.localGroupId);
   const selectable = groups.filter((group) => group.active);
   const welcome = velkommen === "1";
+  const editing = endre === "1";
   const [localEvents, localPosts] = selected
     ? await Promise.all([
         getUpcomingLocalGroupEvents(community.id, selected.id, 3),
@@ -169,6 +170,15 @@ export default async function LocalGroupsPage({
 
   return (
     <PageContainer>
+      {selected ? null : (
+        <Link
+          href={`/community/${community.id}`}
+          className="mb-6 inline-flex items-center gap-1.5 text-[13px] text-ink-2 transition-colors hover:text-ink"
+        >
+          <IconArrowLeft size={14} />
+          {t("nav.backToOverview")}
+        </Link>
+      )}
       <PageHeader
         eyebrow={community.name}
         title={t("lokallag.mine")}
@@ -212,9 +222,13 @@ export default async function LocalGroupsPage({
                     <IconArrowRight size={14} />
                   </Link>
                 ) : null}
-                <a href="#endre-lokallag" className={buttonClass({ variant: "secondary", size: "sm" })}>
+                <Link
+                  href={`/community/${community.id}/lokallag?endre=1#endre-lokallag`}
+                  scroll
+                  className={buttonClass({ variant: "secondary", size: "sm" })}
+                >
                   {t("lokallag.change")}
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -252,6 +266,7 @@ export default async function LocalGroupsPage({
               </div>
             ) : (
               <EmptyState
+                compact
                 title={t("lokallag.noEvents.title")}
                 body={t("lokallag.noEvents.body")}
               />
@@ -284,8 +299,20 @@ export default async function LocalGroupsPage({
               </ul>
             ) : (
               <EmptyState
+                compact
                 title={t("lokallag.noPosts.title")}
-                body={t("lokallag.noPosts.body")}
+                body={t(localChannel ? "lokallag.noPosts.quiet" : "lokallag.noPosts.body")}
+                action={
+                  localChannel ? (
+                    <Link
+                      href={`/community/${community.id}/channel/${localChannel.id}`}
+                      className="inline-flex items-center gap-1 text-ink-2 underline-offset-2 hover:text-ink hover:underline"
+                    >
+                      {t("lokallag.openChat")}
+                      <IconArrowRight size={13} />
+                    </Link>
+                  ) : undefined
+                }
               />
             )}
           </section>
@@ -312,42 +339,39 @@ export default async function LocalGroupsPage({
             </section>
           ) : null}
 
-          <details id="endre-lokallag" className="mb-8 rounded-[6px] border border-line bg-surface p-5">
-            <summary className="cursor-pointer text-sm font-medium text-ink">
-              {t("lokallag.change")}
-            </summary>
-            <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-ink-3">
-              {t("lokallag.changeHelp", { name: community.name })}
-            </p>
-            <div className="mt-4">
-              <LocalGroupPicker
-                communityId={community.id}
-                groups={selectable}
-                selectedId={selected.active ? selected.id : undefined}
-                accent={community.branding.accent}
-                memberCounts={memberCounts}
-                welcome={welcome}
-              />
-            </div>
-          </details>
+          {editing ? (
+            <section id="endre-lokallag" className="mb-8 scroll-mt-6 rounded-[6px] border border-line bg-surface p-5">
+              <div className="flex items-baseline justify-between gap-4">
+                <h2 className="text-sm font-medium text-ink">{t("lokallag.change")}</h2>
+                <Link
+                  href={`/community/${community.id}/lokallag`}
+                  className="text-xs text-ink-3 hover:text-ink"
+                >
+                  {t("common.cancel")}
+                </Link>
+              </div>
+              <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-ink-3">
+                {t("lokallag.changeHelp", { name: community.name })}
+              </p>
+              <div className="mt-4">
+                <LocalGroupPicker
+                  communityId={community.id}
+                  groups={selectable}
+                  selectedId={selected.active ? selected.id : undefined}
+                  accent={community.branding.accent}
+                  memberCounts={memberCounts}
+                  welcome={welcome}
+                  doneHref={`/community/${community.id}/lokallag`}
+                />
+              </div>
+            </section>
+          ) : null}
         </>
       ) : (
         <>
-          <EmptyState
-            title={t("lokallag.none.title")}
-            body={t("lokallag.none.body", { name: community.name })}
-            action={
-              <a href="#velg-lokallag" className={buttonClass({ variant: "primary", size: "md" })}>
-                {t("lokallag.choose")}
-              </a>
-            }
-          />
+          <p className="mb-4 text-[13px] leading-relaxed text-ink-3">{t("lokallag.none.line")}</p>
 
-          <section id="velg-lokallag" className="mt-8 scroll-mt-6">
-            <SectionHeading>{t("lokallag.choose")}</SectionHeading>
-            <p className="mb-4 max-w-2xl text-[13px] leading-relaxed text-ink-3">
-              {t("lokallag.chooseHelp", { name: community.name })}
-            </p>
+          <section id="velg-lokallag" className="scroll-mt-6">
             <LocalGroupPicker
               communityId={community.id}
               groups={selectable}

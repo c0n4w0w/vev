@@ -298,12 +298,11 @@ export const community: Record<keyof typeof nb, string> = {
   "lokallag.contact": "Contact",
   "lokallag.changeHelp":
     "You can switch local group or clear your choice. It doesn't affect your membership of {name}.",
-  "lokallag.none.title": "You haven't chosen a local group yet.",
-  "lokallag.none.body":
-    "Choosing a local group makes it easier to see local activity in {name}. It's entirely optional, and you're a member of the community either way.",
-  "lokallag.choose": "Choose local group",
-  "lokallag.chooseHelp":
-    "Choose the local group you belong to. If you don't belong to one, leave it empty — it doesn't affect your membership of {name}.",
+  "lokallag.none.line":
+    "You aren't part of a local group yet. Choosing one is entirely optional.",
+  "lokallag.noPosts.quiet":
+    "It's quiet here for now. Feel free to drop by the local group chat and say hi!",
+  "nav.backToOverview": "Back to overview",
   "lokallag.manage": "Manage local groups",
   "lokallag.manageHelp":
     "As an administrator of {name}, you decide which local groups members can choose between.",

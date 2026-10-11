@@ -320,11 +320,23 @@ export function EmptyState({
   title,
   body,
   action,
+  compact,
 }: {
   title: string;
   body: string;
   action?: ReactNode;
+  /** A short, left-aligned note for sections that sit beside real content. */
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <div className="rounded-[6px] border border-dashed border-line-2 bg-surface/60 px-4 py-3">
+        <h3 className="text-sm font-medium text-ink">{title}</h3>
+        <p className="mt-0.5 max-w-xl text-[13px] leading-relaxed text-ink-3">{body}</p>
+        {action ? <div className="mt-2 text-[13px]">{action}</div> : null}
+      </div>
+    );
+  }
   return (
     <div className="rounded-[6px] border border-dashed border-line-2 bg-surface/60 px-6 py-12 text-center">
       <h3 className="font-display text-lg text-ink">{title}</h3>

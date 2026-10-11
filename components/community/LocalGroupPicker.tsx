@@ -10,13 +10,21 @@ import { useLocale, useT } from "@/lib/i18n/react";
 import { emptyLocalGroupFormState } from "@/lib/local-group-form";
 import type { LocalGroup } from "@/lib/types";
 
-function Save({ accent, label }: { accent: string; label: string }) {
+function Save({
+  accent,
+  label,
+  disabled,
+}: {
+  accent: string;
+  label: string;
+  disabled?: boolean;
+}) {
   const { pending } = useFormStatus();
   const t = useT();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       className="h-10 rounded-[5px] px-4 text-sm font-medium text-white transition-opacity disabled:opacity-40"
       style={{ backgroundColor: accent }}
     >
@@ -66,6 +74,7 @@ export function LocalGroupPicker({
   accent,
   memberCounts,
   welcome,
+  doneHref,
 }: {
   communityId: string;
   /** Active groups only — a retired one cannot be newly chosen. */
@@ -76,15 +85,22 @@ export function LocalGroupPicker({
   memberCounts: Map<string, number>;
   /** First visit straight after joining. */
   welcome?: boolean;
+  /** Set when opened on demand: after a change, the server returns to the plain lokallag page. */
+  doneHref?: string;
 }) {
   const t = useT();
   const locale = useLocale();
   const [state, formAction] = useActionState(setMyLocalGroupAction, emptyLocalGroupFormState);
   const [choice, setChoice] = useState<string>(selectedId ?? "");
+  // Nothing to save until a group is picked that differs from the stored one.
+  const unchanged = choice === "" || choice === (selectedId ?? "");
 
   return (
     <form action={formAction}>
       <input type="hidden" name="communityId" value={communityId} />
+      {/* Skipping the first choice is a "not now": it ends at the Overview. */}
+      {selectedId ? null : <input type="hidden" name="skipTo" value="overview" />}
+      {doneHref ? <input type="hidden" name="returnTo" value="lokallag" /> : null}
 
       <ul className="grid gap-2 sm:grid-cols-2">
         {groups.map((group) => {
@@ -135,6 +151,7 @@ export function LocalGroupPicker({
         <Save
           accent={accent}
           label={selectedId ? t("lokallag.saveChange") : t("lokallag.saveGroup")}
+          disabled={unchanged}
         />
         <Skip label={selectedId ? t("lokallag.clear") : t("lokallag.skip")} />
       </div>

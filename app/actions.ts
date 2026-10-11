@@ -976,6 +976,10 @@ export async function setMyLocalGroupAction(
   if (!ok) return { status: "error", error: (await translatorFor(communityId))(SELECTION_REFUSED) };
 
   revalidateLocalGroups(communityId);
+  // Declining the first choice returns to this community's Overview.
+  if (clearing && formData.get("skipTo") === "overview") redirect(`/community/${communityId}`);
+  // The on-demand editor ends at the canonical page, without its `?endre=1`.
+  if (formData.get("returnTo") === "lokallag") redirect(`/community/${communityId}/lokallag`);
   return { status: "ok" };
 }
 

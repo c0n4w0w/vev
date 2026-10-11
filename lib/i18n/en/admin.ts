@@ -112,13 +112,10 @@ export const admin: Record<keyof typeof nb, string> = {
   "avatar.upload": "Upload image",
   "avatar.remove": "Remove image",
   "profile.metaTitle": "Your profile · {name}",
-  "profile.account": "Your account",
   "profile.title": "Your profile here",
   "profile.lead":
     "This is how you appear to others in {name}. Changes here don't affect your profiles in other communities.",
-  "profile.photoHelp": "Shown only in {name}. Without a photo, your initials are shown.",
-  "profile.photoFormats":
-    "PNG, JPEG or WebP, max 5 MB. Shown as a circle, and cropped if the image isn't square.",
+  "profile.photoHelp": "The picture is shown only in {name}. PNG, JPEG or WebP, max 5 MB.",
   "profile.choosePhoto": "Choose profile picture",
   "profile.displayName": "Display name",
   "profile.displayNameHelp":

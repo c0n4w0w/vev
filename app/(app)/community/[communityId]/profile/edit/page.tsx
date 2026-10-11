@@ -42,11 +42,11 @@ export default async function EditCommunityProfilePage({
   return (
     <PageContainer width="narrow">
       <Link
-        href="/profile"
+        href={`/community/${community.id}`}
         className="mb-6 inline-flex items-center gap-1.5 text-[13px] text-ink-2 transition-colors hover:text-ink"
       >
         <IconArrowLeft size={14} />
-        {t("profile.account")}
+        {t("nav.backToOverview")}
       </Link>
       <PageHeader
         eyebrow={community.name}

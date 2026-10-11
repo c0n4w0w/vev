@@ -104,9 +104,6 @@ export function CommunityProfileEditor({
             <p className="mt-1 max-w-md text-[13px] leading-relaxed text-ink-2">
               {t("profile.photoHelp", { name: communityName })}
             </p>
-            <p className="mt-1 max-w-md text-xs leading-relaxed text-ink-3">
-              {t("profile.photoFormats")}
-            </p>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <form ref={photoFormRef} action={uploadAction} onSubmit={() => setLastPhoto("upload")}>

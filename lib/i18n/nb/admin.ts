@@ -111,13 +111,10 @@ export const admin = {
   "avatar.upload": "Last opp bilde",
   "avatar.remove": "Fjern bilde",
   "profile.metaTitle": "Profilen din · {name}",
-  "profile.account": "Kontoen din",
   "profile.title": "Profilen din her",
   "profile.lead":
     "Slik vises du for andre i {name}. Endringer her påvirker ikke profilene dine i andre fellesskap.",
-  "profile.photoHelp": "Vises bare i {name}. Uten bilde vises initialene dine.",
-  "profile.photoFormats":
-    "PNG, JPEG eller WebP, maks 5 MB. Vises rundt, og beskjæres om bildet ikke er kvadratisk.",
+  "profile.photoHelp": "Bildet vises bare i {name}. PNG, JPEG eller WebP, maks 5 MB.",
   "profile.choosePhoto": "Velg profilbilde",
   "profile.displayName": "Visningsnavn",
   "profile.displayNameHelp":

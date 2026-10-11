@@ -296,12 +296,11 @@ export const community = {
   "lokallag.contact": "Kontakt",
   "lokallag.changeHelp":
     "Du kan bytte lokallag eller fjerne valget. Det påvirker ikke medlemskapet ditt i {name}.",
-  "lokallag.none.title": "Du har ikke valgt et lokallag ennå.",
-  "lokallag.none.body":
-    "Å velge lokallag gjør det lettere å se lokal aktivitet i {name}. Det er helt valgfritt, og du er medlem av fellesskapet uansett.",
-  "lokallag.choose": "Velg lokallag",
-  "lokallag.chooseHelp":
-    "Velg lokallaget du er tilknyttet. Hører du ikke til noe lokallag, lar du det stå tomt — det påvirker ikke medlemskapet ditt i {name}.",
+  "lokallag.none.line":
+    "Du er ikke tilknyttet et lokallag ennå. Det er helt frivillig å velge et.",
+  "lokallag.noPosts.quiet":
+    "Her er det stille foreløpig. Ta gjerne turen innom lokallagschatten og si hei!",
+  "nav.backToOverview": "Tilbake til oversikt",
   "lokallag.manage": "Administrer lokallag",
   "lokallag.manageHelp":
     "Som administrator i {name} bestemmer du hvilke lokallag medlemmene kan velge mellom.",

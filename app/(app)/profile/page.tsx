@@ -173,8 +173,7 @@ export default async function ProfilePage() {
             </li>
           </ul>
           <p className="mt-4 text-[11px] leading-relaxed text-ink-3">
-            Ende-til-ende-kryptert meldingsutveksling er planlagt, men ikke slått på i denne
-            prototypen.
+            Ende-til-ende-kryptert meldingsutveksling er planlagt, men ikke slått på ennå.
           </p>
         </Panel>
       </div>
@@ -183,7 +182,7 @@ export default async function ProfilePage() {
         <div>
           <p className="text-sm font-medium text-ink">Innlogget som {user.email}</p>
           <p className="mt-0.5 text-xs text-ink-3">
-            Denne prototypen bruker demokontoer uten passord.
+            Du logger inn uten passord, med en lenke sendt til e-postadressen din.
           </p>
         </div>
         <div className="flex gap-2">
