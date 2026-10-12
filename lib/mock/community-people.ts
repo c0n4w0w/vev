@@ -218,6 +218,7 @@ export const communityPeople: CommunityPersonFixture[] = [
     userId: "mia-minge",
     name: "Mia Minge",
     role: "Organisasjonssekretær",
+    email: "mia@rusreform.no",
     sortOrder: 2,
   },
   {
@@ -234,6 +235,7 @@ export const communityPeople: CommunityPersonFixture[] = [
     userId: "erlend-thonstad",
     name: "Erlend Thonstad",
     role: "Prosjektleder Rusopplysningen",
+    email: "erlend@rusreform.no",
     sortOrder: 4,
   },
 

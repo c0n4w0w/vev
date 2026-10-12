@@ -246,6 +246,7 @@ export const community = {
   "members.noteMember":
     "Medlemslisten er kun synlig for medlemmer av {name}, og vises verken på den offentlige siden eller andre steder på TING.",
   "members.memberSince": "Medlem siden {date}",
+  "members.thisIsYou": "Dette er deg",
 
   // ── Local groups ──────────────────────────────────────────────────────
   "lokallag.metaTitle": "Mitt lokallag · {name}",

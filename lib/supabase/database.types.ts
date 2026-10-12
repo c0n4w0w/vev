@@ -2941,6 +2941,17 @@ export type Database = {
           person_id: string
         }[]
       }
+      organization_person_profile_links: {
+        Args: { p_community_id: string }
+        Returns: {
+          person_id: string
+          user_id: string
+        }[]
+      }
+      own_organization_person_ids: {
+        Args: { p_community_id: string }
+        Returns: string[]
+      }
       portal_by_slug: {
         Args: { p_slug: string }
         Returns: {

@@ -257,6 +257,207 @@ async function main() {
     octavioPerson.id,
   );
 
+  // ── own_organization_person_ids: "Dette er deg" on a directory card ─────
+  //
+  // Answers only "which of these already-public cards are mine". It must never
+  // name another person's card, never return a user_id, and never answer for
+  // a community the caller is not an active member of.
+  const { data: ftrRawPeople } = await admin
+    .from("community_people")
+    .select("id, user_id, name")
+    .eq("community_id", "tryggere-ruspolitikk");
+  const miaId = await profileId("miaminge");
+  const miaPerson = (ftrRawPeople ?? []).find((person) => person.name === "Mia Minge");
+  if (!miaPerson) throw new Error("fant ikke Mia Minges organisasjonsrad i FTR");
+  expect("Mias organisasjonsrad er koblet til Mias egen konto", miaPerson.user_id, miaId);
+
+  const { data: miaOwn, error: miaOwnError } = await mia.rpc("own_organization_person_ids", {
+    p_community_id: "tryggere-ruspolitikk",
+  });
+  expect("Mia kan hente egne organisasjonskort uten feil", miaOwnError, null);
+  expect("Mia får akkurat sitt eget organisasjonskort", (miaOwn ?? []).join(","), miaPerson.id);
+  expect(
+    "svaret er bare kort-id-er, aldri en user_id",
+    (miaOwn ?? []).every((value) => typeof value === "string" && value !== miaId),
+    true,
+  );
+
+  for (const [label, client] of [
+    ["ordinært FTR-medlem", kristoffer],
+    ["FTR-moderator", nadia],
+  ] as const) {
+    const { data, error } = await client.rpc("own_organization_person_ids", {
+      p_community_id: "tryggere-ruspolitikk",
+    });
+    expect(`${label} uten eget kort får ingen feil`, error, null);
+    expect(`${label} får ikke Mias kort som sitt eget`, (data ?? []).length, 0);
+  }
+
+  const { data: adrianOwn } = await adrian.rpc("own_organization_person_ids", {
+    p_community_id: "tryggere-ruspolitikk",
+  });
+  expect("ikke-medlem av FTR får ingen egne FTR-kort", (adrianOwn ?? []).length, 0);
+
+  const { data: miaOwnElsewhere } = await mia.rpc("own_organization_person_ids", {
+    p_community_id: "under-the-rug",
+  });
+  expect("Mias FTR-kort lekker ikke til et annet fellesskap", (miaOwnElsewhere ?? []).length, 0);
+
+  const anonOwn = await anon.rpc("own_organization_person_ids", {
+    p_community_id: "tryggere-ruspolitikk",
+  });
+  expect("anonym kan ikke kalle own_organization_person_ids", anonOwn.error !== null, true);
+  expect("anonym får ingen egne kort", (anonOwn.data ?? []).length, 0);
+
+  // ── Organisational contact addresses for linked staff ───────────────────
+  //
+  // The address a card publishes is the organisation's, never the address the
+  // linked account signs in with, and adding it must not disturb the link.
+  const erlendId = await profileId("erlendthonstad");
+  const { data: ftrStaffContacts } = await admin
+    .from("community_people")
+    .select("id, name, email, user_id, section, active")
+    .eq("community_id", "tryggere-ruspolitikk")
+    .in("name", ["Mia Minge", "Erlend Thonstad"]);
+  for (const [name, email, accountId] of [
+    ["Mia Minge", "mia@rusreform.no", miaId],
+    ["Erlend Thonstad", "erlend@rusreform.no", erlendId],
+  ] as const) {
+    const cards = (ftrStaffContacts ?? []).filter((person) => person.name === name);
+    expect(`${name} har nøyaktig ett organisasjonskort i FTR`, cards.length, 1);
+    expect(`${name} har organisasjonens kontaktadresse`, cards[0]?.email, email);
+    expect(`${name} er fortsatt koblet til samme konto`, cards[0]?.user_id, accountId);
+    expect(`${name} står fortsatt under Ansatte`, cards[0]?.section, "staff");
+    const { data: account } = await admin.auth.admin.getUserById(accountId);
+    expect(
+      `${name} logger fortsatt inn med en annen adresse enn kontaktadressen`,
+      account.user?.email !== email && Boolean(account.user?.email),
+      true,
+    );
+  }
+  expect(
+    "vanlig FTR-medlem leser Mias kontaktadresse fra kortet",
+    ftrPeople.find((person) => person.name === "Mia Minge")?.email,
+    "mia@rusreform.no",
+  );
+  expect(
+    "kontaktadressene finnes bare i FTR",
+    tuPeople.concat(utrPeople).some((person) => /^(mia|erlend)@rusreform\.no$/.test(person.email ?? "")),
+    false,
+  );
+
+  // ── organization_person_profile_links: profile photo on a linked card ───
+  //
+  // Pairs a card with its linked account only where the caller may already
+  // see that person's profile in this community. The expected answer is
+  // therefore derived independently: the real links (service role) narrowed
+  // to the profiles the caller can read under row level security.
+  const linkedCards = (ftrRawPeople ?? []).filter((person) => person.user_id);
+  const expectedLinksFor = async (client: SupabaseClient<Database>) => {
+    const { data: visible } = await client
+      .from("community_profiles")
+      .select("user_id")
+      .eq("community_id", "tryggere-ruspolitikk");
+    const visibleIds = new Set((visible ?? []).map((row) => row.user_id));
+    return linkedCards
+      .filter((person) => visibleIds.has(person.user_id!))
+      .map((person) => `${person.id}:${person.user_id}`)
+      .sort()
+      .join(",");
+  };
+  const profileLinks = async (client: SupabaseClient<Database>, communityId: string) => {
+    const { data, error } = await client.rpc("organization_person_profile_links", {
+      p_community_id: communityId,
+    });
+    return {
+      error,
+      pairs: (data ?? []).map((row) => `${row.person_id}:${row.user_id}`).sort().join(","),
+    };
+  };
+
+  for (const [label, client] of [
+    ["FTR-admin", mia],
+    ["FTR-moderator", nadia],
+    ["ordinært FTR-medlem", kristoffer],
+  ] as const) {
+    const links = await profileLinks(client, "tryggere-ruspolitikk");
+    expect(`${label} kan hente kortkoblinger uten feil`, links.error, null);
+    expect(
+      `${label} får koblinger bare for profiler hen allerede kan se`,
+      links.pairs,
+      await expectedLinksFor(client),
+    );
+  }
+  expect(
+    "FTR-admin ser Mias eget kort koblet til Mias profil",
+    (await profileLinks(mia, "tryggere-ruspolitikk")).pairs.includes(`${miaPerson.id}:${miaId}`),
+    true,
+  );
+
+  // A linked person whose profile the caller may not see stays unpaired. FTR
+  // keeps its member directory to administrators, so a member who has never
+  // taken part is invisible to an ordinary member. One unlinked card is
+  // pointed at such a member for the length of this check, then restored.
+  const { data: kristofferVisible } = await kristoffer
+    .from("community_profiles")
+    .select("user_id")
+    .eq("community_id", "tryggere-ruspolitikk");
+  const kristofferVisibleIds = new Set((kristofferVisible ?? []).map((row) => row.user_id));
+  const { data: ftrActiveMembers } = await admin
+    .from("memberships")
+    .select("user_id")
+    .eq("community_id", "tryggere-ruspolitikk")
+    .eq("status", "active");
+  const hiddenMemberId = (ftrActiveMembers ?? [])
+    .map((membership) => membership.user_id)
+    .find((id) => !kristofferVisibleIds.has(id));
+  const spareCard = (ftrRawPeople ?? []).find((person) => !person.user_id);
+  if (!hiddenMemberId || !spareCard) {
+    throw new Error("forventet et FTR-medlem Kristoffer ikke ser, og et ukoblet kort");
+  }
+  try {
+    await admin.from("community_people").update({ user_id: hiddenMemberId }).eq("id", spareCard.id);
+    expect(
+      "kort koblet til en usynlig profil gir ingen kobling for ordinært medlem",
+      (await profileLinks(kristoffer, "tryggere-ruspolitikk")).pairs.includes(spareCard.id),
+      false,
+    );
+    expect(
+      "samme kort gir kobling for admin, som ser medlemslisten",
+      (await profileLinks(mia, "tryggere-ruspolitikk")).pairs.includes(
+        `${spareCard.id}:${hiddenMemberId}`,
+      ),
+      true,
+    );
+  } finally {
+    await admin.from("community_people").update({ user_id: null }).eq("id", spareCard.id);
+  }
+  const { data: spareAfter } = await admin
+    .from("community_people")
+    .select("user_id")
+    .eq("id", spareCard.id)
+    .single();
+  expect("det midlertidig koblede kortet er ukoblet igjen", spareAfter?.user_id ?? null, null);
+
+  expect(
+    "ikke-medlem av FTR får ingen kortkoblinger",
+    (await profileLinks(adrian, "tryggere-ruspolitikk")).pairs,
+    "",
+  );
+  expect(
+    "FTR-admin får ingen kortkoblinger i et fellesskap hen ikke er med i",
+    (await profileLinks(mia, "under-the-rug")).pairs,
+    "",
+  );
+  const anonLinks = await profileLinks(anon, "tryggere-ruspolitikk");
+  expect("anonym kan ikke kalle organization_person_profile_links", anonLinks.error !== null, true);
+  expect("anonym får ingen kortkoblinger", anonLinks.pairs, "");
+  expect(
+    "kort-raden selv eksponerer fortsatt ingen user_id",
+    (await kristoffer.from("community_people").select("user_id").limit(1)).error !== null,
+    true,
+  );
+
   const anonPeople = await anon.from("community_people").select("id").limit(1);
   expect("anonym tilgang er ikke utvidet", (anonPeople.data ?? []).length, 0);
 

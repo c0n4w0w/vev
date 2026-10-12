@@ -1594,6 +1594,70 @@ export async function getCommunityPeopleLinkedMemberIds(
   return new Set(rows(data));
 }
 
+/**
+ * An organisation-directory lookup that failed is not the same as one that
+ * found nothing, and must not be rendered as if it were: a missing migration
+ * or a revoked grant would otherwise look exactly like "nobody matched".
+ * Throws outside production; in production it is logged and the caller
+ * degrades to the empty answer.
+ */
+function reportOrganizationLookupFailure(
+  name: string,
+  communityId: string,
+  error: { message: string; code?: string },
+): void {
+  const message = `${name}(${communityId}) failed: ${error.message} (${error.code})`;
+  if (process.env.NODE_ENV !== "production") throw new Error(message);
+  console.error(`[organisasjonen] ${message}`);
+}
+
+/**
+ * The caller's own published organisation cards, as `community_people.id`
+ * values. Reads through `own_organization_person_ids`, so the protected
+ * `user_id` link never reaches the client; empty when the caller has no card.
+ */
+export async function getOwnOrganizationPersonIds(communityId: string): Promise<Set<string>> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("own_organization_person_ids", {
+    p_community_id: communityId,
+  });
+  if (error) {
+    reportOrganizationLookupFailure("own_organization_person_ids", communityId, error);
+    return new Set();
+  }
+  return new Set(rows(data));
+}
+
+/**
+ * Profile photos for organisation cards, keyed by `community_people.id`.
+ *
+ * A card has no photo of its own. When it is linked to an account, this is
+ * that person's photo *in this community* — the same persona, the same URL
+ * and the same access check as everywhere else they appear here. A card gets
+ * an entry only when the caller may already see that profile and it has a
+ * photo; every other card keeps its monogram.
+ */
+export async function getOrganizationPersonAvatarUrls(
+  communityId: string,
+): Promise<Map<string, string>> {
+  const supabase = await createSupabaseServerClient();
+  const [{ data, error }, personas] = await Promise.all([
+    supabase.rpc("organization_person_profile_links", { p_community_id: communityId }),
+    loadCommunityPersonas(communityId),
+  ]);
+  if (error) {
+    reportOrganizationLookupFailure("organization_person_profile_links", communityId, error);
+    return new Map();
+  }
+
+  const avatarUrls = new Map<string, string>();
+  for (const link of rows(data)) {
+    const avatarUrl = personas.get(link.user_id)?.avatarUrl;
+    if (avatarUrl) avatarUrls.set(link.person_id, avatarUrl);
+  }
+  return avatarUrls;
+}
+
 export interface LinkedCrewMemberDetails {
   title?: string;
   bio?: string;

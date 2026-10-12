@@ -38,6 +38,8 @@ export function OrganizationPersonCard({
   linkedTitle,
   bio,
   location,
+  avatarUrl,
+  isSelf = false,
   locale,
 }: {
   person: CommunityPerson;
@@ -54,13 +56,23 @@ export function OrganizationPersonCard({
   bio?: string;
   /** Location from an explicitly linked TING account. */
   location?: string;
+  /**
+   * Profile photo of the explicitly linked TING account in this community,
+   * already limited to what the viewer may see. Without one, the monogram.
+   */
+  avatarUrl?: string;
+  /** True only when the signed-in user is this card's linked account. */
+  isSelf?: boolean;
   locale: Locale;
 }) {
   const t = translator(locale);
   return (
     <Panel as="li" className="flex gap-3.5 p-4">
-      <Avatar user={{ id: person.id, name: person.name, initials: initialsFor(person.name) }} size="md" />
-      <div className="min-w-0 flex-1">
+      <Avatar
+        user={{ id: person.id, name: person.name, initials: initialsFor(person.name), avatarUrl }}
+        size="md"
+      />
+      <div className="flex min-w-0 flex-1 flex-col">
         <p className="text-[0.9375rem] font-medium text-ink">{person.name}</p>
         {person.role ? <p className="mt-0.5 text-[13px] text-ink-2">{person.role}</p> : null}
         {linkedTitle ? <p className="mt-0.5 text-[13px] text-ink-2">{linkedTitle}</p> : null}
@@ -83,8 +95,8 @@ export function OrganizationPersonCard({
             {location}
           </p>
         ) : null}
-        {dmAction || person.email ? (
-          <div className="mt-3 flex flex-wrap gap-2">
+        {isSelf || dmAction || person.email ? (
+          <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
             {dmAction ? (
               dmAction.conversationId ? (
                 <Link
@@ -106,6 +118,13 @@ export function OrganizationPersonCard({
               )
             ) : null}
             <PersonEmail email={person.email} label={t("common.email")} compact={compact} />
+            {isSelf ? (
+              // As tall as a small button, so the row keeps its height when
+              // this is the only thing in it.
+              <span className="flex h-8 items-center text-[13px] text-ink-3">
+                {t("members.thisIsYou")}
+              </span>
+            ) : null}
           </div>
         ) : null}
       </div>

@@ -8,6 +8,7 @@ import {
   PageHeader,
   Panel,
   SectionHeading,
+  cn,
 } from "@/components/ui/primitives";
 import { IconLock, IconShield } from "@/components/ui/icons";
 import {
@@ -20,7 +21,9 @@ import {
   getCommunityPeopleLinkedMemberIds,
   getMemberDmActions,
   getMembership,
+  getOrganizationPersonAvatarUrls,
   getOrganizationPersonDmActions,
+  getOwnOrganizationPersonIds,
   type LinkedCrewMemberDetails,
 } from "@/lib/data";
 import { communityLocale, communityTranslator, tn, translator, type Locale } from "@/lib/i18n";
@@ -83,6 +86,9 @@ function OrganizationRows({
   dmActions,
   leaders = false,
   linkedDetails,
+  avatarUrls,
+  ownPersonIds,
+  equalHeight = false,
   locale,
 }: {
   locale: Locale;
@@ -93,6 +99,12 @@ function OrganizationRows({
   leaders?: boolean;
   /** Explicit-link enrichment, keyed by `community_people.id`. UTR Crew only. */
   linkedDetails?: Map<string, LinkedCrewMemberDetails>;
+  /** Linked profile photos the viewer may see, keyed by `community_people.id`. */
+  avatarUrls?: Map<string, string>;
+  /** `community_people.id` values that belong to the signed-in user. */
+  ownPersonIds?: Set<string>;
+  /** Stretch cards in a row to the same height. */
+  equalHeight?: boolean;
 }) {
   if (people.length === 0) return null;
 
@@ -102,7 +114,7 @@ function OrganizationRows({
       {/* items-start: a row must not stretch every card to match its tallest
           neighbour — an enriched Crew card (bio/location/DM) sits next to
           plain ones without forcing blank space into them. */}
-      <ul className="grid items-start gap-3 sm:grid-cols-2">
+      <ul className={cn("grid gap-3 sm:grid-cols-2", !equalHeight && "items-start")}>
         {people.map((person) => {
           const details = linkedDetails?.get(person.id);
           return (
@@ -119,6 +131,8 @@ function OrganizationRows({
               linkedTitle={linkedTitleFor(person.role, details?.title)}
               bio={details?.bio}
               location={details?.location}
+              avatarUrl={avatarUrls?.get(person.id)}
+              isSelf={ownPersonIds?.has(person.id) ?? false}
             />
           );
         })}
@@ -247,7 +261,11 @@ export default async function MembersPage({
   }
 
   if (organizationPeople.length > 0) {
-    const organizationDmActions = await getOrganizationPersonDmActions(community.id);
+    const [organizationDmActions, ownPersonIds, avatarUrls] = await Promise.all([
+      getOrganizationPersonDmActions(community.id),
+      getOwnOrganizationPersonIds(community.id),
+      getOrganizationPersonAvatarUrls(community.id),
+    ]);
 
     return (
       <PageContainer>
@@ -273,6 +291,9 @@ export default async function MembersPage({
                 communityId={community.id}
                 dmActions={organizationDmActions}
                 leaders={section.id === "local_group_leader"}
+                avatarUrls={avatarUrls}
+                ownPersonIds={ownPersonIds}
+                equalHeight
               />
             );
           })}

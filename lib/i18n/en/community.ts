@@ -248,6 +248,7 @@ export const community: Record<keyof typeof nb, string> = {
   "members.noteMember":
     "The member list is visible only to members of {name}, and is not shown on the public page or anywhere else on TING.",
   "members.memberSince": "Member since {date}",
+  "members.thisIsYou": "This is you",
 
   // ── Local groups ──────────────────────────────────────────────────────
   "lokallag.metaTitle": "My local group · {name}",
