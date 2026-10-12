@@ -836,15 +836,17 @@ export async function getLocalGroupLeader(
 }
 
 /**
- * How many active members each local group has, keyed by group id.
+ * How many active members each local group has, keyed by group id — for the
+ * people who manage it, and nobody else.
  *
- * Every group in the community gets an entry, including those nobody has
- * joined — zero is a real answer and reads as one. Empty only for a caller who
- * is not an active member of the community, who should not be seeing this page
- * at all.
+ * An admin of the community gets every group, including those nobody has
+ * joined: zero is a real answer and reads as one. A lokallagsleder gets their
+ * own lokallag only. Moderators, ordinary members and non-members get an
+ * empty map: `local_group_member_counts` decides that in the database, so a
+ * headcount cannot be fetched by anyone it is not shown to.
  *
- * Counts name nobody. Reading the membership itself is unchanged and still
- * follows member_directory_visibility.
+ * Reading the membership itself is unchanged and still follows
+ * member_directory_visibility.
  */
 export async function getLocalGroupMemberCounts(
   communityId: string,

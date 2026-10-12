@@ -5,8 +5,7 @@ import { useFormStatus } from "react-dom";
 import { cn } from "@/components/ui/primitives";
 import { IconCheck } from "@/components/ui/icons";
 import { setMyLocalGroupAction } from "@/app/actions";
-import { tn } from "@/lib/i18n";
-import { useLocale, useT } from "@/lib/i18n/react";
+import { useT } from "@/lib/i18n/react";
 import { emptyLocalGroupFormState } from "@/lib/local-group-form";
 import type { LocalGroup } from "@/lib/types";
 
@@ -72,7 +71,6 @@ export function LocalGroupPicker({
   groups,
   selectedId,
   accent,
-  memberCounts,
   welcome,
   doneHref,
 }: {
@@ -81,15 +79,12 @@ export function LocalGroupPicker({
   groups: LocalGroup[];
   selectedId?: string;
   accent: string;
-  /** Keyed by group id; every group has an entry, zero included. */
-  memberCounts: Map<string, number>;
   /** First visit straight after joining. */
   welcome?: boolean;
   /** Set when opened on demand: after a change, the server returns to the plain lokallag page. */
   doneHref?: string;
 }) {
   const t = useT();
-  const locale = useLocale();
   const [state, formAction] = useActionState(setMyLocalGroupAction, emptyLocalGroupFormState);
   const [choice, setChoice] = useState<string>(selectedId ?? "");
   // Nothing to save until a group is picked that differs from the stored one.
@@ -104,7 +99,6 @@ export function LocalGroupPicker({
 
       <ul className="grid gap-2 sm:grid-cols-2">
         {groups.map((group) => {
-          const count = memberCounts.get(group.id);
           const active = choice === group.id;
           return (
             <li key={group.id}>
@@ -133,14 +127,9 @@ export function LocalGroupPicker({
                 >
                   {active ? <IconCheck size={13} /> : null}
                 </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-[0.9375rem] text-ink">{group.name}</span>
-                  {count !== undefined ? (
-                    <span className="block text-[12px] text-ink-3">
-                      {tn(locale, "count.members", count)}
-                    </span>
-                  ) : null}
-                </span>
+                {/* The name only. How many members a lokallag has is management
+                    information and is never shown in the selector. */}
+                <span className="min-w-0 truncate text-[0.9375rem] text-ink">{group.name}</span>
               </label>
             </li>
           );

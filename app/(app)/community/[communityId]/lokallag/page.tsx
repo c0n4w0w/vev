@@ -109,10 +109,9 @@ export default async function LocalGroupsPage({
   const locale = communityLocale(community);
   const t = translator(locale);
 
-  const [membership, groups, memberCounts] = await Promise.all([
+  const [membership, groups] = await Promise.all([
     getMembership(user.id, community.id),
     getLocalGroups(community.id),
-    getLocalGroupMemberCounts(community.id),
   ]);
 
   // A community that has never defined any. The feature simply does not apply
@@ -131,8 +130,15 @@ export default async function LocalGroupsPage({
 
   const isAdmin = membership?.role === "admin";
   // Only loaded for admins; for anyone else the grant table and member list
-  // would answer with nothing (or the directory) anyway.
-  const leadership = isAdmin ? await getLocalGroupLeadership(community.id) : new Map();
+  // would answer with nothing (or the directory) anyway. Headcounts likewise:
+  // they belong to the administration section, never to the selector, and
+  // local_group_member_counts() answers an ordinary member with nothing.
+  const [leadership, memberCounts] = isAdmin
+    ? await Promise.all([
+        getLocalGroupLeadership(community.id),
+        getLocalGroupMemberCounts(community.id),
+      ])
+    : [new Map(), new Map<string, number>()];
   const selected = groups.find((group) => group.id === membership?.localGroupId);
   const selectable = groups.filter((group) => group.active);
   const welcome = velkommen === "1";
@@ -359,7 +365,6 @@ export default async function LocalGroupsPage({
                   groups={selectable}
                   selectedId={selected.active ? selected.id : undefined}
                   accent={community.branding.accent}
-                  memberCounts={memberCounts}
                   welcome={welcome}
                   doneHref={`/community/${community.id}/lokallag`}
                 />
@@ -376,7 +381,6 @@ export default async function LocalGroupsPage({
               communityId={community.id}
               groups={selectable}
               accent={community.branding.accent}
-              memberCounts={memberCounts}
               welcome={welcome}
             />
           </section>

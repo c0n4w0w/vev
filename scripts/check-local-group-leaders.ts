@@ -150,6 +150,30 @@ async function isGranted(localGroupId: string, userId: string) {
   return Boolean(data);
 }
 
+/** What local_group_member_counts() answers this caller: "<group id>:<count>" pairs, sorted. */
+async function headcounts(client: Client, communityId: string) {
+  const { data, error } = await client.rpc("local_group_member_counts", { p_community_id: communityId });
+  return {
+    error,
+    rows: (data ?? []).map((row) => `${row.local_group_id}:${row.member_count}`).sort().join(","),
+  };
+}
+/** The true headcounts, read with the service role, in the same shape. */
+async function actualHeadcounts(communityId: string, onlyGroupId?: string) {
+  const { data: groups } = await admin.from("community_local_groups").select("id").eq("community_id", communityId);
+  const { data: members } = await admin
+    .from("memberships")
+    .select("local_group_id")
+    .eq("community_id", communityId)
+    .eq("status", "active")
+    .not("local_group_id", "is", null);
+  return (groups ?? [])
+    .filter((group) => !onlyGroupId || group.id === onlyGroupId)
+    .map((group) => `${group.id}:${(members ?? []).filter((m) => m.local_group_id === group.id).length}`)
+    .sort()
+    .join(",");
+}
+
 async function cleanup() {
   await admin.from("events").delete().like("title", `${MARK}%`);
 }
@@ -158,7 +182,7 @@ async function main() {
   await cleanup();
 
   const handles = [
-    "miaminge", "petter", "karimoen", "nadia", "kristoffer", "elironning", "emmamortensen", "octavio",
+    "miaminge", "petter", "karimoen", "nadia", "kristoffer", "elironning", "emmamortensen", "octavio", "adrian",
   ] as const;
   const c = Object.fromEntries(
     await Promise.all(handles.map(async (h) => [h, await signIn(h)] as const)),
@@ -175,6 +199,60 @@ async function main() {
   expect("Petter er effektiv leder i Trøndelag", await canLead(c.petter, trondelag), true);
   expect("Petter er ikke leder i Oslo", await canLead(c.petter, oslo), false);
   expect("Kari (moderator) er ikke leder", await canLead(c.karimoen, trondelag), false);
+
+  // ── Headcounts (20261019100000_local_group_counts_for_managers) ───────
+  //
+  // How many members a lokallag has is management information: every lokallag
+  // for an admin of the community, their own for a lokallagsleder, and nothing
+  // for anyone else — including a member asking about their own lokallag.
+  const TU = "tryggere-ungdom";
+  const anon = createClient<Database>(supabaseUrl(), supabaseAnonKey());
+  expect("forutsetning: Eli er vanlig medlem i FTR Trøndelag", (await admin.from("memberships").select("role, local_group_id").eq("community_id", FTR).eq("user_id", ids.elironning).single()).data?.local_group_id, trondelag);
+  expect("forutsetning: Adrian er vanlig TU-medlem med lokallag", Boolean((await admin.from("memberships").select("local_group_id").eq("community_id", TU).eq("user_id", ids.adrian).eq("role", "member").single()).data?.local_group_id), true);
+  expect("forutsetning: minst ett FTR-lokallag har medlemmer", /:[1-9]/.test(await actualHeadcounts(FTR)), true);
+
+  const miaCounts = await headcounts(c.miaminge, FTR);
+  expect("tall: FTR-admin får tallene uten feil", miaCounts.error, null);
+  expect("tall: FTR-admin får riktig tall for hvert FTR-lokallag", miaCounts.rows, await actualHeadcounts(FTR));
+  expect("tall: TU-admin får riktig tall for hvert TU-lokallag", (await headcounts(c.emmamortensen, TU)).rows, await actualHeadcounts(TU));
+
+  const petterCounts = await headcounts(c.petter, FTR);
+  expect("tall: lokallagsleder får tallet uten feil", petterCounts.error, null);
+  expect("tall: lokallagsleder får bare sitt eget lokallag", petterCounts.rows, await actualHeadcounts(FTR, trondelag));
+  expect("tall: lokallagsleder får ikke tallet for FTR Oslo", petterCounts.rows.includes(oslo), false);
+  expect("tall: FTR-lederrollen gir ingen TU-tall", (await headcounts(c.petter, TU)).rows, "");
+
+  for (const [label, client, communityId] of [
+    ["vanlig FTR-medlem i Trøndelag (eget lokallag)", c.elironning, FTR],
+    ["vanlig FTR-medlem i Oslo", c.kristoffer, FTR],
+    ["FTR-moderator i Trøndelag uten ledertilgang", c.karimoen, FTR],
+    ["FTR-moderator", c.nadia, FTR],
+    ["vanlig TU-medlem med lokallag", c.adrian, TU],
+    ["vanlig TU-medlem uten lokallag", c.elironning, TU],
+    ["TU-admin spør om FTR", c.emmamortensen, FTR],
+    ["FTR-admin spør om TU", c.miaminge, TU],
+    ["UTR-admin spør om FTR", c.octavio, FTR],
+  ] as const) {
+    const answer = await headcounts(client, communityId);
+    expect(`tall: ${label} får ingen feil`, answer.error, null);
+    expect(`tall: ${label} får ingen lokallagstall`, answer.rows, "");
+  }
+  const anonCounts = await headcounts(anon, FTR);
+  expect("tall: anonym kan ikke kalle funksjonen", anonCounts.error !== null, true);
+  expect("tall: anonym får ingen lokallagstall", anonCounts.rows, "");
+  // The headcount cannot be rebuilt from the membership table either.
+  expect(
+    "tall: vanlig medlem leser bare sitt eget medlemskap, ikke lokallagets",
+    ((await c.elironning.from("memberships").select("user_id").eq("community_id", FTR).eq("local_group_id", trondelag)).data ?? []).length,
+    1,
+  );
+  // Choosing a lokallag never depended on the headcount.
+  expect(
+    "tall: vanlig medlem ser fortsatt hvilke lokallag som finnes",
+    ((await c.elironning.from("community_local_groups").select("id").eq("community_id", FTR)).data ?? []).length > 1,
+    true,
+  );
+  expect("tall: vanlig medlem kan fortsatt lagre sitt lokallag", (await c.elironning.rpc("set_my_local_group", { p_community_id: FTR, p_local_group_id: trondelag })).data, true);
 
   // ── 1–2. Admin ────────────────────────────────────────────────────────
   const adminWide = await create(c.miaminge, FTR);
@@ -388,6 +466,7 @@ async function main() {
     expect("11. ser ikke lenger påmeldte på sitt eget arrangement", (await rosterNames(c.petter, own.id!)).length, 0);
     expect("11. leser bare sin egen påmeldingsrad direkte", ((await c.petter.from("event_attendees").select("user_id").eq("event_id", own.id!)).data ?? []).length, 0);
     expect("11. får fortsatt antallet", (await c.petter.rpc("event_attendance", { p_event_ids: [own.id!] })).data?.[0]?.attendee_count, 1);
+    expect("11. får ikke lenger lokallagstallet", (await headcounts(c.petter, FTR)).rows, "");
   } finally {
     expect("11. admin utnevner Petter igjen", await grant(c.miaminge, trondelag, ids.petter), true);
   }
