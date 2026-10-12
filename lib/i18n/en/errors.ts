@@ -133,7 +133,23 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.subgroupPickMember": "Choose a member to add.",
   "err.subgroupAddRefused":
     "The member wasn't added. They may already be in the group, not be an active member, or you aren't allowed to change this group.",
-  "err.subgroupRemoveRefused": "The member wasn't removed. You aren't allowed to change this group.",
+  "err.subgroupRemoveRefused":
+    "The member wasn't removed. You aren't allowed to change this team, or the person is a team manager and can only be removed by an administrator.",
+  "err.subgroupNameEmpty": "The team needs a name.",
+  "err.subgroupNameTooLong": "The team name can be at most {max} characters.",
+  "err.subgroupDescriptionTooLong": "The description can be at most {max} characters.",
+  "err.subgroupMemberIneligible":
+    "One of the selected people is no longer an active member of the community. Remove them from the selection and try again.",
+  "err.subgroupCreateRefused":
+    "The team wasn't created. Only administrators and moderators can create teams.",
+  "err.subgroupEditRefused": "The changes weren't saved. You aren't allowed to manage this team.",
+  "err.subgroupManagerRefused":
+    "The change wasn't saved. Only administrators choose team managers, and only members of the team can be one.",
+  "err.subgroupArchiveRefused": "The team wasn't changed. You aren't allowed to manage this team.",
+  "err.subgroupDeleteRefused":
+    "The team wasn't deleted. Only administrators and team managers can delete a team.",
+  "err.subgroupDeleteHasContent":
+    "The team wasn't deleted because posts or events have been published to it. Delete them first, or archive the team.",
   "err.localGroupNameRequired": "The local group needs a name.",
 
   // ── Settings, requests and invitations ────────────────────────────────

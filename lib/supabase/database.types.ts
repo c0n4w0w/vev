@@ -1705,8 +1705,10 @@ export type Database = {
           active: boolean
           community_id: string
           created_at: string
+          created_by: string | null
           description: string
           id: string
+          moderators_read: boolean
           name: string
           slug: string
         }
@@ -1714,8 +1716,10 @@ export type Database = {
           active?: boolean
           community_id: string
           created_at?: string
+          created_by?: string | null
           description?: string
           id?: string
+          moderators_read?: boolean
           name: string
           slug: string
         }
@@ -1723,8 +1727,10 @@ export type Database = {
           active?: boolean
           community_id?: string
           created_at?: string
+          created_by?: string | null
           description?: string
           id?: string
+          moderators_read?: boolean
           name?: string
           slug?: string
         }
@@ -1734,6 +1740,13 @@ export type Database = {
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_subgroups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2589,6 +2602,10 @@ export type Database = {
         Args: { p_local_group_id: string }
         Returns: boolean
       }
+      can_create_subgroup: {
+        Args: { p_community_id: string }
+        Returns: boolean
+      }
       can_delete_event: { Args: { p_event_id: string }; Returns: boolean }
       can_discard_collaboration_file_object: {
         Args: { p_name: string }
@@ -2895,6 +2912,15 @@ export type Database = {
         }
         Returns: string
       }
+      create_subgroup: {
+        Args: {
+          p_community_id: string
+          p_description: string
+          p_member_ids: string[]
+          p_name: string
+        }
+        Returns: string
+      }
       decline_collaboration_participant_invite: {
         Args: { p_participant_id: string }
         Returns: boolean
@@ -2907,6 +2933,7 @@ export type Database = {
         Args: { p_channel_id: string }
         Returns: boolean
       }
+      delete_subgroup: { Args: { p_subgroup_id: string }; Returns: boolean }
       direct_member_dm_actions: {
         Args: { p_community_id: string }
         Returns: {
@@ -3225,6 +3252,13 @@ export type Database = {
         }
         Returns: Record<string, unknown>
       }
+      search_new_subgroup_candidates: {
+        Args: { p_community_id: string; p_query: string }
+        Returns: {
+          display_name: string
+          user_id: string
+        }[]
+      }
       search_private_channel_candidates: {
         Args: {
           p_channel_id: string
@@ -3349,6 +3383,22 @@ export type Database = {
         Args: { p_channel_id: string; p_is_manager: boolean; p_user_id: string }
         Returns: boolean
       }
+      set_subgroup_archived: {
+        Args: { p_archived: boolean; p_subgroup_id: string }
+        Returns: boolean
+      }
+      set_subgroup_details: {
+        Args: { p_description: string; p_name: string; p_subgroup_id: string }
+        Returns: boolean
+      }
+      set_subgroup_manager: {
+        Args: {
+          p_is_manager: boolean
+          p_subgroup_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       shares_community: { Args: { other: string }; Returns: boolean }
       shares_direct_conversation: { Args: { other: string }; Returns: boolean }
       shares_visible_authorship: { Args: { other: string }; Returns: boolean }
@@ -3366,6 +3416,21 @@ export type Database = {
       }
       subgroup_access_admits: {
         Args: { p_subgroup_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      subgroup_channel_purpose: {
+        Args: { p_description: string; p_moderators_read: boolean }
+        Returns: string
+      }
+      subgroup_content_counts: {
+        Args: { p_subgroup_id: string }
+        Returns: {
+          event_count: number
+          post_count: number
+        }[]
+      }
+      subgroup_create_admits: {
+        Args: { p_community_id: string; p_user_id: string }
         Returns: boolean
       }
       subgroup_manage_admits: {

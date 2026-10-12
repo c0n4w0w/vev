@@ -185,6 +185,10 @@ export const community = {
   "channel.membersOnlySubgroup":
     "Samtalen er kun synlig for medlemmer av {name} og moderatorer og administratorer i {community}.",
   "channel.footerLocal": "Meldinger er kun synlige for medlemmer av {name} og administratorer i {community}.",
+  "channel.membersOnlySubgroupClosed":
+    "Samtalen er kun synlig for medlemmer av {name} og administratorer i {community}.",
+  "channel.footerSubgroupClosed":
+    "Meldinger er kun synlige for medlemmer av {name} og administratorer i {community}.",
   "channel.footerSubgroup":
     "Meldinger er kun synlige for medlemmer av {name} og moderatorer og administratorer i {community}.",
   "channel.placeholder": "Skriv i #{name}",
@@ -332,10 +336,12 @@ export const community = {
   "subgroups.metaTitle": "Grupper · {name}",
   "subgroups.title": "Grupper",
   "subgroups.lead":
-    "Lukkede grupper i {name}. Medlemmene ser gruppens kanal, innlegg og arrangementer, sammen med fellesskapets moderatorer og administratorer. Her legger du til og fjerner medlemmer.",
+    "Lukkede grupper i {name}. Bare medlemmene av en gruppe og fellesskapets administratorer ser gruppens kanal, innlegg og arrangementer. Her administrerer du gruppene du har ansvar for.",
   "subgroups.none.title": "Ingen grupper å administrere",
   "subgroups.none.body":
     "Grupper administreres av fellesskapets administratorer og av dem som er gitt ansvar for en gruppe.",
+  "subgroups.none.createBody":
+    "Opprett en lukket gruppe for utvalgte medlemmer, for eksempel en komité eller en arbeidsgruppe.",
   "subgroups.membersHeading": "Medlemmer i {name}",
   "subgroups.empty": "Gruppen har ingen medlemmer ennå.",
   "subgroups.manager": "Gruppeansvarlig",
@@ -351,6 +357,56 @@ export const community = {
   "subgroups.removeNote":
     "Å fjerne noen fra gruppen tar bare bort gruppemedlemskapet. Personen er fortsatt medlem av fellesskapet, beholder rolle og lokallag, og det de har skrevet blir stående.",
   "subgroups.openChat": "Åpne gruppechatten",
+  "subgroups.new": "Ny gruppe",
+  "subgroups.create.title": "Ny gruppe i {community}",
+  "subgroups.create.lead":
+    "En lukket gruppe for utvalgte medlemmer av {community}, uavhengig av lokallag. Bare de du legger til, og fellesskapets administratorer, ser gruppen og samtalen.",
+  "subgroups.create.name": "Gruppenavn",
+  "subgroups.create.namePlaceholder": "F.eks. Arrangementskomiteen",
+  "subgroups.create.description": "Beskrivelse",
+  "subgroups.create.optional": "valgfritt",
+  "subgroups.create.descriptionPlaceholder": "Kort om hva gruppen er til for",
+  "subgroups.create.members": "Medlemmer",
+  "subgroups.create.membersHint":
+    "Søk etter medlemmer av {community}. Du blir selv medlem og gruppeansvarlig.",
+  "subgroups.create.submit": "Opprett gruppe",
+  "subgroups.create.creating": "Oppretter …",
+  "subgroups.selected.label": "Valgte medlemmer",
+  "subgroups.selected.none": "Ingen valgt ennå. Du kan også legge til medlemmer senere.",
+  "subgroups.selected.removeNamed": "Fjern {name} fra utvalget",
+  "subgroups.newSearch.label": "Søk etter medlemmer",
+  "subgroups.newSearch.searching": "Søker …",
+  "subgroups.newSearch.noMatches": "Ingen aktive medlemmer av {community} passer søket.",
+  "subgroups.newSearch.add": "Legg til",
+  "subgroups.newSearch.addNamed": "Legg til {name}",
+  "subgroups.archivedBadge": "Arkivert",
+  "subgroups.archivedNote": "Gruppen er arkivert. Medlemmer kan fjernes, men ikke legges til.",
+  "subgroups.moderatorsReadNote": "Fellesskapets moderatorer kan også lese denne gruppen.",
+  "subgroups.makeManager": "Gjør til gruppeansvarlig",
+  "subgroups.makeManagerNamed": "Gjør {name} til gruppeansvarlig",
+  "subgroups.unmakeManager": "Fjern som gruppeansvarlig",
+  "subgroups.unmakeManagerNamed": "Fjern {name} som gruppeansvarlig",
+  "subgroups.manage.menu": "Administrer gruppe",
+  "subgroups.manage.edit": "Rediger navn og beskrivelse",
+  "subgroups.manage.archive": "Arkiver gruppen",
+  "subgroups.manage.restore": "Gjenåpne gruppen",
+  "subgroups.manage.delete": "Slett gruppen",
+  "subgroups.edit.title": "Rediger {name}",
+  "subgroups.edit.saving": "Lagrer …",
+  "subgroups.archive.title": "Arkivere {name}?",
+  "subgroups.archive.body":
+    "Gruppen blir skrivebeskyttet: ingen nye meldinger, innlegg, arrangementer eller medlemmer. Historikken blir liggende for medlemmene, og gruppen kan gjenåpnes senere.",
+  "subgroups.archive.confirm": "Ja, arkiver",
+  "subgroups.restore.title": "Gjenåpne {name}?",
+  "subgroups.restore.body": "Medlemmene kan skrive i gruppen igjen, og nye medlemmer kan legges til.",
+  "subgroups.restore.confirm": "Gjenåpne",
+  "subgroups.delete.title": "Slette gruppen permanent?",
+  "subgroups.delete.body":
+    "Gruppen {name}, gruppechatten og alle meldingene i den blir slettet permanent, og medlemmene mister tilgangen. Dette kan ikke angres.",
+  "subgroups.delete.confirm": "Slett permanent",
+  "subgroups.delete.blockedTitle": "Gruppen kan ikke slettes ennå",
+  "subgroups.delete.blocked":
+    "Det er publisert innhold til {name} som ikke slettes sammen med gruppen (innlegg: {posts}, arrangementer: {events}). Slett det først, eller arkiver gruppen i stedet – da blir alt liggende for medlemmene.",
   "lokallag.change": "Endre lokallag",
   "lokallag.openChat": "Åpne lokallagschatten",
   "lokallag.nextActivity": "Neste aktivitet",

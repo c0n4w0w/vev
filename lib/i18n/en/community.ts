@@ -187,6 +187,10 @@ export const community: Record<keyof typeof nb, string> = {
   "channel.membersOnlySubgroup":
     "This conversation is visible only to members of {name} and moderators and administrators of {community}.",
   "channel.footerLocal": "Messages are visible only to members of {name} and administrators of {community}.",
+  "channel.membersOnlySubgroupClosed":
+    "This conversation is visible only to members of {name} and administrators of {community}.",
+  "channel.footerSubgroupClosed":
+    "Messages are visible only to members of {name} and administrators of {community}.",
   "channel.footerSubgroup":
     "Messages are visible only to members of {name} and moderators and administrators of {community}.",
   "channel.placeholder": "Message #{name}",
@@ -334,10 +338,12 @@ export const community: Record<keyof typeof nb, string> = {
   "subgroups.metaTitle": "Teams · {name}",
   "subgroups.title": "Teams",
   "subgroups.lead":
-    "Private teams in {name}. Members see the team's channel, posts and events, together with the community's moderators and administrators. Add and remove members here.",
+    "Private teams in {name}. Only a team's members and the community's administrators see its channel, posts and events. Manage the teams you are responsible for here.",
   "subgroups.none.title": "No teams to manage",
   "subgroups.none.body":
     "Teams are managed by the community's administrators and by people given responsibility for a team.",
+  "subgroups.none.createBody":
+    "Create a private team for selected members, such as a committee or a working group.",
   "subgroups.membersHeading": "Members of {name}",
   "subgroups.empty": "The team has no members yet.",
   "subgroups.manager": "Team manager",
@@ -353,6 +359,56 @@ export const community: Record<keyof typeof nb, string> = {
   "subgroups.removeNote":
     "Removing someone from the team only removes the team membership. They stay a member of the community, keep their role and local group, and what they wrote stays.",
   "subgroups.openChat": "Open the team chat",
+  "subgroups.new": "New team",
+  "subgroups.create.title": "New team in {community}",
+  "subgroups.create.lead":
+    "A private team for selected members of {community}, whatever their local group. Only the people you add, and the community's administrators, see the team and its conversation.",
+  "subgroups.create.name": "Team name",
+  "subgroups.create.namePlaceholder": "E.g. Events committee",
+  "subgroups.create.description": "Description",
+  "subgroups.create.optional": "optional",
+  "subgroups.create.descriptionPlaceholder": "Briefly, what the team is for",
+  "subgroups.create.members": "Members",
+  "subgroups.create.membersHint":
+    "Search for members of {community}. You become a member and the team manager yourself.",
+  "subgroups.create.submit": "Create team",
+  "subgroups.create.creating": "Creating…",
+  "subgroups.selected.label": "Selected members",
+  "subgroups.selected.none": "Nobody selected yet. You can also add members later.",
+  "subgroups.selected.removeNamed": "Remove {name} from the selection",
+  "subgroups.newSearch.label": "Search for members",
+  "subgroups.newSearch.searching": "Searching…",
+  "subgroups.newSearch.noMatches": "No active members of {community} match the search.",
+  "subgroups.newSearch.add": "Add",
+  "subgroups.newSearch.addNamed": "Add {name}",
+  "subgroups.archivedBadge": "Archived",
+  "subgroups.archivedNote": "The team is archived. Members can be removed, but not added.",
+  "subgroups.moderatorsReadNote": "The community's moderators can also read this team.",
+  "subgroups.makeManager": "Make team manager",
+  "subgroups.makeManagerNamed": "Make {name} a team manager",
+  "subgroups.unmakeManager": "Remove as team manager",
+  "subgroups.unmakeManagerNamed": "Remove {name} as team manager",
+  "subgroups.manage.menu": "Manage team",
+  "subgroups.manage.edit": "Edit name and description",
+  "subgroups.manage.archive": "Archive the team",
+  "subgroups.manage.restore": "Reopen the team",
+  "subgroups.manage.delete": "Delete the team",
+  "subgroups.edit.title": "Edit {name}",
+  "subgroups.edit.saving": "Saving…",
+  "subgroups.archive.title": "Archive {name}?",
+  "subgroups.archive.body":
+    "The team becomes read-only: no new messages, posts, events or members. Its history stays for the members, and the team can be reopened later.",
+  "subgroups.archive.confirm": "Yes, archive",
+  "subgroups.restore.title": "Reopen {name}?",
+  "subgroups.restore.body": "Members can write in the team again, and new members can be added.",
+  "subgroups.restore.confirm": "Reopen",
+  "subgroups.delete.title": "Delete the team permanently?",
+  "subgroups.delete.body":
+    "The team {name}, its chat and all the messages in it will be deleted permanently, and its members lose access. This can't be undone.",
+  "subgroups.delete.confirm": "Delete permanently",
+  "subgroups.delete.blockedTitle": "The team can't be deleted yet",
+  "subgroups.delete.blocked":
+    "Content published to {name} is not deleted with the team (posts: {posts}, events: {events}). Delete it first, or archive the team instead – everything then stays for its members.",
   "lokallag.change": "Change local group",
   "lokallag.openChat": "Open the local group chat",
   "lokallag.nextActivity": "Next activity",

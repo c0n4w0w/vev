@@ -327,6 +327,7 @@ async function main() {
         slug: subgroup.slug,
         name: subgroup.name,
         description: subgroup.description,
+        moderators_read: subgroup.moderatorsRead,
       })
       .select("id")
       .single();

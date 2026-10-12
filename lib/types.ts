@@ -177,7 +177,14 @@ export interface Subgroup {
   slug: string;
   name: string;
   description: string;
+  /** False while the group is archived: readable, but nothing new can be added. */
   active: boolean;
+  /**
+   * Whether the community's moderators read the group by role alone. True only
+   * for groups that predate group creation (Safe-Space frivillige); a group
+   * created in the product is read by its members and the community's admins.
+   */
+  moderatorsRead: boolean;
 }
 
 /** One person in a subgroup, as its managers see the roster. */

@@ -1207,6 +1207,7 @@ function toSubgroup(row: SubgroupRow): Subgroup {
     name: row.name,
     description: row.description,
     active: row.active,
+    moderatorsRead: row.moderators_read,
   };
 }
 
@@ -1298,6 +1299,144 @@ export async function removeSubgroupMember(subgroupId: string, userId: string): 
     p_user_id: userId,
   });
   return !error && data === true;
+}
+
+/** Whether the caller may create a group here: an active admin or moderator. */
+export async function canCreateSubgroup(communityId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("can_create_subgroup", { p_community_id: communityId });
+  return !error && data === true;
+}
+
+export type CreateSubgroupResult =
+  | { ok: true; subgroupId: string }
+  | { ok: false; error: MessageKey };
+
+/**
+ * Creates a private group with the chosen members.
+ *
+ * `create_subgroup()` decides everything: that the caller is an admin or
+ * moderator of this community, and that every chosen member is an active
+ * member of it. The caller becomes a member and a manager, and the group's
+ * chat is created with it. Either all of that exists afterwards, or nothing.
+ */
+export async function createSubgroup(input: {
+  communityId: string;
+  name: string;
+  description: string;
+  memberIds: string[];
+}): Promise<CreateSubgroupResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("create_subgroup", {
+    p_community_id: input.communityId,
+    p_name: input.name,
+    p_description: input.description,
+    p_member_ids: input.memberIds,
+  });
+  if (error) {
+    if (error.message.includes("subgroup_member_ineligible")) {
+      return { ok: false, error: "err.subgroupMemberIneligible" };
+    }
+    return { ok: false, error: "err.subgroupCreateRefused" };
+  }
+  if (!data) return { ok: false, error: "err.subgroupCreateRefused" };
+  return { ok: true, subgroupId: data };
+}
+
+/**
+ * Active members of the community whose display name matches a search, for
+ * choosing the members of a group about to be created. The database answers
+ * only someone who may create a group here, only for at least two characters,
+ * with at most ten matches and nothing but an id and a display name.
+ */
+export async function searchNewSubgroupCandidates(
+  communityId: string,
+  query: string,
+): Promise<{ userId: string; displayName: string }[]> {
+  if (query.trim().length < 2) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("search_new_subgroup_candidates", {
+    p_community_id: communityId,
+    p_query: query,
+  });
+  return rows(data).map((row) => ({ userId: row.user_id, displayName: row.display_name }));
+}
+
+/** Sets a group's name and description; its chat follows. Managers only. */
+export async function setSubgroupDetails(
+  subgroupId: string,
+  name: string,
+  description: string,
+): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_subgroup_details", {
+    p_subgroup_id: subgroupId,
+    p_name: name,
+    p_description: description,
+  });
+  return !error && data === true;
+}
+
+/** Archives (nothing new, history kept) or reopens a group. Managers only. */
+export async function setSubgroupArchived(subgroupId: string, archived: boolean): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_subgroup_archived", {
+    p_subgroup_id: subgroupId,
+    p_archived: archived,
+  });
+  return !error && data === true;
+}
+
+/**
+ * Gives or takes the manager mark (gruppeansvarlig) of a group member,
+ * whatever their community role. Community admins only.
+ */
+export async function setSubgroupManager(
+  subgroupId: string,
+  userId: string,
+  isManager: boolean,
+): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_subgroup_manager", {
+    p_subgroup_id: subgroupId,
+    p_user_id: userId,
+    p_is_manager: isManager,
+  });
+  return !error && data === true;
+}
+
+/**
+ * How many posts and events are scoped to a group — what `delete_subgroup()`
+ * refuses to destroy. Answered for the group's managers only.
+ */
+export async function getSubgroupContentCounts(
+  subgroupId: string,
+): Promise<{ posts: number; events: number }> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("subgroup_content_counts", { p_subgroup_id: subgroupId });
+  const row = rows(data)[0];
+  return { posts: row?.post_count ?? 0, events: row?.event_count ?? 0 };
+}
+
+export type DeleteSubgroupResult = { ok: true } | { ok: false; error: MessageKey };
+
+/**
+ * Permanently deletes a group with its chat, the chat's messages and its
+ * member and manager rows. `delete_subgroup()` decides: only someone who may
+ * manage the group, and never while a post or event is still scoped to it.
+ */
+export async function deleteSubgroup(subgroupId: string): Promise<DeleteSubgroupResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("delete_subgroup", { p_subgroup_id: subgroupId });
+  if (error) {
+    return {
+      ok: false,
+      error: error.message.includes("subgroup_has_content")
+        ? "err.subgroupDeleteHasContent"
+        : "err.subgroupDeleteRefused",
+    };
+  }
+  return data === true ? { ok: true } : { ok: false, error: "err.subgroupDeleteRefused" };
 }
 
 /**

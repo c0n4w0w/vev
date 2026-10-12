@@ -3,6 +3,7 @@ import { ChannelView } from "@/components/community/ChannelView";
 import {
   canCreatePrivateChannel,
   canManagePrivateChannel,
+  canManageSubgroup,
   getChannel,
   getCommunityById,
   getCommunityEmojis,
@@ -11,6 +12,7 @@ import {
   getMembership,
   getMessages,
   getPrivateChannelRoster,
+  getSubgroups,
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
 import { communityLocale, communityTranslator } from "@/lib/i18n";
@@ -67,6 +69,12 @@ export default async function ChannelPage({
     localGroup && !channel.isPrivate ? canCreatePrivateChannel(localGroup.id) : false,
     channel.isPrivate ? getPrivateChannelRoster(community.id, channel.id) : [],
   ]);
+  // A team's chat: how its audience is worded, and — for someone who may
+  // manage the team — the way to its entry on the Grupper page.
+  const subgroup = channel.subgroupId
+    ? (await getSubgroups(community.id)).find((group) => group.id === channel.subgroupId)
+    : undefined;
+  const managesSubgroup = subgroup ? await canManageSubgroup(subgroup.id) : false;
   const personas = await getCommunityPersonas(community.id, [
     ...new Set([user.id, ...messages.map((message) => message.authorId)]),
   ]);
@@ -106,6 +114,16 @@ export default async function ChannelPage({
               canManage,
               roster,
               viewerIsAdmin: membership?.role === "admin" && membership.status === "active",
+            }
+          : undefined
+      }
+      subgroup={
+        subgroup
+          ? {
+              moderatorsRead: subgroup.moderatorsRead,
+              manageHref: managesSubgroup
+                ? `/community/${community.id}/grupper#gruppe-${subgroup.id}`
+                : undefined,
             }
           : undefined
       }

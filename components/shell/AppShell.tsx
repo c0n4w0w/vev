@@ -207,8 +207,8 @@ function communityAdminNav(id: string, managesSubgroups: boolean, t: Translator)
       adminOnly: true,
     },
     // Private teams: drawn for anyone who may manage at least one — an admin,
-    // or an explicit manager whatever their role. Not for every moderator:
-    // reading a team's content and managing its members are separate rights.
+    // or an explicit manager whatever their role — and for moderators, who
+    // may create one. A moderator still sees only the teams they manage there.
     ...(managesSubgroups
       ? [{ href: `/community/${id}/grupper`, label: t("shell.nav.subgroups"), icon: IconShield }]
       : []),

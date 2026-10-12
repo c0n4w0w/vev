@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Avatar, Badge, cn } from "@/components/ui/primitives";
 import { ChannelIntroCard } from "@/components/community/ChannelIntroCard";
@@ -69,6 +70,7 @@ export function ChannelView({
   customEmojis,
   lastActivityLabel,
   privateChannels,
+  subgroup,
 }: {
   channel: Channel;
   community: Community;
@@ -92,6 +94,12 @@ export function ChannelView({
   lastActivityLabel?: string;
   /** Set on a lokallag's main chat and on the private channels under it. */
   privateChannels?: PrivateChannelControls;
+  /**
+   * Set on a team's chat. `moderatorsRead` words the audience sentence the
+   * way the database decides it; `manageHref` is the team's entry on the
+   * Grupper page, present only for someone who may manage the team.
+   */
+  subgroup?: { moderatorsRead: boolean; manageHref?: string };
 }) {
   const t = useT();
   const locale = useLocale();
@@ -105,7 +113,8 @@ export function ChannelView({
   const insertText = useComposerInsert(composerRef, draft, setDraft);
   // Who can read this conversation, stated as the database decides it
   // (content_scope_admits): the whole community; a lokallag and the
-  // community's admins; or a team and the community's moderators and admins.
+  // community's admins; or a team and the community's admins — and its
+  // moderators too, for a team that predates team creation (Safe-Space).
   // A lokallag or team channel's name is its group's name. A private lokallag
   // channel (channel_access_admits) has a name of its own, so its sentence
   // names the lokallag it sits under: invited participants, and the admins.
@@ -114,7 +123,9 @@ export function ChannelView({
     : channel.localGroupId
       ? { note: "channel.membersOnlyLocal", footer: "channel.footerLocal" } as const
       : channel.subgroupId
-        ? { note: "channel.membersOnlySubgroup", footer: "channel.footerSubgroup" } as const
+        ? subgroup?.moderatorsRead === false
+          ? { note: "channel.membersOnlySubgroupClosed", footer: "channel.footerSubgroupClosed" } as const
+          : { note: "channel.membersOnlySubgroup", footer: "channel.footerSubgroup" } as const
         : { note: "channel.membersOnly", footer: "channel.footer" } as const;
   const audienceVars = {
     name: channel.isPrivate
@@ -227,6 +238,17 @@ export function ChannelView({
                 />
               )}
             </div>
+          ) : null}
+          {subgroup?.manageHref ? (
+            <Link
+              href={subgroup.manageHref}
+              className={cn(
+                "ml-auto inline-flex h-8 items-center gap-1.5 rounded-[5px] border border-line-2 px-2.5 text-[13px] text-ink-2",
+                "transition-colors hover:border-ink-3 hover:text-ink",
+              )}
+            >
+              {t("subgroups.manage.menu")}
+            </Link>
           ) : null}
         </div>
       </header>

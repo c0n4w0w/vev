@@ -49,10 +49,11 @@ export interface ShellCommunity {
   localGroups: { usesLocalGroups: boolean; selectedName?: string };
   hasOrganizationPeople: boolean;
   /**
-   * Whether the viewer may add and remove members of at least one subgroup —
-   * a community admin, or an explicit manager. Decides only whether the
-   * "Grupper" administration link is drawn; the page and the database decide
-   * again per subgroup.
+   * Whether the viewer has anything to do on the "Grupper" administration
+   * page: they may manage at least one subgroup (a community admin, or an
+   * explicit manager), or they may create one (an admin or moderator).
+   * Decides only whether the link is drawn; the page and the database decide
+   * again per subgroup and per action.
    */
   managesSubgroups: boolean;
   /**
@@ -120,7 +121,10 @@ export async function buildShellData(user: User): Promise<ShellData> {
         unreadDirectCount,
         recentDirectConversations,
         hasOrganizationPeople: people.length > 0,
-        managesSubgroups: manageable.length > 0,
+        managesSubgroups:
+          manageable.length > 0 ||
+          (membership.status === "active" &&
+            (membership.role === "admin" || membership.role === "moderator")),
         localGroups: {
           usesLocalGroups: groups.some((group) => group.active),
           selectedName: groups.find((group) => group.id === membership.localGroupId)?.name,

@@ -772,10 +772,24 @@ async function main() {
   // from community_profiles. Neither returns email, handle, account name or
   // role, and both are empty for a non-member. Pinned by
   // check:organization-people.
+  //
+  // private_channel_roster and search_private_channel_candidates (private
+  // lokallag channels) name the participants of one private channel to the
+  // people who can read it, and find members of one lokallag for whoever may
+  // create or manage a channel under it — display names only, the search at
+  // most ten at a time. Pinned by check:private-channels.
+  //
+  // search_new_subgroup_candidates and subgroup_content_counts (community
+  // groups). The first is search_subgroup_candidates for a group that does not
+  // exist yet: active members of ONE community by display name, at most ten,
+  // for that community's admins and moderators only — never another
+  // community, never an email, handle or role. The second returns two numbers
+  // (posts and events scoped to one group) to that group's managers, and no
+  // row to anyone else. Pinned by check:community-groups.
   expect(
     "68/70: ingen nye mengdereturnerende funksjoner utenom collaboration_units",
     sql("select string_agg(p.proname, ',' order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proretset"),
-    "accept_invitation_token,access_request_history,approve_access_request,collaboration_units,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,event_attendance,event_attendee_roster,invitation_preview,local_group_member_counts,organization_person_dm_actions,organization_person_profile_links,own_organization_person_ids,portal_by_slug,portal_events,resend_invitation,search_subgroup_candidates,set_channel_details,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person,subgroup_roster",
+    "accept_invitation_token,access_request_history,approve_access_request,collaboration_units,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,event_attendance,event_attendee_roster,invitation_preview,local_group_member_counts,organization_person_dm_actions,organization_person_profile_links,own_organization_person_ids,portal_by_slug,portal_events,private_channel_roster,resend_invitation,search_new_subgroup_candidates,search_private_channel_candidates,search_subgroup_candidates,set_channel_details,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person,subgroup_content_counts,subgroup_roster",
   );
   const unitsResult = sql("select pg_get_function_result('public.collaboration_units(uuid)'::regprocedure)");
   expect("68: collaboration_units returnerer ingen personfelt", /user|email|handle|member|profile|count/.test(unitsResult), false);
@@ -786,12 +800,18 @@ async function main() {
   expect("69: bruker uten relasjon får ikke slå opp via invitasjon", (await inviteBySlug(sofie, C!, FTR)).name, null);
   expect("69: anonym får ingen enheter", (await anon.rpc("collaboration_units", { p_collaboration_id: C! })).error !== null, true);
   expect("69: vilkårlig id gir ingenting", (await units(emma, randomUUID())).length, 0);
-  // search_subgroup_candidates is the one reviewed exception: it finds active
+  // search_subgroup_candidates is the reviewed exception: it finds active
   // members *inside* a team's own community, for that team's managers only,
   // by display name, at most ten at a time (see the allowlist note at 68/70
   // and check:safe-space). It cannot reach another community or list
-  // communities at all. Any other search-shaped function still fails here.
-  expect("70: ingen søkefunksjon for fellesskap finnes", sql("select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and (p.proname ilike '%search%' or p.proname ilike '%autocomplete%' or p.proname ilike '%suggest%') and p.proname <> 'search_subgroup_candidates'"), "0");
+  // communities at all. Its two siblings follow the same shape and are
+  // excepted with it: search_new_subgroup_candidates (the same search before
+  // the team exists, for the community's admins and moderators) and
+  // search_private_channel_candidates (members of one lokallag, for whoever
+  // may create or manage a private channel under it). None of them searches
+  // for, or returns, a community. Any other search-shaped function still
+  // fails here.
+  expect("70: ingen søkefunksjon for fellesskap finnes", sql("select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and (p.proname ilike '%search%' or p.proname ilike '%autocomplete%' or p.proname ilike '%suggest%') and p.proname not in ('search_subgroup_candidates','search_new_subgroup_candidates','search_private_channel_candidates')"), "0");
 
   // Nothing about any community profile or account changed along the way.
   expect("39/40: fellesskapsprofiler og kontoer uendret", await snapshot(), before);

@@ -79,8 +79,9 @@ export default async function CommunityFeedPage({
           // publishing itself, so everyone who sees the composer may use it.
           canAnnounce
           // Only scopes the author can read, which is also what posts_insert
-          // accepts: an admin any lokallag, a moderator their own; staff
-          // every active subgroup (getSubgroups is already RLS-filtered).
+          // accepts: an admin any lokallag, a moderator their own; and every
+          // active subgroup getSubgroups returns, which RLS has already
+          // narrowed to the ones this author may see.
           localGroups={groups.filter(
             (group) =>
               group.active && (membership?.role === "admin" || group.id === membership?.localGroupId),

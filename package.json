@@ -18,6 +18,7 @@
     "check:collaborations": "tsx scripts/check-collaborations.ts",
     "check:community-about": "tsx scripts/check-community-about.ts",
     "check:community-avatar": "tsx scripts/check-community-avatar.ts",
+    "check:community-groups": "tsx scripts/check-community-groups.ts",
     "check:community-profiles": "tsx scripts/check-community-profiles.ts",
     "check:content": "tsx scripts/check-content.ts",
     "check:custom-emojis": "tsx scripts/check-custom-emojis.ts",

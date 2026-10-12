@@ -135,7 +135,23 @@ export const errors = {
   "err.subgroupPickMember": "Velg et medlem å legge til.",
   "err.subgroupAddRefused":
     "Medlemmet ble ikke lagt til. Personen kan allerede være med, ikke være aktivt medlem, eller du har ikke lov til å endre gruppen.",
-  "err.subgroupRemoveRefused": "Medlemmet ble ikke fjernet. Du har ikke lov til å endre denne gruppen.",
+  "err.subgroupRemoveRefused":
+    "Medlemmet ble ikke fjernet. Du har ikke lov til å endre denne gruppen, eller personen er gruppeansvarlig og kan bare fjernes av en administrator.",
+  "err.subgroupNameEmpty": "Gruppen må ha et navn.",
+  "err.subgroupNameTooLong": "Gruppenavnet kan være høyst {max} tegn.",
+  "err.subgroupDescriptionTooLong": "Beskrivelsen kan være høyst {max} tegn.",
+  "err.subgroupMemberIneligible":
+    "En av de valgte er ikke lenger aktivt medlem av fellesskapet. Fjern personen fra utvalget og prøv igjen.",
+  "err.subgroupCreateRefused":
+    "Gruppen ble ikke opprettet. Bare administratorer og moderatorer kan opprette grupper.",
+  "err.subgroupEditRefused": "Endringene ble ikke lagret. Du har ikke lov til å administrere denne gruppen.",
+  "err.subgroupManagerRefused":
+    "Endringen ble ikke lagret. Bare administratorer kan velge gruppeansvarlige, og bare medlemmer av gruppen kan være det.",
+  "err.subgroupArchiveRefused": "Gruppen ble ikke endret. Du har ikke lov til å administrere denne gruppen.",
+  "err.subgroupDeleteRefused":
+    "Gruppen ble ikke slettet. Bare administratorer og gruppeansvarlige kan slette en gruppe.",
+  "err.subgroupDeleteHasContent":
+    "Gruppen ble ikke slettet fordi det er publisert innlegg eller arrangementer til den. Slett dem først, eller arkiver gruppen.",
   "err.localGroupNameRequired": "Lokallaget må ha et navn.",
 
   // ── Settings, requests and invitations ────────────────────────────────

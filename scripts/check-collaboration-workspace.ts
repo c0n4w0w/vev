@@ -1050,7 +1050,10 @@ async function main() {
     sql("select p.pronargs::text || '|' || p.proretset::text from pg_proc p where p.oid = 'public.published_event_by_slug(text)'::regprocedure"),
     "1|false",
   );
-  expect("S: ingen «archive»-funksjon (R3 gjelder fortsatt)", sql("select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname ilike '%archive%'"), "0");
+  // Same reviewed exceptions as R3 in check:collaborations: the two functions
+  // that archive a private lokallag channel and a community group. Neither
+  // takes or touches a collaboration.
+  expect("S: ingen «archive»-funksjon (R3 gjelder fortsatt)", sql("select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname ilike '%archive%' and p.proname not in ('set_private_channel_archived','set_subgroup_archived')"), "0");
   expect("S: publiseringsbøtta er privat", sql("select public::text from storage.buckets where id = 'published-event-images'"), "false");
 
   if (failures > 0) {

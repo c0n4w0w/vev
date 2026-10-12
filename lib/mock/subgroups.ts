@@ -10,15 +10,21 @@
  * chat channel itself (community_subgroups trigger).
  *
  * Access to a subgroup's content does not come only from these rows: the
- * community's moderators and admins read it too. Mia is listed as a member all
- * the same so the roster shows her, and Erlend's management right comes from
- * the explicit manager row, not from being a moderator.
+ * community's admins read it too, and — for a group with `moderatorsRead` —
+ * its moderators. Mia is listed as a member all the same so the roster shows
+ * her, and Erlend's management right comes from the explicit manager row, not
+ * from being a moderator.
+ *
+ * `moderatorsRead` is true for Safe-Space because it predates group creation
+ * in the product (20261022100000 keeps that rule for every group that existed
+ * then). A group created with `create_subgroup()` gets false.
  */
 export interface SubgroupFixture {
   communityId: string;
   slug: string;
   name: string;
   description: string;
+  moderatorsRead: boolean;
 }
 
 export const subgroups: SubgroupFixture[] = [
@@ -27,6 +33,7 @@ export const subgroups: SubgroupFixture[] = [
     slug: "safe-space-frivillige",
     name: "Safe-Space frivillige",
     description: "Frivillige i Safe-Space-arbeidet.",
+    moderatorsRead: true,
   },
 ];
 

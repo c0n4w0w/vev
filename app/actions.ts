@@ -23,6 +23,13 @@ import {
   clearMyCommunityAvatar,
   createCommunityEmoji as persistEmoji,
   addSubgroupMember,
+  createSubgroup,
+  deleteSubgroup,
+  getChannels,
+  searchNewSubgroupCandidates,
+  setSubgroupArchived,
+  setSubgroupDetails,
+  setSubgroupManager,
   addPrivateChannelParticipant,
   createPrivateChannel,
   deletePrivateChannel,
@@ -105,7 +112,14 @@ import {
   type PrivateChannelCreateFormState,
   type PrivateChannelFormState,
 } from "@/lib/private-channel-form";
-import { parseContentScope, type SubgroupFormState } from "@/lib/subgroup-form";
+import {
+  SUBGROUP_MEMBERS_MAX,
+  normalizeSubgroupDetails,
+  parseContentScope,
+  type SubgroupCandidate,
+  type SubgroupCreateFormState,
+  type SubgroupFormState,
+} from "@/lib/subgroup-form";
 import type { PostFormState } from "@/lib/post-form";
 import { sendInvitationEmail } from "@/lib/email/invitation";
 import { mintEmailSignInLink } from "@/lib/email-sign-in-link";
@@ -912,6 +926,8 @@ export async function deleteEventAction(
 // add_subgroup_member() / remove_subgroup_member() from auth.uid(). Neither
 // touches anyone's community role, lokallag or authored content.
 
+const SUBGROUP_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function revalidateSubgroups(communityId: string) {
   revalidatePath(`/community/${communityId}/grupper`);
   revalidatePath(`/community/${communityId}`, "layout");
@@ -949,6 +965,160 @@ export async function removeSubgroupMemberAction(
     String(formData.get("userId") ?? ""),
   );
   if (!ok) return { status: "error", error: (await translatorFor(communityId))("err.subgroupRemoveRefused") };
+
+  revalidateSubgroups(communityId);
+  return { status: "ok" };
+}
+
+/**
+ * Creates a private group and opens its chat.
+ *
+ * The members are the ids the form collected; `create_subgroup()` refuses the
+ * whole request if any of them is not an active member of this community, and
+ * refuses anyone who is not an admin or moderator of it, so nothing is created
+ * half-way and nothing here decides who may.
+ */
+export async function createSubgroupAction(
+  _prev: SubgroupCreateFormState,
+  formData: FormData,
+): Promise<SubgroupCreateFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
+
+  const input = normalizeSubgroupDetails(
+    String(formData.get("name") ?? ""),
+    String(formData.get("description") ?? ""),
+    t,
+  );
+  if (!input.ok) return { status: "error", error: input.message };
+
+  const memberIds = [
+    ...new Set(formData.getAll("memberIds").map(String).filter((id) => SUBGROUP_UUID.test(id))),
+  ].slice(0, SUBGROUP_MEMBERS_MAX);
+
+  const result = await createSubgroup({
+    communityId,
+    name: input.name,
+    description: input.description,
+    memberIds,
+  });
+  if (!result.ok) return { status: "error", error: t(result.error) };
+
+  revalidateSubgroups(communityId);
+  // The creator is a member, so `channels_select` returns the new chat.
+  const channel = (await getChannels(communityId)).find((c) => c.subgroupId === result.subgroupId);
+  redirect(
+    channel
+      ? `/community/${communityId}/channel/${channel.id}`
+      : `/community/${communityId}/grupper`,
+  );
+}
+
+/**
+ * The member search behind the create form. Called from the browser as the
+ * person types, so every argument is treated as text from a stranger; the
+ * database answers only someone who may create a group in that community,
+ * with at most ten display names.
+ */
+export async function searchNewSubgroupCandidatesAction(input: {
+  communityId: string;
+  query: string;
+}): Promise<SubgroupCandidate[]> {
+  const user = await getSessionUser();
+  if (!user) return [];
+
+  return searchNewSubgroupCandidates(
+    String(input?.communityId ?? "").slice(0, 120),
+    String(input?.query ?? "").slice(0, 80),
+  );
+}
+
+export async function updateSubgroupDetailsAction(
+  _prev: SubgroupFormState,
+  formData: FormData,
+): Promise<SubgroupFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
+  const input = normalizeSubgroupDetails(
+    String(formData.get("name") ?? ""),
+    String(formData.get("description") ?? ""),
+    t,
+  );
+  if (!input.ok) return { status: "error", error: input.message };
+
+  const ok = await setSubgroupDetails(String(formData.get("subgroupId") ?? ""), input.name, input.description);
+  if (!ok) return { status: "error", error: t("err.subgroupEditRefused") };
+
+  revalidateSubgroups(communityId);
+  return { status: "ok" };
+}
+
+/** Community admins only; the database refuses everyone else. */
+export async function setSubgroupManagerAction(
+  _prev: SubgroupFormState,
+  formData: FormData,
+): Promise<SubgroupFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const ok =
+    SUBGROUP_UUID.test(userId) &&
+    (await setSubgroupManager(
+      String(formData.get("subgroupId") ?? ""),
+      userId,
+      formData.get("isManager") === "true",
+    ));
+  if (!ok) return { status: "error", error: (await translatorFor(communityId))("err.subgroupManagerRefused") };
+
+  revalidateSubgroups(communityId);
+  return { status: "ok" };
+}
+
+/** Archives or reopens. Nothing is deleted either way. */
+export async function setSubgroupArchivedAction(
+  _prev: SubgroupFormState,
+  formData: FormData,
+): Promise<SubgroupFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const ok = await setSubgroupArchived(
+    String(formData.get("subgroupId") ?? ""),
+    formData.get("archived") === "true",
+  );
+  if (!ok) return { status: "error", error: (await translatorFor(communityId))("err.subgroupArchiveRefused") };
+
+  revalidateSubgroups(communityId);
+  return { status: "ok" };
+}
+
+/**
+ * Permanently deletes a group with its chat and messages.
+ *
+ * `delete_subgroup()` decides everything: that the caller may manage the
+ * group, and that no post or event is still scoped to it — in which case
+ * nothing is deleted and the dialog says why. "Deleted" is only ever shown
+ * once the database has confirmed.
+ */
+export async function deleteSubgroupAction(
+  _prev: SubgroupFormState,
+  formData: FormData,
+): Promise<SubgroupFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const result = await deleteSubgroup(String(formData.get("subgroupId") ?? ""));
+  if (!result.ok) return { status: "error", error: (await translatorFor(communityId))(result.error) };
 
   revalidateSubgroups(communityId);
   return { status: "ok" };
