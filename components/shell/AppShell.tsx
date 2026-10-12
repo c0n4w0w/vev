@@ -15,10 +15,12 @@ import {
   IconFeed,
   IconHash,
   IconHome,
+  IconLock,
   IconMapPin,
   IconMenu,
   IconMail,
   IconOverview,
+  IconPlus,
   IconSettings,
   IconShield,
   IconSmile,
@@ -41,6 +43,7 @@ function NavLink({
   active,
   badge,
   unread,
+  note,
   onNavigate,
   accent,
 }: {
@@ -50,6 +53,8 @@ function NavLink({
   active: boolean;
   badge?: number;
   unread?: boolean;
+  /** A quiet word after the label, e.g. "Arkivert". Mutes the row. */
+  note?: string;
   onNavigate?: () => void;
   accent?: string;
 }) {
@@ -73,7 +78,8 @@ function NavLink({
       {icon ? (
         <span className={cn("shrink-0", active ? "text-ink" : "text-ink-3")}>{icon}</span>
       ) : null}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className={cn("min-w-0 flex-1 truncate", note && !active && "text-ink-3")}>{label}</span>
+      {note ? <span className="shrink-0 text-[11px] text-ink-3">{note}</span> : null}
       {badge ? (
         <span className="shrink-0 rounded-full bg-rust px-1.5 py-px text-[10px] font-semibold leading-4 text-white">
           {badge}
@@ -360,18 +366,68 @@ function SidebarContent({
                 <div key={group.id} className="mt-3 first:mt-0">
                   <p className="mb-1 px-2.5 text-[11px] text-ink-3">{group.label}</p>
                   <ul className="space-y-px">
-                    {channels.map((channel) => (
-                      <li key={channel.id}>
-                        <NavLink
-                          href={`/community/${current.community.id}/channel/${channel.id}`}
-                          label={channel.name}
-                          icon={<IconHash size={15} />}
-                          accent={accent}
-                          active={pathname.endsWith(`/channel/${channel.id}`)}
-                          onNavigate={onNavigate}
-                        />
-                      </li>
-                    ))}
+                    {channels.map((channel, index) => {
+                      const channelHref = `/community/${current.community.id}/channel/${channel.id}`;
+                      // A lokallag's block ends where the next channel belongs
+                      // to another lokallag: that is where its "+ Ny privat
+                      // kanal" goes, under the private channels it already has.
+                      const lastOfLocalGroup =
+                        channel.localGroupId !== undefined &&
+                        channels[index + 1]?.localGroupId !== channel.localGroupId;
+                      const mainChannel = lastOfLocalGroup
+                        ? channels.find((c) => c.localGroupId === channel.localGroupId && !c.isPrivate)
+                        : undefined;
+                      // Drawn for the viewer's own lokallag, and for the one
+                      // they have open — an admin with seven lokallag does not
+                      // get seven of them. The channel's own header offers the
+                      // same action everywhere it is allowed.
+                      const offerCreate =
+                        mainChannel !== undefined &&
+                        current.privateChannelLocalGroupIds.includes(channel.localGroupId!) &&
+                        (channel.localGroupId === current.membership.localGroupId ||
+                          channels.some(
+                            (c) =>
+                              c.localGroupId === channel.localGroupId &&
+                              pathname.endsWith(`/channel/${c.id}`),
+                          ));
+
+                      return (
+                        <li key={channel.id}>
+                          {/* Private channels sit a step in from their lokallag's
+                              own chat, with a lock where the others have a hash. */}
+                          <div className={cn(channel.isPrivate && "pl-4")}>
+                            <NavLink
+                              href={channelHref}
+                              label={channel.name}
+                              icon={
+                                channel.isPrivate ? (
+                                  <>
+                                    <IconLock size={14} />
+                                    <span className="sr-only">{t("shell.nav.privateChannel")}</span>
+                                  </>
+                                ) : (
+                                  <IconHash size={15} />
+                                )
+                              }
+                              note={channel.archived ? t("shell.nav.archivedChannel") : undefined}
+                              accent={accent}
+                              active={pathname.endsWith(`/channel/${channel.id}`)}
+                              onNavigate={onNavigate}
+                            />
+                          </div>
+                          {offerCreate && mainChannel ? (
+                            <Link
+                              href={`/community/${current.community.id}/channel/${mainChannel.id}?ny=privat`}
+                              onClick={onNavigate}
+                              className="ml-4 mt-px flex items-center gap-2.5 rounded-[5px] px-2.5 py-[6px] text-[13px] text-ink-3 transition-colors hover:bg-paper-2/70 hover:text-ink"
+                            >
+                              <IconPlus size={14} className="shrink-0" />
+                              <span className="min-w-0 flex-1 truncate">{t("shell.nav.newPrivateChannel")}</span>
+                            </Link>
+                          ) : null}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ))}

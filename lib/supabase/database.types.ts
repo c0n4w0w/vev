@@ -110,11 +110,66 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_participants: {
+        Row: {
+          added_by: string | null
+          channel_id: string
+          community_id: string
+          created_at: string
+          is_manager: boolean
+          local_group_id: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          channel_id: string
+          community_id: string
+          created_at?: string
+          is_manager?: boolean
+          local_group_id: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          channel_id?: string
+          community_id?: string
+          created_at?: string
+          is_manager?: boolean
+          local_group_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_participants_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_participants_channel_id_community_id_local_group_i_fkey"
+            columns: ["channel_id", "community_id", "local_group_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id", "community_id", "local_group_id"]
+          },
+          {
+            foreignKeyName: "channel_participants_user_id_community_id_fkey"
+            columns: ["user_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["user_id", "community_id"]
+          },
+        ]
+      }
       channels: {
         Row: {
+          archived_at: string | null
           community_id: string
+          created_by: string | null
           group_id: string
           id: string
+          is_private: boolean
           local_group_id: string | null
           name: string
           position: number
@@ -123,9 +178,12 @@ export type Database = {
           subgroup_id: string | null
         }
         Insert: {
+          archived_at?: string | null
           community_id: string
+          created_by?: string | null
           group_id: string
           id: string
+          is_private?: boolean
           local_group_id?: string | null
           name: string
           position?: number
@@ -134,9 +192,12 @@ export type Database = {
           subgroup_id?: string | null
         }
         Update: {
+          archived_at?: string | null
           community_id?: string
+          created_by?: string | null
           group_id?: string
           id?: string
+          is_private?: boolean
           local_group_id?: string | null
           name?: string
           position?: number
@@ -150,6 +211,13 @@ export type Database = {
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channels_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -2475,6 +2543,10 @@ export type Database = {
         Args: { p_local_group_id: string; p_user_id: string }
         Returns: boolean
       }
+      add_private_channel_participant: {
+        Args: { p_channel_id: string; p_user_id: string }
+        Returns: boolean
+      }
       add_subgroup_member: {
         Args: { p_subgroup_id: string; p_user_id: string }
         Returns: boolean
@@ -2493,6 +2565,16 @@ export type Database = {
           token: string
         }[]
       }
+      can_access_channel_row: {
+        Args: {
+          p_channel_id: string
+          p_community_id: string
+          p_is_private: boolean
+          p_local_group_id: string
+          p_subgroup_id: string
+        }
+        Returns: boolean
+      }
       can_access_post: { Args: { pid: string }; Returns: boolean }
       can_access_subgroup: { Args: { p_subgroup_id: string }; Returns: boolean }
       can_create_event: {
@@ -2501,6 +2583,10 @@ export type Database = {
           p_local_group_id: string
           p_subgroup_id: string
         }
+        Returns: boolean
+      }
+      can_create_private_channel: {
+        Args: { p_local_group_id: string }
         Returns: boolean
       }
       can_delete_event: { Args: { p_event_id: string }; Returns: boolean }
@@ -2513,6 +2599,10 @@ export type Database = {
         Returns: boolean
       }
       can_manage_event: { Args: { p_event_id: string }; Returns: boolean }
+      can_manage_private_channel: {
+        Args: { p_channel_id: string }
+        Returns: boolean
+      }
       can_manage_subgroup: { Args: { p_subgroup_id: string }; Returns: boolean }
       can_moderate: { Args: { cid: string }; Returns: boolean }
       can_moderate_post: { Args: { pid: string }; Returns: boolean }
@@ -2585,6 +2675,18 @@ export type Database = {
       can_view_event_roster: { Args: { p_event_id: string }; Returns: boolean }
       can_view_member_directory: { Args: { cid: string }; Returns: boolean }
       cancel_event: { Args: { p_event_id: string }; Returns: string }
+      channel_accepts_messages: { Args: { chid: string }; Returns: boolean }
+      channel_access_admits: {
+        Args: {
+          p_channel_id: string
+          p_community_id: string
+          p_is_private: boolean
+          p_local_group_id: string
+          p_subgroup_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       collaboration_assignees_valid: {
         Args: {
           p_assignee_ids: string[]
@@ -2784,12 +2886,25 @@ export type Database = {
         Args: { p_community_id: string; p_name: string }
         Returns: string
       }
+      create_private_channel: {
+        Args: {
+          p_local_group_id: string
+          p_name: string
+          p_participant_ids: string[]
+          p_purpose: string
+        }
+        Returns: string
+      }
       decline_collaboration_participant_invite: {
         Args: { p_participant_id: string }
         Returns: boolean
       }
       delete_collaboration_message: {
         Args: { p_message_id: string }
+        Returns: boolean
+      }
+      delete_private_channel: {
+        Args: { p_channel_id: string }
         Returns: boolean
       }
       direct_member_dm_actions: {
@@ -2922,8 +3037,11 @@ export type Database = {
         Returns: boolean
       }
       mark_notifications_read: { Args: never; Returns: undefined }
-      my_onboarding_visible: { Args: { p_community_id: string }; Returns: boolean }
       my_accepts_member_dms: {
+        Args: { p_community_id: string }
+        Returns: boolean
+      }
+      my_onboarding_visible: {
         Args: { p_community_id: string }
         Returns: boolean
       }
@@ -2992,6 +3110,33 @@ export type Database = {
         }
         Returns: string
       }
+      private_channel_access_admits: {
+        Args: {
+          p_channel_id: string
+          p_community_id: string
+          p_local_group_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
+      private_channel_create_admits: {
+        Args: { p_local_group_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      private_channel_manage_admits: {
+        Args: { p_channel_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      private_channel_roster: {
+        Args: { p_channel_id: string }
+        Returns: {
+          added_at: string
+          display_name: string
+          is_leader: boolean
+          is_manager: boolean
+          user_id: string
+        }[]
+      }
       publish_collaboration_event: {
         Args: { p_event_id: string; p_image_path: string }
         Returns: string
@@ -3027,6 +3172,10 @@ export type Database = {
       }
       remove_local_group_manager: {
         Args: { p_local_group_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      remove_private_channel_participant: {
+        Args: { p_channel_id: string; p_user_id: string }
         Returns: boolean
       }
       remove_subgroup_member: {
@@ -3075,6 +3224,17 @@ export type Database = {
           p_title: string
         }
         Returns: Record<string, unknown>
+      }
+      search_private_channel_candidates: {
+        Args: {
+          p_channel_id: string
+          p_local_group_id: string
+          p_query: string
+        }
+        Returns: {
+          display_name: string
+          user_id: string
+        }[]
       }
       search_subgroup_candidates: {
         Args: { p_query: string; p_subgroup_id: string }
@@ -3179,6 +3339,14 @@ export type Database = {
       }
       set_post_pinned: {
         Args: { p_pinned: boolean; p_post_id: string }
+        Returns: boolean
+      }
+      set_private_channel_archived: {
+        Args: { p_archived: boolean; p_channel_id: string }
+        Returns: boolean
+      }
+      set_private_channel_manager: {
+        Args: { p_channel_id: string; p_is_manager: boolean; p_user_id: string }
         Returns: boolean
       }
       shares_community: { Args: { other: string }; Returns: boolean }

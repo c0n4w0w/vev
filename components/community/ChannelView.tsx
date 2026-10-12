@@ -3,13 +3,43 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Avatar, Badge, cn } from "@/components/ui/primitives";
 import { ChannelIntroCard } from "@/components/community/ChannelIntroCard";
+import { PrivateChannelAdmin } from "@/components/community/PrivateChannelAdmin";
+import { PrivateChannelCreate } from "@/components/community/PrivateChannelCreate";
+import { PrivateChannelParticipants } from "@/components/community/PrivateChannelParticipants";
 import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/community/EmojiPicker";
 import { IconAttach, IconHash, IconLock, IconSend } from "@/components/ui/icons";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
 import { createMessageAction } from "@/app/actions";
 import { useLocale, useT } from "@/lib/i18n/react";
 import { emptyMessageFormState } from "@/lib/message-form";
-import type { Channel, Community, CommunityEmoji, CommunityPersona, Message } from "@/lib/types";
+import type {
+  Channel,
+  Community,
+  CommunityEmoji,
+  CommunityPersona,
+  Message,
+  PrivateChannelParticipant,
+} from "@/lib/types";
+
+/**
+ * What a lokallag channel's page adds for the people who run it. All of it is
+ * presentation: each flag was answered by the database for this viewer, and
+ * every action behind it is decided there again.
+ */
+export interface PrivateChannelControls {
+  /** The lokallag this channel belongs to — its main chat or a private channel under it. */
+  localGroup: { id: string; name: string };
+  /** Main lokallag chat only: the viewer may create a private channel under it. */
+  canCreate: boolean;
+  /** The sidebar's "+ Ny privat kanal" link asked for the form. */
+  createRequested: boolean;
+  /** Private channel only: the viewer may rename, archive and change participants. */
+  canManage: boolean;
+  /** Private channel only: its participants, for everyone who can read it. */
+  roster: PrivateChannelParticipant[];
+  /** Community admin: may choose who else manages the channel. */
+  viewerIsAdmin: boolean;
+}
 
 /**
  * Channel conversation.
@@ -22,6 +52,11 @@ import type { Channel, Community, CommunityEmoji, CommunityPersona, Message } fr
  * actually stored. A refused write — a member in a read-only channel — takes
  * the pending row back out and puts the text back in the composer, so nothing
  * anyone typed is lost to a failed write.
+ *
+ * A private lokallag channel is the same conversation with a lock instead of
+ * a hash, a sentence saying who can read it, a "Deltakere" list for everyone
+ * in it, and — for its managers instead — the "Administrer kanal" menu. An
+ * archived one keeps its history and has no composer.
  */
 export function ChannelView({
   channel,
@@ -33,6 +68,7 @@ export function ChannelView({
   canEdit,
   customEmojis,
   lastActivityLabel,
+  privateChannels,
 }: {
   channel: Channel;
   community: Community;
@@ -41,7 +77,11 @@ export function ChannelView({
   /** The viewer as they appear in this community. */
   currentUser: CommunityPersona;
   canPost: boolean;
-  /** Active admin of this community: shows the pencil. The write is re-checked server-side. */
+  /**
+   * Shows the pencil: an active admin of this community on a community-wide
+   * channel, or a manager of a private lokallag channel. The write is
+   * re-checked server-side.
+   */
   canEdit: boolean;
   /** This community's own custom emojis, for the picker and for rendering. */
   customEmojis: CommunityEmoji[];
@@ -50,9 +90,12 @@ export function ChannelView({
    * would risk the two disagreeing across a minute boundary during hydration.
    */
   lastActivityLabel?: string;
+  /** Set on a lokallag's main chat and on the private channels under it. */
+  privateChannels?: PrivateChannelControls;
 }) {
   const t = useT();
   const locale = useLocale();
+  const [editRequest, setEditRequest] = useState(0);
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | undefined>(undefined);
@@ -63,13 +106,24 @@ export function ChannelView({
   // Who can read this conversation, stated as the database decides it
   // (content_scope_admits): the whole community; a lokallag and the
   // community's admins; or a team and the community's moderators and admins.
-  // A private channel's name is its group's name.
-  const audience = channel.localGroupId
-    ? { note: "channel.membersOnlyLocal", footer: "channel.footerLocal" } as const
-    : channel.subgroupId
-      ? { note: "channel.membersOnlySubgroup", footer: "channel.footerSubgroup" } as const
-      : { note: "channel.membersOnly", footer: "channel.footer" } as const;
-  const audienceVars = { name: channel.localGroupId || channel.subgroupId ? channel.name : community.name, community: community.name };
+  // A lokallag or team channel's name is its group's name. A private lokallag
+  // channel (channel_access_admits) has a name of its own, so its sentence
+  // names the lokallag it sits under: invited participants, and the admins.
+  const audience = channel.isPrivate
+    ? { note: "channel.membersOnlyPrivate", footer: "channel.footerPrivate" } as const
+    : channel.localGroupId
+      ? { note: "channel.membersOnlyLocal", footer: "channel.footerLocal" } as const
+      : channel.subgroupId
+        ? { note: "channel.membersOnlySubgroup", footer: "channel.footerSubgroup" } as const
+        : { note: "channel.membersOnly", footer: "channel.footer" } as const;
+  const audienceVars = {
+    name: channel.isPrivate
+      ? (privateChannels?.localGroup.name ?? community.name)
+      : channel.localGroupId || channel.subgroupId
+        ? channel.name
+        : community.name,
+    community: community.name,
+  };
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -125,15 +179,54 @@ export function ChannelView({
     <div className="flex h-full min-h-[calc(100dvh-3.25rem)] flex-col lg:min-h-dvh">
       <header className="sticky top-[3.25rem] z-20 border-b border-line bg-surface/95 px-5 py-3.5 backdrop-blur-sm lg:top-0 lg:px-8">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="flex items-center gap-1.5 text-[0.9375rem] font-medium text-ink">
-            <IconHash size={16} className="text-ink-3" />
-            {channel.name}
+          <h1 className="flex min-w-0 items-center gap-1.5 text-[0.9375rem] font-medium text-ink">
+            {channel.isPrivate ? (
+              <IconLock size={15} className="shrink-0 text-ink-3" />
+            ) : (
+              <IconHash size={16} className="shrink-0 text-ink-3" />
+            )}
+            <span className="truncate">{channel.name}</span>
           </h1>
           {channel.readOnly ? (
             <Badge tone="neutral">
               <IconLock size={11} />
               {t("channel.announcementsOnly")}
             </Badge>
+          ) : null}
+          {channel.isPrivate ? <Badge tone="neutral">{t("channel.privateBadge")}</Badge> : null}
+          {channel.archived ? <Badge tone="outline">{t("channel.archivedBadge")}</Badge> : null}
+          {privateChannels && (channel.isPrivate || privateChannels.canCreate) ? (
+            <div className="ml-auto">
+              {channel.isPrivate && !privateChannels.canManage ? (
+                // Everyone in a private channel may see who else is in it;
+                // only its managers get the menu that changes anything.
+                <PrivateChannelParticipants
+                  communityId={community.id}
+                  communityName={community.name}
+                  channel={channel}
+                  roster={privateChannels.roster}
+                />
+              ) : channel.isPrivate ? (
+                <PrivateChannelAdmin
+                  communityId={community.id}
+                  communityName={community.name}
+                  channel={channel}
+                  localGroup={privateChannels.localGroup}
+                  roster={privateChannels.roster}
+                  viewerIsAdmin={privateChannels.viewerIsAdmin}
+                  accent={community.branding.accent}
+                  onEdit={() => setEditRequest((n) => n + 1)}
+                />
+              ) : (
+                <PrivateChannelCreate
+                  communityId={community.id}
+                  communityName={community.name}
+                  localGroup={privateChannels.localGroup}
+                  accent={community.branding.accent}
+                  openRequested={privateChannels.createRequested}
+                />
+              )}
+            </div>
           ) : null}
         </div>
       </header>
@@ -146,6 +239,7 @@ export function ChannelView({
             channel={channel}
             canEdit={canEdit}
             accent={community.branding.accent}
+            editRequest={editRequest}
           />
 
           <ol className="space-y-1">
@@ -278,7 +372,7 @@ export function ChannelView({
           ) : (
             <p className="flex items-center justify-center gap-2 rounded-[6px] border border-dashed border-line-2 px-4 py-3.5 text-[13px] text-ink-3">
               <IconLock size={14} />
-              {t("channel.readOnly")}
+              {t(channel.archived ? "channel.archivedNotice" : "channel.readOnly")}
             </p>
           )}
           {error ? (

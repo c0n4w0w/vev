@@ -6,7 +6,9 @@
  * readable and writable by active members whose membership is in exactly that
  * group, and by the community's active admins. Moderators get no override, and
  * nothing reaches across communities. Community-wide channels keep their old
- * rule.
+ * rule. This suite is about each lokallag's main chat; the invitation-only
+ * channels under a lokallag (`is_private`) have their own in
+ * `check-private-channels.ts`.
  *
  * Every access check goes through ordinary anon-key clients signed in as
  * fixture accounts, running the same queries the app runs (`loadChannels`,
@@ -83,8 +85,13 @@ async function groupId(communityId: string, name: string): Promise<string> {
   return data.id;
 }
 
+/** The lokallag's main chat — not the private channels that may sit under it. */
 async function channelFor(localGroupId: string) {
-  const { data, error } = await admin.from("channels").select("*").eq("local_group_id", localGroupId);
+  const { data, error } = await admin
+    .from("channels")
+    .select("*")
+    .eq("local_group_id", localGroupId)
+    .eq("is_private", false);
   if (error) throw error;
   return data;
 }
@@ -239,7 +246,11 @@ async function main() {
     // ── A. Channel existence ────────────────────────────────────────────
     {
       const { data: groups } = await admin.from("community_local_groups").select("id, name, active");
-      const { data: lokal } = await admin.from("channels").select("id, local_group_id, group_id, name").not("local_group_id", "is", null);
+      const { data: lokal } = await admin
+        .from("channels")
+        .select("id, local_group_id, group_id, name")
+        .not("local_group_id", "is", null)
+        .eq("is_private", false);
       const perGroup = new Map<string, number>();
       for (const channel of lokal ?? []) {
         perGroup.set(channel.local_group_id!, (perGroup.get(channel.local_group_id!) ?? 0) + 1);
@@ -265,7 +276,11 @@ async function main() {
           if (group.id === ftrOslo) expect("A2 gjentatt oppsett gir samme kanal-id", id, osloChannel.id);
         }
       }
-      const { count: after } = await admin.from("channels").select("id", { count: "exact", head: true }).not("local_group_id", "is", null);
+      const { count: after } = await admin
+        .from("channels")
+        .select("id", { count: "exact", head: true })
+        .not("local_group_id", "is", null)
+        .eq("is_private", false);
       expect("A2 gjentatt oppsett lager ingen duplikater", after, before);
 
       // No API role may call the internal helpers.

@@ -38,6 +38,7 @@
     "check:organization-people": "tsx scripts/check-organization-people.ts",
     "check:overview-interaction": "tsx scripts/check-overview-interaction.ts",
     "check:pinning": "tsx scripts/check-pinning.ts",
+    "check:private-channels": "tsx scripts/check-private-channels.ts",
     "check:related-communities": "tsx scripts/check-related-communities.ts",
     "check:role-management": "tsx scripts/check-role-management.ts",
     "check:safe-space": "tsx scripts/check-safe-space.ts",

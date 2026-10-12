@@ -58,6 +58,7 @@ import type {
   Subgroup,
   SubgroupRosterEntry,
   LocalGroupLeadership,
+  PrivateChannelParticipant,
 } from "@/lib/types";
 import { initialsFor } from "@/lib/format";
 import { parseLocale, type Locale, type MessageKey } from "@/lib/i18n";
@@ -191,6 +192,8 @@ function toChannel(row: ChannelRow): Channel {
     readOnly: row.read_only || undefined,
     localGroupId: row.local_group_id ?? undefined,
     subgroupId: row.subgroup_id ?? undefined,
+    isPrivate: row.is_private || undefined,
+    archived: row.archived_at ? true : undefined,
   };
 }
 
@@ -486,6 +489,18 @@ export async function setCommunityAbout(
   return { ok: true, about: data };
 }
 
+/**
+ * How the database says a private channel's name is already used in its
+ * lokallag: raised by create_private_channel() and set_channel_details(), or
+ * by the unique index behind them when two saves race.
+ */
+const PRIVATE_CHANNEL_NAME_TAKEN = "private_channel_name_taken";
+const PRIVATE_CHANNEL_NAME_INDEX = "channels_private_name_key";
+
+function privateChannelNameTaken(message: string): boolean {
+  return message.includes(PRIVATE_CHANNEL_NAME_TAKEN) || message.includes(PRIVATE_CHANNEL_NAME_INDEX);
+}
+
 export type SetChannelDetailsResult =
   | { ok: true; name: string; purpose: string }
   | { ok: false; error: MessageKey };
@@ -494,10 +509,12 @@ export type SetChannelDetailsResult =
  * Changes a channel's display name and description.
  *
  * Goes through `set_channel_details()`, which decides from `auth.uid()` that
- * the caller is an active admin of `communityId`, that the channel belongs to
- * that community, and that the text is valid. It touches nothing but the two
- * display fields, so the channel id (and with it URLs and message history)
- * stays put. An empty result means the function refused.
+ * the caller may edit this channel — an active admin of `communityId` for a
+ * community-wide channel, whoever may manage it for a private lokallag
+ * channel — that the channel belongs to that community, and that the text is
+ * valid. It touches nothing but the two display fields, so the channel id
+ * (and with it URLs and message history) stays put. An empty result means the
+ * function refused.
  */
 export async function setChannelDetails(
   communityId: string,
@@ -513,6 +530,9 @@ export async function setChannelDetails(
     p_purpose: purpose,
   });
   const row = data?.[0];
+  if (error && privateChannelNameTaken(error.message)) {
+    return { ok: false, error: "err.privateChannelNameTaken" };
+  }
   if (error || !row) return { ok: false, error: "err.channelEditFailed" };
   return { ok: true, name: row.name, purpose: row.purpose };
 }
@@ -1107,6 +1127,36 @@ export async function getChannel(channelId: string): Promise<Channel | undefined
 }
 
 /**
+ * Puts each private channel directly after its lokallag's main chat, active
+ * ones by name and archived ones last. Order only: which channels are in the
+ * list at all was decided by `channels_select`. A private channel whose main
+ * chat is not in the list keeps its place at the end.
+ */
+function nestPrivateChannels(channels: Channel[]): Channel[] {
+  const children = channels
+    .filter((channel) => channel.isPrivate)
+    .sort(
+      (a, b) =>
+        Number(Boolean(a.archived)) - Number(Boolean(b.archived)) || a.name.localeCompare(b.name, "nb"),
+    );
+  if (children.length === 0) return channels;
+
+  const placed = new Set<string>();
+  const ordered: Channel[] = [];
+  for (const channel of channels) {
+    if (channel.isPrivate) continue;
+    ordered.push(channel);
+    for (const child of children) {
+      if (child.localGroupId && child.localGroupId === channel.localGroupId) {
+        ordered.push(child);
+        placed.add(child.id);
+      }
+    }
+  }
+  return [...ordered, ...children.filter((child) => !placed.has(child.id))];
+}
+
+/**
  * Channels grouped for the sidebar, in the order the groups are declared.
  *
  * Which channels appear is decided entirely by `channels_select`. The viewer is
@@ -1125,7 +1175,7 @@ export async function getGroupedChannels(
   ]);
   return groups
     .map((group) => {
-      const inGroup = channels.filter((channel) => channel.groupId === group.id);
+      const inGroup = nestPrivateChannels(channels.filter((channel) => channel.groupId === group.id));
       let label = group.label;
       if (viewer && group.id === "lokallag" && inGroup.some((c) => c.localGroupId !== viewer.localGroupId)) {
         label = "Lokallag";
@@ -1251,17 +1301,192 @@ export async function removeSubgroupMember(subgroupId: string, userId: string): 
 }
 
 /**
- * The chat channel of one local group, if the caller may read it.
+ * The main chat channel of one local group, if the caller may read it — never
+ * one of the private channels under it.
  *
  * `channels_select` admits a lokallag channel only to members whose membership
- * is in exactly that group, so this returns nothing for anyone else — admins
- * and moderators included. No access decision is made here.
+ * is in exactly that group, and to the community's admins, so this returns
+ * nothing for anyone else. No access decision is made here.
  */
 export async function getLocalGroupChannel(
   communityId: string,
   localGroupId: string,
 ): Promise<Channel | undefined> {
-  return (await loadChannels(communityId)).find((channel) => channel.localGroupId === localGroupId);
+  return (await loadChannels(communityId)).find(
+    (channel) => channel.localGroupId === localGroupId && !channel.isPrivate,
+  );
+}
+
+// ── Private lokallag channels ───────────────────────────────────────────
+//
+// Invitation-only channels under a lokallag. They are ordinary `channels`
+// rows, so reading them, their messages and the sidebar goes through the same
+// functions as every other channel above. What is here is only what is new:
+// creating one, and managing who is in it. Nothing below decides access —
+// every function asks the database, which answers from auth.uid().
+
+/** Whether the caller may create a private channel under this lokallag. */
+export async function canCreatePrivateChannel(localGroupId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("can_create_private_channel", {
+    p_local_group_id: localGroupId,
+  });
+  return !error && data === true;
+}
+
+/** Whether the caller may rename, archive and change the participants of this channel. */
+export async function canManagePrivateChannel(channelId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("can_manage_private_channel", {
+    p_channel_id: channelId,
+  });
+  return !error && data === true;
+}
+
+export type CreatePrivateChannelResult =
+  | { ok: true; channelId: string }
+  | { ok: false; error: MessageKey };
+
+/**
+ * Creates a private channel under a lokallag with the chosen participants.
+ *
+ * `create_private_channel()` decides everything: that the caller is an admin
+ * of the lokallag's community or its lokallagsleder, that every participant
+ * is an active member of that lokallag, and that the name is free. Either the
+ * channel and all its participants exist afterwards, or nothing does.
+ */
+export async function createPrivateChannel(input: {
+  localGroupId: string;
+  name: string;
+  purpose: string;
+  participantIds: string[];
+}): Promise<CreatePrivateChannelResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("create_private_channel", {
+    p_local_group_id: input.localGroupId,
+    p_name: input.name,
+    p_purpose: input.purpose,
+    p_participant_ids: input.participantIds,
+  });
+  if (error) {
+    if (privateChannelNameTaken(error.message)) return { ok: false, error: "err.privateChannelNameTaken" };
+    if (error.message.includes("private_channel_participant_ineligible")) {
+      return { ok: false, error: "err.privateChannelParticipantIneligible" };
+    }
+    return { ok: false, error: "err.privateChannelCreateRefused" };
+  }
+  if (!data) return { ok: false, error: "err.privateChannelCreateRefused" };
+  return { ok: true, channelId: data };
+}
+
+/**
+ * Participants of a private channel, for anyone who may read it — its
+ * participants and the community's admins. Empty for anyone else:
+ * `private_channel_roster()` answers from `channel_access_admits()`.
+ *
+ * The name is the display name the function returns. The photo is taken from
+ * the profiles the caller may already see in this community
+ * (`can_view_community_profile`), so being in the same channel shows a
+ * person's name but opens nothing more of their profile than was open before.
+ */
+export async function getPrivateChannelRoster(
+  communityId: string,
+  channelId: string,
+): Promise<PrivateChannelParticipant[]> {
+  const supabase = await createSupabaseServerClient();
+  const [{ data }, personas] = await Promise.all([
+    supabase.rpc("private_channel_roster", { p_channel_id: channelId }),
+    loadCommunityPersonas(communityId),
+  ]);
+  return rows(data).map((row) => ({
+    userId: row.user_id,
+    displayName: row.display_name,
+    initials: initialsFor(row.display_name),
+    avatarUrl: personas.get(row.user_id)?.avatarUrl,
+    isManager: row.is_manager,
+    isLeader: row.is_leader ?? undefined,
+  }));
+}
+
+/**
+ * Permanently deletes a private lokallag channel with its messages and
+ * participant rows. `delete_private_channel()` decides: only a private
+ * channel, only for someone who may manage it. There is no undo.
+ */
+export async function deletePrivateChannel(channelId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("delete_private_channel", { p_channel_id: channelId });
+  return !error && data === true;
+}
+
+/**
+ * Active members of one lokallag whose community display name matches a
+ * search, for someone choosing participants: before the channel exists
+ * (`channelId` omitted — the caller must be allowed to create one there), or
+ * for an existing channel (the caller must manage it; people already in it are
+ * left out). At least two characters, at most ten matches, id and display name
+ * only, so nobody is handed the lokallag's roster.
+ */
+export async function searchPrivateChannelCandidates(
+  localGroupId: string,
+  query: string,
+  channelId?: string,
+): Promise<{ userId: string; displayName: string }[]> {
+  if (query.trim().length < 2) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("search_private_channel_candidates", {
+    p_local_group_id: localGroupId,
+    // Null means "a channel about to be created"; generated RPC argument types
+    // do not record argument nullability.
+    p_channel_id: (channelId ?? null) as unknown as string,
+    p_query: query,
+  });
+  return rows(data).map((row) => ({ userId: row.user_id, displayName: row.display_name }));
+}
+
+/** Adds an active member of the channel's lokallag. False when refused or already in it. */
+export async function addPrivateChannelParticipant(channelId: string, userId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("add_private_channel_participant", {
+    p_channel_id: channelId,
+    p_user_id: userId,
+  });
+  return !error && data === true;
+}
+
+/** Removes the participation only — never the membership, role or lokallag. */
+export async function removePrivateChannelParticipant(channelId: string, userId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("remove_private_channel_participant", {
+    p_channel_id: channelId,
+    p_user_id: userId,
+  });
+  return !error && data === true;
+}
+
+/** Community admins only: lets a participating lokallagsleder manage the channel, or stops it. */
+export async function setPrivateChannelManager(
+  channelId: string,
+  userId: string,
+  isManager: boolean,
+): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_private_channel_manager", {
+    p_channel_id: channelId,
+    p_user_id: userId,
+    p_is_manager: isManager,
+  });
+  return !error && data === true;
+}
+
+/** Archives (no new messages, history kept) or reopens a private channel. */
+export async function setPrivateChannelArchived(channelId: string, archived: boolean): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_private_channel_archived", {
+    p_channel_id: channelId,
+    p_archived: archived,
+  });
+  return !error && data === true;
 }
 
 export async function getDefaultChannel(communityId: string) {
@@ -1326,6 +1551,10 @@ export async function createMessage(input: {
 }
 
 function messageWriteError(message: string): MessageKey {
+  // The restrictive policy that closes an archived private channel.
+  if (message.includes("messages_not_archived")) {
+    return "err.channelArchived";
+  }
   if (message.includes("row-level security")) {
     return "err.channelWriteDenied";
   }

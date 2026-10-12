@@ -1,4 +1,5 @@
 import {
+  canLeadLocalGroup,
   getCommunitiesForUser,
   getCommunityPeople,
   getCommunityPersona,
@@ -54,6 +55,13 @@ export interface ShellCommunity {
    * again per subgroup.
    */
   managesSubgroups: boolean;
+  /**
+   * The lokallag the viewer may create a private channel under: every active
+   * one for a community admin, their own for an effective lokallagsleder,
+   * none for anyone else. Decides only where "+ Ny privat kanal" is drawn;
+   * `create_private_channel()` decides again.
+   */
+  privateChannelLocalGroupIds: string[];
   unreadDirectCount: number;
   recentDirectConversations: DirectConversationSummary[];
 }
@@ -94,11 +102,21 @@ export async function buildShellData(user: User): Promise<ShellData> {
           getManageableSubgroups(community.id),
         ]);
 
+      const activeGroupIds = groups.filter((group) => group.active).map((group) => group.id);
+      const ownGroupId = membership.localGroupId;
+      const privateChannelLocalGroupIds =
+        membership.role === "admin"
+          ? activeGroupIds
+          : ownGroupId && activeGroupIds.includes(ownGroupId) && (await canLeadLocalGroup(ownGroupId))
+            ? [ownGroupId]
+            : [];
+
       return {
         community,
         membership,
         me,
         channelGroups,
+        privateChannelLocalGroupIds,
         unreadDirectCount,
         recentDirectConversations,
         hasOrganizationPeople: people.length > 0,

@@ -61,6 +61,20 @@ export const errors = {
   "err.channelNameTooLong": "Kanalnavnet kan være høyst {max} tegn.",
   "err.channelPurposeTooLong": "Beskrivelsen kan være høyst {max} tegn.",
   "err.channelEditFailed": "Kunne ikke lagre endringene. Kun administratorer kan redigere kanalen.",
+  "err.channelArchived": "Kanalen er arkivert. Ingen kan skrive her.",
+  "err.privateChannelNameTaken": "Det finnes allerede en privat kanal med dette navnet i lokallaget.",
+  "err.privateChannelParticipantIneligible":
+    "En av deltakerne er ikke lenger aktivt medlem av lokallaget. Fjern personen fra utvalget og prøv igjen.",
+  "err.privateChannelCreateRefused":
+    "Kanalen ble ikke opprettet. Bare administratorer og lokallagets ledere kan opprette private kanaler.",
+  "err.privateChannelAddRefused":
+    "Deltakeren ble ikke lagt til. Personen kan allerede være med, ikke være aktivt medlem av lokallaget, eller du har ikke lov til å endre kanalen.",
+  "err.privateChannelRemoveRefused": "Deltakeren ble ikke fjernet. Du har ikke lov til å endre denne kanalen.",
+  "err.privateChannelManagerRefused":
+    "Endringen ble ikke lagret. Bare administratorer kan velge kanalansvarlige, og bare lokallagets ledere kan være det.",
+  "err.privateChannelArchiveRefused": "Kanalen ble ikke endret. Du har ikke lov til å administrere denne kanalen.",
+  "err.privateChannelDeleteRefused":
+    "Kanalen ble ikke slettet. Bare administratorer og kanalansvarlige kan slette en privat kanal.",
   "err.communityAboutSaveFailed": "Kunne ikke lagre endringene. Prøv igjen.",
   "ok.communityAboutSaved": "Endringene er lagret.",
   "err.profileSaveFailed": "Profilen kunne ikke lagres. Prøv igjen.",

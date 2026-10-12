@@ -23,6 +23,15 @@ import {
   clearMyCommunityAvatar,
   createCommunityEmoji as persistEmoji,
   addSubgroupMember,
+  addPrivateChannelParticipant,
+  createPrivateChannel,
+  deletePrivateChannel,
+  getChannel,
+  getLocalGroupChannel,
+  removePrivateChannelParticipant,
+  searchPrivateChannelCandidates,
+  setPrivateChannelArchived,
+  setPrivateChannelManager,
   createPost as persistPost,
   removeSubgroupMember,
   deleteComment as removeComment,
@@ -90,6 +99,12 @@ import {
   type LocalGroupLeaderFormState,
 } from "@/lib/local-group-form";
 import type { MessageFormState } from "@/lib/message-form";
+import {
+  PRIVATE_CHANNEL_PARTICIPANTS_MAX,
+  type PrivateChannelCandidate,
+  type PrivateChannelCreateFormState,
+  type PrivateChannelFormState,
+} from "@/lib/private-channel-form";
 import { parseContentScope, type SubgroupFormState } from "@/lib/subgroup-form";
 import type { PostFormState } from "@/lib/post-form";
 import { sendInvitationEmail } from "@/lib/email/invitation";
@@ -939,6 +954,207 @@ export async function removeSubgroupMemberAction(
   return { status: "ok" };
 }
 
+// ── Private lokallag channels ───────────────────────────────────────────
+//
+// Only ids and the two text fields travel in the forms. Whether the caller may
+// create a channel under this lokallag (community admin, or its
+// lokallagsleder), whether they may manage this channel, and whether each
+// person is an active member of the channel's lokallag, is decided by the
+// database functions from auth.uid(). A tampered id reaches a function that
+// refuses it, not a check in this file.
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function revalidatePrivateChannel(communityId: string, channelId: string) {
+  revalidatePath(`/community/${communityId}/channel/${channelId}`);
+  // The channel list is in the sidebar (layout).
+  revalidatePath(`/community/${communityId}`, "layout");
+}
+
+/**
+ * Creates a private channel under a lokallag and opens it.
+ *
+ * The participants are the ids the form collected; `create_private_channel()`
+ * refuses the whole request if any of them is not an active member of that
+ * lokallag, so nothing is created half-way.
+ */
+export async function createPrivateChannelAction(
+  _prev: PrivateChannelCreateFormState,
+  formData: FormData,
+): Promise<PrivateChannelCreateFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const t = await translatorFor(communityId);
+
+  const input = normalizeChannelDetails(
+    String(formData.get("name") ?? ""),
+    String(formData.get("purpose") ?? ""),
+    t,
+  );
+  if (!input.ok) return { status: "error", error: input.message };
+
+  const participantIds = [
+    ...new Set(formData.getAll("participantIds").map(String).filter((id) => UUID.test(id))),
+  ].slice(0, PRIVATE_CHANNEL_PARTICIPANTS_MAX);
+
+  const result = await createPrivateChannel({
+    localGroupId: String(formData.get("localGroupId") ?? ""),
+    name: input.name,
+    purpose: input.purpose,
+    participantIds,
+  });
+  if (!result.ok) return { status: "error", error: t(result.error) };
+
+  revalidatePath(`/community/${communityId}`, "layout");
+  redirect(`/community/${communityId}/channel/${result.channelId}`);
+}
+
+/**
+ * The participant search behind the create form and the channel's participant
+ * list. Called from the browser as the person types, so every argument is
+ * treated as text from a stranger; the database answers only someone who may
+ * create a channel under that lokallag or manage that channel, with at most
+ * ten display names.
+ */
+export async function searchPrivateChannelCandidatesAction(input: {
+  localGroupId: string;
+  query: string;
+  channelId?: string;
+}): Promise<PrivateChannelCandidate[]> {
+  const user = await getSessionUser();
+  if (!user) return [];
+
+  const localGroupId = String(input?.localGroupId ?? "");
+  if (!UUID.test(localGroupId)) return [];
+
+  return searchPrivateChannelCandidates(
+    localGroupId,
+    String(input?.query ?? "").slice(0, 80),
+    input?.channelId ? String(input.channelId) : undefined,
+  );
+}
+
+export async function addPrivateChannelParticipantAction(
+  _prev: PrivateChannelFormState,
+  formData: FormData,
+): Promise<PrivateChannelFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const channelId = String(formData.get("channelId") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const ok = UUID.test(userId) && (await addPrivateChannelParticipant(channelId, userId));
+  if (!ok) return { status: "error", error: (await translatorFor(communityId))("err.privateChannelAddRefused") };
+
+  revalidatePrivateChannel(communityId, channelId);
+  return { status: "ok" };
+}
+
+export async function removePrivateChannelParticipantAction(
+  _prev: PrivateChannelFormState,
+  formData: FormData,
+): Promise<PrivateChannelFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const channelId = String(formData.get("channelId") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const ok = UUID.test(userId) && (await removePrivateChannelParticipant(channelId, userId));
+  if (!ok) {
+    return { status: "error", error: (await translatorFor(communityId))("err.privateChannelRemoveRefused") };
+  }
+
+  revalidatePrivateChannel(communityId, channelId);
+  return { status: "ok" };
+}
+
+/** Community admins only; the database refuses everyone else. */
+export async function setPrivateChannelManagerAction(
+  _prev: PrivateChannelFormState,
+  formData: FormData,
+): Promise<PrivateChannelFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const channelId = String(formData.get("channelId") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const ok =
+    UUID.test(userId) &&
+    (await setPrivateChannelManager(channelId, userId, formData.get("isManager") === "true"));
+  if (!ok) {
+    return { status: "error", error: (await translatorFor(communityId))("err.privateChannelManagerRefused") };
+  }
+
+  revalidatePrivateChannel(communityId, channelId);
+  return { status: "ok" };
+}
+
+/** Archives or reopens. No message is deleted either way. */
+export async function setPrivateChannelArchivedAction(
+  _prev: PrivateChannelFormState,
+  formData: FormData,
+): Promise<PrivateChannelFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const channelId = String(formData.get("channelId") ?? "");
+  const ok = await setPrivateChannelArchived(channelId, formData.get("archived") === "true");
+  if (!ok) {
+    return { status: "error", error: (await translatorFor(communityId))("err.privateChannelArchiveRefused") };
+  }
+
+  revalidatePrivateChannel(communityId, channelId);
+  return { status: "ok" };
+}
+
+/**
+ * Permanently deletes a private lokallag channel and lands on its lokallag's
+ * main chat.
+ *
+ * `delete_private_channel()` decides everything: that the channel is a private
+ * one, and that the caller may manage it — an admin of its community, or a
+ * lokallagsleder who manages it. Nothing here does. The channel is read first
+ * only to know where to go afterwards; a channel the caller cannot read gives
+ * no destination and no deletion either. The redirect happens only once the
+ * database has confirmed, so there is never a "deleted" on screen for a
+ * channel that is still there.
+ */
+export async function deletePrivateChannelAction(
+  _prev: PrivateChannelFormState,
+  formData: FormData,
+): Promise<PrivateChannelFormState> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const communityId = String(formData.get("communityId") ?? "");
+  const channelId = String(formData.get("channelId") ?? "");
+
+  const channel = await getChannel(channelId);
+  const main =
+    channel?.isPrivate && channel.localGroupId
+      ? await getLocalGroupChannel(channel.communityId, channel.localGroupId)
+      : undefined;
+
+  const ok = channel?.isPrivate === true && (await deletePrivateChannel(channel.id));
+  if (!ok || !channel) {
+    return { status: "error", error: (await translatorFor(communityId))("err.privateChannelDeleteRefused") };
+  }
+
+  // The channel was in the sidebar (layout) of everyone who could read it.
+  revalidatePath(`/community/${channel.communityId}`, "layout");
+  redirect(
+    main
+      ? `/community/${channel.communityId}/channel/${main.id}`
+      : `/community/${channel.communityId}`,
+  );
+}
+
 // ── Local groups ────────────────────────────────────────────────────────
 //
 // None of these carry a user id. Which membership is being changed, and
@@ -1332,9 +1548,10 @@ export async function updateCommunityAboutAction(
 /**
  * Updates a channel's display name and description.
  *
- * The pencil is shown to admins only, but that is presentation: the write is
- * decided again by `set_channel_details()`, which checks that the caller is an
- * active admin of this community and that the channel is in it.
+ * The pencil is shown to admins only (and, on a private lokallag channel, to
+ * whoever manages it), but that is presentation: the write is decided again by
+ * `set_channel_details()`, which checks that the caller may edit this channel
+ * and that the channel is in this community.
  */
 export async function updateChannelDetailsAction(
   _prev: ChannelEditFormState,

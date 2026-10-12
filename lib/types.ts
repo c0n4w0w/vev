@@ -264,6 +264,39 @@ export interface Channel {
   localGroupId?: string;
   /** Set for a subgroup chat channel; its name follows the subgroup's. */
   subgroupId?: string;
+  /**
+   * An invitation-only channel under the lokallag in `localGroupId`. Readable
+   * by its explicit participants and the community's admins (enforced by RLS),
+   * and — unlike the main lokallag chat — named by whoever manages it.
+   */
+  isPrivate?: boolean;
+  /** A private channel that takes no new messages; its history stays readable. */
+  archived?: boolean;
+}
+
+/**
+ * One participant of a private lokallag channel, as everyone who can read the
+ * channel sees them: a name and a face in this community, nothing from the
+ * account.
+ */
+export interface PrivateChannelParticipant {
+  /** The account id. Used for keys and the avatar tint, never displayed. */
+  userId: string;
+  /** The person's name in this community, never their account identity. */
+  displayName: string;
+  initials: string;
+  /**
+   * Their profile photo in this community — only when the viewer may see that
+   * profile under the ordinary profile rules; otherwise the monogram.
+   */
+  avatarUrl?: string;
+  /** May rename, archive, delete and change participants (an effective lokallagsleder). */
+  isManager: boolean;
+  /**
+   * Whether the person leads the channel's lokallag, and so could be made a
+   * manager. Only returned to the community's admins.
+   */
+  isLeader?: boolean;
 }
 
 export interface Message {

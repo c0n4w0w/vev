@@ -34,12 +34,12 @@ const fieldClass =
 /**
  * The "Dette er starten på #kanal" banner at the top of a channel.
  *
- * Read mode is the banner every member sees. For an admin it also carries a
- * quiet pencil, and clicking it turns this same card into the editor — there
- * is no second form. `canEdit` is presentation only: the write goes through
- * `updateChannelDetailsAction`, which asks the database whether the caller is
- * an active admin of this community. Drafts live in state, so a failed save
- * loses nothing.
+ * Read mode is the banner every member sees. For an admin — or, on a private
+ * lokallag channel, whoever manages it — it also carries a quiet pencil, and
+ * clicking it turns this same card into the editor — there is no second form.
+ * `canEdit` is presentation only: the write goes through
+ * `updateChannelDetailsAction`, which asks the database whether the caller may
+ * edit this channel. Drafts live in state, so a failed save loses nothing.
  */
 export function ChannelIntroCard({
   communityId,
@@ -47,6 +47,7 @@ export function ChannelIntroCard({
   channel,
   canEdit,
   accent,
+  editRequest = 0,
 }: {
   communityId: string;
   /** One sentence saying who can read the conversation. */
@@ -54,6 +55,8 @@ export function ChannelIntroCard({
   channel: Channel;
   canEdit: boolean;
   accent: string;
+  /** Each new value opens the editor — a private channel's "Administrer kanal" menu. */
+  editRequest?: number;
 }) {
   const t = useT();
   const [editing, setEditing] = useState(false);
@@ -73,6 +76,13 @@ export function ChannelIntroCard({
     setName(channel.name);
     setPurpose(channel.purpose);
     setEditing(true);
+  }
+
+  // Opened from outside, adjusted during render like the save handling above.
+  const [seenRequest, setSeenRequest] = useState(editRequest);
+  if (editRequest !== seenRequest) {
+    setSeenRequest(editRequest);
+    if (canEdit) startEditing();
   }
 
   function cancelEditing() {
@@ -163,9 +173,11 @@ export function ChannelIntroCard({
           <h2 className={cn("font-display text-lg text-ink", canEdit && "pr-9")}>
             {t("channel.start", { name: channel.name })}
           </h2>
-          <p className={cn("mt-1.5 text-sm leading-relaxed text-ink-2", canEdit && "pr-9")}>
-            {channel.purpose}
-          </p>
+          {channel.purpose ? (
+            <p className={cn("mt-1.5 text-sm leading-relaxed text-ink-2", canEdit && "pr-9")}>
+              {channel.purpose}
+            </p>
+          ) : null}
           <p className="mt-3 text-xs text-ink-3">
             {audienceNote}
           </p>

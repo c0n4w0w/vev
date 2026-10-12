@@ -59,6 +59,20 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.channelNameTooLong": "The channel name can be at most {max} characters.",
   "err.channelPurposeTooLong": "The description can be at most {max} characters.",
   "err.channelEditFailed": "Could not save the changes. Only administrators can edit the channel.",
+  "err.channelArchived": "This channel is archived. Nobody can post here.",
+  "err.privateChannelNameTaken": "There is already a private channel with this name in the local group.",
+  "err.privateChannelParticipantIneligible":
+    "One of the participants is no longer an active member of the local group. Remove them from the selection and try again.",
+  "err.privateChannelCreateRefused":
+    "The channel wasn't created. Only administrators and the local group's leaders can create private channels.",
+  "err.privateChannelAddRefused":
+    "The participant wasn't added. They may already be in the channel, not be an active member of the local group, or you aren't allowed to change this channel.",
+  "err.privateChannelRemoveRefused": "The participant wasn't removed. You aren't allowed to change this channel.",
+  "err.privateChannelManagerRefused":
+    "The change wasn't saved. Only administrators can choose channel managers, and only the local group's leaders can be one.",
+  "err.privateChannelArchiveRefused": "The channel wasn't changed. You aren't allowed to manage this channel.",
+  "err.privateChannelDeleteRefused":
+    "The channel wasn't deleted. Only administrators and channel managers can delete a private channel.",
   "err.communityAboutSaveFailed": "Could not save the changes. Try again.",
   "ok.communityAboutSaved": "Changes saved.",
   "err.profileSaveFailed": "The profile couldn't be saved. Try again.",

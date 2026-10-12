@@ -316,7 +316,9 @@ export default async function CommunityOverviewPage({
               <SectionHeading>{t("overview.channels")}</SectionHeading>
               <Panel className="divide-y divide-line">
                 {groups.flatMap(({ channels }) =>
-                  channels.map((channel) => {
+                  // Archived private channels keep their history but are no
+                  // longer somewhere to go from the Overview.
+                  channels.filter((channel) => !channel.archived).map((channel) => {
                     const latestAt = channelActivity.get(channel.id);
                     return (
                       <Link
@@ -325,7 +327,11 @@ export default async function CommunityOverviewPage({
                         className="block px-4 py-3 transition-colors hover:bg-paper-2/60"
                       >
                         <span className="flex items-center gap-1.5">
-                          <IconHash size={14} className="shrink-0 text-ink-3" />
+                          {channel.isPrivate ? (
+                            <IconLock size={13} className="shrink-0 text-ink-3" />
+                          ) : (
+                            <IconHash size={14} className="shrink-0 text-ink-3" />
+                          )}
                           <span className="truncate text-[13px] font-medium text-ink">
                             {channel.name}
                           </span>
