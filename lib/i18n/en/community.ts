@@ -7,6 +7,7 @@ export const community: Record<keyof typeof nb, string> = {
   "overview.location": "Location",
   "overview.members": "Members",
   "overview.publicPortal": "Public portal",
+  "overview.website": "Website",
   "overview.founded": "Founded",
   "overview.since": "Since {year}",
   "overview.about": "About the community",

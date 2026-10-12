@@ -150,7 +150,7 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
                 </div>
                 <div>
                   <dt className="sr-only">Stiftet</dt>
-                  <dd>Siden {community.foundedYear}</dd>
+                  <dd>Etablert {community.foundedYear}</dd>
                 </div>
               </dl>
             </div>

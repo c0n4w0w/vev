@@ -373,7 +373,7 @@ export function TryggerePortal({
       <footer className={`mt-auto border-t ${rule} bg-paper`}>
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-5 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-10">
           <p className={`text-xs ${ink3}`}>
-            {community.name} · {community.location} · Siden {community.foundedYear}
+            {community.name} · {community.location} · Etablert {community.foundedYear}
             <span className="hidden sm:inline"> · </span>
             <span className="block sm:inline">
               {PUBLIC_HOST}/{community.slug}

@@ -22,7 +22,7 @@ export const communities: Community[] = [
       "Tryggere Ruspolitikk er en medlemsorganisasjon som jobber for en kunnskapsbasert ruspolitikk der skadeforebygging og hjelp går foran straff. Vi driver med opplysningsarbeid, høringssvar og skadereduksjon i praksis. Er du medlem, frivillig eller samarbeidspartner, logger du inn her.",
     about:
       "Her koordinerer vi lokallag, høringsarbeid, standvakter og festivalsesongen. Alt av fagmateriell og maler ligger i #pagaende-prosjekter. Er du usikker på hvor noe hører hjemme, spør i #generelt.",
-    location: "Oslo, Bergen, Trondheim, Tromsø",
+    location: "Landsdekkende",
     foundedYear: 2016,
     branding: {
       accent: "#2f5a73",
@@ -34,9 +34,8 @@ export const communities: Community[] = [
     defaultLocale: "nb",
     memberCount: 214,
     links: [
-      { label: "tryggereruspolitikk.no", href: "https://tryggereruspolitikk.no" },
-      { label: "Bli medlem", href: "https://tryggereruspolitikk.no/medlem" },
-      { label: "Høringssvar 2026", href: "https://tryggereruspolitikk.no/horinger" },
+      { label: "rusreform.no", href: "https://rusreform.no" },
+      { label: "Bli medlem", href: "https://rusreform.no/bli-medlem" },
     ],
   },
   {
@@ -48,8 +47,8 @@ export const communities: Community[] = [
       "Tryggere Ungdom er ungdomsorganisasjonen til Tryggere Ruspolitikk. Vi lager møteplasser, kurs og aktiviteter for unge mellom 15 og 26, og jobber for at unge selv skal bli hørt når ruspolitikken utformes. Alt vi arrangerer er gratis, og du trenger ingen forkunnskaper for å bli med.",
     about:
       "Her planlegger vi aktiviteter, kurs og events, og fordeler oppgaver mellom lokallagene i Oslo, Bergen og Trondheim. Vi er rundt førti aktive frivillige. Er du ny, si hei i #presentasjoner — det finnes ingen dumme spørsmål her.",
-    location: "Oslo, Bergen, Trondheim",
-    foundedYear: 2019,
+    location: "Landsdekkende",
+    foundedYear: 2018,
     branding: {
       accent: "#3f7f77",
       accentSoft: "#e7efee",

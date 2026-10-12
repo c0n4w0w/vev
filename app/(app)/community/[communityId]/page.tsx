@@ -38,6 +38,7 @@ import {
   isOnboardingVisible,
 } from "@/lib/data";
 import { PUBLIC_HOST } from "@/lib/brand";
+import { communityWebsite } from "@/lib/community-website";
 import { timeAgo } from "@/lib/format";
 import { communityLocale, communityTranslator, tn, translator } from "@/lib/i18n";
 import { onboardingSteps } from "@/lib/onboarding";
@@ -127,6 +128,8 @@ export default async function CommunityOverviewPage({
     ),
   );
 
+  const website = communityWebsite(community);
+
   return (
     <>
       {/* Community masthead — the one place branding is allowed to be loud. */}
@@ -164,15 +167,26 @@ export default async function CommunityOverviewPage({
                   <dd>{tn(locale, "count.members", community.memberCount)}</dd>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <dt className="sr-only">{t("overview.publicPortal")}</dt>
+                  <dt className="sr-only">{website ? t("overview.website") : t("overview.publicPortal")}</dt>
                   <IconGlobe size={14} className="text-ink-3" />
                   <dd>
-                    <Link
-                      href={`/${community.slug}`}
-                      className="underline decoration-line-2 underline-offset-4 transition-colors hover:text-ink"
-                    >
-                      {PUBLIC_HOST}/{community.slug}
-                    </Link>
+                    {website ? (
+                      <a
+                        href={website.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline decoration-line-2 underline-offset-4 transition-colors hover:text-ink"
+                      >
+                        {website.label}
+                      </a>
+                    ) : (
+                      <Link
+                        href={`/${community.slug}`}
+                        className="underline decoration-line-2 underline-offset-4 transition-colors hover:text-ink"
+                      >
+                        {PUBLIC_HOST}/{community.slug}
+                      </Link>
+                    )}
                   </dd>
                 </div>
                 <div>
