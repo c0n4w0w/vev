@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { clientAddressFrom, trustedProxyCount } from "@/lib/client-ip";
+import { withAuthForwarding } from "@/lib/supabase/auth-forwarding";
+import { supabaseSecretKey } from "@/lib/supabase/env";
 
 /**
  * Keeps the Supabase session fresh.
@@ -10,6 +13,11 @@ import { createServerClient } from "@supabase/ssr";
  *
  * This is not the authorisation layer. Access decisions live in the route
  * guards and, ultimately, in row level security — the proxy only moves tokens.
+ *
+ * The refresh is the Auth call every member's browser causes most often, and
+ * Supabase limits it per network address. So this is where telling Auth the
+ * caller's own address matters most (lib/supabase/auth-forwarding.ts): without
+ * it every refresh in the membership is counted against this server.
  */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -19,6 +27,13 @@ export async function proxy(request: NextRequest) {
   if (!url || !key) return response;
 
   const supabase = createServerClient(url, key, {
+    global: {
+      fetch: withAuthForwarding((input, init) => fetch(input, init), {
+        supabaseUrl: url,
+        secretKey: supabaseSecretKey(),
+        clientAddress: clientAddressFrom(request.headers.get("x-forwarded-for"), trustedProxyCount()),
+      }),
+    },
     cookies: {
       getAll() {
         return request.cookies.getAll();

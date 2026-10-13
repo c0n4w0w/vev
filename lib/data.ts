@@ -2,12 +2,10 @@ import { MESSAGE_BODY_MAX, messageBodyError } from "@/lib/message-form";
 import "server-only";
 
 import { cache } from "react";
-import { createClient, isAuthRetryableFetchError, type AuthError } from "@supabase/supabase-js";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
+import { isAuthRetryableFetchError, type AuthError } from "@supabase/supabase-js";
+import { createSupabaseScratchClient, createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   ChannelRow,
-  Database,
   CommunityRow,
   EventRow,
   MembershipRow,
@@ -3136,9 +3134,7 @@ type VerifiedLink =
  * it has confirmed the address is the one it expects.
  */
 async function verifyEmailLink(tokenHash: string): Promise<VerifiedLink> {
-  const scratch = createClient<Database>(supabaseUrl(), supabaseAnonKey(), {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const scratch = await createSupabaseScratchClient();
   const { data, error } = await scratch.auth.verifyOtp({ type: "email", token_hash: tokenHash });
   if (error || !data.session || !data.user?.email) {
     return { ok: false, unavailable: error ? authUnavailable(error) : false };

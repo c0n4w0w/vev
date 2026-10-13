@@ -15,6 +15,7 @@
     "check:account-security": "tsx scripts/check-account-security.ts",
     "check:attachments": "tsx scripts/check-attachments.ts",
     "check:auth-email": "tsx scripts/check-auth-email.ts",
+    "check:auth-forwarding": "tsx scripts/check-auth-forwarding.ts",
     "check:channel-editing": "tsx scripts/check-channel-editing.ts",
     "check:collaboration-flow": "tsx scripts/check-collaboration-flow.ts",
     "check:collaboration-workspace": "tsx scripts/check-collaboration-workspace.ts",

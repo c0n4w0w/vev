@@ -19,7 +19,7 @@ import { isIP } from "node:net";
  *
  * Pure on purpose, so the checks can exercise it without a server.
  */
-export function clientIpFrom(
+export function clientAddressFrom(
   forwardedFor: string | null | undefined,
   trustedProxies: number,
 ): string | undefined {
@@ -27,7 +27,20 @@ export function clientIpFrom(
   const hops = forwardedFor.split(",").map((hop) => hop.trim());
   // Fewer entries than proxies means the request did not come through them.
   if (hops.length < trustedProxies) return undefined;
-  return limitKeyFor(hops[hops.length - trustedProxies]);
+  return addressOf(hops[hops.length - trustedProxies]);
+}
+
+/**
+ * The same address as the key TING's own counters use for it: an IPv4
+ * address as it is, an IPv6 address by its /64 — the block one subscriber is
+ * given, and can otherwise walk through at will.
+ */
+export function clientIpFrom(
+  forwardedFor: string | null | undefined,
+  trustedProxies: number,
+): string | undefined {
+  const address = clientAddressFrom(forwardedFor, trustedProxies);
+  return address ? limitKeyFor(address) : undefined;
 }
 
 /** `TRUSTED_PROXY_COUNT` as a small positive whole number, or 0. */
@@ -37,19 +50,21 @@ export function trustedProxyCount(): number {
 }
 
 /**
- * What to count against for one address: an IPv4 address as it is, an IPv6
- * address by its /64 — the block one subscriber is given, and can otherwise
- * walk through at will. Anything that is not an address is nothing.
+ * One entry of the header as a plain address, or nothing when it is not one.
+ * An IPv4 address written the IPv6 way comes back as IPv4, so the same
+ * caller is one address however the proxy happened to write it.
  */
-function limitKeyFor(value: string): string | undefined {
+function addressOf(value: string): string | undefined {
   const address = value.replace(/%.*$/, "").toLowerCase();
   const family = isIP(address);
   if (family === 4) return address;
   if (family !== 6) return undefined;
-
-  // An IPv4 address written the IPv6 way.
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(address);
-  if (mapped && isIP(mapped[1]) === 4) return mapped[1];
+  return mapped && isIP(mapped[1]) === 4 ? mapped[1] : address;
+}
+
+function limitKeyFor(address: string): string {
+  if (isIP(address) !== 6) return address;
 
   const [head, tail] = address.split("::");
   const left = head ? head.split(":") : [];

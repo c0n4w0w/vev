@@ -151,32 +151,24 @@ driftede prosjektet under Authentication i Supabase):
 | Maler: Reset password, Change email address | `supabase/templates/` | Lenkene går til TINGs egne sider med `token_hash` |
 | Varsler: Password changed, Email address changed | på, med TING-malene | Eieren får vite om endringer i ettertid |
 | Site URL | nettstedets adresse | Malene bygger lenkene sine fra den |
+| IP Address Forwarding (Rate Limits) | på | Lar grensene telle per medlem i stedet for per server – se «6. Innlogging i produksjon» |
 
-Supabase begrenser selv innlogginger per nettverksadresse (passord: 150 per
-5 minutter, støt på 30), men ser TINGs server som avsender for alle. Tellingen
-over er det som skiller folk fra hverandre. «IP Address Forwarding» i Supabase
-(krever en `sb_secret_`-nøkkel) retter dette også hos dem; det er ikke koblet
-til ennå.
+Innstillingene og malene må settes i det driftede prosjektet samtidig som
+migreringen kjøres der; ingen av dem følger med koden.
 
-**Før lansering – ikke testet ennå, og skal ikke regnes som løst:**
-
-- *IP Address Forwarding hos Supabase.* Uten den deler alle medlemmer TINGs
-  serveradresse hos Supabase Auth, så nok trafikk fra ett sted kan bruke opp
-  grensen for innlogging, e-postlenker og fornying av sesjoner for alle.
-  Krever en `sb_secret_`-nøkkel og at appen sender `Sb-Forwarded-For`; det er
-  ikke bygget, fordi det ikke kan prøves lokalt.
-- *Grensene bak nginx.* At `TRUSTED_PROXY_COUNT=1` gir riktig adresse i den
-  faktiske kjeden, og at Supabase sine grenser slår inn som ventet, må prøves
-  i miljøet det skal kjøre i.
-- *Innstillingene og malene i tabellen over* må settes i det driftede
-  prosjektet sammen med migreringen.
+Supabase begrenser selv innlogginger per nettverksadresse (passord og
+fornying av sesjon: 150 per 5 minutter, støt på 30; e-postlenker, glemt
+passord og endring av passord/e-post: 30 per 5 minutter), men ser TINGs server
+som avsender for alle. Derfor forteller appen Supabase hvem som egentlig spør
+– se «6. Innlogging i produksjon» under. Tellingen over gjelder uansett.
 
 Supabase sin offentlige nøkkel er offentlig. Den sendes ikke til nettlesere i
 dag, men ingen av reglene over hviler på at den er hemmelig.
 
 `npm run check:account-security` prøver alt dette mot den lokale stakken –
-også rett mot Supabase Auth, uten TINGs skjemaer – og `npm run
-check:auth-email` holder e-postmalene like.
+også rett mot Supabase Auth, uten TINGs skjemaer. `npm run check:auth-email`
+holder e-postmalene like, og `npm run check:auth-forwarding` prøver
+adressevideresendingen.
 
 #### Showcase-innlogging (`/demo/<token>`)
 
@@ -249,6 +241,136 @@ overvåkes. En fil som venter i køen er allerede uleselig for alle.
 tilgangsmodellen, grensene og oppryddingen mot ekte innloggede kontoer.
 
 ---
+
+### 6. Innlogging i produksjon – adresser og grenser
+
+Alt appen ber Supabase Auth om – innlogging, e-postlenker, fornying av
+sesjoner – går ut fra serveren. Uten tiltak ser Supabase én avsender for hele
+medlemsmassen, og nok trafikk fra ett sted bruker opp grensen for alle. Lokalt,
+mot samme Auth-versjon med grensene slått på, stengte 40 feil innlogginger fra
+én adresse ute et medlem med riktig passord på en helt annen.
+
+Løsningen er Supabase sin «IP Address Forwarding»: appen sender medlemmets
+egen adresse i `Sb-Forwarded-For`. Supabase tror bare på den når forespørselen
+bærer en hemmelig nøkkel (`sb_secret_…`), og den nøkkelen er like mektig som
+service-rollen. Derfor:
+
+- De vanlige klientene er uendret: offentlig nøkkel og medlemmets egen sesjon,
+  med radsikkerhet som før. Den hemmelige nøkkelen er aldri en klients nøkkel.
+- Nøkkelen og adressen settes bare på forespørsler til de Auth-endepunktene
+  Supabase begrenser per adresse (`/token`, `/otp`, `/recover`, `/verify` og
+  `PUT /user`) – i `lib/supabase/auth-forwarding.ts`. Den følger aldri med en
+  spørring mot data-API-et, lagring eller noe annet.
+- Adressen er den deres egen proxy har skrevet (`TRUSTED_PROXY_COUNT`). Uten en
+  slik sendes ingenting videre.
+- Avviser Supabase selve nøkkelen (tilbakekalt, feilskrevet) – et 401-svar
+  fra API-porten som sier «API key», ikke et svar fra Auth – sendes
+  forespørselen på vanlig måte i stedet og det logges én gang. Da mister man
+  grensene per adresse, ikke innloggingen. Ingenting annet sendes to ganger:
+  feil passord, utløpt token og «for mange forespørsler» (429) er svar, og gis
+  videre som de er.
+
+Uten `SUPABASE_SECRET_KEY` oppfører appen seg som før.
+
+**Prøvd lokalt:** hvilke forespørsler som får nøkkelen og hvilke som aldri får
+den; forfalskede `X-Forwarded-For`; manglende og feil proxy-oppsett; avvist
+nøkkel; innlogging, fornying, e-postlenke, glemt passord, passordbytte og
+utlogging gjennom appen med videresending på, bak en nginx-etterligning; og at
+radsikkerheten svarer likt med og uten. **Ikke prøvd, og kan ikke prøves
+lokalt:** at den driftede Supabase-plattformen faktisk tar imot nøkkelen på
+disse forespørslene og teller per videresendt adresse. Det er punkt 6 under,
+og det er en lanseringssperre til det er gjort.
+
+**Sjekkliste**
+
+1. *Hemmelig nøkkel.* Supabase Dashboard → Project Settings → API Keys → lag en
+   ny **secret key** bare til dette (f.eks. `ting-auth-forwarding`), så den kan
+   byttes uten å røre noe annet. Legg den i serverens miljø som
+   `SUPABASE_SECRET_KEY` – i samme fil som `SUPABASE_SERVICE_ROLE_KEY`, lesbar
+   bare for brukeren appen kjører som (`chmod 600`). Aldri i repoet, aldri med
+   `NEXT_PUBLIC_`-prefiks, aldri i en URL, og ikke lim den inn i chat eller
+   saker. Den gamle `service_role`-nøkkelen virker ikke til dette.
+
+2. *Slå på videresending.* Dashboard → Authentication → Rate Limits → **IP
+   Address Forwarding** → på. Eller med Management API (tilgangstoken fra
+   kontoinnstillingene, ikke en prosjektnøkkel):
+
+   ```bash
+   curl -X PATCH "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+     -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"security_sb_forwarded_for_enabled": true}'
+   ```
+
+3. *nginx.* Alle `location`-blokker som går til appen, må legge til adressen
+   som koblet til – ikke overskrive med noe klienten sendte:
+
+   ```nginx
+   location / {
+       proxy_pass http://127.0.0.1:3010;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+   }
+   ```
+
+   `$proxy_add_x_forwarded_for` setter adressen nginx selv så, bakerst; det
+   klienten måtte ha skrevet, blir stående foran og leses aldri. Bruker dere
+   `real_ip`-modulen eller har noe foran nginx (CDN, lastbalanserer), endrer
+   det hva som står bakerst – da må tallet i punkt 5 telles på nytt.
+
+4. *Steng oppstrøms.* Appen må bare være nåbar gjennom nginx, ellers kan hvem
+   som helst skrive sin egen `X-Forwarded-For`. Porten (3010 i eksemplene her)
+   er ikke satt i dette repoet – `npm start` lytter på 3000 med mindre `PORT`
+   eller `-p` sier noe annet – så se etter hva serveren faktisk gjør:
+
+   ```bash
+   ss -ltnp | grep -E ':(3000|3010)\b'
+   ```
+
+   Adressen skal være `127.0.0.1`, ikke `0.0.0.0` eller `*`. Start med
+   `next start -H 127.0.0.1 -p 3010` (eller `HOSTNAME=127.0.0.1 PORT=3010`), og
+   la brannmuren avvise porten utenfra uansett. Prøv fra en annen maskin:
+
+   ```bash
+   curl -m 5 http://<serverens-adresse>:3010/   # skal ikke få svar
+   ```
+
+5. *`TRUSTED_PROXY_COUNT`.* Antall egne proxyer mellom internett og appen: `1`
+   bak nginx alene. For lavt tall gir proxyens egen adresse (alle deler grense
+   igjen); for høyt gir ingen adresse (ingen videresending). Ingen av delene
+   lar en klient velge adresse. Start appen på nytt etter endring. Har
+   serveren nøkkelen men ikke dette tallet, logges det én gang ved oppstart.
+
+6. *Prøv det i miljøet det skal kjøre i.* Med en engangskonto, ikke en ekte:
+   - Logg inn fra to ulike nett (f.eks. kontor og mobilnett). Under Logs →
+     Auth i Supabase skal forespørslene stå med hver sin adresse – ikke
+     serverens. Det er beviset på at videresendingen virker.
+   - Lag støy fra det ene nettet (feil passord på mange ulike adresser, eller
+     «send lenke» mange ganger) til TING eller Supabase svarer med «for mange
+     forsøk», og se at innlogging, e-postlenke og vanlig bruk fortsatt virker
+     fra det andre.
+   - La en økt stå over en time, eller slett tilgangstokenet fra
+     informasjonskapselen, og last en side: du skal fortsatt være innlogget
+     (fornyingen gikk gjennom), og fornyingen skal stå med din adresse i loggen.
+   - Send en forespørsel med `X-Forwarded-For: 1.2.3.4` og se at 1.2.3.4 ikke
+     dukker opp i Supabase-loggen.
+   - Bytt passord og e-postadresse én gang hver. Det er de to forespørslene
+     som bærer både nøkkelen og medlemmets eget token; virker de, er
+     kombinasjonen i orden hos Supabase.
+   - Se i appens logg etter linjer som begynner med `[auth-forwarding]`. Det
+     skal ikke være noen.
+
+7. *Bytte eller trekke tilbake nøkkelen.* Lag en ny secret key → sett den i
+   miljøet → start på nytt → gjenta første strekpunkt i punkt 6 → slett så den
+   gamle i dashboardet (sletting kan ikke angres). Er en nøkkel på avveie,
+   slett den med en gang: appen merker avvisningen, fortsetter uten
+   videresending og sier fra i loggen til en ny er på plass. (Hvordan den
+   driftede API-porten ordlegger avvisningen, er ikke prøvd; gjør første
+   bytte utenom rushtid og se at innlogging virker mens den gamle nøkkelen
+   er slettet og den nye ennå ikke er satt.) Fjernes
+   `SUPABASE_SECRET_KEY` fra miljøet, er videresendingen av; alt annet virker.
+   Bytt også nøkkelen når noen med tilgang til serveren slutter.
 
 ## Fellesskapene
 

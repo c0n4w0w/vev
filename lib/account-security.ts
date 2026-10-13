@@ -3,7 +3,6 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 import {
-  createClient,
   isAuthRetryableFetchError,
   isAuthWeakPasswordError,
   type AuthError,
@@ -14,8 +13,7 @@ import { emailSignInLinkLifetimeSeconds } from "@/lib/email-sign-in-link";
 import { EMAIL_CHANGE_COOLDOWN_HOURS } from "@/lib/password";
 import { getSessionUser } from "@/lib/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseScratchClient, createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 
 /**
@@ -34,16 +32,6 @@ import type { Database } from "@/lib/supabase/database.types";
  */
 
 type ServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
-
-/**
- * A client that keeps nothing: for proving a password or a link without
- * touching this request's own session until the proof is known to be good.
- */
-function scratchClient() {
-  return createClient<Database>(supabaseUrl(), supabaseAnonKey(), {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
 
 /** Supabase did not answer, as opposed to refusing. */
 function authUnavailable(error: AuthError): boolean {
@@ -275,7 +263,7 @@ export async function changePassword(input: {
   const security = await getAccountSecurity();
   if (!security) return { ok: false, reason: "signed-out" };
 
-  const proven = await checkPassword(scratchClient(), {
+  const proven = await checkPassword(await createSupabaseScratchClient(), {
     email: security.email,
     password: input.current,
   });
@@ -310,7 +298,7 @@ export async function requestPasswordReset(email: string): Promise<"sent" | "una
   // The emailed link goes to TING's own page (supabase/templates/recovery.html)
   // and is redeemed there by token hash, so no redirect address is passed and
   // the link works in whichever browser the email is opened in.
-  const { error } = await scratchClient().auth.resetPasswordForEmail(email);
+  const { error } = await (await createSupabaseScratchClient()).auth.resetPasswordForEmail(email);
   if (!error || rateLimited(error)) return "sent";
   if (authUnavailable(error)) return "unavailable";
   console.error("Kunne ikke sende lenke for nytt passord:", error.code ?? error.status);
@@ -336,7 +324,7 @@ export async function resetPasswordWithLink(input: {
   tokenHash: string;
   password: string;
 }): Promise<ResetPasswordOutcome> {
-  const scratch = scratchClient();
+  const scratch = await createSupabaseScratchClient();
   const verified = await scratch.auth.verifyOtp({ type: "recovery", token_hash: input.tokenHash });
   if (verified.error || !verified.data.session) {
     return verified.error && authUnavailable(verified.error)
@@ -389,7 +377,7 @@ export async function requestEmailChange(input: {
   if (!security) return { status: "signed-out" };
   if (!security.hasPassword) return { status: "no-password" };
 
-  const scratch = scratchClient();
+  const scratch = await createSupabaseScratchClient();
   const proven = await checkPassword(scratch, {
     email: security.email,
     password: input.currentPassword,
@@ -457,7 +445,7 @@ export async function confirmEmailChange(tokenHash: string): Promise<EmailChange
   const { data: armed } = await supabase.rpc("arm_email_change");
   if (armed !== true) return { status: "none" };
 
-  const scratch = scratchClient();
+  const scratch = await createSupabaseScratchClient();
   const verified = await scratch.auth.verifyOtp({ type: "email_change", token_hash: tokenHash });
   if (verified.error) {
     // A token for some other account ends here too: its change was never
