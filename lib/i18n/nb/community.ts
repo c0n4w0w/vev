@@ -354,7 +354,7 @@ export const community = {
   "members.activeProfiles.one": "{count} aktiv profil",
   "members.activeProfiles.other": "{count} aktive profiler",
   "members.flatLead":
-    "{profiles} i dette rommet, av totalt {total} registrerte medlemmer i organisasjonen.",
+    "{profiles} i dette rommet.",
   "members.requestsButton": "Medlemsforespørsler",
   "members.noteAdmin":
     "Som administrator i {name} kan du invitere nye medlemmer, behandle forespørsler og endre roller. Medlemslisten deles aldri utenfor fellesskapet.",

@@ -28,7 +28,8 @@ Fyll inn fra Supabase (Project settings → API), eller fra utskriften til
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Prosjektets URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Offentlig nøkkel, trygg i nettleseren |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Hemmelig.** Går utenom all radsikkerhet. Brukes kun av `npm run seed` |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Hemmelig.** Går utenom all radsikkerhet. Serverens nøkkel: godkjennings-e-posten, telling av passordforsøk, vedlegg, og skriptene `bootstrap`, `bootstrap:admin`, `attachments:sweep` og `seed` |
+| `EMAIL_PROVIDER`, `SMTP_*`, `EMAIL_FROM_*` | Hvordan TINGs egen e-post sendes — se «7. E-post fra TING» |
 | `TING_MODE` | Sett til `demo` for en showcase-utrulling. Ubrukt (produksjon) er standard |
 | `TRUSTED_PROXY_COUNT` | Antall egne proxyer foran appen (`1` bak nginx). Lar passordforsøk begrenses per nettverksadresse — se «Innlogging, passord og e-postadresse» |
 | `DEMO_TOKEN_TRYGGERE`, `DEMO_TOKEN_UTR` | Én uttrekkbar lenke per showcase — se «Showcase-innlogging» under |
@@ -55,9 +56,34 @@ npx supabase link --project-ref <ref>
 npx supabase db push
 ```
 
-Fem migrasjoner kjøres: tabellene og radsikkerheten, portal- og
-medlemskapsfunksjonene, og deretter tre rettelser (se `supabase/migrations`).
-`npx supabase db reset` spiller av hele kjeden fra bunnen.
+Alle migrasjonene i `supabase/migrations` kjøres i rekkefølge.
+`npx supabase db reset` spiller av hele kjeden fra bunnen (lokalt).
+
+Et hostet prosjekt får skjemaet, men ingen fellesskap: de opprettes med
+`npm run bootstrap` — se «8. Første installasjon». `npm run seed` er bare for
+showcase.
+
+#### Rettigheter: hver tabell må gis til rollene som skal bruke den
+
+Supabase gir ikke lenger nye tabeller i `public` til API-rollene (`anon`,
+`authenticated`, `service_role`) av seg selv. Uten en `grant` svarer hver
+spørring `42501 permission denied for table`, uansett hva radsikkerheten sier.
+`supabase/config.toml` har derfor `auto_expose_new_tables = false`, så den
+lokale stakken oppfører seg som den driftede, og
+`20261026100000_explicit_api_grants.sql` sier uttrykkelig hva hver rolle har:
+
+| Rolle | Tabeller | Funksjoner |
+| --- | --- | --- |
+| `anon` | ingen | de sju portalen og invitasjonssiden trenger |
+| `authenticated` | `select` der en policy lar et medlem lese; `insert`/`update`/`delete` bare der det finnes en policy for nettopp det | det migrasjonene har gitt, ingenting til alle (`PUBLIC`) |
+| `service_role` | lese og skrive, aldri `truncate` | de få serveren kaller |
+
+En migrasjon som lager en tabell, må selv gi den til rollene som skal bruke
+den, og en funksjon må si hvem som får kalle den. `npm run check:grants`
+sammenligner katalogen med denne tabellen, linje for linje, og prøver reglene
+gjennom API-et som anonym, som medlemmer av ulike fellesskap og med serverens
+nøkkel — uavhengig av sidene i appen. Legg tabellen til i sjekken når du
+legger den til i en migrasjon.
 
 ### 2b. Typer
 
@@ -372,6 +398,138 @@ og det er en lanseringssperre til det er gjort.
    `SUPABASE_SECRET_KEY` fra miljøet, er videresendingen av; alt annet virker.
    Bytt også nøkkelen når noen med tilgang til serveren slutter.
 
+### 7. E-post fra TING – SMTP og DNS
+
+TING sender én type e-post selv: velkomsten en administrator utløser med
+«Godkjenn» (`lib/email/invitation.ts`). Den går ut over vanlig SMTP
+(`lib/email/smtp.ts`) — en vert, en port, en innlogging og en avsender — så
+enhver e-posttjeneste som tilbyr SMTP kan brukes, og et bytte er fem
+miljøvariabler. Variablene står forklart i `.env.example`.
+
+Innloggingslenker, glemt passord og bytte av e-postadresse sendes ikke herfra.
+Dem sender Supabase Auth, med SMTP-innstillingene i Supabase-prosjektet
+(Authentication → Emails → SMTP Settings). De to kan bruke samme tjeneste og
+samme avsender, men deler ingen innstilling, og begge må settes opp: Supabase
+sin innebygde utsending er begrenset til noen få meldinger i timen og er ikke
+ment for drift.
+
+**Hva «sendt» betyr.** Administratoren får «sendt» når SMTP-tjeneren har tatt
+imot meldingen — ikke før, og det sier ikke at den nådde innboksen. Ellers får
+de en av fire beskjeder, og invitasjonen står klar til å sendes på nytt fra
+Forespørsler:
+
+| Hva skjedde | Hva TING gjør |
+| --- | --- |
+| Tjeneren svarte «ikke nå» (4xx), eller var ikke å nå | Ett nytt forsøk med det samme; deretter beskjed om å prøve igjen |
+| Tjeneren avviste meldingen eller adressen (5xx) | Ingen nye forsøk; beskjed om å kontrollere adressen |
+| Innlogging, kryptering eller avsender ble avvist; oppsett mangler | Ingen forsøk; beskjed om å kontakte den som drifter TING |
+| Forbindelsen røk etter at meldingen var påbegynt | Ingen nye forsøk — den kan ha kommet fram; beskjed om å spørre mottakeren |
+
+Det siste er grunnen til at TING ikke prøver på nytt i det uendelige: et nytt
+forsøk der kunne gitt samme person to e-poster. Loggen (`[e-post]`) har
+feilkoden og mottakerens domene, aldri adressen, lenken eller passordet.
+
+En server som ikke har fått vite hvordan den skal sende (`EMAIL_PROVIDER`
+mangler i et produksjonsbygg), sender ingenting og sier det — den skriver ikke
+invitasjoner til disk i stedet.
+
+```bash
+npm run email:check                            # oppsett, tilkobling, kryptering, innlogging
+npm run email:check -- --send-to du@eksempel.no    # … og én testmelding
+```
+
+`npm run check:email-smtp` prøver alt dette mot en SMTP-tjener i samme prosess.
+
+#### DNS for avsenderdomenet
+
+For at andres e-posttjenere skal ta imot post fra `ikke-svar@join-ting.no`, må
+domenet si at tjenesten dere sender gjennom, har lov. Tre TXT-poster, alle for
+**utgående** post:
+
+| Post | Navn | Hva den sier |
+| --- | --- | --- |
+| **SPF** | `join-ting.no` | Hvilke tjenere som får sende med domenet som avsender. Én post per domene: flere tjenester legges i *samme* post (`v=spf1 include:<tjeneste A> include:<tjeneste B> -all`). `join-ting.no` har i dag `v=spf1 include:spf.webhuset.no -all`; sender dere gjennom noe annet enn Webhuset, må den tjenestens `include` inn der, ellers avvises alt den sender. |
+| **DKIM** | `<selector>._domainkey.join-ting.no` | Den offentlige nøkkelen til signaturen e-posttjenesten setter på hver melding. Navn og verdi får dere fra tjenesten (ofte som CNAME). Uten den er meldingen usignert. |
+| **DMARC** | `_dmarc.join-ting.no` | Hva mottakere skal gjøre når SPF og DKIM ikke stemmer med avsenderdomenet, og hvor rapporter sendes. Begynn med `v=DMARC1; p=none; rua=mailto:<adresse dere leser>` og stram til `quarantine`/`reject` når rapportene viser at alt ekte passerer. |
+
+Supabase Auth sin e-post bruker samme avsenderdomene og dekkes av de samme
+postene, så lenge den sendes gjennom en tjeneste som står i dem.
+
+**MX er noe annet.** MX-poster sier hvor *innkommende* post til `@join-ting.no`
+skal leveres. De trengs ikke for å sende. `join-ting.no` har ingen i dag, så et
+svar til `ikke-svar@join-ting.no` og en returmelding (bounce) om en adresse som
+ikke finnes, har ingen steder å gå — vil dere se returmeldinger, må adressen
+kunne ta imot post (MX hos en e-posttjeneste), eller tjenesten må ta dem imot
+på et eget returdomene. Enkelte mottakere stoler også mindre på et
+avsenderdomene uten MX.
+
+Etter endringene: send en testmelding med `email:check` til en adresse hos en
+stor leverandør og se i meldingens hoder at `spf=pass`, `dkim=pass` og
+`dmarc=pass`.
+
+### 8. Første installasjon – fellesskap og første administrator
+
+En ny database har skjemaet og ingenting annet. To kommandoer gjør den til en
+installasjon, og ingen av dem er `npm run seed`:
+
+```bash
+npm run bootstrap                 # tørrkjøring: viser hva som ville blitt opprettet
+npm run bootstrap -- --confirm    # oppretter det som mangler
+```
+
+`bootstrap` oppretter de tre fellesskapene med identitet, innstillinger og fast
+struktur — og ingen kontoer, medlemmer eller innhold. Nøyaktig hva står i
+`lib/bootstrap/definition.ts`, som henter det fra de samme filene seeden leser
+og lar alt som hører showcasen til, ligge:
+
+| | Tryggere Ruspolitikk | Tryggere Ungdom | Under The Rug |
+| --- | --- | --- | --- |
+| Slug | `tryggere-ruspolitikk` | `tryggere-ungdom` | `under-the-rug` |
+| Språk | bokmål | bokmål | engelsk |
+| Profil, tekster, nettsted | ✓ | ✓ | ✓ |
+| Medlemsliste / meldinger | bare admin / bare ansvarlige | bare admin / bare ansvarlige | medlemmer / medlemmer |
+| Faste kanaler | 6 | 6 | 6 |
+| Lokallag (med hver sin kanal) | 7 | 5 | – |
+| Grupper | Safe-Space frivillige | – | – |
+| Organisasjonskatalogen | ✓ (uten kontokoblinger) | ikke tatt med | ikke tatt med |
+
+Den legger til det som mangler og endrer ingenting som finnes: en tekst en
+administrator har skrevet om, eller en kanal som har fått nytt navn, blir
+stående, og avviket står i utskriften. Den kan derfor kjøres igjen når som
+helst, også etter en kjøring som stoppet halvveis. Katalogen for Tryggere
+Ungdom og Under The Rug ligger i repoet og tas med ved å legge fellesskapet til
+i `DIRECTORY_INCLUDED` og kjøre på nytt.
+
+Noen eldre migrasjoner rettet bare på rader som fantes (språket til Under The
+Rug, opplysningene i toppfeltet, Safe-Space-gruppen, to kontaktadresser). Mot
+en tom database gjør de ingenting; `bootstrap` oppretter radene med de
+verdiene med det samme. `npm run check:bootstrap` holder definisjonen opp mot
+seeden: en seedet database skal ikke mangle noe og ikke avvike.
+
+**Første administrator.** Et fellesskap uten medlemmer har ingen som kan
+godkjenne det første. Den første administratoren utnevnes derfor av den som
+drifter serveren:
+
+```bash
+npm run bootstrap:admin -- --community tryggere-ruspolitikk --email navn@eksempel.no            # tørrkjøring
+npm run bootstrap:admin -- --community tryggere-ruspolitikk --email navn@eksempel.no --confirm
+```
+
+1. Personen går til `/login`, velger «Logg inn med e-postlenke» og logger inn
+   med lenken de får. Det oppretter kontoen og bekrefter adressen.
+2. Under Kontoen din → Sikkerhet (`/profile/passord`) velger de et passord.
+3. Dere kjører kommandoen over.
+
+Kommandoen oppretter ingen konto, setter ikke noe passord, bekrefter ingen
+adresse og sender ingenting; mangler ett av stegene, sier den hvilket. Den
+nekter hvis fellesskapet allerede har en administrator (det kan bare ha én —
+rollen gis videre i appen), og den nekter adressene til showcasens testkontoer.
+Ingen administrator står i repoet, i en migrasjon eller i en miljøvariabel.
+
+Rekkefølgen for en ny installasjon: migrasjonene → `npm run bootstrap` →
+administratorene oppretter kontoene sine → `npm run bootstrap:admin` for hvert
+fellesskap. Alle andre kommer inn gjennom «Be om tilgang» og godkjenning.
+
 ## Fellesskapene
 
 Tre organisasjoner brukes som utstillingsvindu. De deler plattform og
@@ -438,6 +596,14 @@ databasen — ikke bare i applikasjonskoden.
   personens medlemskap til enhver besøkende.
 - **Profiler er ikke søkbare.** Du ser deg selv, folk du deler et fellesskap med,
   og den som eventuelt inviterte deg. Ikke mer.
+- **Antall medlemmer lagres ikke, og vises bare til den som kan se
+  medlemslisten.** Tallet telles fra de aktive medlemskapene i det øyeblikket
+  det vises (`lib/member-count.ts`), og bare for den som
+  `can_view_member_directory()` slipper til: administratoren der medlemslisten
+  er lukket, alle medlemmer der den er åpen. Andre ser ikke noe tall, den
+  offentlige portalen oppgir ingen, og databasen har ingen kolonne å spørre
+  etter (`20261027100000`). Tall per lokallag følger sin egen, strengere regel
+  (administrator og lokallagsleder). `npm run check:member-count` prøver begge.
 - **Medlemskap endres bare gjennom databasefunksjoner.** `memberships` har ingen
   insert-, update- eller delete-policy i det hele tatt. Overgangene
   (`request_community_access`, `approve_access_request`,
@@ -485,10 +651,15 @@ lib/
   format.ts                 Dato- og tidsformatering (følger språket)
   i18n/                     Språk: ordbøker (nb, en), t()/tn(), useT()
   supabase/                 Klienter, miljøvariabler, databasetyper
+  email/                    TINGs egen e-post: velkomsten, og hvordan den sendes (fil eller SMTP)
+  bootstrap/                Hva en ekte installasjon starter med, og første administrator
   mock/                     Innhold til seed-skriptet. Ikke i bruk i appen
 supabase/
   migrations/               Skjema, radsikkerhet, funksjoner
-scripts/seed.ts             Fyller databasen
+scripts/seed.ts             Fyller en showcase-database med testdata
+scripts/bootstrap.ts        Oppretter fellesskapene i en ekte installasjon
+scripts/bootstrap-admin.ts  Utnevner første administrator
+scripts/check-*.ts          Sjekker mot den lokale stakken (`npm run check:<navn>`)
 ```
 
 ---

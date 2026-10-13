@@ -336,7 +336,6 @@ export default async function MembersPage({
         title={t("members.title")}
         lead={t("members.flatLead", {
           profiles: tn(locale, "members.activeProfiles", members.length),
-          total: community.memberCount,
         })}
         action={
           isAdmin ? (

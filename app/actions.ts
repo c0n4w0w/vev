@@ -2070,11 +2070,13 @@ async function deliverApprovalEmail(
     accent: community?.branding.accent ?? "#1f4a3d",
   });
 
-  // The approval stands either way; only the delivery failed. Saying so lets
-  // an admin resend rather than wonder whether the approval took.
-  return result.ok
-    ? { ok: true }
-    : { ok: false, message: t("err.emailNotSent", { error: result.error }) };
+  // The approval stands either way; only the delivery failed. Saying so, and
+  // which kind of failure it was, lets an admin resend rather than wonder
+  // whether the approval took. The development provider's own sentence is
+  // shown as it is; a real one's reason is said in the community's language.
+  if (result.ok) return { ok: true };
+  const error = result.reason === "local" ? result.error : t(`err.email.${result.reason}`);
+  return { ok: false, message: t("err.emailNotSent", { error }) };
 }
 
 /**

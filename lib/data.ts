@@ -4,6 +4,7 @@ import "server-only";
 import { cache } from "react";
 import { isAuthRetryableFetchError, type AuthError } from "@supabase/supabase-js";
 import { createSupabaseScratchClient, createSupabaseServerClient } from "@/lib/supabase/server";
+import { countActiveMembers } from "@/lib/member-count";
 import type {
   ChannelRow,
   CommunityRow,
@@ -140,7 +141,6 @@ function toCommunityPublic(row: PortalCommunityRow): CommunityPublic {
     },
     accessPolicy: row.access_policy,
     defaultLocale: parseLocale(row.default_locale),
-    memberCount: row.member_count,
     links: (row.links as LinkList) ?? [],
   };
 }
@@ -708,6 +708,15 @@ export async function canViewMemberDirectory(communityId: string): Promise<boole
     cid: communityId,
   });
   return !error && data === true;
+}
+
+/**
+ * The community's active member count, or `null` for a caller who may not
+ * list its membership — see lib/member-count.ts. A page that gets `null`
+ * shows no number.
+ */
+export async function getActiveMemberCount(communityId: string): Promise<number | null> {
+  return countActiveMembers(await createSupabaseServerClient(), communityId);
 }
 
 /**

@@ -158,6 +158,32 @@ export function buildInvitationEmail(input: InvitationEmailInput) {
   return { to: input.to, subject, text, html };
 }
 
+/** True when `url` is an http(s) address on exactly `origin`. */
+function leadsTo(url: string, origin: string): boolean {
+  try {
+    const target = new URL(url);
+    return /^https?:$/.test(target.protocol) && target.origin === new URL(origin).origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Sends the approval email to the one address the database returned for it.
+ *
+ * The button is the only link in the message and it carries the invitation,
+ * so it is checked once more here, where every caller passes: it must lead to
+ * this site's own origin. Anything else is a bug upstream, and is refused
+ * rather than mailed.
+ */
 export function sendInvitationEmail(input: InvitationEmailInput): Promise<EmailResult> {
+  if (!leadsTo(input.acceptUrl, input.origin)) {
+    console.error("[e-post] Invitasjonen ble ikke sendt: lenken peker ikke til nettstedets egen adresse.");
+    return Promise.resolve({
+      ok: false,
+      reason: "configuration",
+      error: "Lenken i invitasjonen peker ikke til nettstedets egen adresse.",
+    });
+  }
   return getEmailProvider().send(buildInvitationEmail(input));
 }

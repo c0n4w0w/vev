@@ -25,6 +25,7 @@ import {
 import {
   getAnnouncements,
   getCommentsForPosts,
+  getActiveMemberCount,
   getCommunityById,
   getCommunityEmojis,
   getFeed,
@@ -63,8 +64,11 @@ export default async function CommunityOverviewPage({
   const locale = communityLocale(community);
   const t = translator(locale);
 
-  const [membership, announcements, allPosts, upcoming, groups, customEmojis, related, welcome] = await Promise.all([
+  const [membership, memberCount, announcements, allPosts, upcoming, groups, customEmojis, related, welcome] = await Promise.all([
     getMembership(user.id, community.id),
+    // Null for anyone who may not list the membership; the header then says
+    // nothing about how many there are.
+    getActiveMemberCount(community.id),
     getAnnouncements(community.id),
     getFeed(community.id),
     getUpcomingCommunityEvents(community.id),
@@ -161,11 +165,13 @@ export default async function CommunityOverviewPage({
                   <IconMapPin size={14} className="text-ink-3" />
                   <dd>{community.location}</dd>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <dt className="sr-only">{t("overview.members")}</dt>
-                  <IconUsers size={14} className="text-ink-3" />
-                  <dd>{tn(locale, "count.members", community.memberCount)}</dd>
-                </div>
+                {memberCount !== null ? (
+                  <div className="flex items-center gap-1.5">
+                    <dt className="sr-only">{t("overview.members")}</dt>
+                    <IconUsers size={14} className="text-ink-3" />
+                    <dd>{tn(locale, "count.members", memberCount)}</dd>
+                  </div>
+                ) : null}
                 <div className="flex items-center gap-1.5">
                   <dt className="sr-only">{website ? t("overview.website") : t("overview.publicPortal")}</dt>
                   <IconGlobe size={14} className="text-ink-3" />

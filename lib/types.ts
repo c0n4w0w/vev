@@ -101,7 +101,6 @@ export interface CommunityPublic {
    * Presentation only — nothing about access or visibility reads it.
    */
   defaultLocale: Locale;
-  memberCount: number;
   /** Public-facing links shown on the portal. */
   links: { label: string; href: string }[];
 }

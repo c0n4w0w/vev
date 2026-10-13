@@ -190,6 +190,14 @@ export const errors = {
   "ok.resent": "Ny invitasjon sendt til {email}.",
   "err.noInvitation": "Ingen invitasjon å sende.",
   "err.emailNotSent": "Invitasjonen er opprettet, men e-posten kunne ikke sendes: {error}",
+  "err.email.temporary":
+    "E-posttjenesten svarte ikke, eller ba oss prøve igjen senere. Send invitasjonen på nytt om litt.",
+  "err.email.rejected":
+    "E-posttjenesten avviste meldingen eller mottakeradressen. Kontroller adressen før du sender på nytt.",
+  "err.email.configuration":
+    "Utsending av e-post er ikke satt opp riktig på denne installasjonen. Kontakt den som drifter TING, og send invitasjonen på nytt etterpå.",
+  "err.email.uncertain":
+    "Forbindelsen ble brutt mens e-posten ble sendt, så det er uvisst om den kom fram. Spør mottakeren før du sender en ny – en ny invitasjon gjør den forrige ugyldig.",
   "err.invitation.mismatch":
     "Invitasjonen er sendt til en annen e-postadresse enn den du er logget inn med. Logg inn med adressen invitasjonen ble sendt til.",
   "err.invitation.used": "Denne invitasjonen er allerede brukt.",

@@ -12,6 +12,7 @@ import {
 import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconArrowRight, IconLock, IconUsers } from "@/components/ui/icons";
 import {
+  getActiveMemberCount,
   getCommunitiesForUser,
   getCommunityEvents,
   getUpcomingCommunityEvents,
@@ -28,6 +29,14 @@ export default async function CommunitiesPage() {
 
   const communities = await getCommunitiesForUser(user.id);
 
+
+  // Member counts, only for the communities whose membership this person may
+  // list. The others get no number rather than a wrong one.
+  const memberCounts = new Map(
+    await Promise.all(
+      communities.map(async ({ community }) => [community.id, await getActiveMemberCount(community.id)] as const),
+    ),
+  );
 
   // Event counts per community, resolved before rendering the cards.
   const eventCounts = new Map(
@@ -59,6 +68,7 @@ export default async function CommunitiesPage() {
         <ul className="grid gap-4 sm:grid-cols-2">
           {communities.map(({ community, membership }) => {
             const counts = eventCounts.get(community.id) ?? { upcoming: 0, total: 0 };
+            const memberCount = memberCounts.get(community.id) ?? null;
             return (
               <Panel as="li" key={community.id} className="flex flex-col p-5">
                 <div className="flex items-start gap-3.5">
@@ -83,11 +93,13 @@ export default async function CommunitiesPage() {
                 </div>
 
                 <dl className="mt-4 flex flex-wrap gap-x-5 gap-y-1 border-t border-line pt-3.5 text-xs text-ink-3">
-                  <div className="flex items-center gap-1.5">
-                    <dt className="sr-only">Medlemmer</dt>
-                    <IconUsers size={13} />
-                    <dd>{plural(community.memberCount, "medlem", "medlemmer")}</dd>
-                  </div>
+                  {memberCount !== null ? (
+                    <div className="flex items-center gap-1.5">
+                      <dt className="sr-only">Medlemmer</dt>
+                      <IconUsers size={13} />
+                      <dd>{plural(memberCount, "medlem", "medlemmer")}</dd>
+                    </div>
+                  ) : null}
                   <div>
                     <dt className="sr-only">Arrangementer</dt>
                     <dd>

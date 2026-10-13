@@ -187,6 +187,14 @@ export const errors: Record<keyof typeof nb, string> = {
   "ok.resent": "New invitation sent to {email}.",
   "err.noInvitation": "There's no invitation to send.",
   "err.emailNotSent": "The invitation was created, but the email couldn't be sent: {error}",
+  "err.email.temporary":
+    "The mail service didn't answer, or asked us to try again later. Resend the invitation in a little while.",
+  "err.email.rejected":
+    "The mail service refused the message or the recipient's address. Check the address before resending.",
+  "err.email.configuration":
+    "Sending email isn't set up correctly on this installation. Contact whoever runs TING, then resend the invitation.",
+  "err.email.uncertain":
+    "The connection dropped while the email was being sent, so it may or may not have arrived. Ask the recipient before sending another – a new invitation cancels the previous one.",
   "err.invitation.mismatch":
     "This invitation was sent to a different email address than the one you're signed in with. Sign in with the address the invitation was sent to.",
   "err.invitation.used": "This invitation has already been used.",

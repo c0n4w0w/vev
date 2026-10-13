@@ -1376,7 +1376,6 @@ export type Database = {
           links: Json
           location: string
           mark_style: string
-          member_count: number
           member_directory_visibility: Database["public"]["Enums"]["member_directory_visibility"]
           monogram: string
           name: string
@@ -1397,7 +1396,6 @@ export type Database = {
           links?: Json
           location: string
           mark_style?: string
-          member_count?: number
           member_directory_visibility?: Database["public"]["Enums"]["member_directory_visibility"]
           monogram: string
           name: string
@@ -1418,7 +1416,6 @@ export type Database = {
           links?: Json
           location?: string
           mark_style?: string
-          member_count?: number
           member_directory_visibility?: Database["public"]["Enums"]["member_directory_visibility"]
           monogram?: string
           name?: string
@@ -3387,7 +3384,6 @@ export type Database = {
           links: Json
           location: string
           mark_style: string
-          member_count: number
           monogram: string
           name: string
           public_description: string

@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The SMTP client (lib/email/smtp.ts) is plain Node: sockets, TLS, DNS.
+  // Loaded from node_modules at run time rather than bundled.
+  serverExternalPackages: ["nodemailer"],
   experimental: {
     serverActions: {
       // The default is 1 MB. A community profile image may be up to 5 MB

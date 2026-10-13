@@ -32,7 +32,6 @@ export const communities: Community[] = [
     },
     accessPolicy: "request-to-join",
     defaultLocale: "nb",
-    memberCount: 214,
     links: [
       { label: "rusreform.no", href: "https://rusreform.no" },
       { label: "Bli medlem", href: "https://rusreform.no/bli-medlem" },
@@ -57,7 +56,6 @@ export const communities: Community[] = [
     },
     accessPolicy: "request-to-join",
     defaultLocale: "nb",
-    memberCount: 96,
     links: [
       { label: "tryggereungdom.no", href: "https://tryggereungdom.no" },
       { label: "Bli frivillig", href: "https://tryggereungdom.no/frivillig" },
@@ -82,7 +80,6 @@ export const communities: Community[] = [
     },
     accessPolicy: "request-to-join",
     defaultLocale: "en",
-    memberCount: 58,
     links: [
       { label: "undertherug.no", href: "https://undertherug.no" },
       { label: "Program høsten 2026", href: "https://undertherug.no/program" },

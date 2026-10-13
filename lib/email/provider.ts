@@ -1,3 +1,6 @@
+import { isDemoDeployment } from "@/lib/environment";
+import { emailFailure, SmtpEmailProvider, smtpConfigFromEnv } from "@/lib/email/smtp";
+
 /**
  * The seam between TING and however mail actually gets sent.
  *
@@ -18,7 +21,26 @@ export interface EmailMessage {
   html: string;
 }
 
-export type EmailResult = { ok: true; id: string } | { ok: false; error: string };
+/**
+ * `ok` means the message was handed over — written to disk, or accepted by
+ * the SMTP server. It never means it reached an inbox; nothing here can know
+ * that.
+ *
+ * A failure says which kind, so the caller can tell an administrator what to
+ * do next in their own language (`err.email.<reason>`):
+ *
+ *   temporary       not now; sending again is safe
+ *   rejected        the server refused the message or the address
+ *   configuration   this deployment's mail settings are missing or wrong
+ *   uncertain       the connection died mid-message; it may have arrived
+ *   local           the development provider could not write or deliver
+ *
+ * `error` is a plain sentence for logs and scripts. It never contains a
+ * credential, a link or the server's own reply.
+ */
+export type EmailResult =
+  | { ok: true; id: string }
+  | { ok: false; reason: "temporary" | "rejected" | "configuration" | "uncertain" | "local"; error: string };
 
 export interface EmailProvider {
   readonly name: string;
@@ -103,37 +125,73 @@ async function deliverToMailCatcher(catcher: URL, message: EmailMessage): Promis
         HTML: message.html,
       }),
     });
-    if (!response.ok) return { ok: false, error: `Lokal innboks svarte ${response.status}` };
+    if (!response.ok) return { ok: false, reason: "local", error: `Lokal innboks svarte ${response.status}` };
     return { ok: true, id: ((await response.json()) as { ID?: string }).ID ?? "mailpit" };
   } catch {
-    return { ok: false, error: "Fant ikke den lokale innboksen. Kjører `supabase start`?" };
+    return { ok: false, reason: "local", error: "Fant ikke den lokale innboksen. Kjører `supabase start`?" };
   }
 }
 
 /**
- * Placeholder for a real provider.
+ * What stands in when no usable provider is configured.
  *
- * Deliberately unimplemented: wiring one in is a decision about a vendor, a
- * sending domain and a set of secrets, none of which should be made silently
- * by a prototype. Configuring EMAIL_PROVIDER without implementing this fails
- * loudly rather than quietly dropping invitations on the floor.
+ * It refuses every message and says why, once, in the log — by the names of
+ * the settings, never their values. An approval made meanwhile still stands;
+ * the administrator is told the email was not sent and can resend it once
+ * the configuration is fixed.
  */
 class UnconfiguredProvider implements EmailProvider {
-  constructor(private readonly requested: string) {}
   readonly name = "ikke konfigurert";
+  private static reported = new Set<string>();
+
+  constructor(private readonly why: string) {}
 
   async send(): Promise<EmailResult> {
-    return {
-      ok: false,
-      error: `E-postleverandøren «${this.requested}» er ikke implementert. Sett EMAIL_PROVIDER=fil for lokal utvikling.`,
-    };
+    if (!UnconfiguredProvider.reported.has(this.why)) {
+      UnconfiguredProvider.reported.add(this.why);
+      console.error(`[e-post] Ingen e-post kan sendes: ${this.why}`);
+    }
+    return emailFailure("configuration");
   }
 }
 
-export function getEmailProvider(): EmailProvider {
-  const configured = (process.env.EMAIL_PROVIDER ?? "fil").toLowerCase();
+/**
+ * Chooses the provider from `EMAIL_PROVIDER`.
+ *
+ *   smtp   real delivery through an SMTP server (lib/email/smtp.ts)
+ *   fil    the development provider above: files, and the local mail catcher
+ *
+ * Unset means `fil` under `next dev` and in scripts, and means *nothing* in a
+ * production build: a server that was never told how to send mail refuses,
+ * rather than quietly writing invitation links to its own disk and reporting
+ * them sent. For the same reason `fil` has to be asked for by name there, and
+ * is only honoured on a showcase deployment (`TING_MODE=demo`).
+ */
+export function getEmailProvider(env: NodeJS.ProcessEnv = process.env): EmailProvider {
+  const configured = env.EMAIL_PROVIDER?.trim().toLowerCase();
+  const production = env.NODE_ENV === "production";
+
+  if (configured === "smtp") {
+    const smtp = smtpConfigFromEnv(env);
+    return smtp.ok
+      ? new SmtpEmailProvider(smtp.config)
+      : new UnconfiguredProvider(`EMAIL_PROVIDER=smtp, men ${smtp.problems.join("; ")}.`);
+  }
+
   if (configured === "fil" || configured === "file" || configured === "dev") {
+    if (production && !isDemoDeployment()) {
+      return new UnconfiguredProvider(
+        "EMAIL_PROVIDER=fil skriver e-post til disk og er ikke tillatt i produksjon. Sett EMAIL_PROVIDER=smtp.",
+      );
+    }
     return new FileEmailProvider();
   }
-  return new UnconfiguredProvider(configured);
+
+  if (configured === undefined || configured === "") {
+    return production
+      ? new UnconfiguredProvider("EMAIL_PROVIDER er ikke satt. Sett EMAIL_PROVIDER=smtp og SMTP_*-variablene.")
+      : new FileEmailProvider();
+  }
+
+  return new UnconfiguredProvider(`EMAIL_PROVIDER har en ukjent verdi. Gyldige verdier er smtp og fil.`);
 }

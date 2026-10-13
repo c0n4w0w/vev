@@ -19,7 +19,6 @@ import {
   IconGlobe,
   IconLock,
   IconMapPin,
-  IconUsers,
 } from "@/components/ui/icons";
 import {
   getMembership,
@@ -27,7 +26,7 @@ import {
   getPortalEvents,
   hasPendingAccessRequest,
 } from "@/lib/data";
-import { formatEventRange, plural } from "@/lib/format";
+import { formatEventRange } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 import { PUBLIC_HOST } from "@/lib/brand";
 import { getTryggerePortalBrand } from "@/lib/tryggere-portal";
@@ -142,11 +141,6 @@ export default async function PortalPage({ params }: PageProps<"/[portalSlug]">)
                   <dt className="sr-only">Sted</dt>
                   <IconMapPin size={14} className="text-ink-3" />
                   <dd>{community.location}</dd>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <dt className="sr-only">Medlemmer</dt>
-                  <IconUsers size={14} className="text-ink-3" />
-                  <dd>{plural(community.memberCount, "medlem", "medlemmer")}</dd>
                 </div>
                 <div>
                   <dt className="sr-only">Stiftet</dt>

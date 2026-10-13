@@ -353,7 +353,7 @@ export const community: Record<keyof typeof nb, string> = {
   "members.activeProfiles.one": "{count} active profile",
   "members.activeProfiles.other": "{count} active profiles",
   "members.flatLead":
-    "{profiles} in this space, out of {total} registered members in the organization.",
+    "{profiles} in this space.",
   "members.requestsButton": "Membership requests",
   "members.noteAdmin":
     "As an administrator of {name} you can invite new members, handle requests and change roles. The member list is never shared outside the community.",

@@ -20,7 +20,11 @@ max_rows = 1000
 # `postgres` are reachable through the Data API roles (`anon`, `authenticated`, `service_role`)
 # without explicit GRANTs, matching the cloud default. Set to `false` to require explicit GRANTs
 # instead. Left unset, a fresh project falls back to `true`.
-# auto_expose_new_tables = true
+#
+# `false` here, as on TING's hosted project: a table a migration creates is unreachable until
+# that migration grants it (see 20261026100000_explicit_api_grants.sql). With `true`, a missing
+# grant works locally and answers 42501 in production.
+auto_expose_new_tables = false
 
 [api.tls]
 # Enable HTTPS endpoints locally using a self-signed certificate.

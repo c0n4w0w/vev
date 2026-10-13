@@ -123,13 +123,20 @@ function RequestRow({
 function InvitationRow({
   invitation,
   communityId,
+  onResult,
 }: {
   invitation: CommunityInvitation;
   communityId: string;
+  /** Resending replaces this invitation, and its row with it; the queue keeps the outcome. */
+  onResult: (state: AccessFormState) => void;
 }) {
   const t = useT();
   const locale = useLocale();
-  const [state, resend] = useActionState(resendInvitationAction, emptyAccessFormState);
+  const [, resend] = useActionState(async (prev: AccessFormState, formData: FormData) => {
+    const next = await resendInvitationAction(prev, formData);
+    onResult(next);
+    return next;
+  }, emptyAccessFormState);
   // Server-decided; the browser's clock has no say in whether a token is live.
   const expired = invitation.expired;
 
@@ -143,14 +150,6 @@ function InvitationRow({
             : t("requests.expires", { when: timeUntil(invitation.expiresAt, locale) })}{" "}
           · {t("requests.sentLower", { date: formatFullDate(invitation.createdAt, locale) })}
         </p>
-        {state.status !== "idle" && state.message ? (
-          <p
-            role="status"
-            className={`mt-1.5 text-[12px] ${state.status === "error" ? "text-rust" : "text-ink-2"}`}
-          >
-            {state.message}
-          </p>
-        ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {expired ? (
@@ -233,6 +232,10 @@ export function RequestQueue({
   // The last approve/reject outcome — including "approved, but the email
   // could not be sent" — which would otherwise vanish with its row.
   const [notice, setNotice] = useState<AccessFormState | null>(null);
+  // Likewise for a resend: it issues a new invitation, so the row that was
+  // clicked is gone by the time there is something to say — most of all when
+  // the email could not be sent.
+  const [resendNotice, setResendNotice] = useState<AccessFormState | null>(null);
   return (
     <div className="space-y-10">
       <section>
@@ -275,6 +278,16 @@ export function RequestQueue({
 
       <section>
         <h2 className="label mb-3">{t("requests.invitations")}</h2>
+        {resendNotice && resendNotice.status !== "idle" && resendNotice.message ? (
+          <p
+            role="status"
+            className={`mb-3 rounded-[5px] border px-3 py-2 text-[13px] leading-relaxed ${
+              resendNotice.status === "error" ? "border-rust/25 bg-rust-soft text-rust" : "border-line bg-surface text-ink-2"
+            }`}
+          >
+            {resendNotice.message}
+          </p>
+        ) : null}
         {invitations.length === 0 ? (
           <p className="text-sm text-ink-3">{t("requests.noInvitations")}</p>
         ) : (
@@ -284,6 +297,7 @@ export function RequestQueue({
                 key={invitation.id}
                 invitation={invitation}
                 communityId={communityId}
+                onResult={setResendNotice}
               />
             ))}
           </Panel>
