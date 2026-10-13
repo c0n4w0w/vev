@@ -92,6 +92,60 @@ export type Database = {
           },
         ]
       }
+      account_security: {
+        Row: {
+          email_change_armed_until: string | null
+          email_change_authorized_at: string | null
+          email_change_requested_at: string | null
+          email_change_to: string | null
+          password_change_authorized_at: string | null
+          password_set_at: string | null
+          password_setup_required_at: string | null
+          user_id: string
+        }
+        Insert: {
+          email_change_armed_until?: string | null
+          email_change_authorized_at?: string | null
+          email_change_requested_at?: string | null
+          email_change_to?: string | null
+          password_change_authorized_at?: string | null
+          password_set_at?: string | null
+          password_setup_required_at?: string | null
+          user_id: string
+        }
+        Update: {
+          email_change_armed_until?: string | null
+          email_change_authorized_at?: string | null
+          email_change_requested_at?: string | null
+          email_change_to?: string | null
+          password_change_authorized_at?: string | null
+          password_set_at?: string | null
+          password_setup_required_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      auth_throttle: {
+        Row: {
+          attempts: number
+          blocked_until: string | null
+          key: string
+          last_attempt_at: string
+        }
+        Insert: {
+          attempts?: number
+          blocked_until?: string | null
+          key: string
+          last_attempt_at?: string
+        }
+        Update: {
+          attempts?: number
+          blocked_until?: string | null
+          key?: string
+          last_attempt_at?: string
+        }
+        Relationships: []
+      }
       channel_groups: {
         Row: {
           id: string
@@ -2664,6 +2718,14 @@ export type Database = {
           reason: string
         }[]
       }
+      accept_invitation_token_for_account: {
+        Args: { p_token: string }
+        Returns: {
+          community_id: string
+          ok: boolean
+          reason: string
+        }[]
+      }
       access_request_history: {
         Args: { p_community_id: string; p_limit?: number }
         Returns: {
@@ -2676,6 +2738,7 @@ export type Database = {
           status: Database["public"]["Enums"]["access_request_status"]
         }[]
       }
+      account_has_password: { Args: { p_user_id: string }; Returns: boolean }
       add_local_group_manager: {
         Args: { p_local_group_id: string; p_user_id: string }
         Returns: boolean
@@ -2702,6 +2765,9 @@ export type Database = {
           token: string
         }[]
       }
+      arm_email_change: { Args: never; Returns: boolean }
+      authorize_email_change: { Args: { p_new_email: string }; Returns: string }
+      authorize_password_change: { Args: never; Returns: boolean }
       begin_message_attachment: {
         Args: {
           p_channel_id: string
@@ -2716,6 +2782,10 @@ export type Database = {
           attachment_id: string
           storage_path: string
         }[]
+      }
+      begin_password_attempt: {
+        Args: { p_email: string; p_ip: string }
+        Returns: number
       }
       can_access_channel_row: {
         Args: {
@@ -2843,6 +2913,7 @@ export type Database = {
       }
       can_view_event_roster: { Args: { p_event_id: string }; Returns: boolean }
       can_view_member_directory: { Args: { cid: string }; Returns: boolean }
+      cancel_email_change: { Args: never; Returns: boolean }
       cancel_event: { Args: { p_event_id: string }; Returns: string }
       channel_accepts_messages: { Args: { chid: string }; Returns: boolean }
       channel_access_admits: {
@@ -3121,6 +3192,7 @@ export type Database = {
         Args: { p_body: string; p_message_id: string }
         Returns: boolean
       }
+      email_change_cooldown: { Args: never; Returns: string }
       emoji_matches_post: {
         Args: { eid: string; pid: string }
         Returns: boolean
@@ -3154,6 +3226,10 @@ export type Database = {
         }[]
       }
       event_open_for_rsvp: { Args: { p_event_id: string }; Returns: boolean }
+      finish_password_attempt: {
+        Args: { p_email: string; p_ip: string; p_valid: boolean }
+        Returns: undefined
+      }
       has_collaboration_access: {
         Args: { p_collaboration_id: string }
         Returns: boolean
@@ -3161,6 +3237,7 @@ export type Database = {
       has_membership_row: { Args: { cid: string }; Returns: boolean }
       has_pending_access_request: { Args: { p_slug: string }; Returns: boolean }
       hash_invitation_token: { Args: { p_token: string }; Returns: string }
+      inbox_proven_recently: { Args: never; Returns: boolean }
       invitation_lifetime: { Args: never; Returns: string }
       invitation_preview: {
         Args: { p_token: string }
@@ -3296,6 +3373,8 @@ export type Database = {
         Args: { p_community_id: string }
         Returns: string[]
       }
+      password_proven_recently: { Args: never; Returns: boolean }
+      password_throttle_key: { Args: { p_email: string }; Returns: string }
       portal_by_slug: {
         Args: { p_slug: string }
         Returns: {
@@ -3491,6 +3570,10 @@ export type Database = {
           p_conversation_id: string
         }
         Returns: string
+      }
+      session_proved_within: {
+        Args: { p_methods: string[]; p_window: string }
+        Returns: boolean
       }
       set_accepts_member_dms: {
         Args: { p_community_id: string; p_value: boolean }

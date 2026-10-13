@@ -136,6 +136,11 @@ async function main() {
   const replay = await fresh().auth.verifyOtp({ type: "email", token_hash: minted!.tokenHash });
   expect("ny: token kan ikke brukes to ganger", Boolean(replay.data?.session), false);
 
+  // Signed in is not admitted: the invitation waits until the account has a
+  // password (`npm run check:account-security` tries the ways around that).
+  expect("ny: uten passord aktiverer ikke invitasjonen", (await accept(page, invitation))?.reason, "password-required");
+  expect("ny: fortsatt ingen medlemskap", (await memberships(pre.id)).length, 0);
+  expect("ny: velger passord", (await page.auth.updateUser({ password: `${randomUUID()} passfrase` })).error, null);
   const joined = await accept(page, invitation);
   expect("ny: invitasjonen godtas", joined?.reason, "joined");
   expect("ny: aktivt TU-medlem", (await memberships(pre.id)).map((m) => `${m.community_id}:${m.status}:${m.role}`).join(), `${TU}:active:member`);
@@ -200,6 +205,8 @@ async function main() {
   expect("samtidig: minst én innlogging", sessions.length >= 1, true);
   expect("samtidig: alle innlogginger er samme, riktige konto", sessions.every((v) => v.data.user?.email === bEmail), true);
   const signedTabs = tabs.filter((_, index) => verified[index].data?.session);
+  // The account chooses its password once; both tabs are the same account.
+  await signedTabs[0].auth.updateUser({ password: `${randomUUID()} passfrase` });
   const [a1, a2] = await Promise.all([
     accept(signedTabs[0], bApproved!.token!),
     accept(signedTabs[signedTabs.length - 1], bApproved!.token!),

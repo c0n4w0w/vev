@@ -182,7 +182,11 @@ enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
-minimum_password_length = 6
+# Twelve, and nothing about which characters: a long passphrase beats a short
+# password with a symbol in it. Auth refuses anything over 72 characters on its
+# own (the bcrypt limit). lib/password.ts gives the same two limits as feedback
+# before the request is made; this is the one that is enforced.
+minimum_password_length = 12
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
 password_requirements = ""
@@ -197,6 +201,12 @@ password_requirements = ""
 # rp_id = "localhost"
 # rp_origins = ["http://127.0.0.1:3000"]
 
+# Per network address, and only where Auth is told whose address a request
+# carries: the hosted platform does that, `supabase start` does not, so none of
+# these are applied locally. Password sign-ins fall under `token_refresh`, not
+# `sign_in_sign_ups`. Whatever these say, Auth sees TING's server as the caller
+# for every member, which is why the counting that tells people apart is done
+# before Auth is asked (begin_password_attempt, in the migration above).
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
 email_sent = 2
@@ -224,11 +234,28 @@ web3 = 30
 enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
-double_confirm_changes = true
+# Off on purpose: a member who has lost the inbox they registered with must
+# still be able to move their account, so the old address cannot be a
+# condition. What replaces it is stricter, and enforced in the database rather
+# than by this setting (supabase/migrations/20261025100000_account_security.sql):
+# Auth can only complete an email change to an address the account's owner
+# authorised by proving their current password moments before asking, and
+# only while that owner is signed in and pressing the button the new address
+# was sent. A session alone, or the link alone, changes nothing.
+double_confirm_changes = false
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+# On, as on the hosted project. With it off, anyone can sign up over an address
+# — including an account an approval has just created and nobody has opened —
+# and be handed a session without ever seeing its inbox.
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
-secure_password_change = false
+# On: a session more than a day old cannot set a password by itself. Replacing
+# an existing password takes more than this allows — the session must have
+# just proven the current password or just come from the inbox — and that is
+# the database's rule, in the same migration. (The hosted project also has
+# "require current password"; the local CLI cannot switch it on, and the app
+# sends the current password either way.)
+secure_password_change = true
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1s"
 # Number of characters used in the email OTP.
@@ -268,11 +295,29 @@ content_path = "./supabase/templates/sign-in.html"
 subject = "Logg inn på TING"
 content_path = "./supabase/templates/sign-in.html"
 
-# Uncomment to customize notification email template
-# [auth.email.notification.password_changed]
-# enabled = true
-# subject = "Your password has been changed"
-# content_path = "./supabase/templates/password_changed_notification.html"
+# Password reset, and the confirmation sent to a new address when a member
+# changes theirs. Both link to TING's own pages with a single-use token hash;
+# opening the link spends nothing (see the templates).
+[auth.email.template.recovery]
+subject = "Velg nytt passord på TING"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "Bekreft ny e-postadresse på TING"
+content_path = "./supabase/templates/email-change.html"
+
+# Notices after the fact. Neither asks for anything: the first tells the
+# account's address that its password was created or changed, the second tells
+# the PREVIOUS address that the account has moved away from it.
+[auth.email.notification.password_changed]
+enabled = true
+subject = "Passordet ditt på TING er endret"
+content_path = "./supabase/templates/password-changed.html"
+
+[auth.email.notification.email_changed]
+enabled = true
+subject = "E-postadressen for TING-kontoen din er endret"
+content_path = "./supabase/templates/email-changed.html"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.

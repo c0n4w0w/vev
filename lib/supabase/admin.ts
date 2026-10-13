@@ -17,6 +17,10 @@ import type { Database } from "@/lib/supabase/database.types";
  * browsers have no write access to it at all, so the server stores an object
  * once the database has opened the upload for the signed-in person, and
  * removes objects whose row is gone. It reads nothing and decides nothing.
+ * The fourth is the count kept around each password check
+ * (lib/account-security.ts): the two functions that count tries per account
+ * and per network address take those as arguments, so no client may call
+ * them, and the server calls them and nothing else.
  */
 export function createSupabaseAdminClient() {
   return createClient<Database>(supabaseUrl(), supabaseServiceRoleKey(), {

@@ -1,4 +1,5 @@
 import type { MessageKey } from "../nb";
+import { account } from "./account";
 import { admin } from "./admin";
 import { collaboration } from "./collaboration";
 import { common } from "./common";
@@ -16,6 +17,7 @@ export const en: Record<MessageKey, string> = {
   ...admin,
   ...errors,
   ...portal,
+  ...account,
   ...collaboration,
   ...workspace,
 };

@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "attachments:sweep": "tsx scripts/sweep-attachments.ts",
     "check:access-requests": "tsx scripts/check-access-requests.ts",
+    "check:account-security": "tsx scripts/check-account-security.ts",
     "check:attachments": "tsx scripts/check-attachments.ts",
     "check:auth-email": "tsx scripts/check-auth-email.ts",
     "check:channel-editing": "tsx scripts/check-channel-editing.ts",

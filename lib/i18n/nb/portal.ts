@@ -117,9 +117,6 @@ export const portal = {
   "login.metaTitle": "Logg inn",
   "login.continueAs": "Fortsett som {name}",
   "login.label": "Logg inn",
-  "login.title": "Velkommen tilbake",
-  "login.lead":
-    "Vi sender deg en lenke på e-post. Ingen passord å huske, og ingenting å miste hvis noen skulle få tak i maskinen din.",
   "login.sent.title": "Sjekk e-posten din",
   "login.sent.pre": "Hvis adressen er registrert, har vi sendt en innloggingslenke til ",
   "login.sent.invited.pre": "Vi har sendt en innloggingslenke til ",
@@ -132,7 +129,7 @@ export const portal = {
   "login.invited.label": "Logg inn eller opprett konto",
   "login.invited.title": "Fortsett til invitasjonen",
   "login.invited.lead":
-    "Vi sender deg en lenke på e-post. Har du ingen TING-konto ennå, blir den opprettet når du bruker lenken. Ingen passord å huske.",
+    "Vi sender deg en lenke på e-post. Har du ingen TING-konto ennå, blir den opprettet når du bruker lenken.",
   "login.emailLabel": "E-postadresse",
   "login.emailPlaceholder": "navn@organisasjon.no",
   "login.send": "Send lenke",

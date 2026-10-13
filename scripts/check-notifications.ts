@@ -166,7 +166,6 @@ async function main() {
   // than this comment, which is what keeps them from going stale.
   //   ingrid — moderator in Tryggere/FTR and TU, member in UTR
   //   jonas  — ordinary member of UTR, and the control for recipient isolation
-  //   oskar  — an account with a pending access request to Tryggere
   //   mia   — administrator of Tryggere, so he can approve that request
   const [ingrid, jonas] = await Promise.all([
     signIn(await emailFor("ingrid")),
@@ -1002,92 +1001,95 @@ async function main() {
   //    the invitation entirely: membership is activated in the same call,
   //    and — unlike case 8 — this is notified immediately, mirroring the
   //    "Du er nå medlem" notice accept_invitation_token() writes on
-  //    redemption. Oskar has a UTR membership from the seed but none in
-  //    Tryggere, which is what makes his address usable for this case.
-  const oskarId = await profileId("oskar");
-  const oskarEmail = await emailFor("oskar");
-  const oskarRequested = await requestAccess(anon, TR, oskarEmail, "Sjekk Oskar");
-  expect("forespørselen fra en konto som finnes fra før ble tatt imot", oskarRequested.error, null);
+  //    redemption. "Usable" means the account has chosen a password; one
+  //    that has not gets the invitation, as in case 8. The account is made
+  //    for this run: the seeded ones have never chosen a password.
+  const settledEmail = `sjekk.etablert.${crypto.randomUUID().slice(0, 8)}@example.no`;
+  const settledId = (await admin.auth.admin.createUser({ email: settledEmail, email_confirm: true })).data.user!.id;
+  await (await signIn(settledEmail)).auth.updateUser({ password: `${crypto.randomUUID()} passfrase` });
+  const settledRequested = await requestAccess(anon, TR, settledEmail, "Sjekk Etablert");
+  expect("forespørselen fra en konto som finnes fra før ble tatt imot", settledRequested.error, null);
 
-  const { data: oskarRequest } = await admin
+  const { data: settledRequest } = await admin
     .from("access_requests")
     .select("id, community_id, email")
-    .eq("email", oskarEmail)
+    .eq("email", settledEmail)
     .eq("status", "pending")
     .single();
 
-  const oskarNotificationsBefore = (
-    await admin.from("notifications").select("id").eq("user_id", oskarId)
+  const settledNotificationsBefore = (
+    await admin.from("notifications").select("id").eq("user_id", settledId)
   ).data!.length;
   // Activating the membership also creates Oskar's Tryggere community profile
   // (memberships_ensure_community_profile). Profiles deliberately outlive
   // memberships, so deleting the membership below does not remove it; note
   // whether one existed so the undo can put it back exactly as it was.
-  const oskarHadProfile =
+  const settledHadProfile =
     (
       await admin
         .from("community_profiles")
         .select("user_id", { count: "exact", head: true })
-        .eq("user_id", oskarId)
+        .eq("user_id", settledId)
         .eq("community_id", TR)
     ).count! > 0;
 
-  const oskarApproval = await mia.rpc("approve_access_request", { p_request_id: oskarRequest!.id });
-  const oskarOutcome = (oskarApproval.data as { outcome: string; token: string | null }[] | null)?.[0];
-  expect("administrator kan godkjenne en konto som finnes fra før", oskarOutcome?.outcome, "activated");
-  expect("og godkjenningen gir ingen token — det er ingen invitasjon å sende", oskarOutcome?.token, null);
+  const settledApproval = await mia.rpc("approve_access_request", { p_request_id: settledRequest!.id });
+  const settledOutcome = (settledApproval.data as { outcome: string; token: string | null }[] | null)?.[0];
+  expect("administrator kan godkjenne en konto som finnes fra før", settledOutcome?.outcome, "activated");
+  expect("og godkjenningen gir ingen token — det er ingen invitasjon å sende", settledOutcome?.token, null);
 
-  const oskarMembership = await admin
+  const settledMembership = await admin
     .from("memberships")
     .select("status")
-    .eq("user_id", oskarId)
+    .eq("user_id", settledId)
     .eq("community_id", TR)
     .maybeSingle();
-  expect("medlemskapet ble opprettet med det samme", oskarMembership.data?.status, "active");
+  expect("medlemskapet ble opprettet med det samme", settledMembership.data?.status, "active");
   expect(
     "og det ble ikke laget noen invitasjon å vente på",
-    (await admin.from("invitations").select("*", { count: "exact", head: true }).eq("request_id", oskarRequest!.id)).count,
+    (await admin.from("invitations").select("*", { count: "exact", head: true }).eq("request_id", settledRequest!.id)).count,
     0,
   );
 
-  const { data: oskarNoticesAfterApproval } = await admin
+  const { data: settledNoticesAfterApproval } = await admin
     .from("notifications")
     .select("id, kind, community_id, title")
-    .eq("user_id", oskarId);
+    .eq("user_id", settledId);
   expect(
     "direkte aktivering varsler med det samme",
-    oskarNoticesAfterApproval!.length,
-    oskarNotificationsBefore + 1,
+    settledNoticesAfterApproval!.length,
+    settledNotificationsBefore + 1,
   );
-  const oskarNotice = oskarNoticesAfterApproval!.find((n) => n.title.startsWith("Du er nå medlem"));
-  expect("varselet er av typen medlemskap", oskarNotice?.kind, "membership");
-  expect("og hører til fellesskapet forespørselen gjaldt", oskarNotice?.community_id, TR);
+  const settledNotice = settledNoticesAfterApproval!.find((n) => n.title.startsWith("Du er nå medlem"));
+  expect("varselet er av typen medlemskap", settledNotice?.kind, "membership");
+  expect("og hører til fellesskapet forespørselen gjaldt", settledNotice?.community_id, TR);
 
   // Re-approving (a retried click) must not create a second membership row or
   // a second notice — the membership upsert is a no-op and `v_just_approved`
   // is false the second time through.
-  const oskarApproveAgain = await mia.rpc("approve_access_request", { p_request_id: oskarRequest!.id });
-  const oskarAgainOutcome = (oskarApproveAgain.data as { outcome: string }[] | null)?.[0];
-  expect("en gjentatt godkjenning rapporterer samme utfall", oskarAgainOutcome?.outcome, "activated");
+  const settledApproveAgain = await mia.rpc("approve_access_request", { p_request_id: settledRequest!.id });
+  const settledAgainOutcome = (settledApproveAgain.data as { outcome: string }[] | null)?.[0];
+  expect("en gjentatt godkjenning rapporterer samme utfall", settledAgainOutcome?.outcome, "activated");
   expect(
     "uten å lage et medlemskap til",
-    (await admin.from("memberships").select("*", { count: "exact", head: true }).eq("user_id", oskarId).eq("community_id", TR)).count,
+    (await admin.from("memberships").select("*", { count: "exact", head: true }).eq("user_id", settledId).eq("community_id", TR)).count,
     1,
   );
   expect(
     "og uten et varsel til",
-    (await admin.from("notifications").select("*", { count: "exact", head: true }).eq("user_id", oskarId)).count,
-    oskarNotificationsBefore + 1,
+    (await admin.from("notifications").select("*", { count: "exact", head: true }).eq("user_id", settledId)).count,
+    settledNotificationsBefore + 1,
   );
 
   // Undo case 9: the membership, the community profile it created, its
   // notice, and the request.
-  if (oskarNotice) await admin.from("notifications").delete().eq("id", oskarNotice.id);
-  await admin.from("memberships").delete().eq("user_id", oskarId).eq("community_id", TR);
-  if (!oskarHadProfile) {
-    await admin.from("community_profiles").delete().eq("user_id", oskarId).eq("community_id", TR);
+  if (settledNotice) await admin.from("notifications").delete().eq("id", settledNotice.id);
+  await admin.from("memberships").delete().eq("user_id", settledId).eq("community_id", TR);
+  if (!settledHadProfile) {
+    await admin.from("community_profiles").delete().eq("user_id", settledId).eq("community_id", TR);
   }
-  await admin.from("access_requests").delete().eq("id", oskarRequest!.id);
+  await admin.from("access_requests").delete().eq("id", settledRequest!.id);
+  await admin.auth.admin.deleteUser(settledId);
 
   // Tidy the requests case 8 and the role-boundary case above produced.
   for (const email of createdRequestEmails) {
@@ -1150,6 +1152,8 @@ async function main() {
     await admin.from("notifications").select("id").eq("user_id", freshUserId)
   ).data!.length;
 
+  // An invitation is accepted by an account that has chosen its password.
+  await freshClient.auth.updateUser({ password: `${crypto.randomUUID()} passfrase` });
   const redeemed = await freshClient.rpc("accept_invitation_token", { p_token: invitationToken! });
   const redeemOutcome = (redeemed.data as { ok: boolean; reason: string }[] | null)?.[0];
   expect("invitasjonen kunne løses inn", redeemOutcome?.ok, true);

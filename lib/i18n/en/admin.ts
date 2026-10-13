@@ -13,7 +13,7 @@ export const admin: Record<keyof typeof nb, string> = {
   "requests.adminsOnly":
     "It's the administrators of {name} who decide who gets in. As a moderator, you follow up on conversations and content.",
   "requests.lead":
-    "People who have asked for access to {name} from the public page. If you approve, anyone who already has a TING account becomes a member immediately — everyone else gets an emailed link to sign in or create an account.",
+    "People who have asked for access to {name} from the public page. If you approve, anyone who already has a TING account with a password becomes a member immediately — everyone else gets an emailed link to sign in and create a password.",
   "requests.sent": "Sent {date}",
   "requests.reject": "Reject",
   "requests.rejectYes": "Yes, reject",
@@ -33,7 +33,7 @@ export const admin: Record<keyof typeof nb, string> = {
   "requests.waiting.other": "{count} requests waiting",
   "requests.empty.title": "No pending requests",
   "requests.empty.body":
-    "When someone asks for access from the public page, they show up here. If you approve, anyone who already has a TING account becomes a member immediately — everyone else gets an emailed link to sign in or create an account.",
+    "When someone asks for access from the public page, they show up here. If you approve, anyone who already has a TING account with a password becomes a member immediately — everyone else gets an emailed link to sign in and create a password.",
   "requests.invitations": "Sent invitations",
   "requests.noInvitations": "No invitations are waiting to be used.",
   "requests.invitationNote":

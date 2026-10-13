@@ -162,8 +162,10 @@ async function translatorFor(communityId: string): Promise<Translator> {
 // ── Authentication ──────────────────────────────────────────────────────
 
 /**
- * Sends a sign-in link. No passwords: an organisation's membership list is the
- * sensitive part, and one less credential to leak is one less to protect.
+ * Sends a sign-in link — the way in that needs no password. Email and password
+ * is the other (`signInWithPasswordAction`, app/account-actions.ts); both sign
+ * into the same Supabase account, and an account that has never chosen a
+ * password still gets in this way.
  */
 export async function sendMagicLink(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -2111,6 +2113,10 @@ export async function redeemInvitationLinkAction(
     case "unavailable":
       return { status: "error", message: t("err.authUnavailable") };
     case "refused":
+      if (outcome.reason === PASSWORD_REQUIRED) {
+        revalidatePath("/", "layout");
+        redirect(passwordSetupPath(token));
+      }
       return { status: "error", message: t(invitationFailure(outcome.reason)) };
   }
 }
@@ -2151,8 +2157,10 @@ export async function acceptInvitationAction(
   // chooses the words of a refusal; the token and the address match are what
   // decide whether anything is granted.
   const t = translator(parseLocale(formData.get("locale")));
-  const result = await acceptInvitationToken(String(formData.get("token") ?? ""));
+  const token = String(formData.get("token") ?? "");
+  const result = await acceptInvitationToken(token);
   if (!result.ok) {
+    if (result.reason === PASSWORD_REQUIRED) redirect(passwordSetupPath(token));
     return { status: "error", message: t(invitationFailure(result.reason)) };
   }
 
@@ -2164,6 +2172,20 @@ export async function acceptInvitationAction(
   // — optional, alongside the other first steps, rather than as a detour
   // before the person has seen the community at all.
   redirect(`/community/${result.communityId}`);
+}
+
+/** `accept_invitation_token()`'s answer to an account that has no password yet. */
+const PASSWORD_REQUIRED = "password-required";
+
+/**
+ * Where an invitation sends an account that has signed in but not chosen a
+ * password: the password step, and from there straight back to the
+ * invitation. Nothing has been joined yet — the database will not activate a
+ * membership for an account without a password — so there is nothing to use
+ * in the meantime, whichever way someone tries.
+ */
+function passwordSetupPath(token: string): string {
+  return `/opprett-passord?neste=${encodeURIComponent(`/invitasjon/${encodeURIComponent(token)}`)}`;
 }
 
 function invitationFailure(reason: string): MessageKey {

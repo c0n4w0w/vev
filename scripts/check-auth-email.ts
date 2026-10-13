@@ -1,13 +1,15 @@
 /**
  * Checks TING's sign-in email: the Supabase Auth template GoTrue sends for a
- * normal passwordless sign-in.
+ * normal passwordless sign-in — and that the other emails Auth sends for an
+ * account (password reset, email-change confirmation, and the two notices
+ * after a change) are the same design, wired up, and link only to TING.
  *
  * Run with `npm run check:auth-email` against the local stack. Two halves:
  *
- * - The template file and its wiring (supabase/templates/sign-in.html,
+ * - The template files and their wiring (supabase/templates/*.html,
  *   supabase/config.toml): one Supabase link variable and nothing hand-built,
  *   no community branding, nothing loaded from elsewhere, and the same
- *   palette and type as the approval email (EMAIL_STYLE) — the two are
+ *   palette and type as the approval email (EMAIL_STYLE) — they are
  *   rendered by different systems and this is what keeps them one design.
  * - The real thing: an ordinary `signInWithOtp` for a throwaway existing
  *   account and a throwaway new address, read back from Mailpit — sender,
@@ -162,6 +164,64 @@ async function main() {
   for (const [key, value] of Object.entries(EMAIL_STYLE)) {
     if (key === "surface") continue; // white; present as both bgcolor and text
     expect(`mal: bruker EMAIL_STYLE.${key}`, template.includes(value), true);
+  }
+
+  // ── The account emails: reset, email change, and the two notices ────────
+  // Same frame as the sign-in email, so the differences are exactly the
+  // words and the link. Their delivery and their links are exercised for
+  // real by `npm run check:account-security`.
+  const frame = (html: string) =>
+    html
+      .replace(/<!--[\s\S]*?-->\n/, "")
+      .replace(/<title>[^<]*<\/title>/, "")
+      .replace(/<h1([^>]*)>[^<]*<\/h1>/, "<h1$1></h1>")
+      .replace(/<p([^>]*)>[^<]*<\/p>\n/g, "")
+      .replace(/ {10}<table role="presentation" cellpadding="0"[\s\S]*?<\/table>\n/, "");
+  const accountMails = [
+    {
+      file: "recovery.html",
+      section: "auth.email.template.recovery",
+      subject: "Velg nytt passord på TING",
+      variables: "{{ .SiteURL }} {{ .SiteURL }} {{ .TokenHash }}",
+      href: "{{ .SiteURL }}/nytt-passord?token_hash={{ .TokenHash }}",
+    },
+    {
+      file: "email-change.html",
+      section: "auth.email.template.email_change",
+      subject: "Bekreft ny e-postadresse på TING",
+      variables: "{{ .SiteURL }} {{ .NewEmail }} {{ .SiteURL }} {{ .TokenHash }}",
+      href: "{{ .SiteURL }}/bekreft-e-post?token_hash={{ .TokenHash }}",
+    },
+    {
+      file: "password-changed.html",
+      section: "auth.email.notification.password_changed",
+      subject: "Passordet ditt på TING er endret",
+      variables: "{{ .SiteURL }} {{ .SiteURL }}",
+      href: "{{ .SiteURL }}/glemt-passord",
+    },
+    {
+      file: "email-changed.html",
+      section: "auth.email.notification.email_changed",
+      subject: "E-postadressen for TING-kontoen din er endret",
+      // No address at all: the previous inbox is not told where the account went.
+      variables: "{{ .SiteURL }}",
+      href: undefined,
+    },
+  ];
+  for (const mail of accountMails) {
+    const html = readFileSync(`supabase/templates/${mail.file}`, "utf8");
+    const wiring = configToml.split(`[${mail.section}]`)[1]?.split("\n[")[0] ?? "";
+    expect(`${mail.file}: koblet til i config`, wiring.includes(`content_path = "./supabase/templates/${mail.file}"`), true);
+    expect(`${mail.file}: TING-emne`, wiring.includes(`subject = "${mail.subject}"`), true);
+    if (mail.section.includes("notification")) expect(`${mail.file}: varselet er slått på`, wiring.includes("enabled = true"), true);
+    expect(`${mail.file}: bare disse variablene`, (html.match(/\{\{[^}]*\}\}/g) ?? []).join(" "), mail.variables);
+    const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((match) => match[1]);
+    expect(`${mail.file}: lenken går til TINGs egen side`, hrefs.join(), mail.href ?? "");
+    expect(`${mail.file}: ingen hardkodede adresser`, /https?:\/\//.test(html), false);
+    expect(`${mail.file}: ingen skript, stilark eller rammer`, /<(script|link|iframe)\b/i.test(html), false);
+    expect(`${mail.file}: logoen er eneste TING i teksten`, /TING/.test(visibleText(html)), false);
+    expect(`${mail.file}: ingen fellesskapsmerkevare`, /Tryggere|Under The Rug|UTR|FTR/.test(html), false);
+    expect(`${mail.file}: samme ramme som innloggings-e-posten`, frame(html), frame(template));
   }
 
   // ── The real email, for an existing account and a new address ───────────

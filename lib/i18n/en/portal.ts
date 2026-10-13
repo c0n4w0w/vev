@@ -116,9 +116,6 @@ export const portal: Record<keyof typeof nb, string> = {
   "login.metaTitle": "Log in",
   "login.continueAs": "Continue as {name}",
   "login.label": "Log in",
-  "login.title": "Welcome back",
-  "login.lead":
-    "We'll email you a link. No password to remember, and nothing to lose if someone gets hold of your computer.",
   "login.sent.title": "Check your email",
   "login.sent.pre": "If the address is registered, we've sent a sign-in link to ",
   "login.sent.invited.pre": "We've sent a sign-in link to ",
@@ -131,7 +128,7 @@ export const portal: Record<keyof typeof nb, string> = {
   "login.invited.label": "Log in or create an account",
   "login.invited.title": "Continue to your invitation",
   "login.invited.lead":
-    "We'll email you a link. If you don't have a TING account yet, it is created when you use the link. No password to remember.",
+    "We'll email you a link. If you don't have a TING account yet, it is created when you use the link.",
   "login.emailLabel": "Email address",
   "login.emailPlaceholder": "name@example.com",
   "login.send": "Send link",

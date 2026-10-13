@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cancelEmailChangeAction } from "@/app/account-actions";
 import { signOut } from "@/app/actions";
 import {
   Avatar,
@@ -14,22 +15,29 @@ import {
 } from "@/components/ui/primitives";
 import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconLock, IconShield, IconSwitch } from "@/components/ui/icons";
+import { getAccountSecurity } from "@/lib/account-security";
 import { getCommunitiesForUser, getEventsForUser, getMyCommunityPersonas } from "@/lib/data";
 import { formatFullDate, plural } from "@/lib/format";
+import { PLATFORM_LOCALE, translator } from "@/lib/i18n";
 import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Profil" };
 
-export default async function ProfilePage() {
+export default async function ProfilePage({ searchParams }: PageProps<"/profile">) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  // Set by the password page on its way back here. It only chooses whether a
+  // line of confirmation is shown; what the section says comes from the account.
+  const passwordSaved = (await searchParams).passord === "lagret";
 
-  const [communities, events, personas] = await Promise.all([
+  const [communities, events, personas, security] = await Promise.all([
     getCommunitiesForUser(user.id),
     getEventsForUser(user.id),
     getMyCommunityPersonas(user.id),
+    getAccountSecurity(),
   ]);
+  const t = translator(PLATFORM_LOCALE);
 
   return (
     <PageContainer>
@@ -64,6 +72,69 @@ export default async function ProfilePage() {
           deler.
         </p>
       </Panel>
+
+      {/* How the account is signed into. It is about the account alone: no
+          community, membership or profile is read or changed from here. */}
+      <section className="mt-10">
+        <SectionHeading>{t("security.heading")}</SectionHeading>
+        {passwordSaved && security?.hasPassword ? (
+          <p
+            role="status"
+            className="mb-3 rounded-[5px] border border-skog/25 bg-skog-soft px-3 py-2 text-[13px] leading-relaxed text-skog"
+          >
+            {t("security.password.saved")}
+          </p>
+        ) : null}
+        <Panel className="divide-y divide-line">
+          <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="min-w-0">
+              <h3 className="text-[13px] text-ink-3">{t("security.email")}</h3>
+              <p className="mt-1 text-[0.9375rem] text-ink [overflow-wrap:anywhere]">{user.email}</p>
+              {security?.pendingEmail ? (
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-2">
+                  <span className="[overflow-wrap:anywhere]">
+                    {t("security.email.pending", { email: security.pendingEmail })}
+                  </span>
+                  <form action={cancelEmailChangeAction}>
+                    <button
+                      type="submit"
+                      className="underline decoration-line-2 underline-offset-4 transition-colors hover:text-ink"
+                    >
+                      {t("security.email.cancel")}
+                    </button>
+                  </form>
+                </div>
+              ) : null}
+            </div>
+            <ButtonLink href="/profile/e-post" variant="secondary" size="sm" className="shrink-0 self-start sm:self-auto">
+              {t("security.email.change")}
+            </ButtonLink>
+          </div>
+          <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="min-w-0">
+              <h3 className="text-[13px] text-ink-3">{t("security.password")}</h3>
+              {security?.hasPassword ? (
+                <>
+                  <p className="mt-1 text-[0.9375rem] tracking-widest text-ink" aria-hidden="true">
+                    ••••••••••••
+                  </p>
+                  {security.passwordSetAt ? (
+                    <p className="mt-1 text-[13px] text-ink-3">
+                      {t("security.password.since", { date: formatFullDate(security.passwordSetAt) })}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="mt-1 text-[0.9375rem] text-ink-2">{t("security.password.none")}</p>
+              )}
+            </div>
+            <ButtonLink href="/profile/passord" variant="secondary" size="sm" className="shrink-0 self-start sm:self-auto">
+              {t(security?.hasPassword ? "security.password.change" : "security.password.create")}
+            </ButtonLink>
+          </div>
+        </Panel>
+        <p className="mt-3 text-xs leading-relaxed text-ink-3">{t("security.link")}</p>
+      </section>
 
       <section className="mt-10">
         <SectionHeading>Én konto, ulike profiler</SectionHeading>
@@ -182,7 +253,9 @@ export default async function ProfilePage() {
         <div>
           <p className="text-sm font-medium text-ink">Innlogget som {user.email}</p>
           <p className="mt-0.5 text-xs text-ink-3">
-            Du logger inn uten passord, med en lenke sendt til e-postadressen din.
+            {security?.hasPassword
+              ? "Du logger inn med e-postadresse og passord, eller med en lenke sendt til e-postadressen din."
+              : "Du logger inn med en lenke sendt til e-postadressen din."}
           </p>
         </div>
         <div className="flex gap-2">

@@ -457,6 +457,8 @@ async function main() {
   created.users.push(newId);
   await admin.from("profiles").update({ bio: "Kontobio som ikke skal følge med." }).eq("id", newId);
   const applicant = await signInEmail(email);
+  // Activated on approval below, which takes an account that has chosen a password.
+  await applicant.auth.updateUser({ password: `${randomUUID()} passfrase` });
 
   const slugOf = async (id: string) => (await admin.from("communities").select("slug").eq("id", id).single()).data!.slug;
   const requestId = async (communityId: string) =>

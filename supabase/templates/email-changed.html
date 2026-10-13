@@ -1,0 +1,45 @@
+<!doctype html>
+<!--
+  TING notice to the PREVIOUS address that an account no longer uses it —
+  Supabase Auth's email_changed notification. Sent without needing anything
+  from this inbox: the change was already confirmed from the new address.
+
+  Deliberately does not name the new address. The previous inbox may have
+  passed to someone else (a university or employer account), and where the
+  person moved to is not theirs to learn.
+
+  Same logo, palette, type and layout as the sign-in email (sign-in.html) and
+  the approval email (lib/email/invitation.ts, EMAIL_STYLE); `npm run
+  check:auth-email` fails if they drift apart. Account-level and Norwegian,
+  with no community name: the logo is the only place the body says TING.
+  (GoTrue expands template syntax inside comments too, which is why this
+  note does not spell the variables out.)
+-->
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<title>E-postadressen er endret</title>
+</head>
+<body style="margin:0;padding:0;background:#f6f4ef;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f6f4ef" style="background:#f6f4ef;">
+    <tr><td align="center" style="padding:32px 16px;">
+      <!--[if mso]><table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="max-width:520px;background:#ffffff;border:1px solid #e4e0d7;border-radius:6px;border-collapse:separate;">
+        <tr><td bgcolor="#1f4a3d" style="height:4px;line-height:4px;font-size:4px;background:#1f4a3d;border-radius:6px 6px 0 0;">&nbsp;</td></tr>
+        <tr><td style="padding:28px 28px 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#17191a;">
+          <img src="{{ .SiteURL }}/brand/ting-horizontal-spruce-976.png" width="170" height="46" alt="TING" style="display:block;width:170px;height:auto;max-width:100%;border:0;outline:none;text-decoration:none;margin:0 0 18px -3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:20px;font-weight:600;color:#1f4a3d;">
+          <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;font-weight:600;color:#17191a;">E-postadressen er endret</h1>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4c5153;">Kontoen som brukte denne e-postadressen, logger nå inn med en annen adresse. Denne adressen kan ikke lenger brukes til å logge inn.</p>
+        </td></tr>
+        <tr><td style="padding:16px 28px 24px;border-top:1px solid #e4e0d7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+          <p style="margin:0 0 8px;font-size:12px;line-height:1.6;color:#797e81;">Var det deg, trenger du ikke å gjøre noe.</p>
+          <p style="margin:0;font-size:12px;line-height:1.6;color:#797e81;">Var det ikke deg? Ta kontakt med en administrator i fellesskapet ditt så snart som mulig.</p>
+        </td></tr>
+      </table>
+      <!--[if mso]></td></tr></table><![endif]-->
+    </td></tr>
+  </table>
+</body>
+</html>

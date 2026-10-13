@@ -726,6 +726,11 @@ async function main() {
     join("lib", "supabase", "admin.ts"),
     join("lib", "supabase", "env.ts"),
     join("lib", "demo", "entry.ts"),
+    // The count kept around each password check (begin_password_attempt):
+    // the functions take an account and a network address as arguments, so no
+    // client may call them. Server-only, and nowhere near a collaboration.
+    // Pinned by check:account-security.
+    join("lib", "account-security.ts"),
   ];
   const offenders = allSources
     .filter((path) => !serverOnlyExceptions.includes(path))
@@ -786,10 +791,16 @@ async function main() {
   // community, never an email, handle or role. The second returns two numbers
   // (posts and events scoped to one group) to that group's managers, and no
   // row to anyone else. Pinned by check:community-groups.
+  //
+  // accept_invitation_token_for_account is accept_invitation_token's own
+  // body under a name no client role can execute; the function clients call
+  // checks that the account has a password and then calls it. It returns the
+  // same three columns (ok, community, reason) and nothing about anyone.
+  // Pinned by check:account-security.
   expect(
     "68/70: ingen nye mengdereturnerende funksjoner utenom collaboration_units",
     sql("select string_agg(p.proname, ',' order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proretset"),
-    "accept_invitation_token,access_request_history,approve_access_request,collaboration_units,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,event_attendance,event_attendee_roster,invitation_preview,local_group_member_counts,organization_person_dm_actions,organization_person_profile_links,own_organization_person_ids,portal_by_slug,portal_events,private_channel_roster,resend_invitation,search_new_subgroup_candidates,search_private_channel_candidates,search_subgroup_candidates,set_channel_details,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person,subgroup_content_counts,subgroup_roster",
+    "accept_invitation_token,accept_invitation_token_for_account,access_request_history,approve_access_request,collaboration_units,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,event_attendance,event_attendee_roster,invitation_preview,local_group_member_counts,organization_person_dm_actions,organization_person_profile_links,own_organization_person_ids,portal_by_slug,portal_events,private_channel_roster,resend_invitation,search_new_subgroup_candidates,search_private_channel_candidates,search_subgroup_candidates,set_channel_details,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person,subgroup_content_counts,subgroup_roster",
   );
   const unitsResult = sql("select pg_get_function_result('public.collaboration_units(uuid)'::regprocedure)");
   expect("68: collaboration_units returnerer ingen personfelt", /user|email|handle|member|profile|count/.test(unitsResult), false);

@@ -12,7 +12,7 @@ export const admin = {
   "requests.adminsOnly":
     "Det er administratorene i {name} som tar stilling til hvem som slipper inn. Som moderator følger du opp samtaler og innhold.",
   "requests.lead":
-    "Folk som har bedt om tilgang til {name} fra den offentlige siden. Godkjenner du, blir noen med en TING-konto fra før medlem med det samme — andre får en lenke på e-post for å logge inn eller opprette konto.",
+    "Folk som har bedt om tilgang til {name} fra den offentlige siden. Godkjenner du, blir noen som har en TING-konto med passord fra før, medlem med det samme — andre får en lenke på e-post for å logge inn og opprette passord.",
   "requests.sent": "Sendt {date}",
   "requests.reject": "Avslå",
   "requests.rejectYes": "Ja, avslå",
@@ -32,7 +32,7 @@ export const admin = {
   "requests.waiting.other": "{count} forespørsler venter",
   "requests.empty.title": "Ingen ventende forespørsler",
   "requests.empty.body":
-    "Når noen ber om tilgang fra den offentlige siden, havner de her. Godkjenner du, blir noen med en TING-konto fra før medlem med det samme — andre får en lenke på e-post for å logge inn eller opprette konto.",
+    "Når noen ber om tilgang fra den offentlige siden, havner de her. Godkjenner du, blir noen som har en TING-konto med passord fra før, medlem med det samme — andre får en lenke på e-post for å logge inn og opprette passord.",
   "requests.invitations": "Utsendte invitasjoner",
   "requests.noInvitations": "Ingen invitasjoner venter på å bli tatt i bruk.",
   "requests.invitationNote":

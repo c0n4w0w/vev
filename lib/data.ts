@@ -3095,7 +3095,11 @@ export type AcceptInvitationResult =
   | { ok: true; communityId: string; alreadyMember: boolean }
   | { ok: false; reason: string };
 
-/** The only path from an invitation to a membership. */
+/**
+ * The only path from an invitation to a membership. An account that has not
+ * chosen a password yet is refused with `password-required` — by the database,
+ * for every caller — and comes back here once it has one.
+ */
 export async function acceptInvitationToken(token: string): Promise<AcceptInvitationResult> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("accept_invitation_token", { p_token: token });

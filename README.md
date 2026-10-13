@@ -30,6 +30,7 @@ Fyll inn fra Supabase (Project settings → API), eller fra utskriften til
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Offentlig nøkkel, trygg i nettleseren |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Hemmelig.** Går utenom all radsikkerhet. Brukes kun av `npm run seed` |
 | `TING_MODE` | Sett til `demo` for en showcase-utrulling. Ubrukt (produksjon) er standard |
+| `TRUSTED_PROXY_COUNT` | Antall egne proxyer foran appen (`1` bak nginx). Lar passordforsøk begrenses per nettverksadresse — se «Innlogging, passord og e-postadresse» |
 | `DEMO_TOKEN_TRYGGERE`, `DEMO_TOKEN_UTR` | Én uttrekkbar lenke per showcase — se «Showcase-innlogging» under |
 
 ### 2. Skjema
@@ -87,7 +88,95 @@ innholdstabellene først og gjenbruker kontoer som allerede finnes.
 npm run dev
 ```
 
-Uten videre oppsett logger man inn med engangslenke på e-post.
+Man logger inn med e-postadresse og passord, eller med engangslenke på e-post.
+Begge veier går til samme konto. Testkontoene fra `npm run seed` har ikke
+passord; de kommer inn med lenke (alle e-poster lander i Mailpit lokalt,
+`http://127.0.0.1:54324`) og kan opprette passord under Kontoen din → Sikkerhet.
+
+#### Innlogging, passord og e-postadresse
+
+Supabase Auth lagrer og kontrollerer passordene. TING har ingen egen
+passordtabell, og ingen innlogging via Google, Apple eller andre tredjeparter.
+
+| Hva | Hvor | Hvordan |
+| --- | --- | --- |
+| Logge inn | `/login` | E-post og passord; «Logg inn med e-postlenke» er alternativet |
+| Nytt medlem | `/opprett-passord` | Etter innlogging fra godkjennings-e-posten, **før** medlemskapet aktiveres. Lenken i e-posten fører tilbake hit til invitasjonen utløper |
+| Eksisterende medlem | `/profile/passord` | Oppretter passord, eller endrer det med det nåværende |
+| Glemt passord | `/glemt-passord` → `/nytt-passord` | Lenke på e-post; brukes først når skjemaet sendes |
+| Bytte e-postadresse | `/profile/e-post` → `/bekreft-e-post` | Passord + bekreftelse fra den **nye** adressen. Den gamle trengs ikke |
+
+Reglene som betyr noe, håndheves i databasen
+(`supabase/migrations/20261025100000_account_security.sql`), ikke bare i appen:
+
+- Ingen konto opprettes med passord, og et passord som finnes når adressen
+  bekreftes første gang, forkastes. Ellers kunne hvem som helst registrere seg
+  oppå en adresse og beholde en nøkkel til kontoen eieren senere tar i bruk.
+- Et medlemskap aktiveres ikke før kontoen har et passord. En godkjenning
+  aktiverer bare en konto som allerede har et (`approve_access_request`);
+  alle andre – ny, ubekreftet, eller bekreftet og vant til e-postlenke – får
+  invitasjonen, som venter på passordet (`accept_invitation_token`). Det
+  finnes derfor ingen tilgang å bruke i mellomtiden – verken via sidene,
+  server actions eller Supabase direkte. En konto som har passord, blir aldri
+  bedt om et nytt, heller ikke i neste fellesskap.
+- Et eksisterende passord kan bare byttes av en sesjon som nettopp har bevist
+  det nåværende passordet, eller som nettopp kom fra en lenke på e-post
+  («Glemt passord»). En sesjon alene – for eksempel en stjålet – kan ikke.
+- Et e-postbytte kan bare fullføres til en adresse eieren har autorisert med
+  en sesjon som nettopp har bevist passordet (som må være minst 24 timer
+  gammelt), og bare mens eieren er innlogget og trykker på knappen den nye
+  adressen fikk tilsendt. Verken en sesjon alene eller lenken alene endrer noe.
+- Passordforsøk telles i databasen før Supabase blir spurt: per konto (fem
+  forsøk, så ventetid som dobles fra 30 sekunder til 15 minutter) og per
+  nettverksadresse (20 feil, så 15 minutter). Innlogging med e-postlenke
+  påvirkes ikke, så den som blir stengt ute av andres gjetting, kommer inn.
+
+**Nettverksadressen** leses bare fra den delen av `X-Forwarded-For` som
+deres egen proxy har skrevet. Sett `TRUSTED_PROXY_COUNT=1` bak nginx (som må
+ha `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`), og la appen
+bare være nåbar gjennom proxyen. Uten variabelen stoles det ikke på noen
+adresse, og bare grensen per konto gjelder.
+
+**Auth-innstillinger som må stå slik** (lokalt i `supabase/config.toml`; i det
+driftede prosjektet under Authentication i Supabase):
+
+| Innstilling | Verdi | Hvorfor |
+| --- | --- | --- |
+| Confirm email | på | Ellers gir registrering oppå en adresse en sesjon uten at innboksen er vist fram |
+| Secure email change | **av** | Den gamle innboksen skal ikke være et krav. Databasereglene over erstatter den |
+| Secure password change | på | En sesjon eldre enn et døgn kan ikke sette passord alene |
+| Require current password | på | Supabase sjekker også selv det nåværende passordet. Unntar sesjoner som startet med e-postlenke – databaseregelen over dekker dem |
+| Minimum password length | 12 | Samme grense som `lib/password.ts` |
+| Leaked password protection | på, der planen har det | Avviser passord fra kjente lekkasjer |
+| Maler: Reset password, Change email address | `supabase/templates/` | Lenkene går til TINGs egne sider med `token_hash` |
+| Varsler: Password changed, Email address changed | på, med TING-malene | Eieren får vite om endringer i ettertid |
+| Site URL | nettstedets adresse | Malene bygger lenkene sine fra den |
+
+Supabase begrenser selv innlogginger per nettverksadresse (passord: 150 per
+5 minutter, støt på 30), men ser TINGs server som avsender for alle. Tellingen
+over er det som skiller folk fra hverandre. «IP Address Forwarding» i Supabase
+(krever en `sb_secret_`-nøkkel) retter dette også hos dem; det er ikke koblet
+til ennå.
+
+**Før lansering – ikke testet ennå, og skal ikke regnes som løst:**
+
+- *IP Address Forwarding hos Supabase.* Uten den deler alle medlemmer TINGs
+  serveradresse hos Supabase Auth, så nok trafikk fra ett sted kan bruke opp
+  grensen for innlogging, e-postlenker og fornying av sesjoner for alle.
+  Krever en `sb_secret_`-nøkkel og at appen sender `Sb-Forwarded-For`; det er
+  ikke bygget, fordi det ikke kan prøves lokalt.
+- *Grensene bak nginx.* At `TRUSTED_PROXY_COUNT=1` gir riktig adresse i den
+  faktiske kjeden, og at Supabase sine grenser slår inn som ventet, må prøves
+  i miljøet det skal kjøre i.
+- *Innstillingene og malene i tabellen over* må settes i det driftede
+  prosjektet sammen med migreringen.
+
+Supabase sin offentlige nøkkel er offentlig. Den sendes ikke til nettlesere i
+dag, men ingen av reglene over hviler på at den er hemmelig.
+
+`npm run check:account-security` prøver alt dette mot den lokale stakken –
+også rett mot Supabase Auth, uten TINGs skjemaer – og `npm run
+check:auth-email` holder e-postmalene like.
 
 #### Showcase-innlogging (`/demo/<token>`)
 
@@ -243,9 +332,13 @@ databasen — ikke bare i applikasjonskoden.
 ```
 app/
   page.tsx                  Offentlig forside (ingen katalog)
-  login/                    Engangslenke på e-post
+  login/                    E-post og passord, eller engangslenke på e-post
+  glemt-passord/ nytt-passord/   Be om og bruke lenke for nytt passord
+  opprett-passord/          Passordsteget etter en godtatt invitasjon
+  bekreft-e-post/           Bekreftelse av ny e-postadresse
   auth/callback/            Veksler innloggingskoden mot en sesjon
   actions.ts                Server actions: innlogging, invitasjoner, tilgang
+  account-actions.ts        Server actions: passord og e-postadresse
   (app)/                    Alt bak innlogging — deler navigasjonsskallet
     home/ communities/ events/ notifications/ profile/
     community/[communityId]/
@@ -264,6 +357,8 @@ lib/
                             det offentlige fra det interne i typene selv
   data.ts                   Eneste skjøt mot databasen
   session.ts                Innlogget konto
+  account-security.ts       Passord og e-postbytte, alt via Supabase Auth
+  password.ts               Passordregelen (lengde), uten database
   roles.ts                  Rolledefinisjoner (brukes også av klientkomponenter)
   format.ts                 Dato- og tidsformatering (følger språket)
   i18n/                     Språk: ordbøker (nb, en), t()/tn(), useT()

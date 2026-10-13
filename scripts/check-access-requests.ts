@@ -177,7 +177,6 @@ async function main() {
     signIn(await emailFor("marte")), // moderator of UTR only — not yet a TR member
   ]);
   const marteId = await profileId("marte");
-  const marteEmail = await emailFor("marte");
 
   // ── 1–4. Who may approve or reject ──────────────────────────────────────
   const roleSeeker = "sjekk.rollegrense@example.no";
@@ -213,30 +212,35 @@ async function main() {
     "approved",
   );
 
-  // ── 5–8. An existing, usable account is activated on the spot ──────────
-  const marteSeeker = marteEmail;
-  createdAccessRequestEmails.push(marteSeeker);
-  await requestAccess(anon, TR, marteSeeker, "Sjekk Marte");
-  const marteRequest = await pendingRequestFor(marteSeeker);
+  // ── 5–8. An existing account that has chosen a password is activated on the spot ──
+  // Made for this run. The seeded accounts have never chosen a password, and
+  // an account without one — however long it has existed — gets the claim
+  // link instead: cases 9–11 here, and `npm run check:account-security`.
+  const settledSeeker = `sjekk.etablert.${crypto.randomUUID().slice(0, 8)}@example.no`;
+  const settledId = (await admin.auth.admin.createUser({ email: settledSeeker, email_confirm: true })).data.user!.id;
+  createdAuthUserIds.push(settledId);
+  await (await signIn(settledSeeker)).auth.updateUser({ password: `${crypto.randomUUID()} passfrase` });
+  createdAccessRequestEmails.push(settledSeeker);
+  await requestAccess(anon, TR, settledSeeker, "Sjekk Etablert");
+  const settledRequest = await pendingRequestFor(settledSeeker);
 
-  // Marte is a seeded account, not one this run creates and deletes, so the
-  // Tryggere profile the activation below gives her would otherwise survive the
-  // undo. Note whether she already had one, exactly as it was.
-  const marteProfileBefore = await communityProfileOf(marteId, TR);
-  if (!marteProfileBefore) createdCommunityProfiles.push({ userId: marteId, communityId: TR });
+  // The activation below gives the account a Tryggere profile. Note that it
+  // had none, so the undo can show it left none behind.
+  const settledProfileBefore = await communityProfileOf(settledId, TR);
+  if (!settledProfileBefore) createdCommunityProfiles.push({ userId: settledId, communityId: TR });
 
-  const marteApproval = await miaminge.rpc("approve_access_request", { p_request_id: marteRequest.id });
-  const marteOutcome = (marteApproval.data as MintedRow[] | null)?.[0];
-  expect("5. godkjenning av en konto som finnes fra før aktiverer med det samme", marteOutcome?.outcome, "activated");
-  expect("5. og gir ingen token", marteOutcome?.token, null);
+  const settledApproval = await miaminge.rpc("approve_access_request", { p_request_id: settledRequest.id });
+  const settledOutcome = (settledApproval.data as MintedRow[] | null)?.[0];
+  expect("5. godkjenning av en konto som finnes fra før aktiverer med det samme", settledOutcome?.outcome, "activated");
+  expect("5. og gir ingen token", settledOutcome?.token, null);
   expect(
     "5. medlemskapet er aktivt",
-    (await membershipOf(marteId, TR))?.status,
+    (await membershipOf(settledId, TR))?.status,
     "active",
   );
   expect(
     "6. ingen invitasjon ble laget å vente på",
-    (await admin.from("invitations").select("*", { count: "exact", head: true }).eq("request_id", marteRequest.id)).count,
+    (await admin.from("invitations").select("*", { count: "exact", head: true }).eq("request_id", settledRequest.id)).count,
     0,
   );
 
@@ -244,36 +248,36 @@ async function main() {
   //      the membership. There is only one row to find either way — this
   //      asserts there is exactly one, not merely that the count did not
   //      change relative to some other total.
-  const marteApproveAgain = await miaminge.rpc("approve_access_request", { p_request_id: marteRequest.id });
-  const marteAgainOutcome = (marteApproveAgain.data as MintedRow[] | null)?.[0];
-  expect("7. en gjentatt godkjenning er idempotent", marteAgainOutcome?.outcome, "activated");
+  const settledApproveAgain = await miaminge.rpc("approve_access_request", { p_request_id: settledRequest.id });
+  const settledAgainOutcome = (settledApproveAgain.data as MintedRow[] | null)?.[0];
+  expect("7. en gjentatt godkjenning er idempotent", settledAgainOutcome?.outcome, "activated");
   expect(
     "8. og lager ikke et medlemskap til",
-    (await admin.from("memberships").select("*", { count: "exact", head: true }).eq("user_id", marteId).eq("community_id", TR)).count,
+    (await admin.from("memberships").select("*", { count: "exact", head: true }).eq("user_id", settledId).eq("community_id", TR)).count,
     1,
   );
 
-  expect("5. aktiveringen gir henne en profil i Tryggere", Boolean(await communityProfileOf(marteId, TR)), true);
+  expect("5. aktiveringen gir henne en profil i Tryggere", Boolean(await communityProfileOf(settledId, TR)), true);
 
-  // Undo: Marte was never meant to end up a Tryggere member.
-  await admin.from("memberships").delete().eq("user_id", marteId).eq("community_id", TR);
+  // Undo: the membership, its notice and the profile it created.
+  await admin.from("memberships").delete().eq("user_id", settledId).eq("community_id", TR);
   await admin
     .from("notifications")
     .delete()
-    .eq("user_id", marteId)
+    .eq("user_id", settledId)
     .eq("community_id", TR)
     .like("title", "Du er nå medlem%");
   // Only the profile this run created. One that predates the run stays, and
-  // stays exactly as it was: the request's "Sjekk Marte" display name never
+  // stays exactly as it was: the request's "Sjekk Etablert" display name never
   // overwrites an existing profile (ensure_community_profile does nothing on
   // conflict), which the comparison below also proves.
-  if (!marteProfileBefore) {
-    await admin.from("community_profiles").delete().eq("user_id", marteId).eq("community_id", TR);
+  if (!settledProfileBefore) {
+    await admin.from("community_profiles").delete().eq("user_id", settledId).eq("community_id", TR);
   }
   expect(
-    "5. opprydding: Martes Tryggere-profil er som før testen",
-    JSON.stringify(await communityProfileOf(marteId, TR)),
-    JSON.stringify(marteProfileBefore),
+    "5. opprydding: Tryggere-profilen er som før testen",
+    JSON.stringify(await communityProfileOf(settledId, TR)),
+    JSON.stringify(settledProfileBefore),
   );
 
   // ── 9–11. An address with no usable account: the claim link ─────────────
@@ -306,6 +310,13 @@ async function main() {
   const claimClient = await signIn(claimEmail);
   const { data: claimUser } = await claimClient.auth.getUser();
   createdAuthUserIds.push(claimUser.user!.id);
+
+  // …once the account has a password. Until then the right address, signed
+  // in, is told what is missing and is not a member.
+  const claimEarly = await claimClient.rpc("accept_invitation_token", { p_token: claimToken! });
+  expect("10. uten passord aktiveres ingenting", (claimEarly.data as AcceptRow[] | null)?.[0]?.reason, "password-required");
+  expect("10. og det finnes ikke noe medlemskap ennå", await membershipOf(claimUser.user!.id, TR), null);
+  await claimClient.auth.updateUser({ password: `${crypto.randomUUID()} passfrase` });
 
   const claimRedeem = await claimClient.rpc("accept_invitation_token", { p_token: claimToken! });
   const claimRedeemOutcome = (claimRedeem.data as AcceptRow[] | null)?.[0];
@@ -371,6 +382,7 @@ async function main() {
   const proactiveClient = await signIn(proactiveEmail);
   const { data: proactiveUser } = await proactiveClient.auth.getUser();
   createdAuthUserIds.push(proactiveUser.user!.id);
+  await proactiveClient.auth.updateUser({ password: `${crypto.randomUUID()} passfrase` });
   const proactiveAccept = await proactiveClient.rpc("accept_invitation_token", { p_token: proactiveToken });
   const proactiveAcceptOutcome = (proactiveAccept.data as AcceptRow[] | null)?.[0];
   expect("13. riktig adresse kan fortsatt godta eksplisitt", proactiveAcceptOutcome?.ok, true);

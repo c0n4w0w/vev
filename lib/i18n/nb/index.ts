@@ -1,3 +1,4 @@
+import { account } from "./account";
 import { admin } from "./admin";
 import { collaboration } from "./collaboration";
 import { common } from "./common";
@@ -14,6 +15,6 @@ import { workspace } from "./workspace";
  * a message missing from any other language is a type error rather than a
  * blank on screen.
  */
-export const nb = { ...common, ...shell, ...community, ...admin, ...errors, ...portal, ...collaboration, ...workspace } as const;
+export const nb = { ...common, ...shell, ...community, ...admin, ...errors, ...portal, ...account, ...collaboration, ...workspace } as const;
 
 export type MessageKey = keyof typeof nb;

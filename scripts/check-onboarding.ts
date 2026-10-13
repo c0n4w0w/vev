@@ -114,7 +114,12 @@ async function newAccount(label: string): Promise<{ id: string; email: string; c
   });
   if (error) throw error;
   created.users.push(data.user!.id);
-  return { id: data.user!.id, email, client: await signInEmail(email) };
+  // An account that is activated on approval is one that has chosen a
+  // password; one that has not gets an invitation instead (the "første gang"
+  // case below, and `npm run check:account-security`).
+  const client = await signInEmail(email);
+  await client.auth.updateUser({ password: `${randomUUID()} passfrase` });
+  return { id: data.user!.id, email, client };
 }
 
 /** Joins the way a real applicant does: request, then that community's admin approves. */
@@ -316,6 +321,11 @@ async function main() {
   created.users.push(firstUser.user!.id);
   const first = await signInEmail(firstEmail);
   expect("første gang: ny konto er ikke medlem før invitasjonen tas i bruk", await visible(first, TU), false);
+  // No membership — and so no welcome — before the account has a password.
+  const early = await first.rpc("accept_invitation_token", { p_token: firstToken! });
+  expect("første gang: uten passord aktiverer ikke invitasjonen", (early.data as { reason: string }[] | null)?.[0]?.reason, "password-required");
+  expect("første gang: fortsatt ikke medlem", await visible(first, TU), false);
+  await first.auth.updateUser({ password: `${randomUUID()} passfrase` });
   const redeemed = await first.rpc("accept_invitation_token", { p_token: firstToken! });
   expect("første gang: invitasjonen tas i bruk", (redeemed.data as { reason: string }[] | null)?.[0]?.reason, "joined");
   expect("første gang: aktivt TU-medlem", (await membership(firstUser.user!.id, TU))?.status, "active");
