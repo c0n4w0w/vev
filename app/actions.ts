@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import {
   acceptInvitationToken,
@@ -18,7 +19,9 @@ import {
   removeEventAttendee,
   getEvent,
   createDirectMessage as persistDirectMessage,
+  createDirectMessageWithAttachments as persistDirectMessageWithAttachments,
   createMessage as persistMessage,
+  createMessageWithAttachments as persistMessageWithAttachments,
   clearCommunityAvatar,
   clearMyCommunityAvatar,
   createCommunityEmoji as persistEmoji,
@@ -124,6 +127,7 @@ import type { PostFormState } from "@/lib/post-form";
 import { sendInvitationEmail } from "@/lib/email/invitation";
 import { mintEmailSignInLink } from "@/lib/email-sign-in-link";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { purgeAttachmentObjects } from "@/lib/attachment-storage";
 import type { InvitationLinkState } from "@/lib/invitation-link-form";
 import { osloInstant } from "@/lib/format";
 import {
@@ -365,6 +369,42 @@ export async function markAllNotificationsReadAction(
 
 // ── Channel messages ────────────────────────────────────────────────────
 
+const ATTACHMENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * The attachment ids a message form carries. Only their shape is checked
+ * here, and the list is cut well above any real limit; whose they are, which
+ * conversation they belong to and how many a message may have is the
+ * database's decision when the message is sent.
+ */
+function attachmentIdsFrom(formData: FormData): string[] {
+  return [
+    ...new Set(
+      formData
+        .getAll("attachmentIds")
+        .map(String)
+        .filter((id) => ATTACHMENT_ID.test(id)),
+    ),
+  ].slice(0, 20);
+}
+
+/**
+ * Removes the stored files of attachments whose rows have just gone — a
+ * deleted group or private channel takes its messages, and with them their
+ * attachments, in one cascade that leaves the object names queued. Runs after
+ * the response; anything that fails stays queued for the next purge.
+ */
+function purgeAttachmentsAfterResponse() {
+  after(async () => {
+    try {
+      await purgeAttachmentObjects();
+    } catch (error) {
+      // Still queued; the next purge or the scheduled sweep removes them.
+      console.error("[attachments] purge after deletion failed", error);
+    }
+  });
+}
+
 /**
  * Sends one message to a channel.
  *
@@ -381,10 +421,14 @@ export async function createMessageAction(
   if (!user) redirect("/login");
 
   const channelId = String(formData.get("channelId") ?? "");
-  const result = await persistMessage({
-    channelId,
-    body: String(formData.get("body") ?? ""),
-  });
+  const body = String(formData.get("body") ?? "");
+  // Files, where the channel takes them, were uploaded beforehand and travel
+  // as ids. A message without any is the ordinary insert it has always been.
+  const attachmentIds = attachmentIdsFrom(formData);
+  const result =
+    attachmentIds.length > 0
+      ? await persistMessageWithAttachments({ channelId, body, attachmentIds })
+      : await persistMessage({ channelId, body });
 
   const communityId = String(formData.get("communityId") ?? "");
   if (!result.ok) {
@@ -442,10 +486,12 @@ export async function createDirectMessageAction(
 
   const conversationId = String(formData.get("conversationId") ?? "");
   const communityId = String(formData.get("communityId") ?? "");
-  const result = await persistDirectMessage({
-    conversationId,
-    body: String(formData.get("body") ?? ""),
-  });
+  const body = String(formData.get("body") ?? "");
+  const attachmentIds = attachmentIdsFrom(formData);
+  const result =
+    attachmentIds.length > 0
+      ? await persistDirectMessageWithAttachments({ conversationId, body, attachmentIds })
+      : await persistDirectMessage({ conversationId, body });
 
   if (!result.ok) {
     return { status: "error", error: (await translatorFor(communityId))(result.error) };
@@ -1120,6 +1166,7 @@ export async function deleteSubgroupAction(
   const result = await deleteSubgroup(String(formData.get("subgroupId") ?? ""));
   if (!result.ok) return { status: "error", error: (await translatorFor(communityId))(result.error) };
 
+  purgeAttachmentsAfterResponse();
   revalidateSubgroups(communityId);
   return { status: "ok" };
 }
@@ -1316,6 +1363,7 @@ export async function deletePrivateChannelAction(
     return { status: "error", error: (await translatorFor(communityId))("err.privateChannelDeleteRefused") };
   }
 
+  purgeAttachmentsAfterResponse();
   // The channel was in the sidebar (layout) of everyone who could read it.
   revalidatePath(`/community/${channel.communityId}`, "layout");
   redirect(

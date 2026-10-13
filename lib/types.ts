@@ -7,6 +7,7 @@
  * through the query functions there.
  */
 
+import type { MessageAttachment } from "@/lib/attachment-types";
 import type { Locale } from "@/lib/i18n/locales";
 
 export type RoleId = "member" | "moderator" | "admin";
@@ -224,8 +225,13 @@ export interface DirectMessage {
   id: string;
   conversationId: string;
   authorId: string;
+  /** May be empty when the message is only files. */
   body: string;
   createdAt: string;
+  /** The message was sent with files, whether or not they were loaded here. */
+  hasAttachments?: boolean;
+  /** Files sent with the message, in the order they were attached. */
+  attachments?: MessageAttachment[];
 }
 
 export interface DirectConversationSummary {
@@ -317,6 +323,11 @@ export interface Message {
   reactions?: { emoji: string; userIds: string[] }[];
   /** Set on the first message of a day, computed at read time. */
   attachment?: { kind: "file" | "link"; label: string; meta: string };
+  /**
+   * Files sent with the message (private groups and private lokallag channels
+   * only), in the order they were attached. Such a message may have no body.
+   */
+  attachments?: MessageAttachment[];
 }
 
 export interface Post {

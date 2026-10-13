@@ -12,6 +12,22 @@ export const errors = {
   "err.conversationWriteDenied": "Du har ikke tilgang til å skrive i denne samtalen.",
   "err.messageSendFailed": "Meldingen kunne ikke sendes. Prøv igjen.",
   "err.conversationOpenFailed": "Samtalen kunne ikke åpnes. Prøv igjen.",
+  "err.attachmentNotAllowed": "Du kan ikke legge ved filer i denne samtalen.",
+  "err.attachmentNeedsMutual":
+    "Fildeling åpnes når dere begge har sendt minst én tekstmelding i denne samtalen.",
+  "err.attachmentArchived": "Samtalen er arkivert. Nye filer kan ikke legges ved.",
+  "err.attachmentTooLarge": "{name} er for stor. Filer kan være høyst {max} MB her.",
+  "err.attachmentTooMany": "Du kan legge ved høyst {max} filer i én melding.",
+  "err.attachmentTooManySent": "Meldingen har for mange vedlegg. Fjern noen og prøv igjen.",
+  "err.attachmentType":
+    "{name} har et format som ikke støttes. Du kan sende bilder (JPG, PNG, WebP, GIF), PDF, DOCX, XLSX, PPTX, TXT, CSV og lyd (MP3, WAV, M4A).",
+  "err.attachmentEmpty": "{name} er tom.",
+  "err.attachmentUploadFailed": "{name} kunne ikke lastes opp. Prøv igjen.",
+  "err.attachmentInvalid":
+    "Vedleggene kunne ikke sendes. Fjern dem, last dem opp på nytt og prøv igjen.",
+  "err.attachmentStillUploading": "Vent til filene er ferdig lastet opp.",
+  "err.attachmentFailedPresent":
+    "En av filene kunne ikke lastes opp. Fjern den eller prøv igjen før du sender.",
   "err.postEmpty": "Innlegget kan ikke være tomt.",
   "err.postEditOwn": "Du kan bare endre dine egne innlegg.",
   "err.postDeleteDenied": "Du har ikke tilgang til å slette dette innlegget.",

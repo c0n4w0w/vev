@@ -1849,6 +1849,7 @@ export type Database = {
           body: string
           conversation_id: string
           created_at: string
+          has_attachments: boolean
           id: string
         }
         Insert: {
@@ -1856,6 +1857,7 @@ export type Database = {
           body: string
           conversation_id: string
           created_at?: string
+          has_attachments?: boolean
           id?: string
         }
         Update: {
@@ -1863,6 +1865,7 @@ export type Database = {
           body?: string
           conversation_id?: string
           created_at?: string
+          has_attachments?: boolean
           id?: string
         }
         Relationships: [
@@ -2135,6 +2138,127 @@ export type Database = {
           {
             foreignKeyName: "memberships_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_attachment_purges: {
+        Row: {
+          queued_at: string
+          storage_path: string
+        }
+        Insert: {
+          queued_at?: string
+          storage_path: string
+        }
+        Update: {
+          queued_at?: string
+          storage_path?: string
+        }
+        Relationships: []
+      }
+      message_attachments: {
+        Row: {
+          attached_at: string | null
+          channel_id: string | null
+          community_id: string
+          conversation_id: string | null
+          created_at: string
+          direct_message_id: string | null
+          display_name: string
+          height: number | null
+          id: string
+          message_id: string | null
+          mime_type: string
+          position: number
+          size_bytes: number
+          status: string
+          storage_path: string
+          thumb_path: string | null
+          uploader_id: string
+          width: number | null
+        }
+        Insert: {
+          attached_at?: string | null
+          channel_id?: string | null
+          community_id: string
+          conversation_id?: string | null
+          created_at?: string
+          direct_message_id?: string | null
+          display_name: string
+          height?: number | null
+          id?: string
+          message_id?: string | null
+          mime_type: string
+          position?: number
+          size_bytes: number
+          status?: string
+          storage_path: string
+          thumb_path?: string | null
+          uploader_id: string
+          width?: number | null
+        }
+        Update: {
+          attached_at?: string | null
+          channel_id?: string | null
+          community_id?: string
+          conversation_id?: string | null
+          created_at?: string
+          direct_message_id?: string | null
+          display_name?: string
+          height?: number | null
+          id?: string
+          message_id?: string | null
+          mime_type?: string
+          position?: number
+          size_bytes?: number
+          status?: string
+          storage_path?: string
+          thumb_path?: string | null
+          uploader_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_attachments_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_attachments_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_attachments_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "direct_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_attachments_direct_message_id_fkey"
+            columns: ["direct_message_id"]
+            isOneToOne: false
+            referencedRelation: "direct_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_attachments_uploader_id_fkey"
+            columns: ["uploader_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2578,6 +2702,21 @@ export type Database = {
           token: string
         }[]
       }
+      begin_message_attachment: {
+        Args: {
+          p_channel_id: string
+          p_conversation_id: string
+          p_display_name: string
+          p_height?: number
+          p_mime_type: string
+          p_size_bytes: number
+          p_width?: number
+        }
+        Returns: {
+          attachment_id: string
+          storage_path: string
+        }[]
+      }
       can_access_channel_row: {
         Args: {
           p_channel_id: string
@@ -2638,6 +2777,19 @@ export type Database = {
       }
       can_read_event: { Args: { p_event_id: string }; Returns: boolean }
       can_read_member_avatar_object: {
+        Args: { p_name: string }
+        Returns: boolean
+      }
+      can_read_message_attachment: {
+        Args: {
+          p_channel_id: string
+          p_conversation_id: string
+          p_status: string
+          p_uploader_id: string
+        }
+        Returns: boolean
+      }
+      can_read_message_attachment_object: {
         Args: { p_name: string }
         Returns: boolean
       }
@@ -2703,6 +2855,17 @@ export type Database = {
           p_user_id: string
         }
         Returns: boolean
+      }
+      claim_message_attachments: {
+        Args: {
+          p_attachment_ids: string[]
+          p_channel_id: string
+          p_conversation_id: string
+          p_max_bytes: number
+          p_max_files: number
+          p_user_id: string
+        }
+        Returns: string[]
       }
       collaboration_assignees_valid: {
         Args: {
@@ -2840,6 +3003,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      complete_message_attachment: {
+        Args: { p_attachment_id: string }
+        Returns: boolean
+      }
       content_scope_admits: {
         Args: {
           p_community_id: string
@@ -2942,6 +3109,10 @@ export type Database = {
         }[]
       }
       direct_unread_count: { Args: { p_community_id: string }; Returns: number }
+      discard_message_attachment: {
+        Args: { p_attachment_id: string }
+        Returns: boolean
+      }
       dismiss_my_onboarding: {
         Args: { p_community_id: string }
         Returns: boolean
@@ -3064,6 +3235,34 @@ export type Database = {
         Returns: boolean
       }
       mark_notifications_read: { Args: never; Returns: undefined }
+      message_attachment_extension: {
+        Args: { p_mime_type: string }
+        Returns: string
+      }
+      message_attachment_policy: {
+        Args: { p_channel_id?: string; p_conversation_id?: string }
+        Returns: {
+          allowed: boolean
+          community_id: string
+          max_bytes: number
+          max_files: number
+          reason: string
+        }[]
+      }
+      message_attachment_policy_for: {
+        Args: {
+          p_channel_id: string
+          p_conversation_id: string
+          p_user_id: string
+        }
+        Returns: {
+          allowed: boolean
+          community_id: string
+          max_bytes: number
+          max_files: number
+          reason: string
+        }[]
+      }
       my_accepts_member_dms: {
         Args: { p_community_id: string }
         Returns: boolean
@@ -3277,6 +3476,22 @@ export type Database = {
           user_id: string
         }[]
       }
+      send_channel_message_with_attachments: {
+        Args: {
+          p_attachment_ids: string[]
+          p_body: string
+          p_channel_id: string
+        }
+        Returns: string
+      }
+      send_direct_message_with_attachments: {
+        Args: {
+          p_attachment_ids: string[]
+          p_body: string
+          p_conversation_id: string
+        }
+        Returns: string
+      }
       set_accepts_member_dms: {
         Args: { p_community_id: string; p_value: boolean }
         Returns: boolean
@@ -3446,6 +3661,10 @@ export type Database = {
           role: Database["public"]["Enums"]["community_role"]
           user_id: string
         }[]
+      }
+      sweep_abandoned_message_attachments: {
+        Args: { p_older_than?: string }
+        Returns: number
       }
       unpublish_collaboration_event: {
         Args: { p_event_id: string }
@@ -3748,3 +3967,4 @@ export type MintedInvitationRow =
 export type AccessRequestHistoryRow =
   Database["public"]["Functions"]["access_request_history"]["Returns"][number]
 export type SubgroupRow = Tables<"community_subgroups">
+export type MessageAttachmentRow = Tables<"message_attachments">

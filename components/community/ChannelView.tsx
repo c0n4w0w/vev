@@ -8,11 +8,15 @@ import { PrivateChannelAdmin } from "@/components/community/PrivateChannelAdmin"
 import { PrivateChannelCreate } from "@/components/community/PrivateChannelCreate";
 import { PrivateChannelParticipants } from "@/components/community/PrivateChannelParticipants";
 import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/community/EmojiPicker";
+import { AttachmentButton, PendingAttachmentList } from "@/components/community/attachments/ComposerAttachments";
+import { MessageAttachments } from "@/components/community/attachments/MessageAttachments";
+import { useAttachmentUploads } from "@/components/community/attachments/useAttachmentUploads";
 import { IconAttach, IconHash, IconLock, IconSend } from "@/components/ui/icons";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
 import { createMessageAction } from "@/app/actions";
 import { useLocale, useT } from "@/lib/i18n/react";
 import { emptyMessageFormState } from "@/lib/message-form";
+import type { AttachmentPolicy } from "@/lib/attachment-types";
 import type {
   Channel,
   Community,
@@ -58,6 +62,12 @@ export interface PrivateChannelControls {
  * a hash, a sentence saying who can read it, a "Deltakere" list for everyone
  * in it, and — for its managers instead — the "Administrer kanal" menu. An
  * archived one keeps its history and has no composer.
+ *
+ * In a private group's chat and a private lokallag channel the composer also
+ * has a paperclip. Files are uploaded as they are picked and travel with the
+ * message as ids; a message may then be files alone. Whether this channel
+ * takes files at all is `attachmentPolicy`, answered by the database for this
+ * viewer, and decided there again for every upload and every send.
  */
 export function ChannelView({
   channel,
@@ -71,6 +81,7 @@ export function ChannelView({
   lastActivityLabel,
   privateChannels,
   subgroup,
+  attachmentPolicy,
 }: {
   channel: Channel;
   community: Community;
@@ -100,6 +111,8 @@ export function ChannelView({
    * Grupper page, present only for someone who may manage the team.
    */
   subgroup?: { moderatorsRead: boolean; manageHref?: string };
+  /** Whether files may be attached here, and how many and how large. */
+  attachmentPolicy: AttachmentPolicy;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -111,6 +124,11 @@ export function ChannelView({
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const insertText = useComposerInsert(composerRef, draft, setDraft);
+  const uploads = useAttachmentUploads({
+    communityId: community.id,
+    target: { channelId: channel.id },
+    policy: attachmentPolicy,
+  });
   // Who can read this conversation, stated as the database decides it
   // (content_scope_admits): the whole community; a lokallag and the
   // community's admins; or a team and the community's admins — and its
@@ -147,7 +165,14 @@ export function ChannelView({
 
   function send() {
     const body = draft.trim();
-    if (!body || pending) return;
+    if ((!body && uploads.isEmpty) || pending) return;
+    // Files still on their way up, or one that failed: nothing is sent until
+    // every picked file is either uploaded or taken out.
+    if (!uploads.isEmpty && !uploads.sendable) {
+      setError(t(uploads.failed ? "err.attachmentFailedPresent" : "err.attachmentStillUploading"));
+      return;
+    }
+    const files = uploads.take();
 
     // Shown immediately under a temporary id. Nothing reads this id but React;
     // the row it stands for is replaced by the stored one as soon as the write
@@ -161,6 +186,7 @@ export function ChannelView({
         authorId: currentUser.id,
         body,
         createdAt: new Date().toISOString(),
+        attachments: files.attachments,
       },
     ]);
     setDraft("");
@@ -171,6 +197,7 @@ export function ChannelView({
     form.set("channelId", channel.id);
     form.set("communityId", community.id);
     form.set("body", body);
+    for (const attachment of files.attachments) form.append("attachmentIds", attachment.id);
 
     startTransition(async () => {
       const result = await createMessageAction(emptyMessageFormState, form);
@@ -178,11 +205,14 @@ export function ChannelView({
         setMessages((current) =>
           current.map((message) => (message.id === pendingId ? result.message : message)),
         );
+        files.release();
         return;
       }
       setMessages((current) => current.filter((message) => message.id !== pendingId));
       setError(result.status === "error" ? result.error : undefined);
       setDraft((current) => current || body);
+      // The uploads are still there; they go back above the composer.
+      files.restore();
     });
   }
 
@@ -307,9 +337,16 @@ export function ChannelView({
                         </p>
                       ) : null}
 
-                      <p className="whitespace-pre-line text-[0.9375rem] leading-[1.65] text-ink-2">
-                        <EmojiText body={message.body} emojis={customEmojis} />
-                      </p>
+                      {message.body ? (
+                        <p className="whitespace-pre-line text-[0.9375rem] leading-[1.65] text-ink-2">
+                          <EmojiText body={message.body} emojis={customEmojis} />
+                        </p>
+                      ) : null}
+
+                      <MessageAttachments
+                        attachments={message.attachments}
+                        className={message.body ? "mt-1.5" : "mt-0.5"}
+                      />
 
                       {message.attachment ? (
                         <div className="mt-2 inline-flex items-center gap-2.5 rounded-[5px] border border-line bg-paper px-3 py-2">
@@ -351,6 +388,14 @@ export function ChannelView({
       <div className="sticky bottom-0 border-t border-line bg-paper/95 px-5 py-4 backdrop-blur-sm lg:px-8">
         <div className="mx-auto max-w-3xl">
           {canPost ? (
+            <PendingAttachmentList
+              items={uploads.items}
+              onRemove={uploads.remove}
+              onRetry={uploads.retry}
+              accent={community.branding.accent}
+            />
+          ) : null}
+          {canPost ? (
             <div className="flex items-end gap-3 rounded-[6px] border border-line-2 bg-surface p-2 focus-within:border-ink-3">
               <Avatar user={currentUser} size="sm" className="mb-0.5" />
               <textarea
@@ -372,7 +417,10 @@ export function ChannelView({
                 placeholder={t("channel.placeholder", { name: channel.name })}
                 className="max-h-44 min-h-[2.25rem] min-w-0 flex-1 resize-none bg-transparent py-2 text-[0.9375rem] leading-6 text-ink outline-none placeholder:text-ink-3"
               />
-              <div className="flex shrink-0 items-end gap-1">
+              <div className="flex shrink-0 items-end gap-0.5 sm:gap-1">
+                {attachmentPolicy.allowed ? (
+                  <AttachmentButton onPick={uploads.add} disabled={uploads.full} className="mb-0.5" />
+                ) : null}
                 <ComposerEmojiButton
                   customEmojis={customEmojis}
                   onInsert={insertText}
@@ -382,7 +430,7 @@ export function ChannelView({
                 <button
                   type="button"
                   onClick={send}
-                  disabled={!draft.trim() || pending}
+                  disabled={(!draft.trim() && uploads.isEmpty) || pending || uploads.uploading}
                   aria-label={t("channel.send")}
                   className="mb-0.5 rounded-[5px] p-2 text-white transition-opacity disabled:opacity-30"
                   style={{ backgroundColor: community.branding.accent }}
@@ -397,9 +445,9 @@ export function ChannelView({
               {t(channel.archived ? "channel.archivedNotice" : "channel.readOnly")}
             </p>
           )}
-          {error ? (
+          {error || uploads.notice ? (
             <p role="alert" className="mt-2 text-[11px] text-rust">
-              {error}
+              {error ?? uploads.notice}
             </p>
           ) : null}
           <p className="mt-2 text-[11px] text-ink-3">

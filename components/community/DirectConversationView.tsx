@@ -4,18 +4,35 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Avatar, cn } from "@/components/ui/primitives";
 import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/community/EmojiPicker";
+import { AttachmentButton, PendingAttachmentList } from "@/components/community/attachments/ComposerAttachments";
+import { MessageAttachments } from "@/components/community/attachments/MessageAttachments";
+import { useAttachmentUploads } from "@/components/community/attachments/useAttachmentUploads";
 import { IconArrowLeft, IconSend } from "@/components/ui/icons";
 import { createDirectMessageAction } from "@/app/actions";
 import { emptyDirectMessageFormState } from "@/lib/direct-message-form";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/react";
+import { bothHaveWritten, type AttachmentPolicy } from "@/lib/attachment-types";
 import type { Community, CommunityEmoji, CommunityPersona, DirectConversation } from "@/lib/types";
 
+/**
+ * One direct conversation.
+ *
+ * The composer has the same paperclip as a private channel's. In a
+ * conversation with an organisational representative it works from the first
+ * message. Between two ordinary members it is there but locked — with the
+ * reason on hover and focus — until each of them has sent a text message;
+ * `attachmentPolicy` is the database's answer to that when the page loaded,
+ * and `bothHaveWritten` lets the lock open the moment the viewer's own reply
+ * is stored, without a reload. Neither is what enforces it: the database
+ * checks again on every upload and every send.
+ */
 export function DirectConversationView({
   conversation,
   community,
   currentUser,
   customEmojis,
+  attachmentPolicy,
 }: {
   conversation: DirectConversation;
   community: Community;
@@ -23,6 +40,8 @@ export function DirectConversationView({
   currentUser: CommunityPersona;
   /** Only this conversation's community's emojis, never another the pair share. */
   customEmojis: CommunityEmoji[];
+  /** Whether files may be attached here, and how many and how large. */
+  attachmentPolicy: AttachmentPolicy;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -33,6 +52,24 @@ export function DirectConversationView({
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const insertText = useComposerInsert(composerRef, draft, setDraft);
+
+  // Only stored messages count: a message still on its way has a temporary
+  // id, and one the server refuses must not have unlocked anything.
+  const unlocked =
+    attachmentPolicy.reason === "needs_mutual" &&
+    bothHaveWritten(
+      messages.filter((message) => !message.id.startsWith("pending-")),
+      conversation.participantIds,
+    );
+  const policy = useMemo<AttachmentPolicy>(
+    () => (unlocked ? { ...attachmentPolicy, allowed: true, reason: "ok" } : attachmentPolicy),
+    [attachmentPolicy, unlocked],
+  );
+  const uploads = useAttachmentUploads({
+    communityId: community.id,
+    target: { conversationId: conversation.id },
+    policy,
+  });
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -48,7 +85,12 @@ export function DirectConversationView({
 
   function send() {
     const body = draft.trim();
-    if (!body || pending) return;
+    if ((!body && uploads.isEmpty) || pending) return;
+    if (!uploads.isEmpty && !uploads.sendable) {
+      setError(t(uploads.failed ? "err.attachmentFailedPresent" : "err.attachmentStillUploading"));
+      return;
+    }
+    const files = uploads.take();
 
     const pendingId = `pending-${Date.now()}`;
     setMessages((current) => [
@@ -59,6 +101,7 @@ export function DirectConversationView({
         authorId: currentUser.id,
         body,
         createdAt: new Date().toISOString(),
+        attachments: files.attachments,
       },
     ]);
     setDraft("");
@@ -69,6 +112,7 @@ export function DirectConversationView({
     form.set("communityId", community.id);
     form.set("conversationId", conversation.id);
     form.set("body", body);
+    for (const attachment of files.attachments) form.append("attachmentIds", attachment.id);
 
     startTransition(async () => {
       const result = await createDirectMessageAction(emptyDirectMessageFormState, form);
@@ -76,11 +120,13 @@ export function DirectConversationView({
         setMessages((current) =>
           current.map((message) => (message.id === pendingId ? result.message : message)),
         );
+        files.release();
         return;
       }
       setMessages((current) => current.filter((message) => message.id !== pendingId));
       setError(result.status === "error" ? result.error : undefined);
       setDraft((current) => current || body);
+      files.restore();
     });
   }
 
@@ -177,16 +223,24 @@ export function DirectConversationView({
                           </p>
                         ) : null}
 
-                        <p
-                          className={cn(
-                            "whitespace-pre-line break-words rounded-[6px] px-3 py-2 text-[0.9375rem] leading-[1.55]",
-                            mine
-                              ? "bg-skog text-white"
-                              : "border border-line bg-surface text-ink-2",
-                          )}
-                        >
-                          <EmojiText body={message.body} emojis={customEmojis} />
-                        </p>
+                        {message.body ? (
+                          <p
+                            className={cn(
+                              "inline-block max-w-full whitespace-pre-line break-words rounded-[6px] px-3 py-2 text-left text-[0.9375rem] leading-[1.55]",
+                              mine
+                                ? "bg-skog text-white"
+                                : "border border-line bg-surface text-ink-2",
+                            )}
+                          >
+                            <EmojiText body={message.body} emojis={customEmojis} />
+                          </p>
+                        ) : null}
+
+                        <MessageAttachments
+                          attachments={message.attachments}
+                          align={mine ? "end" : "start"}
+                          className={message.body ? "mt-1.5" : undefined}
+                        />
                       </div>
                     </div>
                   </li>
@@ -200,6 +254,12 @@ export function DirectConversationView({
 
       <div className="sticky bottom-0 border-t border-line bg-paper/95 px-5 py-4 backdrop-blur-sm lg:px-8">
         <div className="mx-auto max-w-3xl">
+          <PendingAttachmentList
+            items={uploads.items}
+            onRemove={uploads.remove}
+            onRetry={uploads.retry}
+            accent={community.branding.accent}
+          />
           <div className="flex items-end gap-3 rounded-[6px] border border-line-2 bg-surface p-2 focus-within:border-ink-3">
             <Avatar user={currentUser} size="sm" className="mb-0.5" />
             <textarea
@@ -222,7 +282,15 @@ export function DirectConversationView({
               placeholder={t("dm.placeholder", { name: conversation.otherParticipant.name })}
               className="max-h-44 min-h-[2.25rem] min-w-0 flex-1 resize-none bg-transparent py-2 text-[0.9375rem] leading-6 text-ink outline-none placeholder:text-ink-3"
             />
-            <div className="flex shrink-0 items-end gap-1">
+            <div className="flex shrink-0 items-end gap-0.5 sm:gap-1">
+              {policy.allowed || policy.reason === "needs_mutual" ? (
+                <AttachmentButton
+                  onPick={uploads.add}
+                  disabled={uploads.full}
+                  lockedReason={policy.allowed ? undefined : t("attachments.lockedMutual")}
+                  className="mb-0.5"
+                />
+              ) : null}
               <ComposerEmojiButton
                 customEmojis={customEmojis}
                 onInsert={insertText}
@@ -232,7 +300,7 @@ export function DirectConversationView({
               <button
                 type="button"
                 onClick={send}
-                disabled={!draft.trim() || pending}
+                disabled={(!draft.trim() && uploads.isEmpty) || pending || uploads.uploading}
                 aria-label={t("channel.send")}
                 className="mb-0.5 rounded-[5px] p-2 text-white transition-opacity disabled:opacity-30"
                 style={{ backgroundColor: community.branding.accent }}
@@ -241,9 +309,9 @@ export function DirectConversationView({
               </button>
             </div>
           </div>
-          {error ? (
+          {error || uploads.notice ? (
             <p role="alert" className="mt-2 text-[11px] text-rust">
-              {error}
+              {error ?? uploads.notice}
             </p>
           ) : null}
           <p className="mt-2 text-[11px] text-ink-3">

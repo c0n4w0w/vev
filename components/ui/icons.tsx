@@ -299,3 +299,52 @@ export const IconSmile = (p: IconProps) => (
     <path d="M9.2 9.6h.01M14.8 9.6h.01" strokeWidth={2} />
   </Svg>
 );
+
+export const IconChevronLeft = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M14.5 5.5 8 12l6.5 6.5" />
+  </Svg>
+);
+
+export const IconDownload = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 4v11M7.2 10.6 12 15.4l4.8-4.8" />
+    <path d="M4.6 19.4h14.8" />
+  </Svg>
+);
+
+export const IconFile = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6.4 3.6h7.4l4.4 4.4v11.6a.8.8 0 0 1-.8.8H6.4a.8.8 0 0 1-.8-.8V4.4a.8.8 0 0 1 .8-.8Z" />
+    <path d="M13.6 3.8v4.4h4.4" />
+  </Svg>
+);
+
+export const IconAudio = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9.4 17.6V6.2l9-1.8v11.4" />
+    <circle cx="6.9" cy="17.6" r="2.5" />
+    <circle cx="15.9" cy="15.8" r="2.5" />
+  </Svg>
+);
+
+export const IconZoomIn = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="10.8" cy="10.8" r="6.4" />
+    <path d="M15.6 15.6 20 20M10.8 8.2v5.2M8.2 10.8h5.2" />
+  </Svg>
+);
+
+export const IconZoomOut = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="10.8" cy="10.8" r="6.4" />
+    <path d="M15.6 15.6 20 20M8.2 10.8h5.2" />
+  </Svg>
+);
+
+export const IconRetry = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M19.2 12a7.2 7.2 0 1 1-2.2-5.2" />
+    <path d="M19.4 4.4v4h-4" />
+  </Svg>
+);

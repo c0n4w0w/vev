@@ -7,6 +7,7 @@ import {
   getDirectConversation,
   markDirectConversationRead,
 } from "@/lib/data";
+import { getAttachmentPolicy } from "@/lib/attachment-data";
 import { communityTranslator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
@@ -51,6 +52,7 @@ export default async function DirectConversationPage({
       community={community}
       currentUser={await getCommunityPersona(community.id, user.id)}
       customEmojis={await getCommunityEmojis(conversation.communityId)}
+      attachmentPolicy={await getAttachmentPolicy({ conversationId: conversation.id })}
     />
   );
 }

@@ -19,7 +19,9 @@ export async function generateMetadata({
   return { title: `${t("dm.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
-function preview(t: Translator, body?: string) {
+function preview(t: Translator, body?: string, hasAttachments?: boolean) {
+  // A message that is only files has no text to quote.
+  if (!body?.trim() && hasAttachments) return t("attachments.messageOnlyFiles");
   if (!body) return t("dm.noMessages");
   const compact = body.replace(/\s+/g, " ").trim();
   return compact.length > 120 ? `${compact.slice(0, 117)}...` : compact;
@@ -88,7 +90,11 @@ export default async function DirectMessagesPage({
                     </p>
                     <p className="mt-1 truncate text-[13px] text-ink-2">
                       {conversation.latestMessage?.authorId === user.id ? t("dm.you") : ""}
-                      {preview(t, conversation.latestMessage?.body)}
+                      {preview(
+                        t,
+                        conversation.latestMessage?.body,
+                        conversation.latestMessage?.hasAttachments,
+                      )}
                     </p>
                   </div>
                   <div className="hidden shrink-0 items-center gap-2 text-[12px] text-ink-3 sm:flex">

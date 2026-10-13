@@ -196,7 +196,8 @@ export default async function HomePage() {
                       </span>
                     </span>
                     <span className="mt-1 line-clamp-2 block text-[13px] leading-relaxed text-ink-2">
-                      {authorName}: {latest.body}
+                      {/* A message that is only files has no text to quote. */}
+                      {authorName}: {latest.body.trim() || "Vedlegg"}
                     </span>
                   </Link>
                 ))}

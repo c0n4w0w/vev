@@ -9,6 +9,22 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.conversationWriteDenied": "You don't have access to write in this conversation.",
   "err.messageSendFailed": "The message couldn't be sent. Try again.",
   "err.conversationOpenFailed": "The conversation couldn't be opened. Try again.",
+  "err.attachmentNotAllowed": "You can't attach files in this conversation.",
+  "err.attachmentNeedsMutual":
+    "File sharing unlocks once you have both sent at least one text message in this conversation.",
+  "err.attachmentArchived": "This conversation is archived. New files can't be attached.",
+  "err.attachmentTooLarge": "{name} is too large. Files can be at most {max} MB here.",
+  "err.attachmentTooMany": "You can attach at most {max} files to one message.",
+  "err.attachmentTooManySent": "The message has too many attachments. Remove some and try again.",
+  "err.attachmentType":
+    "{name} is in a format that isn't supported. You can send images (JPG, PNG, WebP, GIF), PDF, DOCX, XLSX, PPTX, TXT, CSV and audio (MP3, WAV, M4A).",
+  "err.attachmentEmpty": "{name} is empty.",
+  "err.attachmentUploadFailed": "{name} couldn't be uploaded. Try again.",
+  "err.attachmentInvalid":
+    "The attachments couldn't be sent. Remove them, upload them again and try once more.",
+  "err.attachmentStillUploading": "Wait until the files have finished uploading.",
+  "err.attachmentFailedPresent":
+    "One of the files couldn't be uploaded. Remove it or try again before sending.",
   "err.postEmpty": "The post can't be empty.",
   "err.postEditOwn": "You can only edit your own posts.",
   "err.postDeleteDenied": "You don't have access to delete this post.",

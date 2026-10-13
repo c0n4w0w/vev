@@ -47,7 +47,11 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Everything except static assets and image optimisation.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // Everything except static assets and image optimisation — and the
+    // message-attachment upload. The proxy buffers a request's body so it can
+    // be read twice, capped at 10 MB, and an attachment may be 25 MiB; that
+    // route validates the session itself and reads nothing until the caller
+    // is known to be allowed to send it.
+    "/((?!_next/static|_next/image|favicon.ico|community/[^/]+/attachments/upload$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

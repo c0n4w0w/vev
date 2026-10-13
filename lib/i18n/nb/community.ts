@@ -285,6 +285,50 @@ export const community = {
   "dm.notice":
     "Direkte meldinger er beskyttet av tilgangskontroll i TING. De er ikke ende-til-ende-kryptert.",
 
+  // ── Attachments (private groups, private channels, direct messages) ───
+  "attachments.attach": "Legg ved filer",
+  "attachments.lockedMutual":
+    "Fildeling åpnes når dere begge har sendt minst én tekstmelding i denne samtalen.",
+  "attachments.selected": "Valgte filer",
+  "attachments.theFile": "Filen",
+  "attachments.remove": "Fjern {name}",
+  "attachments.retry": "Prøv igjen",
+  "attachments.uploadingPercent": "Laster opp … {percent} %",
+  "attachments.uploadFailed": "Kunne ikke lastes opp",
+  "attachments.list": "Vedlegg",
+  "attachments.messageOnlyFiles": "Vedlegg",
+  "attachments.open": "Åpne {name}",
+  "attachments.download": "Last ned",
+  "attachments.downloadNamed": "Last ned {name}",
+  "attachments.viewer": "Forhåndsvisning av {name}",
+  "attachments.previous": "Forrige",
+  "attachments.next": "Neste",
+  "attachments.position": "{current} av {total}",
+  "attachments.zoomIn": "Zoom inn",
+  "attachments.zoomOut": "Zoom ut",
+  "attachments.zoomReset": "Tilpass til vinduet",
+  "attachments.page": "Side {current} av {total}",
+  "attachments.previousPage": "Forrige side",
+  "attachments.nextPage": "Neste side",
+  "attachments.slide": "Lysbilde {current} av {total}",
+  "attachments.previousSlide": "Forrige lysbilde",
+  "attachments.nextSlide": "Neste lysbilde",
+  "attachments.sheets": "Ark",
+  "attachments.loading": "Laster forhåndsvisning …",
+  "attachments.previewFailed":
+    "Forhåndsvisningen kunne ikke vises. Last ned filen for å åpne den.",
+  "attachments.previewTooLarge":
+    "Filen er for stor til å forhåndsvises her. Last den ned for å åpne den.",
+  "attachments.truncatedRows": "Viser de første {count} radene. Last ned filen for å se alt.",
+  "attachments.truncatedText": "Viser begynnelsen av filen. Last ned filen for å se alt.",
+  "attachments.docxNote":
+    "Forenklet forhåndsvisning – oppsettet kan avvike fra originalen.",
+  "attachments.pptxNote":
+    "Tekstforhåndsvisning – bilder, oppsett og animasjoner vises ikke. Last ned for å se presentasjonen slik den er.",
+  "attachments.emptySheet": "Arket er tomt.",
+  "attachments.emptySlide": "Ingen tekst på dette lysbildet.",
+  "attachments.emptyDocument": "Dokumentet har ingen tekst.",
+
   // ── Members ───────────────────────────────────────────────────────────
   "members.title": "Medlemmer",
   "members.organizationTitle": "Organisasjonen",

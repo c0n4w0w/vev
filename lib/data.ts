@@ -1,4 +1,4 @@
-import { messageBodyError } from "@/lib/message-form";
+import { MESSAGE_BODY_MAX, messageBodyError } from "@/lib/message-form";
 import "server-only";
 
 import { cache } from "react";
@@ -63,6 +63,13 @@ import type {
 import { initialsFor } from "@/lib/format";
 import { parseLocale, type Locale, type MessageKey } from "@/lib/i18n";
 import { getRelatedCommunityConfig, isActiveMember, type RelatedCommunityConfig } from "@/lib/related-communities";
+import {
+  getChannelAttachments,
+  getConversationAttachments,
+  sendWithAttachments,
+  toMessageAttachment,
+  type AttachmentRefusal,
+} from "@/lib/attachment-data";
 
 
 /**
@@ -216,6 +223,7 @@ function toDirectMessage(row: DirectMessageRow): DirectMessage {
     authorId: row.author_id,
     body: row.body,
     createdAt: row.created_at,
+    hasAttachments: row.has_attachments || undefined,
   };
 }
 
@@ -1636,12 +1644,17 @@ export async function getDefaultChannel(communityId: string) {
 
 export async function getMessages(channelId: string): Promise<Message[]> {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
-    .from("messages")
-    .select("*")
-    .eq("channel_id", channelId)
-    .order("created_at", { ascending: true });
-  return rows(data).map(toMessage);
+  const [{ data }, attachments] = await Promise.all([
+    supabase
+      .from("messages")
+      .select("*")
+      .eq("channel_id", channelId)
+      .order("created_at", { ascending: true }),
+    // Read under its own policy, which asks the same question as the
+    // messages': can the caller read this channel right now.
+    getChannelAttachments(channelId),
+  ]);
+  return rows(data).map((row) => ({ ...toMessage(row), attachments: attachments.get(row.id) }));
 }
 
 export async function getLatestMessage(channelId: string): Promise<Message | undefined> {
@@ -1687,6 +1700,64 @@ export async function createMessage(input: {
 
   if (error) return { ok: false, error: messageWriteError(error.message) };
   return { ok: true, message: toMessage(data) };
+}
+
+/** A refused attachment send, in words — the same for channels and direct messages. */
+function attachmentSendError(refusal: AttachmentRefusal, denied: MessageKey): MessageKey {
+  switch (refusal) {
+    case "needsMutual":
+      return "err.attachmentNeedsMutual";
+    case "archived":
+      return "err.attachmentArchived";
+    case "notAllowed":
+      return denied;
+    case "tooMany":
+      return "err.attachmentTooManySent";
+    case "tooLong":
+      return "err.messageTooLong";
+    case "invalid":
+    case "type":
+    case "tooLarge":
+      return "err.attachmentInvalid";
+    default:
+      return "err.messageSendFailed";
+  }
+}
+
+/**
+ * Writes one channel message with files.
+ *
+ * The files were uploaded beforehand and are named here only by id. Whether
+ * each is the caller's own, ready, uploaded into this very channel and within
+ * its limits — and whether the caller may write here at all — is decided by
+ * `send_channel_message_with_attachments()`, which writes the message and
+ * attaches them in one transaction. The body may be empty.
+ */
+export async function createMessageWithAttachments(input: {
+  channelId: string;
+  body: string;
+  attachmentIds: string[];
+}): Promise<MessageWriteResult> {
+  const body = input.body.trim();
+  if (body.length > MESSAGE_BODY_MAX) return { ok: false, error: "err.messageTooLong" };
+
+  const sent = await sendWithAttachments({ channelId: input.channelId }, body, input.attachmentIds);
+  if (!sent.ok) return { ok: false, error: attachmentSendError(sent.refusal, "err.channelWriteDenied") };
+
+  const supabase = await createSupabaseServerClient();
+  const [{ data: row }, { data: attachmentRows }] = await Promise.all([
+    supabase.from("messages").select("*").eq("id", sent.messageId).maybeSingle(),
+    supabase
+      .from("message_attachments")
+      .select("*")
+      .eq("message_id", sent.messageId)
+      .order("position", { ascending: true }),
+  ]);
+  if (!row) return { ok: false, error: "err.messageSendFailed" };
+  return {
+    ok: true,
+    message: { ...toMessage(row), attachments: rows(attachmentRows).map(toMessageAttachment) },
+  };
 }
 
 function messageWriteError(message: string): MessageKey {
@@ -1871,19 +1942,23 @@ export async function getDirectConversation(
 
   if (!conversation) return undefined;
 
-  const [{ data: messageRows }, readMap, other] = await Promise.all([
+  const [{ data: messageRows }, attachments, readMap, other] = await Promise.all([
     supabase
       .from("direct_messages")
       .select("*")
       .eq("conversation_id", conversation.id)
       .order("created_at", { ascending: true }),
+    getConversationAttachments(conversation.id),
     directReadState([conversation.id]),
     // The other participant as they appear in this conversation's own
     // community — the only identity this conversation has ever known them by.
     getCommunityPersona(conversation.community_id, otherParticipantId(conversation, userId)),
   ]);
 
-  const messages = rows(messageRows).map(toDirectMessage);
+  const messages = rows(messageRows).map((row) => ({
+    ...toDirectMessage(row),
+    attachments: attachments.get(row.id),
+  }));
   const last = messages[messages.length - 1];
   const read = readMap.get(conversation.id);
 
@@ -2106,6 +2181,44 @@ export async function createDirectMessage(input: {
 
   if (error) return { ok: false, error: directMessageWriteError(error.message) };
   return { ok: true, message: toDirectMessage(data) };
+}
+
+/**
+ * Writes one direct message with files. As for channels: the database decides
+ * — including, for member-to-member conversations, that both people have
+ * written before either may send a file — and does it all in one transaction.
+ */
+export async function createDirectMessageWithAttachments(input: {
+  conversationId: string;
+  body: string;
+  attachmentIds: string[];
+}): Promise<DirectMessageWriteResult> {
+  const body = input.body.trim();
+  if (body.length > MESSAGE_BODY_MAX) return { ok: false, error: "err.messageTooLong" };
+
+  const sent = await sendWithAttachments(
+    { conversationId: input.conversationId },
+    body,
+    input.attachmentIds,
+  );
+  if (!sent.ok) {
+    return { ok: false, error: attachmentSendError(sent.refusal, "err.conversationWriteDenied") };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const [{ data: row }, { data: attachmentRows }] = await Promise.all([
+    supabase.from("direct_messages").select("*").eq("id", sent.messageId).maybeSingle(),
+    supabase
+      .from("message_attachments")
+      .select("*")
+      .eq("direct_message_id", sent.messageId)
+      .order("position", { ascending: true }),
+  ]);
+  if (!row) return { ok: false, error: "err.messageSendFailed" };
+  return {
+    ok: true,
+    message: { ...toDirectMessage(row), attachments: rows(attachmentRows).map(toMessageAttachment) },
+  };
 }
 
 /**

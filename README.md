@@ -101,6 +101,64 @@ En feil eller manglende token svarer alltid 404, og på en utrulling der
 `TING_MODE` ikke er `demo` — altså produksjon — svarer den 404 uansett hva
 token er, selv om en gyldig verdi skulle stå i miljøet.
 
+### 5. Vedlegg i private samtaler – drift
+
+Filer kan legges ved i private grupper, private lokallagskanaler og direkte
+meldinger (`supabase/migrations/20261024100000_message_attachments.sql`). De
+ligger i den private bøtta `message-attachments` og leveres bare gjennom
+`/community/<id>/attachments/<id>`, som sjekker tilgangen på nytt ved hver
+forespørsel. Det finnes ingen offentlige eller signerte lenker.
+
+Tre ting må være på plass der appen kjører. Ingen av dem settes opp av koden.
+
+**1. Proxyen foran appen må slippe gjennom 25 MB.** nginx stopper som standard
+alt over 1 MB med `413`, lenge før appen ser forespørselen. Opplastingen går til
+én bestemt adresse, så grensen kan heves bare der:
+
+```nginx
+# Opplasting av vedlegg: 25 MiB fil + litt til multipart-innpakningen.
+location ~ ^/community/[^/]+/attachments/upload$ {
+    client_max_body_size 26m;
+    proxy_request_buffering off;   # la appen avvise før hele fila er lest
+    proxy_read_timeout 120s;
+    proxy_pass http://127.0.0.1:3010;   # samme upstream og headere som ellers
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+}
+```
+
+Resten av nettstedet kan beholde sin lave grense. Selve appen har ingen egen
+grense på denne ruta (den er unntatt fra `proxy.ts`, som ellers bufrer
+forespørsler opp til 10 MB), men avviser alt over samtalens grense med `413`.
+En plattform med lavere tak på forespørsler enn dette — serverløse funksjoner
+med 4,5 MB, for eksempel — kan ikke ta imot store vedlegg.
+
+**2. Supabase-prosjektet må tillate 25 MB per fil.** Bøtta settes til 25 MiB av
+migrasjonen, men prosjektets globale grense (Storage → Settings → «Upload file
+size limit») gjelder over den. Standard er 50 MB, så dette er vanligvis i orden.
+
+**3. Opprydding på en klokke.** Appen rydder selv mens den er i bruk: etter en
+opplasting, når noen fjerner en fil før sending, og når en gruppe eller privat
+kanal slettes. For at en stille periode ikke skal la filer bli liggende, kjør
+i tillegg dette jevnlig (krever `SUPABASE_SERVICE_ROLE_KEY`):
+
+```bash
+# crontab: hver time, logg til fil
+17 * * * * cd /sti/til/ting && npm run -s attachments:sweep >> /var/log/ting-attachments.log 2>&1
+```
+
+Den fjerner opplastinger som aldri ble sendt (eldre enn 24 timer) og filer som
+står i slettekøen `message_attachment_purges`. Køen er fasiten på hva som
+skal bort: en rad forsvinner derfra først når Storage har bekreftet slettingen,
+så en feil gjør bare at fila prøves igjen ved neste kjøring. Skriptet avslutter
+med feilkode og skriver antall og alder på eldste rad hvis noe fortsatt står
+igjen — det, og linjer merket `[attachments]` i appens logg, er det som skal
+overvåkes. En fil som venter i køen er allerede uleselig for alle.
+
+`npm run check:attachments` (med appen kjørende lokalt) går gjennom hele
+tilgangsmodellen, grensene og oppryddingen mot ekte innloggede kontoer.
+
 ---
 
 ## Fellesskapene

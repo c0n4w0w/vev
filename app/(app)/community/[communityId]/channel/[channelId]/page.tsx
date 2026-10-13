@@ -14,6 +14,7 @@ import {
   getPrivateChannelRoster,
   getSubgroups,
 } from "@/lib/data";
+import { getAttachmentPolicy } from "@/lib/attachment-data";
 import { timeAgo } from "@/lib/format";
 import { communityLocale, communityTranslator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
@@ -50,10 +51,14 @@ export default async function ChannelPage({
   // not-found as an id that was never a channel: no name, no description.
   if (!community || !channel || channel.communityId !== community.id) notFound();
 
-  const [membership, messages, customEmojis] = await Promise.all([
+  const [membership, messages, customEmojis, attachmentPolicy] = await Promise.all([
     getMembership(user.id, community.id),
     getMessages(channel.id),
     getCommunityEmojis(community.id),
+    // Whether this viewer may attach files here — a private group's chat or a
+    // private lokallag channel, and not an archived one. The database's
+    // answer; it gives the same one again at upload and at send.
+    getAttachmentPolicy({ channelId: channel.id }),
   ]);
 
   // Lokallag channels only: the main chat may offer "+ Ny privat kanal", a
@@ -128,6 +133,7 @@ export default async function ChannelPage({
           : undefined
       }
       customEmojis={customEmojis}
+      attachmentPolicy={attachmentPolicy}
       lastActivityLabel={
         messages.length > 0
           ? timeAgo(messages[messages.length - 1].createdAt, communityLocale(community))
