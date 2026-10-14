@@ -6,15 +6,20 @@
  * `npm run seed`. Every permission check goes through ordinary anon-key
  * clients signed in as fixture accounts, calling exactly what
  * `updateCommunityAboutAction` calls — `set_community_about()` — so a passing
- * run means the *database* refuses, not that the page hides a pencil. The
- * service role is only used to read state back, flip one membership to
- * inactive, and restore the seeded text afterwards.
+ * run means the *database* refuses, not that the page hides a pencil.
+ *
+ * It never writes to a real community. The service role creates two
+ * disposable communities, gives existing fixture accounts temporary roles
+ * there (admin, moderator, member), runs every check against those, and
+ * deletes both — memberships and all — at the end. The real communities'
+ * About texts, including anything someone has edited in the app, are only
+ * read: once before and once after, to prove the run left them alone.
  */
 import { config } from "dotenv";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
-import { communities } from "@/lib/mock/communities";
+import { communityDefinitions } from "@/lib/bootstrap/definition";
 import type { Database } from "@/lib/supabase/database.types";
 
 config({ path: ".env.local" });
@@ -22,9 +27,12 @@ config({ path: ".env" });
 
 const admin = createSupabaseAdminClient();
 
-const UTR = "under-the-rug";
-const TR = "tryggere-ruspolitikk";
-const TU = "tryggere-ungdom";
+// Two throwaway communities, unique per run. "A" stands where Under The Rug
+// stood in the old version of this check, "B" where Tryggere Ruspolitikk did.
+const RUN = Date.now().toString(36);
+const A = `sjekk-om-a-${RUN}`;
+const B = `sjekk-om-b-${RUN}`;
+const TEST_COMMUNITIES = [A, B];
 
 let failures = 0;
 let checks = 0;
@@ -61,18 +69,46 @@ async function signIn(handle: string): Promise<Client> {
   return client;
 }
 
-/** The handle of some active member with exactly this role in the community. */
-async function handleWithRole(communityId: string, role: "moderator" | "member"): Promise<string> {
-  const { data, error } = await admin
-    .from("memberships")
-    .select("profiles!memberships_user_id_fkey(handle)")
-    .eq("community_id", communityId)
-    .eq("role", role)
-    .eq("status", "active")
-    .limit(1)
-    .single();
+/** Fixture accounts and the role each gets in the disposable communities. */
+const CAST: Record<string, { admin: string; moderator: string; member: string }> = {
+  [A]: { admin: "octavio", moderator: "karimoen", member: "linn" },
+  [B]: { admin: "miaminge", moderator: "hanne", member: "adrian" },
+};
+
+async function createTestCommunities() {
+  const template = communityDefinitions[0].community;
+  for (const id of TEST_COMMUNITIES) {
+    const { error } = await admin.from("communities").insert({
+      ...template,
+      id,
+      slug: id,
+      name: `Sjekk ${id}`,
+      about: `Utgangstekst for ${id}`,
+    });
+    if (error) throw new Error(`kunne ikke opprette testfellesskapet ${id}: ${error.message}`);
+    for (const [role, handle] of Object.entries(CAST[id])) {
+      const { error: membershipError } = await admin.from("memberships").insert({
+        user_id: await profileId(handle),
+        community_id: id,
+        role: role as "admin" | "moderator" | "member",
+        status: "active",
+      });
+      if (membershipError) throw new Error(`kunne ikke gi ${handle} en rolle i ${id}: ${membershipError.message}`);
+    }
+  }
+}
+
+/** Deletes the disposable communities; their memberships go with them. */
+async function removeTestCommunities() {
+  await admin.from("communities").delete().in("id", TEST_COMMUNITIES);
+}
+
+/** The real communities' About texts, read only. */
+async function realAbouts(): Promise<string> {
+  const ids = communityDefinitions.map((definition) => definition.community.id);
+  const { data, error } = await admin.from("communities").select("id, about").in("id", ids).order("id");
   if (error) throw error;
-  return (data as unknown as { profiles: { handle: string } }).profiles.handle;
+  return JSON.stringify(data);
 }
 
 async function storedAbout(communityId: string): Promise<string> {
@@ -90,27 +126,25 @@ async function setAbout(client: Client, communityId: string, about: string) {
 }
 
 async function main() {
-  const seeded = new Map(communities.map((community) => [community.id, community.about]));
+  const realBefore = await realAbouts();
 
   const anon = createClient<Database>(supabaseUrl(), supabaseAnonKey());
-  const admins: [string, string][] = [
-    [UTR, "octavio"],
-    [TR, "miaminge"],
-    [TU, "emmamortensen"],
-  ];
+  const admins: [string, string][] = TEST_COMMUNITIES.map((id) => [id, CAST[id].admin]);
   const adminClients = new Map<string, Client>();
   const moderators = new Map<string, Client>();
   const members = new Map<string, Client>();
-  for (const [communityId, handle] of admins) {
-    adminClients.set(communityId, await signIn(handle));
-    moderators.set(communityId, await signIn(await handleWithRole(communityId, "moderator")));
-    members.set(communityId, await signIn(await handleWithRole(communityId, "member")));
-  }
 
   try {
-    // ── 10: seeded descriptions render as the fixture wrote them ──
-    for (const [communityId, text] of seeded) {
-      expect(`${communityId}: sådd beskrivelse er lagret`, await storedAbout(communityId), text);
+    await createTestCommunities();
+    for (const [communityId, handle] of admins) {
+      adminClients.set(communityId, await signIn(handle));
+      moderators.set(communityId, await signIn(CAST[communityId].moderator));
+      members.set(communityId, await signIn(CAST[communityId].member));
+    }
+
+    // ── 10: the starting text is stored and readable ──
+    for (const communityId of TEST_COMMUNITIES) {
+      expect(`${communityId}: utgangsteksten er lagret`, await storedAbout(communityId), `Utgangstekst for ${communityId}`);
     }
 
     // ── 1, 8, 9: each admin updates their own community, and only their own ──
@@ -133,22 +167,22 @@ async function main() {
 
     // ── whitespace is trimmed, internal line breaks survive ──
     {
-      const client = adminClients.get(UTR)!;
+      const client = adminClients.get(A)!;
       const multiline = "  Første linje\n\nAndre linje  ";
-      const result = await setAbout(client, UTR, multiline);
+      const result = await setAbout(client, A, multiline);
       expect("ledende/etterfølgende mellomrom trimmes", result.stored, "Første linje\n\nAndre linje");
     }
 
     // ── 7: overlong input is rejected ──
     {
-      const client = adminClients.get(UTR)!;
-      const before = await storedAbout(UTR);
+      const client = adminClients.get(A)!;
+      const before = await storedAbout(A);
       const tooLong = "x".repeat(1501);
-      const result = await setAbout(client, UTR, tooLong);
+      const result = await setAbout(client, A, tooLong);
       expect("for lang beskrivelse avvises (ingen verdi returnert)", result.stored, null);
-      expect("beskrivelsen er uendret etter avvist forsøk", await storedAbout(UTR), before);
+      expect("beskrivelsen er uendret etter avvist forsøk", await storedAbout(A), before);
       const exact = "y".repeat(1500);
-      const exactResult = await setAbout(client, UTR, exact);
+      const exactResult = await setAbout(client, A, exact);
       expect("beskrivelse på nøyaktig grensen godtas", exactResult.stored, exact);
     }
 
@@ -171,11 +205,11 @@ async function main() {
 
     // ── 4: an admin of a different community cannot write here ──
     {
-      const miaminge = adminClients.get(TR)!;
-      const before = await storedAbout(UTR);
-      const crossResult = await setAbout(miaminge, UTR, "Forsøk fra en annen admin");
+      const otherAdmin = adminClients.get(B)!;
+      const before = await storedAbout(A);
+      const crossResult = await setAbout(otherAdmin, A, "Forsøk fra en annen admin");
       expect("admin i ett fellesskap kan ikke endre et annet", crossResult.stored, null);
-      expect("beskrivelsen i det andre fellesskapet er uendret", await storedAbout(UTR), before);
+      expect("beskrivelsen i det andre fellesskapet er uendret", await storedAbout(A), before);
     }
 
     // ── 6: an inactive former admin cannot write ──
@@ -183,39 +217,40 @@ async function main() {
       const { data: row, error } = await admin
         .from("memberships")
         .select("id, status")
-        .eq("community_id", TR)
-        .eq("user_id", await profileId("miaminge"))
+        .eq("community_id", B)
+        .eq("user_id", await profileId(CAST[B].admin))
         .single();
       if (error) throw error;
-      const before = await storedAbout(TR);
+      const before = await storedAbout(B);
       try {
         await admin.from("memberships").update({ status: "invited" }).eq("id", row.id);
-        const result = await setAbout(adminClients.get(TR)!, TR, "Forsøk fra inaktiv admin");
+        const result = await setAbout(adminClients.get(B)!, B, "Forsøk fra inaktiv admin");
         expect("inaktiv tidligere admin kan ikke oppdatere beskrivelsen", result.stored, null);
       } finally {
         await admin.from("memberships").update({ status: row.status }).eq("id", row.id);
       }
-      expect("beskrivelsen uendret etter inaktivt forsøk", await storedAbout(TR), before);
+      expect("beskrivelsen uendret etter inaktivt forsøk", await storedAbout(B), before);
     }
 
     // ── the table has no other way in ──
     {
-      const before = await storedAbout(UTR);
+      const before = await storedAbout(A);
       const direct = await adminClients
-        .get(UTR)!
+        .get(A)!
         .from("communities")
         .update({ about: "Direkte tabellskriving" })
-        .eq("id", UTR)
+        .eq("id", A)
         .select();
       expect("direkte oppdatering av tabellen gir ingen rader", (direct.data ?? []).length, 0);
-      expect("tabellen uendret etter direkte forsøk", await storedAbout(UTR), before);
+      expect("tabellen uendret etter direkte forsøk", await storedAbout(A), before);
     }
   } finally {
-    // Restore exactly what the seed wrote, whatever the tests above did.
-    for (const [communityId, text] of seeded) {
-      await admin.from("communities").update({ about: text }).eq("id", communityId);
-    }
+    await removeTestCommunities();
   }
+
+  expect("testfellesskapene er fjernet", ((await admin.from("communities").select("id").in("id", TEST_COMMUNITIES)).data ?? []).length, 0);
+  // Never written to; any edit made in the app is still there.
+  expect("de ekte fellesskapenes beskrivelser er urørt", await realAbouts(), realBefore);
 }
 
 main()

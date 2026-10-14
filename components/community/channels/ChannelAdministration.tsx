@@ -144,7 +144,7 @@ export function ChannelAdministration({
             {channel.readOnly ? (
               <Badge tone="neutral">
                 <IconLock size={10} />
-                {t("channel.announcementsOnly")}
+                {t("channel.restrictedPosting")}
               </Badge>
             ) : null}
             {count ? <span>{tn(locale, "count.messages", count.messages)}</span> : null}

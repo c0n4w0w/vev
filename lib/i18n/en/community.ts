@@ -180,7 +180,7 @@ export const community: Record<keyof typeof nb, string> = {
     "Show on {name}'s public page. Without this, the event is visible to members only.",
 
   // ── Channels and messages ─────────────────────────────────────────────
-  "channel.announcementsOnly": "Announcements only",
+  "channel.restrictedPosting": "Restricted posting",
   "channel.start": "This is the start of #{name}",
   "channel.membersOnly": "This conversation is visible only to members of {name}.",
   "channel.membersOnlyLocal": "This conversation is visible only to members of {name} and administrators of {community}.",

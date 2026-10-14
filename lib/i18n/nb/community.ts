@@ -178,7 +178,7 @@ export const community = {
     "Vis på den offentlige siden til {name}. Uten dette er arrangementet kun synlig for medlemmer.",
 
   // ── Channels and messages ─────────────────────────────────────────────
-  "channel.announcementsOnly": "Kun kunngjøringer",
+  "channel.restrictedPosting": "Begrenset skrivetilgang",
   "channel.start": "Dette er starten på #{name}",
   "channel.membersOnly": "Samtalen er kun synlig for medlemmer av {name}.",
   "channel.membersOnlyLocal": "Samtalen er kun synlig for medlemmer av {name} og administratorer i {community}.",

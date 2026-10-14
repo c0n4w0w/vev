@@ -240,7 +240,7 @@ export function ChannelView({
           {channel.readOnly ? (
             <Badge tone="neutral">
               <IconLock size={11} />
-              {t("channel.announcementsOnly")}
+              {t("channel.restrictedPosting")}
             </Badge>
           ) : null}
           {channel.isPrivate ? <Badge tone="neutral">{t("channel.privateBadge")}</Badge> : null}
