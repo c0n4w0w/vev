@@ -367,7 +367,10 @@ async function main() {
     const channels: Channel[] = (channelRows ?? []).map((row) => ({
       id: row.id,
       communityId: row.community_id,
-      groupId: row.group_id,
+      groupId: row.group_id ?? undefined,
+      sectionId: row.section_id ?? undefined,
+      position: row.position,
+      archived: row.archived_at ? true : undefined,
       name: row.name,
       purpose: row.purpose,
       readOnly: row.read_only,
@@ -391,28 +394,48 @@ async function main() {
     expect(`${communityId}: det er #presentasjoner`, target?.name, "presentasjoner");
   }
 
-  // A community without lokallag or introductions: profile only, no dead link.
+  // A community with no channels at all — how every community starts. No
+  // link to a channel that is not there: a member is sent to the feed, an
+  // administrator is offered to create the first channel.
   const bare = onboardingSteps({ communityId: "x", localGroups: [], channels: [] });
-  expect("uten lokallag og kanaler: bare profil", bare.map((step) => step.kind).join(","), "profile");
+  expect("uten lokallag og kanaler: profil og feed", bare.map((step) => step.kind).join(","), "profile,feed");
+  expect("uten kanaler: feeden er fellesskapets egen", bare.find((step) => step.kind === "feed")?.href, "/community/x/feed");
+  const bareAdmin = onboardingSteps({ communityId: "x", localGroups: [], channels: [], viewerIsAdmin: true });
+  expect("uten kanaler, administrator: opprett den første", bareAdmin.map((step) => step.kind).join(","), "profile,createChannel");
+  expect("uten kanaler, administrator: til kanalsiden", bareAdmin.find((step) => step.kind === "createChannel")?.href, "/community/x/kanaler?ny=kanal");
+  expect("ingen steg peker på en kanal som ikke finnes", [...bare, ...bareAdmin].some((step) => step.href.includes("/channel/")), false);
   const retired = onboardingSteps({
     communityId: "x",
     localGroups: [{ active: false } as LocalGroup],
     channels: [],
   });
-  expect("bare nedlagte lokallag: ingen lokallag-lenke", retired.length, 1);
+  expect("bare nedlagte lokallag: ingen lokallag-lenke", retired.some((step) => step.kind === "lokallag"), false);
 
   const channel = (over: Partial<Channel>): Channel => ({
     id: randomUUID(),
     communityId: "x",
-    groupId: "generelt",
+    position: 0,
     name: "x",
     purpose: "",
     ...over,
   });
   expect(
-    "faller tilbake til generell kanal",
-    pickIntroductionChannel([channel({ name: "kunngjoringer", readOnly: true }), channel({ name: "generelt" })])?.name,
-    "generelt",
+    "ingen navn antas: uten introduksjonskanal ingen introduksjon",
+    pickIntroductionChannel([channel({ name: "kunngjoringer", readOnly: true }), channel({ name: "generelt" })]),
+    undefined,
+  );
+  const firstOpen = onboardingSteps({
+    communityId: "x",
+    localGroups: [],
+    channels: [channel({ name: "beskjeder", readOnly: true }), channel({ id: "x--styret", name: "styret" }), channel({ name: "prat" })],
+  });
+  expect("ellers første kanal man kan skrive i", firstOpen.map((step) => `${step.kind}:${"channelName" in step ? step.channelName : ""}`).join(","), "profile:,channel:styret");
+  expect(
+    "arkiverte kanaler foreslås ikke",
+    onboardingSteps({ communityId: "x", localGroups: [], channels: [channel({ name: "velkommen", archived: true })] })
+      .map((step) => step.kind)
+      .join(","),
+    "profile,feed",
   );
   expect(
     "gjenkjenner introduksjon fra formålet",

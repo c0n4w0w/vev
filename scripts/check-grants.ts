@@ -70,6 +70,7 @@ const AUTHENTICATED_READ = [
   "account_security",
   "channel_groups",
   "channel_participants",
+  "channel_sections",
   "channels",
   "comments",
   "communities",
@@ -118,7 +119,7 @@ const AUTHENTICATED_COLUMNS: Record<string, Record<string, string[]>> = {
 };
 
 /** Tables only the server and SECURITY DEFINER functions touch. */
-const SERVER_ONLY = ["auth_throttle", "collaboration_audit_log", "message_attachment_purges"];
+const SERVER_ONLY = ["auth_throttle", "channel_retired_ids", "collaboration_audit_log", "message_attachment_purges"];
 
 const ANON_FUNCTIONS = [
   "invitation_preview(text)",
@@ -363,7 +364,7 @@ async function checkMembers() {
   expect("linn: leser fellesskapene sine", (await linn.from("communities").select("id")).data?.map((row) => row.id).join(","), FTR);
 
   // …and nothing of another, table by table.
-  for (const table of ["channels", "posts", "events", "community_local_groups", "community_profiles", "community_subgroups", "access_requests", "invitations"]) {
+  for (const table of ["channels", "channel_sections", "posts", "events", "community_local_groups", "community_profiles", "community_subgroups", "access_requests", "invitations"]) {
     const result = await loose(jonas).from(table).select("*").eq("community_id", FTR);
     expect(`jonas: ${table} i et annet fellesskap`, `${code(result)}:${result.data?.length ?? "-"}`, "ok:0");
   }
@@ -395,6 +396,8 @@ async function checkMembers() {
     ["endre fellesskapet", () => loose(jonas).from("communities").update({ name: "x" }).eq("id", UTR)],
     ["opprette et fellesskap", () => loose(jonas).from("communities").insert({ id: "x", slug: "x", name: "x" })],
     ["opprette en kanal", () => loose(jonas).from("channels").insert({ id: "x", community_id: UTR, name: "x" })],
+    ["opprette en kanalseksjon direkte", () => loose(jonas).from("channel_sections").insert({ community_id: UTR, name: "x" })],
+    ["endre en kanalseksjon direkte", () => loose(jonas).from("channel_sections").update({ name: "x" }).eq("community_id", UTR)],
     ["redigere en melding", () => loose(jonas).from("messages").update({ body: "x" }).eq("author_id", jonasId)],
     ["slette en melding", () => loose(jonas).from("messages").delete().eq("author_id", jonasId)],
     ["endre profilen direkte", () => loose(jonas).from("profiles").update({ name: "x" }).eq("id", jonasId)],

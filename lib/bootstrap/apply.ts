@@ -7,23 +7,24 @@ import { channelGroupRows, communityDefinitions, directoryLeftOut, type Communit
  *
  * One rule throughout: **add what is missing, change nothing that exists.**
  * Every row is looked up by its natural key first — a community by id, a
- * channel by id, a lokallag or group by community and slug, a directory card
- * by community, section and name. Missing rows are inserted with their final
+ * lokallag or group by community and slug, a directory card by community,
+ * section and name. Missing rows are inserted with their final
  * values. A row that is there is left exactly as it is, even where it differs
  * from the definition: an administrator may have rewritten the About text or
- * renamed a channel since, and a second run must not undo that. Differences
+ * renamed a lokallag since, and a second run must not undo that. Differences
  * are reported, never corrected.
  *
  * That makes it safe to run again at any time, and safe to run after one
  * that stopped halfway: it picks up where the last one ended.
  *
- * One exception, and it is not a community's row: the order of the channel
- * sections. `lokallag` and `grupper` are created by migrations, which place
- * each "after the last section there is" — in an empty database, first. The
- * sections are the platform's, nobody edits them in the app, and their order
- * is the same for every community, so it is put right here.
+ * One exception, and it is not a community's row: the order of the two
+ * platform headings, `lokallag` and `grupper`. They are created by migrations,
+ * nobody edits them in the app, and their order is the same for every
+ * community, so it is put right here.
  *
- * It creates no account, no membership and no content, deletes nothing, and
+ * It creates no account, no membership, no content, and no community channel
+ * or channel section: those are each community's administrators' to create
+ * (and to delete, which a later run then respects). It deletes nothing, and
  * touches only the tables named here. With `write: false` it reads and
  * reports and does nothing else.
  */
@@ -37,7 +38,7 @@ export interface BootstrapReport {
   present: string[];
   /** Rows already there that differ. Left alone. */
   differs: string[];
-  /** Channel sections whose order was put right (or would be). */
+  /** Platform headings whose order was put right (or would be). */
   corrected: string[];
   /** Things the definition holds and deliberately does not create. */
   skipped: string[];
@@ -85,11 +86,11 @@ export async function applyBootstrap(admin: Admin, options: { write: boolean }):
     return true;
   };
 
-  // Channel sections first: a lokallag or group inserted below gets its chat
+  // Platform headings first: a lokallag or group inserted below gets its chat
   // channel from a trigger, filed under `lokallag` or `grupper`.
-  const storedGroups = check("kanalseksjoner", await admin.from("channel_groups").select("*"));
+  const storedGroups = check("plattformoverskrifter", await admin.from("channel_groups").select("*"));
   for (const group of channelGroupRows) {
-    const label = `kanalseksjon ${group.id}`;
+    const label = `plattformoverskrift ${group.id}`;
     const existing = storedGroups.find((row) => row.id === group.id);
     const position = group.position ?? 0;
     if (existing && existing.position !== position) {
@@ -155,17 +156,6 @@ async function applyCommunity(
     report.created.push(label);
   }
 
-  // The community's own channels.
-  const storedChannels = exists
-    ? check(`kanaler i ${id}`, await admin.from("channels").select("id, community_id, group_id, name, purpose, read_only, position").eq("community_id", id))
-    : [];
-  for (const channel of definition.channels) {
-    const label = `kanal ${channel.id}`;
-    if (note(label, channel, storedChannels.find((row) => row.id === channel.id))) continue;
-    if (write) settle(label, await admin.from("channels").insert(channel));
-    report.created.push(label);
-  }
-
   // The published directory. A card is the same card if the community,
   // section and name are — the key 20261017100000 addresses them by.
   const storedPeople = exists
@@ -185,6 +175,8 @@ async function applyCommunity(
     report.created.push(label);
   }
 
+  report.skipped.push(`kanaler og kanalseksjoner i ${id} (opprettes av fellesskapets administratorer i appen)`);
+
   const leftOut = directoryLeftOut(id);
   if (leftOut > 0) {
     report.skipped.push(`${leftOut} organisasjonspersoner i ${id} (katalogen er ikke tatt med — se DIRECTORY_INCLUDED)`);
@@ -193,7 +185,9 @@ async function applyCommunity(
 
 export interface InstallationSummary {
   community: string;
+  /** The community's own channels, archived ones included. Lokallag and group chats are not counted. */
   channels: number;
+  sections: number;
   localGroups: number;
   subgroups: number;
   people: number;
@@ -205,15 +199,25 @@ export interface InstallationSummary {
 export async function summarizeInstallation(admin: Admin): Promise<InstallationSummary[]> {
   const summary: InstallationSummary[] = [];
   for (const { community } of communityDefinitions) {
-    const count = async (table: "channels" | "community_local_groups" | "community_subgroups" | "community_people") =>
+    const count = async (table: "channel_sections" | "community_local_groups" | "community_subgroups" | "community_people") =>
       (await admin.from(table).select("*", { count: "exact", head: true }).eq("community_id", community.id)).count ?? 0;
+    const communityChannels =
+      (
+        await admin
+          .from("channels")
+          .select("*", { count: "exact", head: true })
+          .eq("community_id", community.id)
+          .is("local_group_id", null)
+          .is("subgroup_id", null)
+      ).count ?? 0;
     const members = check(
       `medlemskap i ${community.id}`,
       await admin.from("memberships").select("role").eq("community_id", community.id).eq("status", "active"),
     );
     summary.push({
       community: community.id,
-      channels: await count("channels"),
+      channels: communityChannels,
+      sections: await count("channel_sections"),
       localGroups: await count("community_local_groups"),
       subgroups: await count("community_subgroups"),
       people: await count("community_people"),

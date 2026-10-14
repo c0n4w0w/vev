@@ -254,16 +254,41 @@ export interface DirectConversation {
   unread: boolean;
 }
 
+/**
+ * One heading in a community's channel list.
+ *
+ * `section` is one of the community's own sections, named and arranged by its
+ * administrators. `unsectioned` holds its community-wide channels that are in
+ * no section, and has no heading. `system` is a platform heading the database
+ * files channels under itself: "Mitt lokallag" and "Mine grupper".
+ */
 export interface ChannelGroup {
   id: string;
-  /** Uppercase group heading, e.g. GENERELT. */
+  /** The heading as shown; empty for `unsectioned`. */
   label: string;
+  kind: "section" | "unsectioned" | "system";
+}
+
+/** A community's own channel heading. A community may have none. */
+export interface ChannelSection {
+  id: string;
+  communityId: string;
+  name: string;
+  position: number;
 }
 
 export interface Channel {
   id: string;
   communityId: string;
-  groupId: string;
+  /**
+   * Platform heading (`lokallag`, `grupper`) for lokallag chats, private
+   * lokallag channels and group chats. Unset for every community-wide channel.
+   */
+  groupId?: string;
+  /** Community-wide channels only: the community's section it is listed under, if any. */
+  sectionId?: string;
+  /** Order within its section (or within no section). */
+  position: number;
   /** Without the leading `#`. */
   name: string;
   purpose: string;
@@ -282,7 +307,10 @@ export interface Channel {
    * and — unlike the main lokallag chat — named by whoever manages it.
    */
   isPrivate?: boolean;
-  /** A private channel that takes no new messages; its history stays readable. */
+  /**
+   * Takes no new messages; its history stays readable. A community-wide
+   * channel that is archived leaves ordinary navigation until it is restored.
+   */
   archived?: boolean;
 }
 

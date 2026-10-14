@@ -23,7 +23,7 @@ import { readFile } from "node:fs/promises";
 import { config } from "dotenv";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { assertDemoDeployment } from "@/lib/environment";
-import { channelGroups, channels, communities, memberships } from "@/lib/mock/communities";
+import { channels, communities, demoChannelSections, memberships } from "@/lib/mock/communities";
 import { communityPeople } from "@/lib/mock/community-people";
 import { avatarPng, communityProfiles } from "@/lib/mock/community-profiles";
 import { accessRequests } from "@/lib/mock/access-requests";
@@ -150,7 +150,7 @@ async function clearContent() {
     "community_people",
     "memberships",
     "channels",
-    "channel_groups",
+    "channel_sections",
     "communities",
   ] as const;
 
@@ -268,23 +268,9 @@ async function main() {
       `(${communityPolicies.filter((p) => p.memberDirectoryVisibility === "admin_only").length} med lukket medlemsliste)`,
   );
 
-  // Channel sections, before local groups: inserting a group creates its
-  // lokallag chat channel (local_group_channel_sync), which is filed under the
-  // `lokallag` section.
-  fail(
-    "kanalgrupper",
-    (
-      await supabase
-        .from("channel_groups")
-        .insert(
-          channelGroups.map((group, index) => ({
-            id: group.id,
-            label: group.label,
-            position: index,
-          })),
-        )
-    ).error,
-  );
+  // The platform headings `lokallag` and `grupper` are the migrations'; the
+  // channels a lokallag or group gets are filed under them by the database.
+  // The demo's own sections come further down, with its channels.
 
   // Local groups, before memberships so an affiliation has something to point
   // at. Communities absent from the fixture get none, which is how the feature
@@ -365,18 +351,33 @@ async function main() {
   );
   console.log(`  ${communityPeople.length} offentlige organisasjonspersoner`);
 
+  // Showcase sections and channels (see demoChannelSections). A real
+  // installation has none until its administrators create them.
+  const sectionId = new Map<string, string>();
+  for (const community of communities) {
+    for (const [position, section] of demoChannelSections.entries()) {
+      const { data, error } = await supabase
+        .from("channel_sections")
+        .insert({ community_id: community.id, name: section.name, position })
+        .select("id")
+        .single();
+      fail(`kanalseksjon ${community.id}/${section.key}`, error);
+      sectionId.set(`${community.id}|${section.key}`, data!.id);
+    }
+  }
+
   fail(
     "kanaler",
     (
       await supabase.from("channels").insert(
-        channels.map((channel, index) => ({
+        channels.map((channel) => ({
           id: channel.id,
           community_id: channel.communityId,
-          group_id: channel.groupId,
+          section_id: sectionId.get(`${channel.communityId}|${channel.sectionKey}`)!,
           name: channel.name,
           purpose: channel.purpose,
           read_only: Boolean(channel.readOnly),
-          position: index,
+          position: channel.position,
         })),
       )
     ).error,

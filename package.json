@@ -21,6 +21,7 @@
     "check:auth-forwarding": "tsx scripts/check-auth-forwarding.ts",
     "check:bootstrap": "tsx scripts/check-bootstrap.ts",
     "check:channel-editing": "tsx scripts/check-channel-editing.ts",
+    "check:channel-management": "tsx scripts/check-channel-management.ts",
     "check:collaboration-flow": "tsx scripts/check-collaboration-flow.ts",
     "check:collaboration-workspace": "tsx scripts/check-collaboration-workspace.ts",
     "check:collaborations": "tsx scripts/check-collaborations.ts",

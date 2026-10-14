@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Avatar, Badge, cn } from "@/components/ui/primitives";
 import { ChannelIntroCard } from "@/components/community/ChannelIntroCard";
 import { PrivateChannelAdmin } from "@/components/community/PrivateChannelAdmin";
+import { CommunityChannelAdmin } from "@/components/community/channels/CommunityChannelAdmin";
 import { PrivateChannelCreate } from "@/components/community/PrivateChannelCreate";
 import { PrivateChannelParticipants } from "@/components/community/PrivateChannelParticipants";
 import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/community/EmojiPicker";
@@ -22,6 +23,7 @@ import type {
   Community,
   CommunityEmoji,
   CommunityPersona,
+  ChannelSection,
   Message,
   PrivateChannelParticipant,
 } from "@/lib/types";
@@ -82,6 +84,7 @@ export function ChannelView({
   privateChannels,
   subgroup,
   attachmentPolicy,
+  channelAdmin,
 }: {
   channel: Channel;
   community: Community;
@@ -113,6 +116,12 @@ export function ChannelView({
   subgroup?: { moderatorsRead: boolean; manageHref?: string };
   /** Whether files may be attached here, and how many and how large. */
   attachmentPolicy: AttachmentPolicy;
+  /**
+   * Set on one of the community's own channels for its active admins: the
+   * "Administrer kanal" menu, with the community's sections to move it to and
+   * what deleting it would remove (answered by the database for this viewer).
+   */
+  channelAdmin?: { sections: ChannelSection[]; counts?: { messages: number; attachments: number } };
 }) {
   const t = useT();
   const locale = useLocale();
@@ -267,6 +276,17 @@ export function ChannelView({
                   openRequested={privateChannels.createRequested}
                 />
               )}
+            </div>
+          ) : null}
+          {channelAdmin ? (
+            <div className="ml-auto">
+              <CommunityChannelAdmin
+                communityId={community.id}
+                channel={channel}
+                sections={channelAdmin.sections}
+                counts={channelAdmin.counts}
+                accent={community.branding.accent}
+              />
             </div>
           ) : null}
           {subgroup?.manageHref ? (

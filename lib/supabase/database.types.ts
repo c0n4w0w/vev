@@ -216,12 +216,84 @@ export type Database = {
           },
         ]
       }
+      channel_retired_ids: {
+        Row: {
+          community_id: string
+          id: string
+          retired_at: string
+        }
+        Insert: {
+          community_id: string
+          id: string
+          retired_at?: string
+        }
+        Update: {
+          community_id?: string
+          id?: string
+          retired_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_retired_ids_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_sections: {
+        Row: {
+          community_id: string
+          created_at: string
+          created_by: string | null
+          creation_key: string | null
+          id: string
+          name: string
+          position: number
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          created_by?: string | null
+          creation_key?: string | null
+          id?: string
+          name: string
+          position?: number
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          created_by?: string | null
+          creation_key?: string | null
+          id?: string
+          name?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_sections_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_sections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           archived_at: string | null
           community_id: string
           created_by: string | null
-          group_id: string
+          creation_key: string | null
+          group_id: string | null
           id: string
           is_private: boolean
           local_group_id: string | null
@@ -229,13 +301,15 @@ export type Database = {
           position: number
           purpose: string
           read_only: boolean
+          section_id: string | null
           subgroup_id: string | null
         }
         Insert: {
           archived_at?: string | null
           community_id: string
           created_by?: string | null
-          group_id: string
+          creation_key?: string | null
+          group_id?: string | null
           id: string
           is_private?: boolean
           local_group_id?: string | null
@@ -243,13 +317,15 @@ export type Database = {
           position?: number
           purpose: string
           read_only?: boolean
+          section_id?: string | null
           subgroup_id?: string | null
         }
         Update: {
           archived_at?: string | null
           community_id?: string
           created_by?: string | null
-          group_id?: string
+          creation_key?: string | null
+          group_id?: string | null
           id?: string
           is_private?: boolean
           local_group_id?: string | null
@@ -257,6 +333,7 @@ export type Database = {
           position?: number
           purpose?: string
           read_only?: boolean
+          section_id?: string | null
           subgroup_id?: string | null
         }
         Relationships: [
@@ -286,6 +363,13 @@ export type Database = {
             columns: ["local_group_id", "community_id"]
             isOneToOne: false
             referencedRelation: "community_local_groups"
+            referencedColumns: ["id", "community_id"]
+          },
+          {
+            foreignKeyName: "channels_section_fkey"
+            columns: ["section_id", "community_id"]
+            isOneToOne: false
+            referencedRelation: "channel_sections"
             referencedColumns: ["id", "community_id"]
           },
           {
@@ -3037,6 +3121,17 @@ export type Database = {
         Args: { p_collaboration_id: string; p_user_id: string }
         Returns: boolean
       }
+      community_channel_content_counts: {
+        Args: { p_channel_id: string }
+        Returns: {
+          attachment_count: number
+          message_count: number
+        }[]
+      }
+      community_channel_id: {
+        Args: { p_community_id: string; p_name: string }
+        Returns: string
+      }
       community_member_accounts: {
         Args: { p_community_id: string }
         Returns: {
@@ -3083,6 +3178,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: boolean
+      }
+      create_channel_section: {
+        Args: { p_community_id: string; p_creation_key: string; p_name: string }
+        Returns: string
       }
       create_collaboration: {
         Args: {
@@ -3134,6 +3233,17 @@ export type Database = {
         }
         Returns: string
       }
+      create_community_channel: {
+        Args: {
+          p_community_id: string
+          p_creation_key: string
+          p_name: string
+          p_purpose: string
+          p_read_only: boolean
+          p_section_id: string
+        }
+        Returns: string
+      }
       create_local_group: {
         Args: { p_community_id: string; p_name: string }
         Returns: string
@@ -3160,8 +3270,16 @@ export type Database = {
         Args: { p_participant_id: string }
         Returns: boolean
       }
+      delete_channel_section: {
+        Args: { p_channels_to: string; p_section_id: string }
+        Returns: boolean
+      }
       delete_collaboration_message: {
         Args: { p_message_id: string }
+        Returns: boolean
+      }
+      delete_community_channel: {
+        Args: { p_channel_id: string; p_confirm_name: string }
         Returns: boolean
       }
       delete_private_channel: {
@@ -3299,6 +3417,10 @@ export type Database = {
         }[]
       }
       local_group_slug: { Args: { p_name: string }; Returns: string }
+      lock_channel_layout: {
+        Args: { p_community_id: string }
+        Returns: undefined
+      }
       looks_like_email: { Args: { p_email: string }; Returns: boolean }
       manages_collaboration_workspace: {
         Args: { p_collaboration_id: string }
@@ -3336,6 +3458,14 @@ export type Database = {
           max_files: number
           reason: string
         }[]
+      }
+      move_channel_section: {
+        Args: { p_position: number; p_section_id: string }
+        Returns: boolean
+      }
+      move_community_channel: {
+        Args: { p_channel_id: string; p_position: number; p_section_id: string }
+        Returns: boolean
       }
       my_accepts_member_dms: {
         Args: { p_community_id: string }
@@ -3483,9 +3613,21 @@ export type Database = {
         Args: { p_subgroup_id: string; p_user_id: string }
         Returns: boolean
       }
+      rename_channel_section: {
+        Args: { p_name: string; p_section_id: string }
+        Returns: boolean
+      }
       rename_local_group: {
         Args: { p_local_group_id: string; p_name: string }
         Returns: boolean
+      }
+      renumber_channel_sections: {
+        Args: { p_community_id: string }
+        Returns: undefined
+      }
+      renumber_community_channels: {
+        Args: { p_community_id: string; p_section_id: string }
+        Returns: undefined
       }
       represents_collaboration_participant: {
         Args: { p_participant_id: string }
@@ -3639,6 +3781,10 @@ export type Database = {
           previous_path: string
         }[]
       }
+      set_community_channel_archived: {
+        Args: { p_archived: boolean; p_channel_id: string }
+        Returns: boolean
+      }
       set_community_person_user: {
         Args: { p_person_id: string; p_user_id: string }
         Returns: boolean
@@ -3777,6 +3923,15 @@ export type Database = {
           p_related_event_id: string
           p_task_id: string
           p_title: string
+        }
+        Returns: boolean
+      }
+      update_community_channel: {
+        Args: {
+          p_channel_id: string
+          p_name: string
+          p_purpose: string
+          p_read_only: boolean
         }
         Returns: boolean
       }
@@ -4047,3 +4202,4 @@ export type AccessRequestHistoryRow =
   Database["public"]["Functions"]["access_request_history"]["Returns"][number]
 export type SubgroupRow = Tables<"community_subgroups">
 export type MessageAttachmentRow = Tables<"message_attachments">
+export type ChannelSectionRow = Tables<"channel_sections">

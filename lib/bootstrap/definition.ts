@@ -1,4 +1,4 @@
-import { channelGroups, channels, communities } from "@/lib/mock/communities";
+import { communities } from "@/lib/mock/communities";
 import { communityPeople } from "@/lib/mock/community-people";
 import { communityPolicies } from "@/lib/mock/community-policies";
 import { localGroups } from "@/lib/mock/local-groups";
@@ -16,9 +16,7 @@ import type { Database } from "@/lib/supabase/database.types";
  * the showcase's:
  *
  *   lib/mock/communities.ts         name, slug, branding, language, the
- *                                   texts and links in the header; the two
- *                                   channel sections and six channels every
- *                                   community has
+ *                                   texts and links in the header
  *   lib/mock/community-policies.ts  who may see the member list and message
  *   lib/mock/local-groups.ts        the lokallag each organisation has
  *   lib/mock/subgroups.ts           Safe-Space frivillige
@@ -26,8 +24,17 @@ import type { Database } from "@/lib/supabase/database.types";
  *
  * This module picks from them, field by field, and leaves the rest behind:
  * the cast of fixture accounts, their memberships and local-group choices,
- * group members and managers, posts, comments, messages, events, emojis,
- * notifications and requests. A bootstrap creates none of those.
+ * group members and managers, the showcase's channel sections and channels,
+ * posts, comments, messages, events, emojis, notifications and requests. A
+ * bootstrap creates none of those.
+ *
+ * In particular a community starts with **no channels and no sections**.
+ * How an organisation arranges its conversations is its administrators'
+ * decision, made in the app (Administrasjon → Kanaler), and a later run never
+ * puts back a channel or section they deleted — there is nothing here to put
+ * back. The only channels a fresh community has are the ones the database
+ * itself gives each lokallag and group (their chats), under the two platform
+ * headings below.
  *
  * It is also where a fresh database catches up with migrations that only
  * ever corrected an existing row. Applied to an empty database they change
@@ -47,7 +54,6 @@ type Tables = Database["public"]["Tables"];
 
 export type CommunityRow = Tables["communities"]["Insert"];
 export type ChannelGroupRow = Tables["channel_groups"]["Insert"];
-export type ChannelRow = Tables["channels"]["Insert"];
 
 export interface LocalGroupRow {
   name: string;
@@ -75,7 +81,6 @@ export interface PersonRow {
 
 export interface CommunityDefinition {
   community: CommunityRow;
-  channels: ChannelRow[];
   localGroups: LocalGroupRow[];
   subgroups: SubgroupRow[];
   people: PersonRow[];
@@ -104,15 +109,16 @@ export function localGroupSlug(name: string): string {
 }
 
 /**
- * The channel sections every community files its channels under. The other
- * two — `lokallag` and `grupper` — are created by the migrations that
- * introduced them, and are listed so a run can confirm they are there.
+ * The platform's own headings, under which the database files lokallag chats,
+ * private lokallag channels and group chats. They are created by the
+ * migrations that introduced them and are listed so a run can confirm they
+ * are there, in this order. A community's own sections are not platform rows
+ * and are not created here.
  */
-export const channelGroupRows: ChannelGroupRow[] = channelGroups.map((group, index) => ({
-  id: group.id,
-  label: group.label,
-  position: index,
-}));
+export const channelGroupRows: ChannelGroupRow[] = [
+  { id: "lokallag", label: "Mitt lokallag", position: 0 },
+  { id: "grupper", label: "Mine grupper", position: 1 },
+];
 
 export const communityDefinitions: CommunityDefinition[] = communities.map((community) => {
   const policy = communityPolicies.find((entry) => entry.communityId === community.id);
@@ -138,19 +144,6 @@ export const communityDefinitions: CommunityDefinition[] = communities.map((comm
       member_directory_visibility: policy.memberDirectoryVisibility,
       dm_policy: policy.dmPolicy,
     },
-
-    // The position is the channel's place in the whole list, as in the seed.
-    channels: channels
-      .map((channel, index) => ({
-        id: channel.id,
-        community_id: channel.communityId,
-        group_id: channel.groupId,
-        name: channel.name,
-        purpose: channel.purpose,
-        read_only: Boolean(channel.readOnly),
-        position: index,
-      }))
-      .filter((channel) => channel.community_id === community.id),
 
     localGroups: localGroups
       .filter((group) => group.communityId === community.id)

@@ -87,13 +87,18 @@ export default async function CommunityOverviewPage({
   const feed = allPosts.filter((post) => post.id !== pinned?.id).slice(0, 2);
   const events = upcoming.slice(0, 2);
   const accent = community.branding.accent;
+  const viewerIsAdmin = membership?.role === "admin" && membership.status === "active";
   const welcomeSteps = welcome
     ? onboardingSteps({
         communityId: community.id,
         localGroups: await getLocalGroups(community.id),
         channels: groups.flatMap((group) => group.channels),
+        viewerIsAdmin,
       })
     : [];
+  // Archived private channels keep their history but are no longer somewhere
+  // to go from the Overview. (Archived community channels are not in `groups`.)
+  const listedChannels = groups.flatMap(({ channels }) => channels).filter((channel) => !channel.archived);
   const membershipTitle = publicMemberTitle(membership?.title);
 
   // The cards below are the same interactive PostCard the feed renders, so
@@ -123,8 +128,7 @@ export default async function CommunityOverviewPage({
   // Last activity per channel, for the sidebar list.
   const channelActivity = new Map(
     await Promise.all(
-      groups
-        .flatMap((group) => group.channels)
+      listedChannels
         .map(async (channel) => {
           const latest = await getLatestMessage(channel.id);
           return [channel.id, latest?.createdAt] as const;
@@ -230,7 +234,7 @@ export default async function CommunityOverviewPage({
             <CommunityAboutSection
               communityId={community.id}
               about={community.about}
-              canEdit={membership?.role === "admin" && membership.status === "active"}
+              canEdit={viewerIsAdmin}
               accent={accent}
             />
 
@@ -272,17 +276,22 @@ export default async function CommunityOverviewPage({
               >
                 {t("overview.recentActivity")}
               </SectionHeading>
-              <div className="space-y-4">
-                {feed.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    author={people.get(post.authorId)!}
-                    community={community}
-                    {...interaction(post.id)}
-                  />
-                ))}
-              </div>
+              {feed.length === 0 && !pinned ? (
+                // A new community has no posts yet, and none are invented.
+                <p className="text-sm text-ink-3">{t("feed.empty.body", { name: community.name })}</p>
+              ) : (
+                <div className="space-y-4">
+                  {feed.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      author={people.get(post.authorId)!}
+                      community={community}
+                      {...interaction(post.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
           </div>
 
@@ -320,11 +329,27 @@ export default async function CommunityOverviewPage({
 
             <section>
               <SectionHeading>{t("overview.channels")}</SectionHeading>
-              <Panel className="divide-y divide-line">
-                {groups.flatMap(({ channels }) =>
-                  // Archived private channels keep their history but are no
-                  // longer somewhere to go from the Overview.
-                  channels.filter((channel) => !channel.archived).map((channel) => {
+              {listedChannels.length === 0 ? (
+                // A community starts with no channels; nothing is shown as
+                // if it had some. Its administrators get the way to make one.
+                <p className="text-sm text-ink-3">
+                  {viewerIsAdmin ? (
+                    <>
+                      {t("overview.channelsEmptyAdmin")}{" "}
+                      <Link
+                        href={`/community/${community.id}/kanaler?ny=kanal`}
+                        className="text-ink-2 underline decoration-line-2 underline-offset-4 transition-colors hover:text-ink"
+                      >
+                        {t("channels.nav.create")}
+                      </Link>
+                    </>
+                  ) : (
+                    t("overview.channelsEmpty")
+                  )}
+                </p>
+              ) : (
+                <Panel className="divide-y divide-line">
+                  {listedChannels.map((channel) => {
                     const latestAt = channelActivity.get(channel.id);
                     return (
                       <Link
@@ -347,14 +372,16 @@ export default async function CommunityOverviewPage({
                             </span>
                           ) : null}
                         </span>
-                        <span className="mt-1 block truncate text-[12px] text-ink-3">
-                          {channel.purpose}
-                        </span>
+                        {channel.purpose ? (
+                          <span className="mt-1 block truncate text-[12px] text-ink-3">
+                            {channel.purpose}
+                          </span>
+                        ) : null}
                       </Link>
                     );
-                  }),
-                )}
-              </Panel>
+                  })}
+                </Panel>
+              )}
             </section>
 
             {related ? (

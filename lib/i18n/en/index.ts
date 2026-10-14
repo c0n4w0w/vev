@@ -1,5 +1,6 @@
 import type { MessageKey } from "../nb";
 import { account } from "./account";
+import { channels } from "./channels";
 import { admin } from "./admin";
 import { collaboration } from "./collaboration";
 import { common } from "./common";
@@ -20,4 +21,5 @@ export const en: Record<MessageKey, string> = {
   ...account,
   ...collaboration,
   ...workspace,
+  ...channels,
 };

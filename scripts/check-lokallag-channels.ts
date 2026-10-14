@@ -551,10 +551,10 @@ async function main() {
       const { data: rows } = await admin.from("channels").select("*").is("local_group_id", null);
       const byId = new Map((rows ?? []).map((row) => [row.id, row]));
       expect("H32 alle fellesskapskanaler fra fixturen finnes", fixtureChannels.every((c) => byId.has(c.id)), true);
-      expect("H32 ingen fellesskapskanal er flyttet til lokallag", fixtureChannels.every((c) => byId.get(c.id)?.group_id === c.groupId), true);
+      expect("H32 ingen fellesskapskanal er flyttet til lokallag", fixtureChannels.every((c) => byId.get(c.id)?.group_id === null && byId.get(c.id)?.local_group_id === null), true);
       expect("H32 fellesskapskanalene er uendret", fixtureChannels.every((c) => byId.get(c.id)?.purpose === c.purpose && byId.get(c.id)?.read_only === Boolean(c.readOnly)), true);
 
-      const general = fixtureChannels.find((c) => c.communityId === FTR && c.groupId === "generelt" && !c.readOnly)!;
+      const general = fixtureChannels.find((c) => c.communityId === FTR && c.sectionKey === "generelt" && !c.readOnly)!;
       const { count: total } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("channel_id", general.id);
       for (const [who, client] of [["uten lokallag", elise], ["admin", mia], ["Oslo-medlem", kristoffer]] as const) {
         expect(`H32 ${who} leser hele #${general.name}`, (await readMessages(client, general.id)).length, total);

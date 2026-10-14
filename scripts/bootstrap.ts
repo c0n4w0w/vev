@@ -45,7 +45,7 @@ async function main() {
     for (const line of report.differs) console.log(`  ≠ ${line}`);
   }
   if (report.corrected.length > 0) {
-    console.log(`\n${write ? "Rettet" : "Ville rettet"} rekkefølgen på kanalseksjonene: ${report.corrected.length}`);
+    console.log(`\n${write ? "Rettet" : "Ville rettet"} rekkefølgen på plattformoverskriftene: ${report.corrected.length}`);
     for (const line of report.corrected) console.log(`  → ${line}`);
   }
   if (report.skipped.length > 0) {
@@ -57,7 +57,7 @@ async function main() {
   console.log("\nInstallasjonen nå:");
   for (const row of await summarizeInstallation(admin)) {
     console.log(
-      `  ${row.community}: ${row.channels} kanaler, ${row.localGroups} lokallag, ${row.subgroups} grupper, ` +
+      `  ${row.community}: ${row.channels} kanaler, ${row.sections} kanalseksjoner, ${row.localGroups} lokallag, ${row.subgroups} grupper, ` +
         `${row.people} organisasjonspersoner, ${row.activeMembers} aktive medlemmer, ` +
         (row.hasAdministrator ? "har administrator" : "INGEN ADMINISTRATOR — se `npm run bootstrap:admin`"),
     );

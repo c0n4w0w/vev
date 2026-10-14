@@ -1,4 +1,4 @@
-import type { Channel, ChannelGroup, Community, Membership } from "@/lib/types";
+import type { Channel, Community, Membership } from "@/lib/types";
 
 /**
  * The three showcase communities.
@@ -21,7 +21,7 @@ export const communities: Community[] = [
     publicDescription:
       "Tryggere Ruspolitikk er en medlemsorganisasjon som jobber for en kunnskapsbasert ruspolitikk der skadeforebygging og hjelp går foran straff. Vi driver med opplysningsarbeid, høringssvar og skadereduksjon i praksis. Er du medlem, frivillig eller samarbeidspartner, logger du inn her.",
     about:
-      "Her koordinerer vi lokallag, høringsarbeid, standvakter og festivalsesongen. Alt av fagmateriell og maler ligger i #pagaende-prosjekter. Er du usikker på hvor noe hører hjemme, spør i #generelt.",
+      "Her koordinerer vi lokallag, høringsarbeid, standvakter og festivalsesongen.",
     location: "Landsdekkende",
     foundedYear: 2016,
     branding: {
@@ -45,7 +45,7 @@ export const communities: Community[] = [
     publicDescription:
       "Tryggere Ungdom er ungdomsorganisasjonen til Tryggere Ruspolitikk. Vi lager møteplasser, kurs og aktiviteter for unge mellom 15 og 26, og jobber for at unge selv skal bli hørt når ruspolitikken utformes. Alt vi arrangerer er gratis, og du trenger ingen forkunnskaper for å bli med.",
     about:
-      "Her planlegger vi aktiviteter, kurs og events, og fordeler oppgaver mellom lokallagene i Oslo, Bergen og Trondheim. Vi er rundt førti aktive frivillige. Er du ny, si hei i #presentasjoner — det finnes ingen dumme spørsmål her.",
+      "Her planlegger vi aktiviteter, kurs og events, og fordeler oppgaver mellom lokallagene i Oslo, Bergen og Trondheim. Vi er rundt førti aktive frivillige.",
     location: "Landsdekkende",
     foundedYear: 2018,
     branding: {
@@ -87,57 +87,70 @@ export const communities: Community[] = [
   },
 ];
 
-export const channelGroups: ChannelGroup[] = [
-  { id: "generelt", label: "Generelt" },
-  { id: "prosjekter", label: "Prosjekter" },
-  // Lokallag chat channels. Not listed in `channels` below: the database
-  // creates one per local group (community_local_groups trigger), and each
-  // member only ever sees their own group's.
-  { id: "lokallag", label: "Mitt lokallag" },
-  // Subgroup (team) chat channels, likewise created by the database — one per
-  // subgroup (community_subgroups trigger).
-  { id: "grupper", label: "Mine grupper" },
-];
+/**
+ * Showcase only: the sections and channels `npm run seed` gives every demo
+ * community, so the local stack has conversations to look at.
+ *
+ * A real installation starts with neither. The production bootstrap
+ * (lib/bootstrap) creates no section and no channel — each organisation's
+ * administrators create their own in the app — and nothing in the product
+ * looks for these names or ids. They exist here, and in the fixture messages
+ * and check suites that address them, and nowhere else.
+ *
+ * Lokallag and group chats are not listed: the database creates one per
+ * lokallag and group (community_local_groups and community_subgroups
+ * triggers) and files them under its own platform headings.
+ */
+export const demoChannelSections = [
+  { key: "generelt", name: "Generelt" },
+  { key: "prosjekter", name: "Prosjekter" },
+] as const;
 
-const channelBlueprint: Omit<Channel, "communityId" | "id">[] = [
+export type DemoSectionKey = (typeof demoChannelSections)[number]["key"];
+
+export type DemoChannel = Channel & { sectionKey: DemoSectionKey };
+
+const channelBlueprint: { sectionKey: DemoSectionKey; name: string; purpose: string; readOnly?: true }[] = [
   {
-    groupId: "generelt",
+    sectionKey: "generelt",
     name: "generelt",
     purpose: "Løs prat, spørsmål og alt som ikke passer andre steder.",
   },
   {
-    groupId: "generelt",
+    sectionKey: "generelt",
     name: "kunngjoringer",
     purpose: "Viktige beskjeder til alle. Kun moderatorer og administratorer skriver her.",
     readOnly: true,
   },
   {
-    groupId: "generelt",
+    sectionKey: "generelt",
     name: "presentasjoner",
     purpose: "Ny her? Skriv noen linjer om deg selv.",
   },
   {
-    groupId: "prosjekter",
+    sectionKey: "prosjekter",
     name: "pagaende-prosjekter",
     purpose: "Status og oppfølging på det vi jobber med akkurat nå.",
   },
   {
-    groupId: "prosjekter",
+    sectionKey: "prosjekter",
     name: "arrangementer",
     purpose: "Planlegging, vaktlister og praktisk rundt arrangementene våre.",
   },
   {
-    groupId: "prosjekter",
+    sectionKey: "prosjekter",
     name: "samarbeid",
     purpose: "Henvendelser og samtaler med andre organisasjoner.",
   },
 ];
 
-export const channels: Channel[] = communities.flatMap((community) =>
+export const channels: DemoChannel[] = communities.flatMap((community) =>
   channelBlueprint.map((channel) => ({
     ...channel,
     communityId: community.id,
     id: `${community.id}--${channel.name}`,
+    // Within its section, as the database counts it.
+    position: channelBlueprint.filter((other) => other.sectionKey === channel.sectionKey).indexOf(channel),
   })),
 );
 

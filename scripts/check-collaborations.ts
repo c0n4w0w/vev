@@ -1063,11 +1063,12 @@ async function main() {
   // R3 is about collaborations: nothing archives one. Two functions archive
   // other things and are the reviewed exceptions — a private lokallag channel
   // (set_private_channel_archived, check:private-channels) and a community
-  // group (set_subgroup_archived, check:community-groups). Neither takes or
-  // touches a collaboration. Any other archive-shaped function still fails.
+  // group (set_subgroup_archived, check:community-groups) — and a community's
+  // own channel (set_community_channel_archived, check:channel-management).
+  // None of them takes or touches a collaboration. Any other archive-shaped function still fails.
   expect(
     "R3: ingen arkiveringsfunksjon finnes",
-    sql("select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname ilike '%archive%' and p.proname not in ('set_private_channel_archived','set_subgroup_archived')"),
+    sql("select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname ilike '%archive%' and p.proname not in ('set_private_channel_archived','set_subgroup_archived','set_community_channel_archived')"),
     "0",
   );
   const archiveRpc = await emma.rpc("archive_collaboration" as never, { p_collaboration_id: C } as never);

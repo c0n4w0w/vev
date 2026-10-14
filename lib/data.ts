@@ -31,10 +31,12 @@ import type {
   DirectConversationRow,
   DirectMessageRow,
   SubgroupRow,
+  ChannelSectionRow,
 } from "@/lib/supabase/database.types";
 import type {
   Channel,
   ChannelGroup,
+  ChannelSection,
   Comment,
   Community,
   CommunityEmoji,
@@ -191,7 +193,9 @@ function toChannel(row: ChannelRow): Channel {
   return {
     id: row.id,
     communityId: row.community_id,
-    groupId: row.group_id,
+    groupId: row.group_id ?? undefined,
+    sectionId: row.section_id ?? undefined,
+    position: row.position,
     name: row.name,
     purpose: row.purpose,
     readOnly: row.read_only || undefined,
@@ -538,6 +542,9 @@ export async function setChannelDetails(
   const row = data?.[0];
   if (error && privateChannelNameTaken(error.message)) {
     return { ok: false, error: "err.privateChannelNameTaken" };
+  }
+  if (error && communityChannelNameTaken(error.message)) {
+    return { ok: false, error: "err.channelNameTaken" };
   }
   if (error || !row) return { ok: false, error: "err.channelEditFailed" };
   return { ok: true, name: row.name, purpose: row.purpose };
@@ -1108,7 +1115,8 @@ export async function setMembershipRole(input: {
 
 // ── Channels ────────────────────────────────────────────────────────────
 
-const loadChannelGroups = cache(async (): Promise<ChannelGroup[]> => {
+/** The platform headings the database files channels under itself. */
+const loadSystemChannelGroups = cache(async (): Promise<{ id: string; label: string }[]> => {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("channel_groups")
@@ -1117,8 +1125,24 @@ const loadChannelGroups = cache(async (): Promise<ChannelGroup[]> => {
   return rows(data).map((row) => ({ id: row.id, label: row.label }));
 });
 
-export function getChannelGroups() {
-  return loadChannelGroups();
+function toChannelSection(row: ChannelSectionRow): ChannelSection {
+  return { id: row.id, communityId: row.community_id, name: row.name, position: row.position };
+}
+
+/** A community's own sections, in order. Members read them; nobody else does. */
+const loadChannelSections = cache(async (communityId: string): Promise<ChannelSection[]> => {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("channel_sections")
+    .select("*")
+    .eq("community_id", communityId)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
+  return rows(data).map(toChannelSection);
+});
+
+export function getChannelSections(communityId: string) {
+  return loadChannelSections(communityId);
 }
 
 const loadChannels = cache(async (communityId: string): Promise<Channel[]> => {
@@ -1127,7 +1151,8 @@ const loadChannels = cache(async (communityId: string): Promise<Channel[]> => {
     .from("channels")
     .select("*")
     .eq("community_id", communityId)
-    .order("position", { ascending: true });
+    .order("position", { ascending: true })
+    .order("id", { ascending: true });
   return rows(data).map(toChannel);
 });
 
@@ -1171,40 +1196,259 @@ function nestPrivateChannels(channels: Channel[]): Channel[] {
   return [...ordered, ...children.filter((child) => !placed.has(child.id))];
 }
 
+export interface ChannelNavigation {
+  /**
+   * What the sidebar lists, in order: the community's channels that are in no
+   * section (no heading), then its sections, then the platform headings.
+   * Archived community channels are not here. Empty sections are left out.
+   */
+  groups: { group: ChannelGroup; channels: Channel[] }[];
+  /** Archived community channels: out of ordinary navigation, still readable. */
+  archived: Channel[];
+  /** Every section of the community, empty ones included, in order. */
+  sections: ChannelSection[];
+  /** Whether the community has any channel of its own that is not archived. */
+  hasCommunityChannels: boolean;
+}
+
+function byPosition(a: Channel, b: Channel) {
+  return a.position - b.position || a.id.localeCompare(b.id);
+}
+
 /**
- * Channels grouped for the sidebar, in the order the groups are declared.
+ * A community's channels, arranged for navigation.
  *
- * Which channels appear is decided entirely by `channels_select`. The viewer is
- * used only to word two section headings honestly: "Mitt lokallag" and "Mine
- * grupper" describe the viewer's own groups, so an admin who also sees other
- * lokallag chats, or staff who see a team they are not on, get the neutral
- * "Lokallag" / "Grupper" instead.
+ * Which channels appear is decided entirely by `channels_select`; nothing here
+ * assumes any channel, section or name exists. The viewer is used only to word
+ * two platform headings honestly: "Mitt lokallag" and "Mine grupper" describe
+ * the viewer's own groups, so an admin who also sees other lokallag chats, or
+ * staff who see a team they are not on, get the neutral "Lokallag" / "Grupper".
  */
+export async function getChannelNavigation(
+  communityId: string,
+  viewer?: { localGroupId?: string; subgroupIds?: string[] },
+): Promise<ChannelNavigation> {
+  const [systemGroups, sections, channels] = await Promise.all([
+    loadSystemChannelGroups(),
+    loadChannelSections(communityId),
+    loadChannels(communityId),
+  ]);
+
+  const own = channels.filter((channel) => !channel.localGroupId && !channel.subgroupId);
+  const active = own.filter((channel) => !channel.archived);
+  const sectionIds = new Set(sections.map((section) => section.id));
+
+  const groups: ChannelNavigation["groups"] = [];
+  const unsectioned = active
+    .filter((channel) => !channel.sectionId || !sectionIds.has(channel.sectionId))
+    .sort(byPosition);
+  if (unsectioned.length > 0) {
+    groups.push({ group: { id: "", label: "", kind: "unsectioned" }, channels: unsectioned });
+  }
+  for (const section of sections) {
+    const inSection = active.filter((channel) => channel.sectionId === section.id).sort(byPosition);
+    if (inSection.length > 0) {
+      groups.push({ group: { id: section.id, label: section.name, kind: "section" }, channels: inSection });
+    }
+  }
+
+  for (const system of systemGroups) {
+    const inGroup = nestPrivateChannels(channels.filter((channel) => channel.groupId === system.id));
+    if (inGroup.length === 0) continue;
+    let label = system.label;
+    if (viewer && system.id === "lokallag" && inGroup.some((c) => c.localGroupId !== viewer.localGroupId)) {
+      label = "Lokallag";
+    }
+    if (
+      viewer &&
+      system.id === "grupper" &&
+      inGroup.some((c) => !c.subgroupId || !(viewer.subgroupIds ?? []).includes(c.subgroupId))
+    ) {
+      label = "Grupper";
+    }
+    groups.push({ group: { id: system.id, label, kind: "system" }, channels: inGroup });
+  }
+
+  return {
+    groups,
+    archived: own.filter((channel) => channel.archived).sort((a, b) => a.name.localeCompare(b.name, "nb")),
+    sections,
+    hasCommunityChannels: active.length > 0,
+  };
+}
+
+/** The navigation's channel list alone, for pages that only list channels. */
 export async function getGroupedChannels(
   communityId: string,
   viewer?: { localGroupId?: string; subgroupIds?: string[] },
 ) {
-  const [groups, channels] = await Promise.all([
-    loadChannelGroups(),
-    loadChannels(communityId),
-  ]);
-  return groups
-    .map((group) => {
-      const inGroup = nestPrivateChannels(channels.filter((channel) => channel.groupId === group.id));
-      let label = group.label;
-      if (viewer && group.id === "lokallag" && inGroup.some((c) => c.localGroupId !== viewer.localGroupId)) {
-        label = "Lokallag";
-      }
-      if (
-        viewer &&
-        group.id === "grupper" &&
-        inGroup.some((c) => !c.subgroupId || !(viewer.subgroupIds ?? []).includes(c.subgroupId))
-      ) {
-        label = "Grupper";
-      }
-      return { group: { ...group, label }, channels: inGroup };
-    })
-    .filter((entry) => entry.channels.length > 0);
+  return (await getChannelNavigation(communityId, viewer)).groups;
+}
+
+// ── Community channel management ────────────────────────────────────────
+//
+// Every write below goes through a function in 20261028100000 that decides
+// from auth.uid() that the caller is an active administrator of the community
+// the channel or section belongs to. Nothing here decides access; a refusal
+// comes back as `false`/null, and the few refusals that are about the
+// caller's own input come back as a message key.
+
+function communityChannelNameTaken(message: string): boolean {
+  return message.includes("channel_name_taken") || message.includes("channels_community_name_key");
+}
+
+function sectionNameTaken(message: string): boolean {
+  return message.includes("channel_section_name_taken") || message.includes("channel_sections_name_key");
+}
+
+export type ChannelManageResult<T = true> = { ok: true; value: T } | { ok: false; error: MessageKey };
+
+export async function createCommunityChannel(input: {
+  communityId: string;
+  name: string;
+  purpose: string;
+  sectionId: string | null;
+  creationKey: string | null;
+  /** Only administrators and moderators write (`channels.read_only`). */
+  readOnly: boolean;
+}): Promise<ChannelManageResult<string>> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("create_community_channel", {
+    p_community_id: input.communityId,
+    p_name: input.name,
+    p_purpose: input.purpose,
+    // Null means "no section" / "no key"; generated RPC argument types do not
+    // record argument nullability.
+    p_section_id: input.sectionId as unknown as string,
+    p_creation_key: input.creationKey as unknown as string,
+    p_read_only: input.readOnly,
+  });
+  if (error && communityChannelNameTaken(error.message)) return { ok: false, error: "err.channelNameTaken" };
+  if (error || !data) return { ok: false, error: "err.channelCreateRefused" };
+  return { ok: true, value: data };
+}
+
+/**
+ * Name, description and who may write, in one call. The id — and with it the
+ * address and every message — never changes.
+ */
+export async function updateCommunityChannel(input: {
+  channelId: string;
+  name: string;
+  purpose: string;
+  readOnly: boolean;
+}): Promise<ChannelManageResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("update_community_channel", {
+    p_channel_id: input.channelId,
+    p_name: input.name,
+    p_purpose: input.purpose,
+    p_read_only: input.readOnly,
+  });
+  if (error && communityChannelNameTaken(error.message)) return { ok: false, error: "err.channelNameTaken" };
+  if (error || data !== true) return { ok: false, error: "err.channelManageRefused" };
+  return { ok: true, value: true };
+}
+
+export async function moveCommunityChannel(
+  channelId: string,
+  sectionId: string | null,
+  position: number | null,
+): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("move_community_channel", {
+    p_channel_id: channelId,
+    p_section_id: sectionId as unknown as string,
+    p_position: position as unknown as number,
+  });
+  return !error && data === true;
+}
+
+export async function setCommunityChannelArchived(channelId: string, archived: boolean): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_community_channel_archived", {
+    p_channel_id: channelId,
+    p_archived: archived,
+  });
+  return !error && data === true;
+}
+
+/** What deleting would remove. Undefined for anyone but the community's admins. */
+export async function getCommunityChannelContentCounts(
+  channelId: string,
+): Promise<{ messages: number; attachments: number } | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.rpc("community_channel_content_counts", { p_channel_id: channelId });
+  const row = data?.[0];
+  return row ? { messages: row.message_count, attachments: row.attachment_count } : undefined;
+}
+
+export async function deleteCommunityChannel(
+  channelId: string,
+  confirmName: string,
+): Promise<ChannelManageResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("delete_community_channel", {
+    p_channel_id: channelId,
+    p_confirm_name: confirmName,
+  });
+  if (error?.message.includes("channel_delete_unconfirmed")) return { ok: false, error: "err.channelDeleteUnconfirmed" };
+  if (error || data !== true) return { ok: false, error: "err.channelDeleteRefused" };
+  return { ok: true, value: true };
+}
+
+export async function createChannelSection(
+  communityId: string,
+  name: string,
+  creationKey: string | null,
+): Promise<ChannelManageResult<string>> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("create_channel_section", {
+    p_community_id: communityId,
+    p_name: name,
+    p_creation_key: creationKey as unknown as string,
+  });
+  if (error && sectionNameTaken(error.message)) return { ok: false, error: "err.sectionNameTaken" };
+  if (error || !data) return { ok: false, error: "err.sectionRefused" };
+  return { ok: true, value: data };
+}
+
+export async function renameChannelSection(sectionId: string, name: string): Promise<ChannelManageResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("rename_channel_section", {
+    p_section_id: sectionId,
+    p_name: name,
+  });
+  if (error && sectionNameTaken(error.message)) return { ok: false, error: "err.sectionNameTaken" };
+  if (error || data !== true) return { ok: false, error: "err.sectionRefused" };
+  return { ok: true, value: true };
+}
+
+export async function moveChannelSection(sectionId: string, position: number): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("move_channel_section", {
+    p_section_id: sectionId,
+    p_position: position,
+  });
+  return !error && data === true;
+}
+
+/**
+ * Deletes a section. `channelsTo` is where its channels go: "none" for no
+ * section, another section's id, or null when the caller expects it empty.
+ */
+export async function deleteChannelSection(
+  sectionId: string,
+  channelsTo: string | null,
+): Promise<ChannelManageResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("delete_channel_section", {
+    p_section_id: sectionId,
+    p_channels_to: channelsTo as unknown as string,
+  });
+  if (error?.message.includes("channel_section_not_empty")) return { ok: false, error: "err.sectionNotEmpty" };
+  if (error || data !== true) return { ok: false, error: "err.sectionRefused" };
+  return { ok: true, value: true };
 }
 
 // ── Subgroups ───────────────────────────────────────────────────────────
@@ -1641,10 +1885,6 @@ export async function setPrivateChannelArchived(channelId: string, archived: boo
     p_archived: archived,
   });
   return !error && data === true;
-}
-
-export async function getDefaultChannel(communityId: string) {
-  return (await loadChannels(communityId))[0];
 }
 
 // ── Messages ────────────────────────────────────────────────────────────

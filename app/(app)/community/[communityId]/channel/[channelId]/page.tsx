@@ -1,11 +1,14 @@
 import { notFound, redirect } from "next/navigation";
 import { ChannelView } from "@/components/community/ChannelView";
+import { ButtonLink, EmptyState, PageContainer } from "@/components/ui/primitives";
 import {
   canCreatePrivateChannel,
   canManagePrivateChannel,
   canManageSubgroup,
   getChannel,
+  getChannelSections,
   getCommunityById,
+  getCommunityChannelContentCounts,
   getCommunityEmojis,
   getCommunityPersonas,
   getLocalGroups,
@@ -15,6 +18,7 @@ import {
   getSubgroups,
 } from "@/lib/data";
 import { getAttachmentPolicy } from "@/lib/attachment-data";
+import { isCommunityChannel } from "@/lib/channel-management-form";
 import { timeAgo } from "@/lib/format";
 import { communityLocale, communityTranslator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
@@ -48,8 +52,26 @@ export default async function ChannelPage({
   ]);
   // `channels_select` decides whether the channel exists for this viewer. A
   // private channel someone was never in — or was removed from — is the same
-  // not-found as an id that was never a channel: no name, no description.
-  if (!community || !channel || channel.communityId !== community.id) notFound();
+  // not-found as an id that was never a channel, or one that was deleted: no
+  // name, no description. Inside a community the viewer belongs to, that is
+  // said in place, with the way back, rather than leaving the community.
+  if (!community) notFound();
+  if (!channel || channel.communityId !== community.id) {
+    const t = communityTranslator(community);
+    return (
+      <PageContainer width="narrow">
+        <EmptyState
+          title={t("channel.missing.title")}
+          body={t("channel.missing.body")}
+          action={
+            <ButtonLink href={`/community/${community.id}`} variant="secondary">
+              {t("channel.missing.back")}
+            </ButtonLink>
+          }
+        />
+      </PageContainer>
+    );
+  }
 
   const [membership, messages, customEmojis, attachmentPolicy] = await Promise.all([
     getMembership(user.id, community.id),
@@ -80,6 +102,13 @@ export default async function ChannelPage({
     ? (await getSubgroups(community.id)).find((group) => group.id === channel.subgroupId)
     : undefined;
   const managesSubgroup = subgroup ? await canManageSubgroup(subgroup.id) : false;
+  // One of the community's own channels, for its administrators: the sections
+  // it can move to and what deleting it would remove.
+  const viewerIsAdmin = membership?.role === "admin" && membership.status === "active";
+  const channelAdmin =
+    viewerIsAdmin && isCommunityChannel(channel)
+      ? await Promise.all([getChannelSections(community.id), getCommunityChannelContentCounts(channel.id)])
+      : undefined;
   const personas = await getCommunityPersonas(community.id, [
     ...new Set([user.id, ...messages.map((message) => message.authorId)]),
   ]);
@@ -105,10 +134,7 @@ export default async function ChannelPage({
       canEdit={
         channel.isPrivate
           ? canManage
-          : membership?.role === "admin" &&
-            membership.status === "active" &&
-            !channel.localGroupId &&
-            !channel.subgroupId
+          : viewerIsAdmin && isCommunityChannel(channel)
       }
       privateChannels={
         localGroup
@@ -118,7 +144,7 @@ export default async function ChannelPage({
               createRequested: canCreate && ny === "privat",
               canManage,
               roster,
-              viewerIsAdmin: membership?.role === "admin" && membership.status === "active",
+              viewerIsAdmin,
             }
           : undefined
       }
@@ -134,6 +160,7 @@ export default async function ChannelPage({
       }
       customEmojis={customEmojis}
       attachmentPolicy={attachmentPolicy}
+      channelAdmin={channelAdmin ? { sections: channelAdmin[0], counts: channelAdmin[1] } : undefined}
       lastActivityLabel={
         messages.length > 0
           ? timeAgo(messages[messages.length - 1].createdAt, communityLocale(community))

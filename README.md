@@ -488,14 +488,21 @@ og lar alt som hører showcasen til, ligge:
 | Språk | bokmål | bokmål | engelsk |
 | Profil, tekster, nettsted | ✓ | ✓ | ✓ |
 | Medlemsliste / meldinger | bare admin / bare ansvarlige | bare admin / bare ansvarlige | medlemmer / medlemmer |
-| Faste kanaler | 6 | 6 | 6 |
+| Kanaler og kanalseksjoner | ingen | ingen | ingen |
 | Lokallag (med hver sin kanal) | 7 | 5 | – |
 | Grupper | Safe-Space frivillige | – | – |
 | Organisasjonskatalogen | ✓ (uten kontokoblinger) | ikke tatt med | ikke tatt med |
 
+Et fellesskap starter **uten kanaler og uten kanalseksjoner**. Hvordan
+samtalene ordnes, bestemmer fellesskapets administratorer selv i appen
+(Administrasjon → Kanaler, eller «+» ved Kanaler i sidefeltet). De eneste
+kanalene en ny installasjon har, er lokallagenes og gruppenes egne, som
+databasen lager for hvert lokallag og hver gruppe.
+
 Den legger til det som mangler og endrer ingenting som finnes: en tekst en
-administrator har skrevet om, eller en kanal som har fått nytt navn, blir
-stående, og avviket står i utskriften. Den kan derfor kjøres igjen når som
+administrator har skrevet om, eller et lokallag som har fått nytt navn, blir
+stående, og avviket står i utskriften. En kanal eller seksjon en administrator
+har slettet, kommer ikke tilbake — bootstrap oppretter ingen. Den kan derfor kjøres igjen når som
 helst, også etter en kjøring som stoppet halvveis. Katalogen for Tryggere
 Ungdom og Under The Rug ligger i repoet og tas med ved å legge fellesskapet til
 i `DIRECTORY_INCLUDED` og kjøre på nytt.
@@ -634,6 +641,7 @@ app/
       page.tsx              Oversikt
       feed/ announcements/ events/ members/
       channel/[channelId]/  Kanal og samtale
+      kanaler/              Administratorenes kanaler og seksjoner
   (portal)/[portalSlug]/    Offentlig portal per organisasjon
 proxy.ts                    Fornyer Supabase-sesjonen (het middleware før v16)
 components/

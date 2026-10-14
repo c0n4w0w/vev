@@ -6,8 +6,11 @@ import { dismissOnboardingAction } from "@/app/actions";
 import {
   IconArrowRight,
   IconClose,
+  IconFeed,
+  IconHash,
   IconMapPin,
   IconMessage,
+  IconPlus,
   IconUser,
 } from "@/components/ui/icons";
 import type { MessageKey } from "@/lib/i18n";
@@ -18,6 +21,9 @@ const STEP_ICON: Record<OnboardingStep["kind"], ComponentType<{ size?: number; c
   profile: IconUser,
   lokallag: IconMapPin,
   introductions: IconMessage,
+  channel: IconHash,
+  createChannel: IconPlus,
+  feed: IconFeed,
 };
 
 const STEP_COPY: Record<OnboardingStep["kind"], { title: MessageKey; body: MessageKey }> = {
@@ -27,6 +33,12 @@ const STEP_COPY: Record<OnboardingStep["kind"], { title: MessageKey; body: Messa
     title: "overview.welcome.introductions.title",
     body: "overview.welcome.introductions.body",
   },
+  channel: { title: "overview.welcome.channel.title", body: "overview.welcome.channel.body" },
+  createChannel: {
+    title: "overview.welcome.createChannel.title",
+    body: "overview.welcome.createChannel.body",
+  },
+  feed: { title: "overview.welcome.feed.title", body: "overview.welcome.feed.body" },
 };
 
 /**
@@ -108,7 +120,7 @@ export function CommunityWelcomeCard({
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13.5px] font-medium text-ink">{t(copy.title)}</span>
                   <span className="mt-0.5 block text-[12.5px] text-ink-3">
-                    {step.kind === "introductions"
+                    {step.kind === "introductions" || step.kind === "channel"
                       ? t(copy.body, { channel: step.channelName })
                       : t(copy.body)}
                   </span>

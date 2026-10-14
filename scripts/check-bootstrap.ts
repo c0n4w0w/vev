@@ -52,9 +52,11 @@ function checkDefinition() {
     const { community } = definition;
     expect(`${id}: slug er id-en`, community.slug, id);
     expect(`${id}: ingen medlemstall — det telles, ikke lagres`, "member_count" in community, false);
-    expect(`${id}: seks faste kanaler`, definition.channels.length, 6);
-    expect(`${id}: kanalene tilhører fellesskapet`, definition.channels.every((channel) => channel.community_id === id && channel.id.startsWith(`${id}--`)), true);
-    expect(`${id}: kunngjøringer er skrivebeskyttet`, definition.channels.find((channel) => channel.name === "kunngjoringer")?.read_only, true);
+    // A community starts with no channels and no sections: its administrators
+    // create their own. Nothing in the definition can carry one.
+    expect(`${id}: ingen kanaler i definisjonen`, "channels" in definition, false);
+    expect(`${id}: ingen kanalseksjoner i definisjonen`, "sections" in definition, false);
+    expect(`${id}: About-teksten viser ikke til kanaler som ikke finnes`, /#[a-zæøå]/i.test(community.about), false);
     expect(`${id}: første lenke er organisasjonens nettsted`, /^https:\/\//.test((community.links as { href: string }[])[0]?.href ?? ""), true);
     expect(`${id}: ber om tilgang, ikke åpen`, community.access_policy, "request-to-join");
   }
@@ -88,7 +90,7 @@ function checkDefinition() {
   expect("TU: fem lokallag", byId.get(TU)?.localGroups.length, 5);
   expect("UTR: ingen lokallag", byId.get(UTR)?.localGroups.length, 0);
   expect("lokallag: slug uten æøå", byId.get(FTR)?.localGroups.find((group) => group.name === "FTR Trøndelag")?.slug, "ftr-trondelag");
-  expect("kanalseksjoner i rekkefølge", channelGroupRows.map((group) => `${group.id}:${group.position}`).join(","), "generelt:0,prosjekter:1,lokallag:2,grupper:3");
+  expect("plattformoverskrifter i rekkefølge, og bare dem", channelGroupRows.map((group) => `${group.id}:${group.position}`).join(","), "lokallag:0,grupper:1");
 
   // The directory: one organisation's, and never an account.
   expect("katalog: bare FTR er tatt med", [...DIRECTORY_INCLUDED].join(","), FTR);
@@ -108,7 +110,7 @@ function checkDefinition() {
   );
 }
 
-const TABLES = ["communities", "channel_groups", "channels", "community_local_groups", "community_subgroups", "community_people", "memberships"] as const;
+const TABLES = ["communities", "channel_groups", "channel_sections", "channels", "community_local_groups", "community_subgroups", "community_people", "memberships"] as const;
 
 async function fingerprint(): Promise<string> {
   const parts: string[] = [];
@@ -132,8 +134,13 @@ async function checkAgainstSeed() {
   const edited = report.differs.filter((line) => editable.test(line));
   if (edited.length > 0) console.log(`  (endret i appen siden seed, og latt i fred: ${edited.join("; ")})`);
   expect("seedet database: ingenting avviker", report.differs.filter((line) => !editable.test(line)).join("; "), "");
-  expect("seedet database: seksjonene står i rekkefølge", report.corrected.join("; "), "");
-  expect("seedet database: alt i definisjonen finnes", report.present.length > 50, true);
+  expect("seedet database: plattformoverskriftene står i rekkefølge", report.corrected.join("; "), "");
+  expect("seedet database: bootstrapen ville ikke opprettet noen kanal", report.created.some((line) => /kanal/.test(line)), false);
+  // Every row the definition holds is there — as defined, or edited since.
+  const defined =
+    channelGroupRows.length +
+    communityDefinitions.reduce((sum, d) => sum + 1 + d.localGroups.length + d.subgroups.length + d.people.length, 0);
+  expect("seedet database: alt i definisjonen finnes", report.present.length + report.differs.length, defined);
   expect("tørrkjøringen endret ingenting", (await fingerprint()) === before, true);
 }
 

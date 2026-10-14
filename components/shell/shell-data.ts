@@ -2,8 +2,8 @@ import {
   canLeadLocalGroup,
   getCommunitiesForUser,
   getCommunityPeople,
+  getChannelNavigation,
   getCommunityPersona,
-  getGroupedChannels,
   getLocalGroups,
   getManageableSubgroups,
   getMySubgroupIds,
@@ -16,6 +16,7 @@ import type { Locale } from "@/lib/i18n/locales";
 import type {
   Channel,
   ChannelGroup,
+  ChannelSection,
   Community,
   CommunityPersona,
   DirectConversationSummary,
@@ -37,7 +38,27 @@ export interface ShellCommunity {
   membership: Membership;
   /** The signed-in person as they appear in this community. */
   me: CommunityPersona;
+  /**
+   * The channel list as the sidebar draws it (see `getChannelNavigation`):
+   * the community's own channels without a section, its sections, then the
+   * platform headings. Nothing here assumes any channel exists.
+   */
   channelGroups: { group: ChannelGroup; channels: Channel[] }[];
+  /** The community's archived channels: out of the list, still readable. */
+  archivedChannels: Channel[];
+  /**
+   * Administrators only (empty for everyone else): every section, empty ones
+   * included, for the create form and the empty headings drawn for them.
+   */
+  channelSections: ChannelSection[];
+  /** Whether the community has any active channel of its own. */
+  hasCommunityChannels: boolean;
+  /**
+   * An active administrator: draws "+" beside the channel heading and the
+   * empty state's "Opprett kanal". Presentation only; every function behind
+   * them decides again.
+   */
+  managesChannels: boolean;
   /**
    * Enough to label the sidebar entry, and nothing more.
    *
@@ -89,10 +110,10 @@ export async function buildShellData(user: User): Promise<ShellData> {
   const communities = await Promise.all(
     memberships.map(async ({ community, membership }) => {
       const mySubgroupIds = await getMySubgroupIds(community.id, user.id);
-      const [me, channelGroups, groups, people, unreadDirectCount, recentDirectConversations, manageable] =
+      const [me, channelNavigation, groups, people, unreadDirectCount, recentDirectConversations, manageable] =
         await Promise.all([
           getCommunityPersona(community.id, user.id),
-          getGroupedChannels(community.id, {
+          getChannelNavigation(community.id, {
             localGroupId: membership.localGroupId,
             subgroupIds: mySubgroupIds,
           }),
@@ -112,11 +133,17 @@ export async function buildShellData(user: User): Promise<ShellData> {
             ? [ownGroupId]
             : [];
 
+      const managesChannels = membership.status === "active" && membership.role === "admin";
+
       return {
         community,
         membership,
         me,
-        channelGroups,
+        channelGroups: channelNavigation.groups,
+        archivedChannels: channelNavigation.archived,
+        channelSections: managesChannels ? channelNavigation.sections : [],
+        hasCommunityChannels: channelNavigation.hasCommunityChannels,
+        managesChannels,
         privateChannelLocalGroupIds,
         unreadDirectCount,
         recentDirectConversations,

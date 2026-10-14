@@ -854,7 +854,7 @@ async function main() {
     // ── Q. Permanent deletion ───────────────────────────────────────────
     {
       // Only private channels, whoever asks.
-      const general = fixtureChannels.find((c) => c.communityId === FTR && c.groupId === "generelt" && !c.readOnly)!;
+      const general = fixtureChannels.find((c) => c.communityId === FTR && c.sectionKey === "generelt" && !c.readOnly)!;
       const { data: team } = await admin.from("channels").select("id").eq("community_id", FTR).not("subgroup_id", "is", null).limit(1).maybeSingle();
       expect("Q1 admin kan ikke slette lokallagets hovedkanal", await destroy(mia, osloMain), false);
       expect("Q1 hovedkanalen finnes", await channelExists(osloMain), true);
@@ -1019,7 +1019,7 @@ async function main() {
       const byId = new Map((wide ?? []).map((row) => [row.id, row]));
       expect("O3 alle fellesskapskanaler fra fixturen finnes", fixtureChannels.every((c) => byId.has(c.id)), true);
       expect("O3 ingen fellesskapskanal er blitt privat eller arkivert", (wide ?? []).every((c) => !c.is_private && !c.archived_at), true);
-      const general = fixtureChannels.find((c) => c.communityId === FTR && c.groupId === "generelt" && !c.readOnly)!;
+      const general = fixtureChannels.find((c) => c.communityId === FTR && c.sectionKey === "generelt" && !c.readOnly)!;
       const { count: total } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("channel_id", general.id);
       for (const [who, client] of [["uinvitert Oslo-medlem", linn], ["admin", mia], ["moderator", ingrid]] as const) {
         expect(`O3 ${who} leser hele #${general.name}`, (await readMessages(client, general.id)).length, total);
