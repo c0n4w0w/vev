@@ -7,6 +7,14 @@ import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/
 import { AttachmentButton, PendingAttachmentList } from "@/components/community/attachments/ComposerAttachments";
 import { MessageAttachments } from "@/components/community/attachments/MessageAttachments";
 import { useAttachmentUploads } from "@/components/community/attachments/useAttachmentUploads";
+import {
+  DeleteMessageDialog,
+  DeletedMessage,
+  EditedMark,
+  MessageEditor,
+  MessageMenu,
+  useMessageChanges,
+} from "@/components/community/messages/MessageChanges";
 import { IconArrowLeft, IconSend } from "@/components/ui/icons";
 import { createDirectMessageAction } from "@/app/actions";
 import { emptyDirectMessageFormState } from "@/lib/direct-message-form";
@@ -26,6 +34,10 @@ import type { Community, CommunityEmoji, CommunityPersona, DirectConversation } 
  * and `bothHaveWritten` lets the lock open the moment the viewer's own reply
  * is stored, without a reload. Neither is what enforces it: the database
  * checks again on every upload and every send.
+ *
+ * Each participant may edit or delete their own messages — never the other
+ * person's; there is no moderation in a direct conversation. A deleted message
+ * keeps its place as a placeholder.
  */
 export function DirectConversationView({
   conversation,
@@ -71,9 +83,15 @@ export function DirectConversationView({
     policy,
   });
 
+  const changes = useMessageChanges({
+    scope: { communityId: community.id, conversationId: conversation.id },
+    setMessages,
+  });
+
+  // To the end when a message arrives — not when one is edited or deleted.
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages]);
+  }, [messages.length]);
 
   const people = useMemo(
     () => ({
@@ -173,6 +191,8 @@ export function DirectConversationView({
                   !newDay &&
                   previous?.authorId === message.authorId &&
                   Date.parse(message.createdAt) - Date.parse(previous.createdAt) < 10 * 60_000;
+                const editing = changes.editingId === message.id;
+                const ownLive = mine && !message.deleted && !message.id.startsWith("pending-") && !editing;
 
                 return (
                   <li key={message.id}>
@@ -186,7 +206,7 @@ export function DirectConversationView({
 
                     <div
                       className={cn(
-                        "group flex gap-2",
+                        "group relative flex gap-2",
                         grouped ? "mt-1" : "mt-4",
                         mine && "flex-row-reverse",
                       )}
@@ -206,7 +226,13 @@ export function DirectConversationView({
                         ) : null}
                       </div>
 
-                      <div className={cn("min-w-0 max-w-[min(34rem,78%)]", mine && "text-right")}>
+                      <div
+                        className={cn(
+                          "min-w-0 max-w-[min(34rem,78%)]",
+                          mine && "text-right",
+                          editing && "w-full",
+                        )}
+                      >
                         {!grouped ? (
                           <p
                             className={cn(
@@ -223,7 +249,20 @@ export function DirectConversationView({
                           </p>
                         ) : null}
 
-                        {message.body ? (
+                        {message.deleted ? (
+                          <DeletedMessage
+                            deleted={message.deleted}
+                            className="inline-block rounded-[6px] border border-dashed border-line-2 px-3 py-2 text-left"
+                          />
+                        ) : editing ? (
+                          <MessageEditor
+                            initialBody={message.body}
+                            allowEmpty={Boolean(message.hasAttachments || message.attachments?.length)}
+                            accent={community.branding.accent}
+                            onSave={(body) => changes.saveEdit(message, body)}
+                            onCancel={changes.cancelEdit}
+                          />
+                        ) : message.body ? (
                           <p
                             className={cn(
                               "inline-block max-w-full whitespace-pre-line break-words rounded-[6px] px-3 py-2 text-left text-[0.9375rem] leading-[1.55]",
@@ -233,7 +272,12 @@ export function DirectConversationView({
                             )}
                           >
                             <EmojiText body={message.body} emojis={customEmojis} />
+                            {message.editedAt ? (
+                              <EditedMark editedAt={message.editedAt} className={mine ? "text-white/70" : undefined} />
+                            ) : null}
                           </p>
+                        ) : message.editedAt ? (
+                          <EditedMark editedAt={message.editedAt} className="block" />
                         ) : null}
 
                         <MessageAttachments
@@ -242,6 +286,16 @@ export function DirectConversationView({
                           className={message.body ? "mt-1.5" : undefined}
                         />
                       </div>
+
+                      {ownLive ? (
+                        <MessageMenu
+                          onEdit={() => changes.startEdit(message)}
+                          onDelete={() => changes.askDelete(message)}
+                          align="right"
+                          anchorToRow
+                          className={cn("shrink-0 self-start", grouped ? "mt-0.5" : "mt-6")}
+                        />
+                      ) : null}
                     </div>
                   </li>
                 );
@@ -249,6 +303,16 @@ export function DirectConversationView({
             </ol>
           )}
           <div ref={endRef} />
+
+          <DeleteMessageDialog
+            target={changes.deleteTarget}
+            ownMessage
+            direct
+            pending={changes.deleting}
+            error={changes.dialogError}
+            onConfirm={changes.confirmDelete}
+            onClose={changes.closeDelete}
+          />
         </div>
       </div>
 

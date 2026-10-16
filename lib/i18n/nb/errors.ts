@@ -11,6 +11,12 @@ export const errors = {
   "err.channelWriteDenied": "Du har ikke tilgang til å skrive i denne kanalen.",
   "err.conversationWriteDenied": "Du har ikke tilgang til å skrive i denne samtalen.",
   "err.messageSendFailed": "Meldingen kunne ikke sendes. Prøv igjen.",
+  "err.messageNotFound": "Meldingen finnes ikke lenger, eller du har ikke tilgang til den.",
+  "err.messageActionDenied": "Du har ikke tilgang til å gjøre dette med meldingen.",
+  "err.messageDeleted": "Meldingen er slettet og kan ikke endres.",
+  "err.messageEditFailed": "Endringen ble ikke lagret. Prøv igjen.",
+  "err.messageDeleteFailed": "Meldingen ble ikke slettet. Prøv igjen.",
+  "err.messagePinFailed": "Festingen ble ikke endret. Prøv igjen.",
   "err.conversationOpenFailed": "Samtalen kunne ikke åpnes. Prøv igjen.",
   "err.attachmentNotAllowed": "Du kan ikke legge ved filer i denne samtalen.",
   "err.attachmentNeedsMutual":

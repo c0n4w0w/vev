@@ -72,6 +72,7 @@ const AUTHENTICATED_READ = [
   "channel_groups",
   "channel_links",
   "channel_participants",
+  "channel_pinned_messages",
   "channel_resource_folders",
   "channel_resource_pins",
   "channel_sections",
@@ -123,7 +124,13 @@ const AUTHENTICATED_COLUMNS: Record<string, Record<string, string[]>> = {
 };
 
 /** Tables only the server and SECURITY DEFINER functions touch. */
-const SERVER_ONLY = ["auth_throttle", "channel_retired_ids", "collaboration_audit_log", "message_attachment_purges"];
+const SERVER_ONLY = [
+  "auth_throttle",
+  "channel_retired_ids",
+  "collaboration_audit_log",
+  "message_attachment_purges",
+  "message_moderation_log",
+];
 
 const ANON_FUNCTIONS = [
   "invitation_preview(text)",

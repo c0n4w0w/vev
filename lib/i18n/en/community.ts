@@ -442,6 +442,37 @@ export const community: Record<keyof typeof nb, string> = {
   "err.resourceFailed": "The change was not saved. Try again.",
   "channel.messageGone": "That message no longer exists. It may have been deleted.",
 
+  // ── Editing, deleting and pinning messages ────────────────────────────
+  "message.actions": "Message options",
+  "message.edit": "Edit message",
+  "message.delete": "Delete message",
+  "message.remove": "Remove message",
+  "message.pin": "Pin message",
+  "message.unpin": "Unpin",
+  "message.editLabel": "Edit the message",
+  "message.editHint": "Enter saves · Esc cancels",
+  "message.save": "Save",
+  "message.saving": "Saving …",
+  "message.cancel": "Cancel",
+  "message.edited": "edited",
+  "message.editedAt": "Edited {when}",
+  "message.deletedOwn": "This message was deleted.",
+  "message.deletedModerator": "This message was removed by a moderator.",
+  "message.deleteTitle": "Delete this message?",
+  "message.deleteBody":
+    "The message is replaced by “This message was deleted.” for everyone in the conversation. Any attachments are deleted too and disappear from Resources. This can't be undone.",
+  "message.deleteBodyDirect":
+    "The message is replaced by “This message was deleted.” for both of you. Any attachments are deleted too. This can't be undone.",
+  "message.removeTitle": "Remove this message?",
+  "message.removeBody":
+    "The message from {name} is replaced by “This message was removed by a moderator.” for everyone. Any attachments are deleted too and disappear from Resources. This can't be undone.",
+  "message.deleting": "Deleting …",
+  "message.pinReplaceTitle": "Replace the pinned message?",
+  "message.pinReplaceBody": "Only one message can be pinned in a channel. The message pinned now will be replaced by this one.",
+  "message.pinReplaceConfirm": "Pin this instead",
+  "message.pinned": "Pinned message",
+  "message.pinnedOpen": "Go to the pinned message from {name}",
+
   // ── Members ───────────────────────────────────────────────────────────
   "members.title": "Members",
   "members.organizationTitle": "Organization",

@@ -320,6 +320,49 @@ export type Database = {
           },
         ]
       }
+      channel_pinned_messages: {
+        Row: {
+          channel_id: string
+          message_id: string
+          pinned_at: string
+          pinned_by: string | null
+        }
+        Insert: {
+          channel_id: string
+          message_id: string
+          pinned_at?: string
+          pinned_by?: string | null
+        }
+        Update: {
+          channel_id?: string
+          message_id?: string
+          pinned_at?: string
+          pinned_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_pinned_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: true
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_pinned_messages_message_fkey"
+            columns: ["message_id", "channel_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id", "channel_id"]
+          },
+          {
+            foreignKeyName: "channel_pinned_messages_pinned_by_fkey"
+            columns: ["pinned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_resource_folders: {
         Row: {
           channel_id: string
@@ -2202,6 +2245,8 @@ export type Database = {
           body: string
           conversation_id: string
           created_at: string
+          deleted_at: string | null
+          edited_at: string | null
           has_attachments: boolean
           id: string
         }
@@ -2210,6 +2255,8 @@ export type Database = {
           body: string
           conversation_id: string
           created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
           has_attachments?: boolean
           id?: string
         }
@@ -2218,6 +2265,8 @@ export type Database = {
           body?: string
           conversation_id?: string
           created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
           has_attachments?: boolean
           id?: string
         }
@@ -2618,6 +2667,51 @@ export type Database = {
           },
         ]
       }
+      message_moderation_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          channel_id: string
+          community_id: string
+          created_at: string
+          id: string
+          message_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          channel_id: string
+          community_id: string
+          created_at?: string
+          id?: string
+          message_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          channel_id?: string
+          community_id?: string
+          created_at?: string
+          id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_moderation_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_moderation_log_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           attachment: Json | null
@@ -2625,8 +2719,11 @@ export type Database = {
           body: string
           channel_id: string
           created_at: string
+          deleted_at: string | null
+          edited_at: string | null
           id: string
           reactions: Json
+          removed_by_moderator: boolean
         }
         Insert: {
           attachment?: Json | null
@@ -2634,8 +2731,11 @@ export type Database = {
           body: string
           channel_id: string
           created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
           id?: string
           reactions?: Json
+          removed_by_moderator?: boolean
         }
         Update: {
           attachment?: Json | null
@@ -2643,8 +2743,11 @@ export type Database = {
           body?: string
           channel_id?: string
           created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
           id?: string
           reactions?: Json
+          removed_by_moderator?: boolean
         }
         Relationships: [
           {
@@ -3140,6 +3243,10 @@ export type Database = {
       }
       can_manage_subgroup: { Args: { p_subgroup_id: string }; Returns: boolean }
       can_moderate: { Args: { cid: string }; Returns: boolean }
+      can_moderate_channel_messages: {
+        Args: { p_channel_id: string }
+        Returns: boolean
+      }
       can_moderate_post: { Args: { pid: string }; Returns: boolean }
       can_read_channel: { Args: { chid: string }; Returns: boolean }
       can_read_collaboration_file_object: {
@@ -3237,6 +3344,10 @@ export type Database = {
         Returns: boolean
       }
       channel_link_url_valid: { Args: { p_url: string }; Returns: boolean }
+      channel_message_moderate_admits: {
+        Args: { p_channel_id: string; p_user_id: string }
+        Returns: boolean
+      }
       channel_resource_contributors: {
         Args: { p_channel_id: string }
         Returns: {
@@ -3586,6 +3697,10 @@ export type Database = {
         Returns: boolean
       }
       delete_channel_link: { Args: { p_link_id: string }; Returns: boolean }
+      delete_channel_message: {
+        Args: { p_message_id: string }
+        Returns: string
+      }
       delete_channel_resource_folder: {
         Args: { p_folder_id: string }
         Returns: number
@@ -3602,6 +3717,7 @@ export type Database = {
         Args: { p_channel_id: string; p_confirm_name: string }
         Returns: boolean
       }
+      delete_direct_message: { Args: { p_message_id: string }; Returns: string }
       delete_private_channel: {
         Args: { p_channel_id: string }
         Returns: boolean
@@ -3614,6 +3730,14 @@ export type Database = {
           user_id: string
         }[]
       }
+      direct_message_requote_notification: {
+        Args: {
+          p_message: Database["public"]["Tables"]["direct_messages"]["Row"]
+          p_new_quote: string
+          p_old_body: string
+        }
+        Returns: undefined
+      }
       direct_unread_count: { Args: { p_community_id: string }; Returns: number }
       discard_message_attachment: {
         Args: { p_attachment_id: string }
@@ -3623,9 +3747,49 @@ export type Database = {
         Args: { p_community_id: string }
         Returns: boolean
       }
+      edit_channel_message: {
+        Args: { p_body: string; p_message_id: string }
+        Returns: {
+          attachment: Json | null
+          author_id: string
+          body: string
+          channel_id: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          reactions: Json
+          removed_by_moderator: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       edit_collaboration_message: {
         Args: { p_body: string; p_message_id: string }
         Returns: boolean
+      }
+      edit_direct_message: {
+        Args: { p_body: string; p_message_id: string }
+        Returns: {
+          author_id: string
+          body: string
+          conversation_id: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          has_attachments: boolean
+          id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "direct_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       email_change_cooldown: { Args: never; Returns: string }
       emoji_matches_post: {
@@ -4068,6 +4232,10 @@ export type Database = {
       }
       set_channel_file_sharing: {
         Args: { p_channel_id: string; p_enabled: boolean }
+        Returns: boolean
+      }
+      set_channel_message_pinned: {
+        Args: { p_message_id: string; p_pinned: boolean }
         Returns: boolean
       }
       set_channel_resource_pinned: {

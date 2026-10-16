@@ -14,7 +14,17 @@ import { AttachmentButton, PendingAttachmentList } from "@/components/community/
 import { ChannelResourceLibrary, type ResourcePermissions } from "@/components/community/resources/ChannelResourceLibrary";
 import { MessageAttachments } from "@/components/community/attachments/MessageAttachments";
 import { useAttachmentUploads } from "@/components/community/attachments/useAttachmentUploads";
-import { IconAttach, IconClose, IconHash, IconLock, IconSend } from "@/components/ui/icons";
+import {
+  DeleteMessageDialog,
+  DeletedMessage,
+  EditedMark,
+  MessageEditor,
+  MessageMenu,
+  PinnedMessageBar,
+  ReplacePinDialog,
+  useMessageChanges,
+} from "@/components/community/messages/MessageChanges";
+import { IconAttach, IconClose, IconHash, IconLock, IconPin, IconSend } from "@/components/ui/icons";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
 import { createMessageAction } from "@/app/actions";
 import { useLocale, useT } from "@/lib/i18n/react";
@@ -85,6 +95,11 @@ export interface PrivateChannelControls {
  * moment; a message that is not on this page any more (sent since it loaded)
  * is fetched by loading the channel again at `?melding=<id>`, and one that no
  * longer exists says so instead of going anywhere.
+ *
+ * Each sent message has a "⋯" menu: its author may edit the text in place or
+ * delete it; whoever moderates the channel (`canModerate`, answered by the
+ * database for this viewer) may remove anyone's message and pin one beneath
+ * the header. A deleted message keeps its place as a placeholder.
  */
 export function ChannelView({
   channel,
@@ -102,6 +117,8 @@ export function ChannelView({
   channelAdmin,
   resources,
   focusMessageId,
+  canModerate,
+  pinnedMessageId,
 }: {
   channel: Channel;
   community: Community;
@@ -143,6 +160,13 @@ export function ChannelView({
   resources?: { summary: ResourceSummary; permissions: ResourcePermissions; uploads?: { enabled: boolean } };
   /** A message to bring into view on arrival (`?melding=`). */
   focusMessageId?: string;
+  /**
+   * The viewer may remove others' messages here and pin one
+   * (can_moderate_channel_messages). Every action is decided again.
+   */
+  canModerate: boolean;
+  /** The message pinned beneath the header, if any. */
+  pinnedMessageId?: string;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -197,10 +221,20 @@ export function ChannelView({
     community: community.name,
   };
 
+  const [pinnedId, setPinnedId] = useState(pinnedMessageId);
+  const changes = useMessageChanges({
+    scope: { communityId: community.id, channelId: channel.id },
+    setMessages,
+    pinnedId,
+    setPinnedId,
+    onNotice: setMessageNotice,
+  });
+
+  // To the end when a message arrives — not when one is edited or deleted.
   useEffect(() => {
     if (arrivingAtMessage.current) return;
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages]);
+  }, [messages.length]);
 
   /** Scrolls to a message on this page and marks it. False if it is not here. */
   function showMessage(messageId: string, behavior: ScrollBehavior): boolean {
@@ -236,6 +270,9 @@ export function ChannelView({
     () => ({ ...authors, [currentUser.id]: currentUser }),
     [authors, currentUser],
   );
+  const pinnedMessage = pinnedId
+    ? messages.find((message) => message.id === pinnedId && !message.deleted)
+    : undefined;
 
   function send() {
     const body = draft.trim();
@@ -378,6 +415,14 @@ export function ChannelView({
             </div>
           ) : null}
         </div>
+        {pinnedMessage ? (
+          <PinnedMessageBar
+            message={pinnedMessage}
+            authorName={people[pinnedMessage.authorId]?.name ?? t("common.unknown")}
+            customEmojis={customEmojis}
+            onOpen={() => goToMessage(pinnedMessage.id)}
+          />
+        ) : null}
       </header>
 
       <div className="flex-1 px-5 py-6 lg:px-8">
@@ -417,6 +462,21 @@ export function ChannelView({
                 !newDay &&
                 previous?.authorId === message.authorId &&
                 Date.parse(message.createdAt) - Date.parse(previous.createdAt) < 10 * 60_000;
+              // What this viewer's menu offers for this message. Presentation
+              // only; the database decides each action again.
+              const mine = message.authorId === currentUser.id;
+              const live = !message.deleted && !message.id.startsWith("pending-");
+              const editing = changes.editingId === message.id;
+              const menu = live && !editing
+                ? {
+                    onEdit: mine && canPost ? () => changes.startEdit(message) : undefined,
+                    onDelete:
+                      mine && (!channel.archived || canModerate) ? () => changes.askDelete(message) : undefined,
+                    onRemove: !mine && canModerate ? () => changes.askDelete(message) : undefined,
+                    onPin: canModerate && !channel.archived ? () => changes.togglePin(message) : undefined,
+                  }
+                : undefined;
+              const hasMenu = Boolean(menu && (menu.onEdit || menu.onDelete || menu.onRemove || menu.onPin));
 
               return (
                 <li key={message.id} id={`melding-${message.id}`} className="scroll-mt-28">
@@ -430,7 +490,7 @@ export function ChannelView({
 
                   <div
                     className={cn(
-                      "group -mx-2 flex gap-3 rounded-[6px] px-2 transition-colors duration-700",
+                      "group relative -mx-2 flex gap-3 rounded-[6px] px-2 transition-colors duration-700",
                       grouped ? "mt-0.5" : "mt-4",
                       highlightId === message.id ? "bg-paper-2" : "bg-transparent",
                     )}
@@ -445,7 +505,7 @@ export function ChannelView({
                       ) : null}
                     </div>
 
-                    <div className="min-w-0 flex-1">
+                    <div className={cn("min-w-0 flex-1", hasMenu && "pr-8")}>
                       {!grouped ? (
                         <p className="mb-0.5 flex items-baseline gap-2">
                           <span className="text-sm font-medium text-ink">
@@ -454,13 +514,37 @@ export function ChannelView({
                           <span className="text-[11px] text-ink-3">
                             {formatTime(message.createdAt, locale)}
                           </span>
+                          {pinnedId === message.id && !message.deleted ? (
+                            <span className="inline-flex items-center gap-1 self-center text-[11px] text-ink-3">
+                              <IconPin size={11} />
+                              {t("message.pinned")}
+                            </span>
+                          ) : null}
+                        </p>
+                      ) : pinnedId === message.id && !message.deleted ? (
+                        <p className="mb-0.5 inline-flex items-center gap-1 text-[11px] text-ink-3">
+                          <IconPin size={11} />
+                          {t("message.pinned")}
                         </p>
                       ) : null}
 
-                      {message.body ? (
-                        <p className="whitespace-pre-line text-[0.9375rem] leading-[1.65] text-ink-2">
+                      {message.deleted ? (
+                        <DeletedMessage deleted={message.deleted} />
+                      ) : editing ? (
+                        <MessageEditor
+                          initialBody={message.body}
+                          allowEmpty={Boolean(message.attachments?.length)}
+                          accent={community.branding.accent}
+                          onSave={(body) => changes.saveEdit(message, body)}
+                          onCancel={changes.cancelEdit}
+                        />
+                      ) : message.body ? (
+                        <p className="whitespace-pre-line break-words text-[0.9375rem] leading-[1.65] text-ink-2">
                           <EmojiText body={message.body} emojis={customEmojis} />
+                          {message.editedAt ? <EditedMark editedAt={message.editedAt} /> : null}
                         </p>
+                      ) : message.editedAt ? (
+                        <EditedMark editedAt={message.editedAt} className="block" />
                       ) : null}
 
                       <MessageAttachments
@@ -496,12 +580,38 @@ export function ChannelView({
                         </div>
                       ) : null}
                     </div>
+
+                    {hasMenu && menu ? (
+                      <MessageMenu
+                        {...menu}
+                        pinned={pinnedId === message.id}
+                        className="absolute right-0 top-0"
+                      />
+                    ) : null}
                   </div>
                 </li>
               );
             })}
           </ol>
           <div ref={endRef} />
+
+          <DeleteMessageDialog
+            target={changes.deleteTarget}
+            ownMessage={changes.deleteTarget?.authorId === currentUser.id}
+            authorName={changes.deleteTarget ? people[changes.deleteTarget.authorId]?.name : undefined}
+            pending={changes.deleting}
+            error={changes.dialogError}
+            onConfirm={changes.confirmDelete}
+            onClose={changes.closeDelete}
+          />
+          <ReplacePinDialog
+            open={Boolean(changes.pinTarget)}
+            pending={changes.pinning}
+            error={changes.dialogError}
+            accent={community.branding.accent}
+            onConfirm={changes.confirmPin}
+            onClose={changes.closePin}
+          />
         </div>
       </div>
 

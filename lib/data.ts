@@ -45,6 +45,7 @@ import type {
   EventAttendee,
   Membership,
   Message,
+  MessageDeletion,
   Reaction,
   Notification,
   Post,
@@ -217,6 +218,8 @@ function toMessage(row: MessageRow): Message {
     createdAt: row.created_at,
     reactions: (row.reactions as unknown as Message["reactions"]) ?? [],
     attachment: (row.attachment as Message["attachment"]) ?? undefined,
+    editedAt: row.edited_at ?? undefined,
+    deleted: row.deleted_at ? (row.removed_by_moderator ? "moderator" : "author") : undefined,
   };
 }
 
@@ -228,6 +231,8 @@ function toDirectMessage(row: DirectMessageRow): DirectMessage {
     body: row.body,
     createdAt: row.created_at,
     hasAttachments: row.has_attachments || undefined,
+    editedAt: row.edited_at ?? undefined,
+    deleted: row.deleted_at ? "author" : undefined,
   };
 }
 
@@ -2026,6 +2031,117 @@ function messageWriteError(message: string): MessageKey {
     return "err.channelWriteDenied";
   }
   return "err.messageSendFailed";
+}
+
+// ── Editing, deleting and pinning messages ──────────────────────────────
+//
+// Nothing here decides who may do what. Each function calls one RPC from
+// 20261101100000, which finds the message by id and asks its own channel or
+// conversation: the author edits, the author or the channel's moderators
+// delete, the channel's moderators pin. A forged id, someone else's message or
+// another community's channel is refused there.
+
+/** A refused change to a message, in words. `fallback` covers anything unexpected. */
+function messageChangeError(message: string | undefined, fallback: MessageKey): MessageKey {
+  const reason = /message_error:([a-z_]+)/.exec(message ?? "")?.[1];
+  switch (reason) {
+    case "not_found":
+      return "err.messageNotFound";
+    case "not_allowed":
+      return "err.messageActionDenied";
+    case "deleted":
+      return "err.messageDeleted";
+    case "archived":
+      return "err.channelArchived";
+    case "read_only":
+      return "err.channelWriteDenied";
+    case "closed":
+      return "err.conversationWriteDenied";
+    case "empty":
+      return "err.messageEmpty";
+    case "too_long":
+      return "err.messageTooLong";
+    default:
+      return fallback;
+  }
+}
+
+export type MessageEditResult<T> = { ok: true; message: T } | { ok: false; error: MessageKey };
+export type MessageDeleteResult = { ok: true; deleted: MessageDeletion } | { ok: false; error: MessageKey };
+
+/** The author changes the text of their own channel message. Attachments stay as they are. */
+export async function editChannelMessage(messageId: string, body: string): Promise<MessageEditResult<Message>> {
+  const text = body.trim();
+  if (text.length > MESSAGE_BODY_MAX) return { ok: false, error: "err.messageTooLong" };
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("edit_channel_message", { p_message_id: messageId, p_body: text });
+  if (error || !data) return { ok: false, error: messageChangeError(error?.message, "err.messageEditFailed") };
+  return { ok: true, message: toMessage(data) };
+}
+
+/** Deletes a channel message — the caller's own, or one they moderate — leaving a placeholder. */
+export async function deleteChannelMessage(messageId: string): Promise<MessageDeleteResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("delete_channel_message", { p_message_id: messageId });
+  if (error || (data !== "author" && data !== "moderator")) {
+    return { ok: false, error: messageChangeError(error?.message, "err.messageDeleteFailed") };
+  }
+  return { ok: true, deleted: data };
+}
+
+/** Pins a message beneath its channel's header (replacing any other), or unpins it. */
+export async function setChannelMessagePinned(
+  messageId: string,
+  pinned: boolean,
+): Promise<{ ok: true } | { ok: false; error: MessageKey }> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_channel_message_pinned", {
+    p_message_id: messageId,
+    p_pinned: pinned,
+  });
+  if (error || data !== true) return { ok: false, error: messageChangeError(error?.message, "err.messagePinFailed") };
+  return { ok: true };
+}
+
+/** The message pinned in a channel the caller can read, if any. */
+export async function getPinnedMessageId(channelId: string): Promise<string | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("channel_pinned_messages")
+    .select("message_id")
+    .eq("channel_id", channelId)
+    .maybeSingle();
+  return data?.message_id ?? undefined;
+}
+
+/** Whether the caller may remove others' messages here and pin one. Presentation only. */
+export async function canModerateChannelMessages(channelId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("can_moderate_channel_messages", { p_channel_id: channelId });
+  return !error && data === true;
+}
+
+/** The author changes the text of their own direct message. */
+export async function editDirectMessage(
+  messageId: string,
+  body: string,
+): Promise<MessageEditResult<DirectMessage>> {
+  const text = body.trim();
+  if (text.length > MESSAGE_BODY_MAX) return { ok: false, error: "err.messageTooLong" };
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("edit_direct_message", { p_message_id: messageId, p_body: text });
+  if (error || !data) return { ok: false, error: messageChangeError(error?.message, "err.messageEditFailed") };
+  return { ok: true, message: toDirectMessage(data) };
+}
+
+/** The author deletes their own direct message, leaving a placeholder. */
+export async function deleteDirectMessage(messageId: string): Promise<MessageDeleteResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("delete_direct_message", { p_message_id: messageId });
+  if (error || data !== "author") {
+    return { ok: false, error: messageChangeError(error?.message, "err.messageDeleteFailed") };
+  }
+  return { ok: true, deleted: "author" };
 }
 
 // ── Direct messages ────────────────────────────────────────────────────

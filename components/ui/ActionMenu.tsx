@@ -38,6 +38,7 @@ export function ActionMenu({
   items,
   align = "left",
   triggerRef,
+  containerClassName,
 }: {
   /** Accessible name of the menu itself. */
   label: string;
@@ -50,6 +51,11 @@ export function ActionMenu({
   align?: "left" | "right";
   /** Lets the owner return focus to the button, e.g. after a dialog. */
   triggerRef?: RefObject<HTMLButtonElement | null>;
+  /**
+   * Overrides the wrapper's `relative`, e.g. `static` to place the list
+   * against a positioned ancestor instead of the button.
+   */
+  containerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -96,7 +102,7 @@ export function ActionMenu({
   }
 
   return (
-    <div ref={containerRef} className="relative inline-flex">
+    <div ref={containerRef} className={cn("inline-flex", containerClassName ?? "relative")}>
       <button
         ref={buttonRef}
         type="button"

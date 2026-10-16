@@ -231,6 +231,10 @@ export interface DirectMessage {
   hasAttachments?: boolean;
   /** Files sent with the message, in the order they were attached. */
   attachments?: MessageAttachment[];
+  /** Set once the author has changed the text. */
+  editedAt?: string;
+  /** A placeholder for a message its author deleted; it has no text or files. */
+  deleted?: "author";
 }
 
 export interface DirectConversationSummary {
@@ -369,7 +373,16 @@ export interface Message {
    * only), in the order they were attached. Such a message may have no body.
    */
   attachments?: MessageAttachment[];
+  /** Set once the author has changed the text. */
+  editedAt?: string;
+  /**
+   * A placeholder for a deleted message — by its author, or removed by someone
+   * who moderates the channel. It has no text, reactions or files.
+   */
+  deleted?: MessageDeletion;
 }
+
+export type MessageDeletion = "author" | "moderator";
 
 export interface Post {
   id: string;

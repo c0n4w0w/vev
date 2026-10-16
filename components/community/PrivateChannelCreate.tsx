@@ -6,8 +6,7 @@ import { useFormStatus } from "react-dom";
 import { createPrivateChannelAction } from "@/app/actions";
 import { PrivateChannelParticipantSearch } from "@/components/community/PrivateChannelParticipantSearch";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { IconClose, IconLock, IconPlus } from "@/components/ui/icons";
-import { cn } from "@/components/ui/primitives";
+import { IconClose, IconLock } from "@/components/ui/icons";
 import { CHANNEL_NAME_MAX, CHANNEL_PURPOSE_MAX } from "@/lib/channel-edit-form";
 import { useT } from "@/lib/i18n/react";
 import {
@@ -35,7 +34,7 @@ function CreateButton({ accent }: { accent: string }) {
 }
 
 /**
- * "+ Ny privat kanal" in a lokallag's main chat, and the form behind it.
+ * The form behind the sidebar's "+ Ny privat kanal" link (the main chat has no button of its own).
  *
  * Rendered only for someone the page found may create a channel under this
  * lokallag — a community admin, or its lokallagsleder — and decided again by
@@ -83,18 +82,6 @@ export function PrivateChannelCreate({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={cn(
-          "inline-flex h-8 items-center gap-1.5 rounded-[5px] border border-line-2 px-2.5 text-[13px] text-ink-2",
-          "transition-colors hover:border-ink-3 hover:text-ink",
-        )}
-      >
-        <IconPlus size={14} />
-        {t("privateChannel.new")}
-      </button>
-
       <ConfirmDialog open={open} onClose={close} labelledBy="private-channel-create-title">
         <h3
           id="private-channel-create-title"

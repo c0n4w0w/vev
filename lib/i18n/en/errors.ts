@@ -8,6 +8,12 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.channelWriteDenied": "You don't have access to write in this channel.",
   "err.conversationWriteDenied": "You don't have access to write in this conversation.",
   "err.messageSendFailed": "The message couldn't be sent. Try again.",
+  "err.messageNotFound": "That message no longer exists, or you don't have access to it.",
+  "err.messageActionDenied": "You don't have access to do this with the message.",
+  "err.messageDeleted": "This message was deleted and can't be changed.",
+  "err.messageEditFailed": "The change wasn't saved. Try again.",
+  "err.messageDeleteFailed": "The message wasn't deleted. Try again.",
+  "err.messagePinFailed": "The pin wasn't changed. Try again.",
   "err.conversationOpenFailed": "The conversation couldn't be opened. Try again.",
   "err.attachmentNotAllowed": "You can't attach files in this conversation.",
   "err.attachmentNeedsMutual":

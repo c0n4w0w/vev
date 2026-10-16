@@ -3,6 +3,7 @@ import { ChannelView } from "@/components/community/ChannelView";
 import { ButtonLink, EmptyState, PageContainer } from "@/components/ui/primitives";
 import {
   canCreatePrivateChannel,
+  canModerateChannelMessages,
   canManagePrivateChannel,
   canManageSubgroup,
   getChannel,
@@ -14,6 +15,7 @@ import {
   getLocalGroups,
   getMembership,
   getMessages,
+  getPinnedMessageId,
   getPrivateChannelRoster,
   getSubgroups,
 } from "@/lib/data";
@@ -76,7 +78,16 @@ export default async function ChannelPage({
     );
   }
 
-  const [membership, messages, customEmojis, attachmentPolicy, resourceSummary, resourcePermissions] = await Promise.all([
+  const [
+    membership,
+    messages,
+    customEmojis,
+    attachmentPolicy,
+    resourceSummary,
+    resourcePermissions,
+    canModerate,
+    pinnedMessageId,
+  ] = await Promise.all([
     getMembership(user.id, community.id),
     getMessages(channel.id),
     getCommunityEmojis(community.id),
@@ -91,6 +102,12 @@ export default async function ChannelPage({
     getChannelResourceSummary(channel.id),
     // What this viewer may do with them (channel_resource_permissions).
     getChannelResourcePermissions(channel.id),
+    // Whether this viewer may remove others' messages and pin one here: the
+    // community's admins and moderators in its own channels, a lokallag's
+    // leaders in its chat, a private channel's or a group's managers in
+    // theirs (can_moderate_channel_messages). Asked again on every action.
+    canModerateChannelMessages(channel.id),
+    getPinnedMessageId(channel.id),
   ]);
 
   // Lokallag channels only: the main chat may offer "+ Ny privat kanal", a
@@ -200,6 +217,8 @@ export default async function ChannelPage({
       attachmentPolicy={attachmentPolicy}
       resources={resources}
       focusMessageId={focusMessageId}
+      canModerate={canModerate}
+      pinnedMessageId={pinnedMessageId}
       channelAdmin={channelAdmin ? { sections: channelAdmin[0], counts: channelAdmin[1] } : undefined}
       lastActivityLabel={
         messages.length > 0

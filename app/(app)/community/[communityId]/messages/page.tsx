@@ -19,7 +19,9 @@ export async function generateMetadata({
   return { title: `${t("dm.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
-function preview(t: Translator, body?: string, hasAttachments?: boolean) {
+function preview(t: Translator, body?: string, hasAttachments?: boolean, deleted?: boolean) {
+  // A deleted message has nothing left to quote.
+  if (deleted) return t("message.deletedOwn");
   // A message that is only files has no text to quote.
   if (!body?.trim() && hasAttachments) return t("attachments.messageOnlyFiles");
   if (!body) return t("dm.noMessages");
@@ -94,6 +96,7 @@ export default async function DirectMessagesPage({
                         t,
                         conversation.latestMessage?.body,
                         conversation.latestMessage?.hasAttachments,
+                        Boolean(conversation.latestMessage?.deleted),
                       )}
                     </p>
                   </div>

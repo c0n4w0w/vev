@@ -443,6 +443,37 @@ export const community = {
   "err.resourceFailed": "Endringen ble ikke lagret. Prøv igjen.",
   "channel.messageGone": "Meldingen finnes ikke lenger. Den kan ha blitt slettet.",
 
+  // ── Editing, deleting and pinning messages ────────────────────────────
+  "message.actions": "Valg for meldingen",
+  "message.edit": "Rediger melding",
+  "message.delete": "Slett melding",
+  "message.remove": "Fjern melding",
+  "message.pin": "Fest melding",
+  "message.unpin": "Fjern festing",
+  "message.editLabel": "Rediger meldingen",
+  "message.editHint": "Enter lagrer · Esc avbryter",
+  "message.save": "Lagre",
+  "message.saving": "Lagrer …",
+  "message.cancel": "Avbryt",
+  "message.edited": "redigert",
+  "message.editedAt": "Redigert {when}",
+  "message.deletedOwn": "Meldingen er slettet.",
+  "message.deletedModerator": "Meldingen ble fjernet av en moderator.",
+  "message.deleteTitle": "Slette meldingen?",
+  "message.deleteBody":
+    "Meldingen erstattes av «Meldingen er slettet.» for alle i samtalen. Eventuelle vedlegg slettes også, og forsvinner fra Ressurser. Dette kan ikke angres.",
+  "message.deleteBodyDirect":
+    "Meldingen erstattes av «Meldingen er slettet.» for dere begge. Eventuelle vedlegg slettes også. Dette kan ikke angres.",
+  "message.removeTitle": "Fjerne meldingen?",
+  "message.removeBody":
+    "Meldingen fra {name} erstattes av «Meldingen ble fjernet av en moderator.» for alle. Eventuelle vedlegg slettes også, og forsvinner fra Ressurser. Dette kan ikke angres.",
+  "message.deleting": "Sletter …",
+  "message.pinReplaceTitle": "Erstatte den festede meldingen?",
+  "message.pinReplaceBody": "Bare én melding kan være festet i kanalen. Meldingen som er festet nå, blir erstattet av denne.",
+  "message.pinReplaceConfirm": "Fest denne i stedet",
+  "message.pinned": "Festet melding",
+  "message.pinnedOpen": "Gå til den festede meldingen fra {name}",
+
   // ── Members ───────────────────────────────────────────────────────────
   "members.title": "Medlemmer",
   "members.organizationTitle": "Organisasjonen",
