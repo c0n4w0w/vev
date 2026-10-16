@@ -333,7 +333,7 @@ async function main() {
 
     // ════ B. Fixtures ══════════════════════════════════════════════════
     const general = await createChannel(mia, "generelt", true);
-    const archive = await createChannel(mia, "arkiv");
+    const archive = await createChannel(mia, "arkiv", true);
     const trondelag = await localGroupId("FTR Trøndelag");
     const oslo = await localGroupId("FTR Oslo");
     const p1 = await createPrivate(petter, trondelag, "leders", [id("elironning")]);
@@ -506,11 +506,25 @@ async function main() {
     // ════ J. Archived channel ══════════════════════════════════════════
     const archived = await post(linn, archive, "arkiveres");
     const archivedOther = await post(elise, archive, "arkiveres også");
+    const archivedOwn = await post(linn, archive, "slettes etter arkivering");
+    const archivedFile = await share(linn, archive, await pngFixture(`${TAG} arkivert.png`), `${BODY}: arkivert med vedlegg`);
     expect("J0 festet før arkivering", code(await pin(mia, archived)), "ok");
     const archivedOk = await mia.rpc("set_community_channel_archived", { p_channel_id: archive, p_archived: true });
     expect("J0 kanalen er arkivert", archivedOk.error?.message ?? "ok", "ok");
     expect("J1 kan ikke redigeres", code(await edit(linn, archived, "etterpå")), "archived");
-    expect("J1 forfatteren kan ikke slette i en arkivert kanal", code(await remove(linn, archived)), "archived");
+    expect("J1 forfatteren kan heller ikke redigere en annen melding", code(await edit(linn, archivedOwn, "etterpå")), "archived");
+    expect("J1 ingen ny melding i en arkivert kanal", Boolean((await linn.from("messages").insert({ channel_id: archive, body: `${BODY}: ny` })).error), true);
+    expect("J1 ingen ny opplasting i en arkivert kanal", (await linn.rpc("message_attachment_policy", { p_channel_id: archive, p_conversation_id: N }).single()).data?.reason, "archived");
+    expect("J4 et annet medlem kan ikke slette forfatterens melding", code(await remove(elise, archivedOwn)), "not_allowed");
+    expect("J4 et annet fellesskaps admin finner den ikke", code(await remove(emma, archivedOwn)), "not_found");
+    expect("J4 forfatteren sletter egen melding i en arkivert kanal", (await remove(linn, archivedOwn)).data, "author");
+    const archivedGone = await stored(archivedOwn);
+    expect("J4 plassholderen er forfatterens", `${archivedGone.body}|${Boolean(archivedGone.deleted_at)}|${archivedGone.removed_by_moderator}`, "|true|false");
+    expect("J4 og kan ikke redigeres etterpå", code(await edit(linn, archivedOwn, "tilbake")), "deleted");
+    expect("J5 forfatteren sletter en melding med vedlegg i arkivert kanal", (await remove(linn, archivedFile.messageId)).data, "author");
+    expect("J5 vedleggsraden er borte", sql(`select count(*) from message_attachments where id = '${archivedFile.attachmentId}'`), 0);
+    expect("J5 objektet står i slettekøen", sql(`select count(*) from message_attachment_purges where storage_path = '${archivedFile.path}'`), 1);
+    expect("J5 objektet kan ikke leses", Boolean((await linn.storage.from(BUCKET).download(archivedFile.path)).data), false);
     expect("J2 festet står igjen", await pinnedIn(archive), archived);
     expect("J2 festet kan ikke endres", code(await pin(mia, archivedOther)), "archived");
     expect("J2 eller fjernes", code(await pin(mia, archived, false)), "archived");

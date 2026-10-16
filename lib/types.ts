@@ -252,6 +252,11 @@ export interface DirectConversation {
   id: string;
   communityId: string;
   participantIds: [string, string];
+  /**
+   * Participants the database has recorded as having sent text here — kept
+   * when that text is later edited or deleted.
+   */
+  wroteIds: string[];
   /** As they appear in this conversation's community. */
   otherParticipant: CommunityPersona;
   messages: DirectMessage[];

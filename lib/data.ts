@@ -2342,6 +2342,10 @@ export async function getDirectConversation(
       conversation.participant_one_id,
       conversation.participant_two_id,
     ],
+    wroteIds: [
+      ...(conversation.participant_one_wrote ? [conversation.participant_one_id] : []),
+      ...(conversation.participant_two_wrote ? [conversation.participant_two_id] : []),
+    ],
     otherParticipant: other,
     messages,
     unread: Boolean(

@@ -157,8 +157,10 @@ export function attachmentUrl(communityId: string, attachmentId: string): string
 export function bothHaveWritten(
   messages: readonly { authorId: string; body: string }[],
   participantIds: readonly [string, string],
+  /** Participants already recorded as having written, whatever their messages say now. */
+  alreadyWrote: readonly string[] = [],
 ): boolean {
-  const written = new Set<string>();
+  const written = new Set<string>(alreadyWrote);
   for (const message of messages) {
     if (/\S/.test(message.body)) written.add(message.authorId);
   }

@@ -66,12 +66,15 @@ export function DirectConversationView({
   const insertText = useComposerInsert(composerRef, draft, setDraft);
 
   // Only stored messages count: a message still on its way has a temporary
-  // id, and one the server refuses must not have unlocked anything.
+  // id, and one the server refuses must not have unlocked anything. Someone
+  // the database already recorded as having written counts even if that text
+  // has since been deleted.
   const unlocked =
     attachmentPolicy.reason === "needs_mutual" &&
     bothHaveWritten(
       messages.filter((message) => !message.id.startsWith("pending-")),
       conversation.participantIds,
+      conversation.wroteIds,
     );
   const policy = useMemo<AttachmentPolicy>(
     () => (unlocked ? { ...attachmentPolicy, allowed: true, reason: "ok" } : attachmentPolicy),

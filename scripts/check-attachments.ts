@@ -711,6 +711,63 @@ async function main() {
     const groupOnly = await upload(kristoffer, G, txt);
     expect("vedlegg lastet opp i en gruppe kan ikke sendes i en DM", refusal(await send(kristoffer, O, "", [groupOnly.id!])), "attachment_not_allowed:not_found");
 
+    // ════ 4b. Established eligibility outlives the texts that made it ════
+    // Recorded on the conversation when each participant first sends text;
+    // editing or deleting those texts later closes nothing again.
+    const wrote = async (conversationId: string) => {
+      const { data } = await admin.from("direct_conversations").select("participant_one_id, participant_one_wrote, participant_two_wrote").eq("id", conversationId).single();
+      return data!;
+    };
+    const utrFlags = await wrote(utrDm);
+    expect("UTR: begge er registrert som skrivende", `${utrFlags.participant_one_wrote}/${utrFlags.participant_two_wrote}`, "true/true");
+    const { data: utrTexts } = await admin.from("direct_messages").select("id, author_id").eq("conversation_id", utrDm).like("body", `${BODY}%`);
+    const jonasTexts = (utrTexts ?? []).filter((m) => m.author_id === id("jonas")).map((m) => m.id);
+    const oskarTexts = (utrTexts ?? []).filter((m) => m.author_id === id("oskar")).map((m) => m.id);
+    for (const messageId of jonasTexts) await jonas.rpc("delete_direct_message", { p_message_id: messageId });
+    expect("UTR: A sletter alle sine tekster – fortsatt åpent", `${await policy(jonas, U)}|${await policy(oskar, U)}`, "ok/10/3|ok/10/3");
+    for (const messageId of oskarTexts) await oskar.rpc("delete_direct_message", { p_message_id: messageId });
+    expect("UTR: begge har slettet sine tekster – fortsatt åpent", `${await policy(jonas, U)}|${await policy(oskar, U)}`, "ok/10/3|ok/10/3");
+    expect("UTR: ingen tekst står igjen", (await admin.from("direct_messages").select("id").eq("conversation_id", utrDm).like("body", `${BODY} hei%`)).data?.length, 0);
+    const afterDelete = await httpUpload(jonas, UTR, U, png);
+    expect("UTR: opplasting virker etter slettingen", afterDelete.status, 201);
+    await httpDelete(jonas, UTR, afterDelete.attachment!.id);
+
+    // Nobody can write the record themselves.
+    const loose = (client: Client) => client as unknown as SupabaseClient;
+    const forgedFlag = await loose(tobias).from("direct_conversations").update({ participant_one_wrote: true, participant_two_wrote: true }).eq("id", utrDm);
+    expect("forfalsket: medlemmer kan ikke sette registreringen", forgedFlag.error?.code, "42501");
+    const lonely = await startConversation(jonas, UTR, id("tobias"));
+    const lonelyForge = await loose(jonas).from("direct_conversations").update({ participant_one_wrote: true, participant_two_wrote: true }).eq("id", lonely);
+    expect("forfalsket: heller ikke i egen samtale", lonelyForge.error?.code, "42501");
+    const insertForge = await loose(jonas).from("direct_conversations").insert({ community_id: UTR, participant_one_id: [id("jonas"), id("oskar")].sort()[0], participant_two_id: [id("jonas"), id("oskar")].sort()[1], participant_one_wrote: true, participant_two_wrote: true });
+    expect("forfalsket: kan ikke opprette en samtale som åpen", insertForge.error?.code, "42501");
+    const lonelyFlags = await wrote(lonely);
+    expect("ny samtale starter lukket", `${lonelyFlags.participant_one_wrote}/${lonelyFlags.participant_two_wrote}`, "false/false");
+    const resetFlag = await admin.from("direct_conversations").update({ participant_one_wrote: false }).eq("id", utrDm);
+    expect("registreringen kan ikke tilbakestilles, heller ikke av serveren", /direct_conversation_wrote_is_permanent/.test(resetFlag.error?.message ?? ""), true);
+
+    // One side alone, even after deleting what they wrote, opens nothing.
+    expect("ensidig: A skriver", await say(jonas, lonely, `${BODY} er du der?`), null);
+    const { data: lonelyText } = await admin.from("direct_messages").select("id").eq("conversation_id", lonely).single();
+    await jonas.rpc("delete_direct_message", { p_message_id: lonelyText!.id });
+    expect("ensidig: fortsatt låst for begge", `${await policy(jonas, { conversationId: lonely })}|${await policy(tobias, { conversationId: lonely })}`, "needs_mutual/10/3|needs_mutual/10/3");
+    // The server's own key writing a message records nothing.
+    await admin.from("direct_messages").insert({ conversation_id: lonely, author_id: id("tobias"), body: `${BODY} skrevet av serveren` });
+    expect("ensidig: en melding skrevet med servernøkkelen teller ikke", await policy(jonas, { conversationId: lonely }), "needs_mutual/10/3");
+
+    // A message with only files does not count as having written.
+    const orgFlags = await wrote(orgDm);
+    const miaWrote = orgFlags.participant_one_id === id("miaminge") ? orgFlags.participant_one_wrote : orgFlags.participant_two_wrote;
+    expect("org-DM: en melding med bare vedlegg registrerer ingenting", miaWrote, false);
+
+    // Membership still decides, whatever was recorded.
+    await setMembershipStatus(id("oskar"), UTR, "invited");
+    expect("UTR: B er ikke lenger aktiv – A kan ikke laste opp", `${await policy(jonas, U)}|${refusal(await begin(jonas, U, { name: "a.png", mime: "image/png", size: 1000 }))}`, "closed/10/3|attachment_not_allowed:closed");
+    expect("UTR: B uten aktivt medlemskap når ikke samtalen", await policy(oskar, U), "not_found/0/0");
+    await setMembershipStatus(id("oskar"), UTR, "active");
+    expect("UTR: tredjepart fortsatt utenfor etter alt dette", await policy(tobias, U), "not_found/0/0");
+    expect("UTR: et annet fellesskaps medlem når ikke samtalen", await policy(eli, U), "not_found/0/0");
+
     // ════ 5. Upload, association and integrity (private group) ═════════
     const first = await httpUpload(kristoffer, FTR, G, await rotatedJpegFixture("CHECK vedlegg portrett.jpg"));
     expect("gruppe: opplasting gir 201", first.status, 201);

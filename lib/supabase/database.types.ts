@@ -2188,7 +2188,9 @@ export type Database = {
           id: string
           last_message_at: string
           participant_one_id: string
+          participant_one_wrote: boolean
           participant_two_id: string
+          participant_two_wrote: boolean
         }
         Insert: {
           community_id: string
@@ -2197,7 +2199,9 @@ export type Database = {
           id?: string
           last_message_at?: string
           participant_one_id: string
+          participant_one_wrote?: boolean
           participant_two_id: string
+          participant_two_wrote?: boolean
         }
         Update: {
           community_id?: string
@@ -2206,7 +2210,9 @@ export type Database = {
           id?: string
           last_message_at?: string
           participant_one_id?: string
+          participant_one_wrote?: boolean
           participant_two_id?: string
+          participant_two_wrote?: boolean
         }
         Relationships: [
           {

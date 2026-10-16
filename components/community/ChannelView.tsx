@@ -470,8 +470,7 @@ export function ChannelView({
               const menu = live && !editing
                 ? {
                     onEdit: mine && canPost ? () => changes.startEdit(message) : undefined,
-                    onDelete:
-                      mine && (!channel.archived || canModerate) ? () => changes.askDelete(message) : undefined,
+                    onDelete: mine ? () => changes.askDelete(message) : undefined,
                     onRemove: !mine && canModerate ? () => changes.askDelete(message) : undefined,
                     onPin: canModerate && !channel.archived ? () => changes.togglePin(message) : undefined,
                   }
