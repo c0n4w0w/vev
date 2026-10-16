@@ -129,3 +129,47 @@ export function WriteAccessField({
     </fieldset>
   );
 }
+
+/**
+ * "Fildeling — Tillat filvedlegg": the community channel's
+ * `file_sharing_enabled`, as the create and edit dialogs ask it. Off by
+ * default. Members who may write in the channel may then attach files; the
+ * database enforces it at every upload and send. `keepNote` says, while
+ * switching it off, that files already shared stay.
+ */
+export function FileSharingField({
+  id,
+  checked,
+  onChange,
+  keepNote,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  keepNote?: boolean;
+}) {
+  const t = useT();
+  return (
+    <fieldset>
+      <legend className="label mb-1.5">{t("channels.files.legend")}</legend>
+      <label
+        htmlFor={id}
+        className="flex cursor-pointer items-start gap-2.5 rounded-[5px] border border-line px-3 py-2 has-[:checked]:border-ink-3"
+      >
+        <input
+          id={id}
+          type="checkbox"
+          name="fileSharing"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+          className="mt-1"
+        />
+        <span className="min-w-0">
+          <span className="block text-sm text-ink">{t("channels.files.label")}</span>
+          <span className="block text-[12px] leading-snug text-ink-3">{t("channels.files.hint")}</span>
+        </span>
+      </label>
+      {keepNote ? <p className="mt-1.5 text-[12px] leading-snug text-ink-3">{t("channels.files.keepNote")}</p> : null}
+    </fieldset>
+  );
+}

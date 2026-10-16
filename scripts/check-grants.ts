@@ -68,8 +68,12 @@ const COLLABORATION_READ = [
 const AUTHENTICATED_READ = [
   "access_requests",
   "account_security",
+  "channel_attachment_placements",
   "channel_groups",
+  "channel_links",
   "channel_participants",
+  "channel_resource_folders",
+  "channel_resource_pins",
   "channel_sections",
   "channels",
   "comments",
@@ -134,6 +138,7 @@ const ANON_FUNCTIONS = [
 const SERVICE_ROLE_FUNCTIONS = [
   "begin_password_attempt(text,text)",
   "can_moderate(text)",
+  "channel_link_url_valid(text)",
   "complete_message_attachment(uuid)",
   "email_change_cooldown()",
   "ensure_local_group_channel(uuid)",

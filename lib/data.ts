@@ -60,6 +60,7 @@ import type {
   SubgroupRosterEntry,
   LocalGroupLeadership,
   PrivateChannelParticipant,
+  ChannelContentCounts,
 } from "@/lib/types";
 import { initialsFor } from "@/lib/format";
 import { parseLocale, type Locale, type MessageKey } from "@/lib/i18n";
@@ -203,6 +204,7 @@ function toChannel(row: ChannelRow): Channel {
     subgroupId: row.subgroup_id ?? undefined,
     isPrivate: row.is_private || undefined,
     archived: row.archived_at ? true : undefined,
+    fileSharing: row.file_sharing_enabled || undefined,
   };
 }
 
@@ -1311,6 +1313,8 @@ export async function createCommunityChannel(input: {
   creationKey: string | null;
   /** Only administrators and moderators write (`channels.read_only`). */
   readOnly: boolean;
+  /** Members who may write may also attach files (`channels.file_sharing_enabled`). */
+  fileSharing: boolean;
 }): Promise<ChannelManageResult<string>> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("create_community_channel", {
@@ -1322,6 +1326,7 @@ export async function createCommunityChannel(input: {
     p_section_id: input.sectionId as unknown as string,
     p_creation_key: input.creationKey as unknown as string,
     p_read_only: input.readOnly,
+    p_file_sharing: input.fileSharing,
   });
   if (error && communityChannelNameTaken(error.message)) return { ok: false, error: "err.channelNameTaken" };
   if (error || !data) return { ok: false, error: "err.channelCreateRefused" };
@@ -1329,14 +1334,16 @@ export async function createCommunityChannel(input: {
 }
 
 /**
- * Name, description and who may write, in one call. The id — and with it the
- * address and every message — never changes.
+ * Name, description, who may write and whether files may be attached, in one
+ * call. The id — and with it the address, every message and every file
+ * already sent — never changes.
  */
 export async function updateCommunityChannel(input: {
   channelId: string;
   name: string;
   purpose: string;
   readOnly: boolean;
+  fileSharing: boolean;
 }): Promise<ChannelManageResult> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("update_community_channel", {
@@ -1344,6 +1351,7 @@ export async function updateCommunityChannel(input: {
     p_name: input.name,
     p_purpose: input.purpose,
     p_read_only: input.readOnly,
+    p_file_sharing: input.fileSharing,
   });
   if (error && communityChannelNameTaken(error.message)) return { ok: false, error: "err.channelNameTaken" };
   if (error || data !== true) return { ok: false, error: "err.channelManageRefused" };
@@ -1376,11 +1384,13 @@ export async function setCommunityChannelArchived(channelId: string, archived: b
 /** What deleting would remove. Undefined for anyone but the community's admins. */
 export async function getCommunityChannelContentCounts(
   channelId: string,
-): Promise<{ messages: number; attachments: number } | undefined> {
+): Promise<ChannelContentCounts | undefined> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.rpc("community_channel_content_counts", { p_channel_id: channelId });
   const row = data?.[0];
-  return row ? { messages: row.message_count, attachments: row.attachment_count } : undefined;
+  return row
+    ? { messages: row.message_count, attachments: row.attachment_count, links: row.link_count, folders: row.folder_count }
+    : undefined;
 }
 
 export async function deleteCommunityChannel(

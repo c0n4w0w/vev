@@ -40,6 +40,10 @@ export const channels = {
   "channels.write.everyoneHint": "Alle aktive medlemmer kan skrive meldinger.",
   "channels.write.staff": "Administratorer og moderatorer",
   "channels.write.staffHint": "Medlemmene kan lese, men bare administratorer og moderatorer skriver. Passer for kunngjøringer.",
+  "channels.files.legend": "Fildeling",
+  "channels.files.label": "Tillat filvedlegg",
+  "channels.files.hint": "Medlemmer med skrivetilgang kan laste opp og dele filer i denne kanalen.",
+  "channels.files.keepNote": "Filer som allerede er delt, blir liggende og kan fortsatt åpnes under «Filer».",
   "channels.edit.title": "Rediger #{name}",
   "channels.edit.lead": "Lenken til kanalen og alle meldinger blir som før.",
 
@@ -77,6 +81,7 @@ export const channels = {
   "channels.admin.sectionEmpty": "Ingen kanaler i denne seksjonen ennå.",
   "channels.admin.archivedHeading": "Arkiverte kanaler",
   "channels.admin.archivedLead": "Ingen kan skrive her, men meldingene kan fortsatt leses.",
+  "channels.admin.filesBadge": "Filvedlegg tillatt",
   "channels.admin.moveUp": "Flytt {name} opp",
   "channels.admin.moveDown": "Flytt {name} ned",
   "channels.admin.channelMenu": "Valg for #{name}",

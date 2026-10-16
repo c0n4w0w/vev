@@ -112,7 +112,13 @@ async function createChannel(
   client: Client,
   communityId: string,
   name: string,
-  options: { purpose?: string; sectionId?: string | null; key?: string | null; readOnly?: boolean | null } = {},
+  options: {
+    purpose?: string;
+    sectionId?: string | null;
+    key?: string | null;
+    readOnly?: boolean | null;
+    fileSharing?: boolean | null;
+  } = {},
 ) {
   return client.rpc("create_community_channel", {
     p_community_id: communityId,
@@ -121,6 +127,7 @@ async function createChannel(
     p_section_id: (options.sectionId ?? null) as unknown as string,
     p_creation_key: (options.key ?? null) as unknown as string,
     p_read_only: (options.readOnly === undefined ? false : options.readOnly) as boolean,
+    p_file_sharing: (options.fileSharing === undefined ? false : options.fileSharing) as boolean,
   });
 }
 
@@ -148,8 +155,14 @@ const moveSection = (client: Client, sectionId: string, position: number) =>
   client.rpc("move_channel_section", { p_section_id: sectionId, p_position: position });
 const deleteSection = (client: Client, sectionId: string, to: string | null) =>
   client.rpc("delete_channel_section", { p_section_id: sectionId, p_channels_to: to as unknown as string });
-const update = (client: Client, channelId: string, name: string, purpose: string, readOnly: boolean) =>
-  client.rpc("update_community_channel", { p_channel_id: channelId, p_name: name, p_purpose: purpose, p_read_only: readOnly });
+const update = (client: Client, channelId: string, name: string, purpose: string, readOnly: boolean, fileSharing = false) =>
+  client.rpc("update_community_channel", {
+    p_channel_id: channelId,
+    p_name: name,
+    p_purpose: purpose,
+    p_read_only: readOnly,
+    p_file_sharing: fileSharing,
+  });
 const setDetails = (client: Client, communityId: string, channelId: string, name: string, purpose: string) =>
   client.rpc("set_channel_details", { p_community_id: communityId, p_channel_id: channelId, p_name: name, p_purpose: purpose });
 
@@ -201,8 +214,8 @@ async function cleanUp() {
 // ── A. Catalog ────────────────────────────────────────────────────────────
 
 const MANAGEMENT_FUNCTIONS = [
-  "create_community_channel(text,text,text,uuid,uuid,boolean)",
-  "update_community_channel(text,text,text,boolean)",
+  "create_community_channel(text,text,text,uuid,uuid,boolean,boolean)",
+  "update_community_channel(text,text,text,boolean,boolean)",
   "move_community_channel(text,uuid,integer)",
   "set_community_channel_archived(text,boolean)",
   "community_channel_content_counts(text)",

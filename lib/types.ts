@@ -312,6 +312,20 @@ export interface Channel {
    * channel that is archived leaves ordinary navigation until it is restored.
    */
   archived?: boolean;
+  /**
+   * A community-wide channel or lokallag main chat where members may attach
+   * files (`file_sharing_enabled`). Never set on private lokallag channels or
+   * group chats, which take files regardless.
+   */
+  fileSharing?: boolean;
+}
+
+/** What permanently deleting a community channel would remove with it. */
+export interface ChannelContentCounts {
+  messages: number;
+  attachments: number;
+  links: number;
+  folders: number;
 }
 
 /**

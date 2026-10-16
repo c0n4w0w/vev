@@ -41,6 +41,10 @@ export const channels: Record<keyof typeof nb, string> = {
   "channels.write.everyoneHint": "Every active member can write messages.",
   "channels.write.staff": "Administrators and moderators",
   "channels.write.staffHint": "Members can read, but only administrators and moderators write. Suited to announcements.",
+  "channels.files.legend": "File sharing",
+  "channels.files.label": "Allow file attachments",
+  "channels.files.hint": "Members who can post here can upload and share files in this channel.",
+  "channels.files.keepNote": "Files already shared stay where they are and can still be opened under “Files”.",
   "channels.edit.title": "Edit #{name}",
   "channels.edit.lead": "The channel's link and all its messages stay as they are.",
 
@@ -78,6 +82,7 @@ export const channels: Record<keyof typeof nb, string> = {
   "channels.admin.sectionEmpty": "No channels in this section yet.",
   "channels.admin.archivedHeading": "Archived channels",
   "channels.admin.archivedLead": "Nobody can write here, but the messages can still be read.",
+  "channels.admin.filesBadge": "Attachments allowed",
   "channels.admin.moveUp": "Move {name} up",
   "channels.admin.moveDown": "Move {name} down",
   "channels.admin.channelMenu": "Options for #{name}",

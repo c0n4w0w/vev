@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n/react";
 import type { ChannelSection } from "@/lib/types";
 import {
   CancelButton,
+  FileSharingField,
   FormError,
   SubmitButton,
   WriteAccessField,
@@ -19,8 +20,9 @@ import {
 } from "./dialog-parts";
 
 /**
- * "Opprett kanal": name, an optional description and, when the community has
- * sections, which one it goes under. On success the action opens the new
+ * "Opprett kanal": name, an optional description, when the community has
+ * sections which one it goes under, who may write, and whether files may be
+ * attached (off unless ticked). On success the action opens the new
  * channel, and the sidebar already lists it.
  *
  * The form is mounted only while the dialog is open, so each opening starts
@@ -86,6 +88,7 @@ function CreateForm({
   const [purpose, setPurpose] = useState("");
   const [sectionId, setSectionId] = useState(defaultSectionId ?? "");
   const [writeAccess, setWriteAccess] = useState<WriteAccess>("everyone");
+  const [fileSharing, setFileSharing] = useState(false);
 
   return (
     <>
@@ -163,6 +166,8 @@ function CreateForm({
         ) : null}
 
         <WriteAccessField idPrefix="channel-create-write" value={writeAccess} onChange={setWriteAccess} />
+
+        <FileSharingField id="channel-create-files" checked={fileSharing} onChange={setFileSharing} />
 
         <FormError state={state} />
 

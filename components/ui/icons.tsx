@@ -348,3 +348,16 @@ export const IconRetry = (p: IconProps) => (
     <path d="M19.4 4.4v4h-4" />
   </Svg>
 );
+
+export const IconFolder = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.6 7.2a1.6 1.6 0 0 1 1.6-1.6h4.2l2 2.2h7.4a1.6 1.6 0 0 1 1.6 1.6v8.4a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6z" />
+  </Svg>
+);
+
+export const IconLink = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M10.2 13.8a3.6 3.6 0 0 0 5.1 0l3.2-3.2a3.6 3.6 0 0 0-5.1-5.1l-1.1 1.1" />
+    <path d="M13.8 10.2a3.6 3.6 0 0 0-5.1 0l-3.2 3.2a3.6 3.6 0 0 0 5.1 5.1l1.1-1.1" />
+  </Svg>
+);

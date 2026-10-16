@@ -72,6 +72,14 @@ function readOnly(formData: FormData): boolean {
   return field(formData, "writeAccess") === "staff";
 }
 
+/**
+ * "Tillat filvedlegg". Only the checked box turns it on; a missing or altered
+ * value leaves the channel without files, the default.
+ */
+function fileSharing(formData: FormData): boolean {
+  return field(formData, "fileSharing") === "on";
+}
+
 function creationKey(formData: FormData): string | null {
   const value = field(formData, "creationKey").toLowerCase();
   return CREATION_KEY.test(value) ? value : null;
@@ -121,6 +129,7 @@ export async function createCommunityChannelAction(_prev: State, formData: FormD
     sectionId: optional(formData, "sectionId"),
     creationKey: creationKey(formData),
     readOnly: readOnly(formData),
+    fileSharing: fileSharing(formData),
   });
   if (!result.ok) return { status: "error", error: t(result.error) };
 
@@ -128,7 +137,11 @@ export async function createCommunityChannelAction(_prev: State, formData: FormD
   redirect(`/community/${communityId}/channel/${result.value}`);
 }
 
-/** Name, description and who may write. The address stays the same. */
+/**
+ * Name, description, who may write and file sharing. The address stays the
+ * same, and so does every file already sent: switching file sharing off only
+ * stops new ones.
+ */
 export async function updateCommunityChannelAction(_prev: State, formData: FormData): Promise<State> {
   const { communityId, t } = await session(formData);
   const input = normalizeChannelDetails(field(formData, "name"), field(formData, "purpose"), t);
@@ -139,6 +152,7 @@ export async function updateCommunityChannelAction(_prev: State, formData: FormD
     name: input.name,
     purpose: input.purpose,
     readOnly: readOnly(formData),
+    fileSharing: fileSharing(formData),
   });
   if (!result.ok) return { status: "error", error: t(result.error) };
 

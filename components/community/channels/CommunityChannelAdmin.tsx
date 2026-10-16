@@ -6,7 +6,7 @@ import { ActionMenu, type ActionMenuItem } from "@/components/ui/ActionMenu";
 import { IconChevronDown, IconHash, IconLock, IconPencil, IconSettings, IconTrash } from "@/components/ui/icons";
 import { cn } from "@/components/ui/primitives";
 import { useT } from "@/lib/i18n/react";
-import type { Channel, ChannelSection } from "@/lib/types";
+import type { Channel, ChannelContentCounts, ChannelSection } from "@/lib/types";
 import { ChannelArchiveDialog, ChannelDeleteDialog, ChannelEditDialog, ChannelMoveDialog } from "./ChannelDialogs";
 
 /**
@@ -29,7 +29,7 @@ export function CommunityChannelAdmin({
   communityId: string;
   channel: Channel;
   sections: ChannelSection[];
-  counts?: { messages: number; attachments: number };
+  counts?: ChannelContentCounts;
   accent: string;
 }) {
   const t = useT();

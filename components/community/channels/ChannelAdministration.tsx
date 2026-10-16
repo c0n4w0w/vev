@@ -8,6 +8,7 @@ import { moveChannelSectionAction, moveCommunityChannelAction } from "@/app/chan
 import { ActionMenu, type ActionMenuItem } from "@/components/ui/ActionMenu";
 import { Badge, EmptyState, Panel, cn } from "@/components/ui/primitives";
 import {
+  IconAttach,
   IconChevronDown,
   IconHash,
   IconLock,
@@ -19,13 +20,13 @@ import {
 import { emptyChannelManageFormState } from "@/lib/channel-management-form";
 import { tn } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/react";
-import type { Channel, ChannelSection } from "@/lib/types";
+import type { Channel, ChannelContentCounts, ChannelSection } from "@/lib/types";
 import { ChannelCreateDialog } from "./ChannelCreateDialog";
 import { ChannelArchiveDialog, ChannelDeleteDialog, ChannelEditDialog, ChannelMoveDialog } from "./ChannelDialogs";
 import { SectionCreateDialog, SectionDeleteDialog, SectionRenameDialog } from "./SectionDialogs";
 import { quietButtonClass } from "./dialog-parts";
 
-type Counts = { messages: number; attachments: number };
+type Counts = ChannelContentCounts;
 
 type Dialog =
   | { kind: "createChannel"; sectionId?: string }
@@ -145,6 +146,12 @@ export function ChannelAdministration({
               <Badge tone="neutral">
                 <IconLock size={10} />
                 {t("channel.restrictedPosting")}
+              </Badge>
+            ) : null}
+            {channel.fileSharing ? (
+              <Badge tone="neutral">
+                <IconAttach size={10} />
+                {t("channels.admin.filesBadge")}
               </Badge>
             ) : null}
             {count ? <span>{tn(locale, "count.messages", count.messages)}</span> : null}

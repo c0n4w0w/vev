@@ -12,9 +12,10 @@ import { CHANNEL_NAME_MAX, CHANNEL_PURPOSE_MAX } from "@/lib/channel-edit-form";
 import { emptyChannelManageFormState } from "@/lib/channel-management-form";
 import { tn } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/react";
-import type { Channel, ChannelSection } from "@/lib/types";
+import type { Channel, ChannelContentCounts, ChannelSection } from "@/lib/types";
 import {
   CancelButton,
+  FileSharingField,
   FormError,
   SubmitButton,
   WriteAccessField,
@@ -48,7 +49,7 @@ function Hidden({ communityId, channelId }: { communityId: string; channelId: st
   );
 }
 
-// ── Name, description and who may write ─────────────────────────────────
+// ── Name, description, who may write and file sharing ───────────────────
 
 export function ChannelEditDialog(props: DialogProps) {
   return (
@@ -64,6 +65,7 @@ function EditForm({ communityId, channel, accent, onClose }: DialogProps) {
   const [name, setName] = useState(channel.name);
   const [purpose, setPurpose] = useState(channel.purpose);
   const [writeAccess, setWriteAccess] = useState<WriteAccess>(channel.readOnly ? "staff" : "everyone");
+  const [fileSharing, setFileSharing] = useState(Boolean(channel.fileSharing));
   useCloseOnSuccess(state, onClose);
 
   return (
@@ -111,6 +113,12 @@ function EditForm({ communityId, channel, accent, onClose }: DialogProps) {
           />
         </div>
         <WriteAccessField idPrefix={`channel-edit-write-${channel.id}`} value={writeAccess} onChange={setWriteAccess} />
+        <FileSharingField
+          id={`channel-edit-files-${channel.id}`}
+          checked={fileSharing}
+          onChange={setFileSharing}
+          keepNote={Boolean(channel.fileSharing) && !fileSharing}
+        />
         <FormError state={state} />
         <div className="flex flex-wrap justify-end gap-2">
           <CancelButton onClick={onClose} />
@@ -226,7 +234,7 @@ function ArchiveForm({ communityId, channel, accent, onClose }: DialogProps) {
  */
 export function ChannelDeleteDialog(
   props: DialogProps & {
-    counts?: { messages: number; attachments: number };
+    counts?: ChannelContentCounts;
     /** Where to land afterwards: the Kanaler page, or the community's Overview. */
     returnTo?: "manage";
   },
@@ -244,13 +252,19 @@ function DeleteForm({
   counts,
   returnTo,
   onClose,
-}: DialogProps & { counts?: { messages: number; attachments: number }; returnTo?: "manage" }) {
+}: DialogProps & { counts?: ChannelContentCounts; returnTo?: "manage" }) {
   const t = useT();
   const locale = useLocale();
   const [state, formAction] = useActionState(deleteCommunityChannelAction, emptyChannelManageFormState);
   const [typed, setTyped] = useState("");
   // Unknown counts are treated as "has content": the stricter form.
-  const hasContent = !counts || counts.messages > 0 || counts.attachments > 0 || state.status === "error";
+  const hasContent =
+    !counts ||
+    counts.messages > 0 ||
+    counts.attachments > 0 ||
+    counts.links > 0 ||
+    counts.folders > 0 ||
+    state.status === "error";
   const confirmed = !hasContent || typed.trim() === channel.name;
 
   return (
@@ -266,6 +280,8 @@ function DeleteForm({
               <li>{tn(locale, "count.messages", counts.messages)}</li>
               {counts.messages > 0 ? <li>{t("channels.delete.reactions")}</li> : null}
               {counts.attachments > 0 ? <li>{tn(locale, "count.attachments", counts.attachments)}</li> : null}
+              {counts.links > 0 ? <li>{tn(locale, "count.links", counts.links)}</li> : null}
+              {counts.folders > 0 ? <li>{tn(locale, "count.folders", counts.folders)}</li> : null}
             </ul>
           ) : null}
           <p className="text-ink-3">{t("channels.delete.untouched")}</p>

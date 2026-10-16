@@ -146,6 +146,52 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_attachment_placements: {
+        Row: {
+          attachment_id: string
+          channel_id: string
+          folder_id: string
+          placed_at: string
+          placed_by: string | null
+        }
+        Insert: {
+          attachment_id: string
+          channel_id: string
+          folder_id: string
+          placed_at?: string
+          placed_by?: string | null
+        }
+        Update: {
+          attachment_id?: string
+          channel_id?: string
+          folder_id?: string
+          placed_at?: string
+          placed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_attachment_placements_attachment_fkey"
+            columns: ["attachment_id", "channel_id"]
+            isOneToOne: false
+            referencedRelation: "message_attachments"
+            referencedColumns: ["id", "channel_id"]
+          },
+          {
+            foreignKeyName: "channel_attachment_placements_folder_fkey"
+            columns: ["folder_id", "channel_id"]
+            isOneToOne: false
+            referencedRelation: "channel_resource_folders"
+            referencedColumns: ["id", "channel_id"]
+          },
+          {
+            foreignKeyName: "channel_attachment_placements_placed_by_fkey"
+            columns: ["placed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_groups: {
         Row: {
           id: string
@@ -163,6 +209,64 @@ export type Database = {
           position?: number
         }
         Relationships: []
+      }
+      channel_links: {
+        Row: {
+          channel_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          folder_id: string | null
+          id: string
+          title: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          folder_id?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          folder_id?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_links_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_links_folder_fkey"
+            columns: ["folder_id", "channel_id"]
+            isOneToOne: false
+            referencedRelation: "channel_resource_folders"
+            referencedColumns: ["id", "channel_id"]
+          },
+        ]
       }
       channel_participants: {
         Row: {
@@ -213,6 +317,117 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "memberships"
             referencedColumns: ["user_id", "community_id"]
+          },
+        ]
+      }
+      channel_resource_folders: {
+        Row: {
+          channel_id: string
+          created_at: string
+          created_by: string | null
+          depth: number
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          created_by?: string | null
+          depth: number
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          created_by?: string | null
+          depth?: number
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_resource_folders_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_resource_folders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_resource_folders_parent_fkey"
+            columns: ["parent_id", "channel_id"]
+            isOneToOne: false
+            referencedRelation: "channel_resource_folders"
+            referencedColumns: ["id", "channel_id"]
+          },
+        ]
+      }
+      channel_resource_pins: {
+        Row: {
+          attachment_id: string | null
+          channel_id: string
+          id: string
+          link_id: string | null
+          pinned_at: string
+          pinned_by: string | null
+        }
+        Insert: {
+          attachment_id?: string | null
+          channel_id: string
+          id?: string
+          link_id?: string | null
+          pinned_at?: string
+          pinned_by?: string | null
+        }
+        Update: {
+          attachment_id?: string | null
+          channel_id?: string
+          id?: string
+          link_id?: string | null
+          pinned_at?: string
+          pinned_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_resource_pins_attachment_fkey"
+            columns: ["attachment_id", "channel_id"]
+            isOneToOne: false
+            referencedRelation: "message_attachments"
+            referencedColumns: ["id", "channel_id"]
+          },
+          {
+            foreignKeyName: "channel_resource_pins_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_resource_pins_link_fkey"
+            columns: ["link_id", "channel_id"]
+            isOneToOne: false
+            referencedRelation: "channel_links"
+            referencedColumns: ["id", "channel_id"]
+          },
+          {
+            foreignKeyName: "channel_resource_pins_pinned_by_fkey"
+            columns: ["pinned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -293,6 +508,7 @@ export type Database = {
           community_id: string
           created_by: string | null
           creation_key: string | null
+          file_sharing_enabled: boolean
           group_id: string | null
           id: string
           is_private: boolean
@@ -309,6 +525,7 @@ export type Database = {
           community_id: string
           created_by?: string | null
           creation_key?: string | null
+          file_sharing_enabled?: boolean
           group_id?: string | null
           id: string
           is_private?: boolean
@@ -325,6 +542,7 @@ export type Database = {
           community_id?: string
           created_by?: string | null
           creation_key?: string | null
+          file_sharing_enabled?: boolean
           group_id?: string | null
           id?: string
           is_private?: boolean
@@ -2820,6 +3038,16 @@ export type Database = {
         }[]
       }
       account_has_password: { Args: { p_user_id: string }; Returns: boolean }
+      add_channel_link: {
+        Args: {
+          p_channel_id: string
+          p_description: string
+          p_folder_id: string
+          p_title: string
+          p_url: string
+        }
+        Returns: string
+      }
       add_local_group_manager: {
         Args: { p_local_group_id: string; p_user_id: string }
         Returns: boolean
@@ -3008,6 +3236,86 @@ export type Database = {
         }
         Returns: boolean
       }
+      channel_link_url_valid: { Args: { p_url: string }; Returns: boolean }
+      channel_resource_contributors: {
+        Args: { p_channel_id: string }
+        Returns: {
+          contributor_id: string
+          resource_count: number
+        }[]
+      }
+      channel_resource_folders: {
+        Args: { p_channel_id: string }
+        Returns: {
+          created_at: string
+          created_by: string
+          depth: number
+          id: string
+          name: string
+          parent_id: string
+          resource_count: number
+        }[]
+      }
+      channel_resource_permissions: {
+        Args: { p_channel_id: string }
+        Returns: {
+          can_configure_uploads: boolean
+          can_contribute: boolean
+          can_manage: boolean
+          can_read: boolean
+        }[]
+      }
+      channel_resource_rights: {
+        Args: { p_channel_id: string; p_user_id: string }
+        Returns: {
+          archived: boolean
+          can_contribute: boolean
+          can_manage: boolean
+          can_read: boolean
+        }[]
+      }
+      channel_resource_summary: {
+        Args: { p_channel_id: string }
+        Returns: {
+          file_count: number
+          folder_count: number
+          link_count: number
+          pin_count: number
+        }[]
+      }
+      channel_resources: {
+        Args: {
+          p_after_id?: string
+          p_after_key?: string
+          p_channel_id: string
+          p_contributor?: string
+          p_folder?: string
+          p_kind?: string
+          p_limit?: number
+          p_pinned?: boolean
+          p_search?: string
+          p_sort?: string
+        }
+        Returns: {
+          community_id: string
+          contributor_id: string
+          created_at: string
+          description: string
+          folder_id: string
+          has_thumbnail: boolean
+          height: number
+          id: string
+          message_id: string
+          mime_type: string
+          name: string
+          pinned_at: string
+          resource_type: string
+          size_bytes: number
+          sort_key: string
+          url: string
+          width: number
+        }[]
+      }
       claim_message_attachments: {
         Args: {
           p_attachment_ids: string[]
@@ -3125,6 +3433,8 @@ export type Database = {
         Args: { p_channel_id: string }
         Returns: {
           attachment_count: number
+          folder_count: number
+          link_count: number
           message_count: number
         }[]
       }
@@ -3178,6 +3488,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: boolean
+      }
+      create_channel_resource_folder: {
+        Args: { p_channel_id: string; p_name: string; p_parent_id: string }
+        Returns: string
       }
       create_channel_section: {
         Args: { p_community_id: string; p_creation_key: string; p_name: string }
@@ -3237,6 +3551,7 @@ export type Database = {
         Args: {
           p_community_id: string
           p_creation_key: string
+          p_file_sharing: boolean
           p_name: string
           p_purpose: string
           p_read_only: boolean
@@ -3269,6 +3584,11 @@ export type Database = {
       decline_collaboration_participant_invite: {
         Args: { p_participant_id: string }
         Returns: boolean
+      }
+      delete_channel_link: { Args: { p_link_id: string }; Returns: boolean }
+      delete_channel_resource_folder: {
+        Args: { p_folder_id: string }
+        Returns: number
       }
       delete_channel_section: {
         Args: { p_channels_to: string; p_section_id: string }
@@ -3435,6 +3755,10 @@ export type Database = {
         Args: { p_mime_type: string }
         Returns: string
       }
+      message_attachment_library_kind: {
+        Args: { p_mime_type: string }
+        Returns: string
+      }
       message_attachment_policy: {
         Args: { p_channel_id?: string; p_conversation_id?: string }
         Returns: {
@@ -3458,6 +3782,11 @@ export type Database = {
           max_files: number
           reason: string
         }[]
+      }
+      message_attachment_storage_read_allowed: { Args: never; Returns: boolean }
+      move_channel_resource: {
+        Args: { p_folder_id: string; p_id: string; p_type: string }
+        Returns: boolean
       }
       move_channel_section: {
         Args: { p_position: number; p_section_id: string }
@@ -3613,6 +3942,10 @@ export type Database = {
         Args: { p_subgroup_id: string; p_user_id: string }
         Returns: boolean
       }
+      rename_channel_resource_folder: {
+        Args: { p_folder_id: string; p_name: string }
+        Returns: boolean
+      }
       rename_channel_section: {
         Args: { p_name: string; p_section_id: string }
         Returns: boolean
@@ -3636,6 +3969,10 @@ export type Database = {
       request_community_access: {
         Args: { p_display_name?: string; p_email: string; p_slug: string }
         Returns: boolean
+      }
+      require_channel_resource_rights: {
+        Args: { p_channel_id: string; p_manage: boolean; p_owner: string }
+        Returns: undefined
       }
       resend_invitation: {
         Args: { p_invitation_id: string }
@@ -3728,6 +4065,14 @@ export type Database = {
           name: string
           purpose: string
         }[]
+      }
+      set_channel_file_sharing: {
+        Args: { p_channel_id: string; p_enabled: boolean }
+        Returns: boolean
+      }
+      set_channel_resource_pinned: {
+        Args: { p_id: string; p_pinned: boolean; p_type: string }
+        Returns: boolean
       }
       set_collaboration_channel_status: {
         Args: {
@@ -3895,6 +4240,15 @@ export type Database = {
         Args: { p_event_id: string }
         Returns: boolean
       }
+      update_channel_link: {
+        Args: {
+          p_description: string
+          p_link_id: string
+          p_title: string
+          p_url: string
+        }
+        Returns: boolean
+      }
       update_collaboration_channel: {
         Args: { p_channel_id: string; p_description: string; p_name: string }
         Returns: boolean
@@ -3929,6 +4283,7 @@ export type Database = {
       update_community_channel: {
         Args: {
           p_channel_id: string
+          p_file_sharing: boolean
           p_name: string
           p_purpose: string
           p_read_only: boolean
@@ -4167,6 +4522,7 @@ export const Constants = {
     },
   },
 } as const
+
 
 
 export type ProfileRow = Tables<"profiles">

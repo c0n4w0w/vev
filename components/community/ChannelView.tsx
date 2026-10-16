@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Avatar, Badge, cn } from "@/components/ui/primitives";
 import { ChannelIntroCard } from "@/components/community/ChannelIntroCard";
@@ -10,19 +11,22 @@ import { PrivateChannelCreate } from "@/components/community/PrivateChannelCreat
 import { PrivateChannelParticipants } from "@/components/community/PrivateChannelParticipants";
 import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/community/EmojiPicker";
 import { AttachmentButton, PendingAttachmentList } from "@/components/community/attachments/ComposerAttachments";
+import { ChannelResourceLibrary, type ResourcePermissions } from "@/components/community/resources/ChannelResourceLibrary";
 import { MessageAttachments } from "@/components/community/attachments/MessageAttachments";
 import { useAttachmentUploads } from "@/components/community/attachments/useAttachmentUploads";
-import { IconAttach, IconHash, IconLock, IconSend } from "@/components/ui/icons";
+import { IconAttach, IconClose, IconHash, IconLock, IconSend } from "@/components/ui/icons";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
 import { createMessageAction } from "@/app/actions";
 import { useLocale, useT } from "@/lib/i18n/react";
 import { emptyMessageFormState } from "@/lib/message-form";
 import type { AttachmentPolicy } from "@/lib/attachment-types";
+import type { ResourceSummary } from "@/lib/channel-resources";
 import type {
   Channel,
   Community,
   CommunityEmoji,
   CommunityPersona,
+  ChannelContentCounts,
   ChannelSection,
   Message,
   PrivateChannelParticipant,
@@ -69,7 +73,18 @@ export interface PrivateChannelControls {
  * has a paperclip. Files are uploaded as they are picked and travel with the
  * message as ids; a message may then be files alone. Whether this channel
  * takes files at all is `attachmentPolicy`, answered by the database for this
- * viewer, and decided there again for every upload and every send.
+ * viewer, and decided there again for every upload and every send. A
+ * community channel has the paperclip too once its administrators switch
+ * file sharing on.
+ *
+ * "Ressurser" in the header opens the channel's library of files, links,
+ * folders and pins — offered wherever files can be shared now or resources
+ * exist, so switching sharing off or archiving the channel never hides what
+ * is already there, and to administrators so they can add the first link.
+ * "Gå til melding" there brings the message into view here and marks it for a
+ * moment; a message that is not on this page any more (sent since it loaded)
+ * is fetched by loading the channel again at `?melding=<id>`, and one that no
+ * longer exists says so instead of going anywhere.
  */
 export function ChannelView({
   channel,
@@ -85,6 +100,8 @@ export function ChannelView({
   subgroup,
   attachmentPolicy,
   channelAdmin,
+  resources,
+  focusMessageId,
 }: {
   channel: Channel;
   community: Community;
@@ -121,11 +138,28 @@ export function ChannelView({
    * "Administrer kanal" menu, with the community's sections to move it to and
    * what deleting it would remove (answered by the database for this viewer).
    */
-  channelAdmin?: { sections: ChannelSection[]; counts?: { messages: number; attachments: number } };
+  channelAdmin?: { sections: ChannelSection[]; counts?: ChannelContentCounts };
+  /** Set when "Ressurser" is offered; the flags only decide which controls appear. */
+  resources?: { summary: ResourceSummary; permissions: ResourcePermissions; uploads?: { enabled: boolean } };
+  /** A message to bring into view on arrival (`?melding=`). */
+  focusMessageId?: string;
 }) {
   const t = useT();
   const locale = useLocale();
+  const router = useRouter();
   const [editRequest, setEditRequest] = useState(0);
+  // Arriving at `?melding=`: the conversation opens at that message instead
+  // of at its end — or, when it no longer exists, says so.
+  const arrival =
+    focusMessageId && initialMessages.some((message) => message.id === focusMessageId)
+      ? focusMessageId
+      : undefined;
+  const [highlightId, setHighlightId] = useState<string | undefined>(arrival);
+  const [messageNotice, setMessageNotice] = useState<string | undefined>(
+    focusMessageId && !arrival ? t("channel.messageGone") : undefined,
+  );
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const arrivingAtMessage = useRef(Boolean(arrival));
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | undefined>(undefined);
@@ -164,8 +198,39 @@ export function ChannelView({
   };
 
   useEffect(() => {
+    if (arrivingAtMessage.current) return;
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages]);
+
+  /** Scrolls to a message on this page and marks it. False if it is not here. */
+  function showMessage(messageId: string, behavior: ScrollBehavior): boolean {
+    const element = document.getElementById(`melding-${messageId}`);
+    if (!element) return false;
+    element.scrollIntoView({ block: "center", behavior });
+    setHighlightId(messageId);
+    clearTimeout(highlightTimer.current);
+    highlightTimer.current = setTimeout(() => setHighlightId(undefined), 2600);
+    return true;
+  }
+
+  useEffect(() => {
+    if (!arrival) return;
+    document.getElementById(`melding-${arrival}`)?.scrollIntoView({ block: "center" });
+    arrivingAtMessage.current = false;
+    highlightTimer.current = setTimeout(() => setHighlightId(undefined), 2600);
+    return () => clearTimeout(highlightTimer.current);
+    // Once, on arrival; the page remounts this view for another message.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function goToMessage(messageId: string) {
+    setMessageNotice(undefined);
+    if (showMessage(messageId, "smooth")) return;
+    // Not on this page — sent after it loaded. Load the channel again, at it.
+    router.push(
+      `/community/${encodeURIComponent(community.id)}/channel/${encodeURIComponent(channel.id)}?melding=${encodeURIComponent(messageId)}`,
+    );
+  }
 
   const people = useMemo(
     () => ({ ...authors, [currentUser.id]: currentUser }),
@@ -245,60 +310,72 @@ export function ChannelView({
           ) : null}
           {channel.isPrivate ? <Badge tone="neutral">{t("channel.privateBadge")}</Badge> : null}
           {channel.archived ? <Badge tone="outline">{t("channel.archivedBadge")}</Badge> : null}
-          {privateChannels && (channel.isPrivate || privateChannels.canCreate) ? (
-            <div className="ml-auto">
-              {channel.isPrivate && !privateChannels.canManage ? (
-                // Everyone in a private channel may see who else is in it;
-                // only its managers get the menu that changes anything.
-                <PrivateChannelParticipants
+          {resources || (privateChannels && (channel.isPrivate || privateChannels.canCreate)) || channelAdmin || subgroup?.manageHref ? (
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              {resources ? (
+                <ChannelResourceLibrary
                   communityId={community.id}
-                  communityName={community.name}
-                  channel={channel}
-                  roster={privateChannels.roster}
-                />
-              ) : channel.isPrivate ? (
-                <PrivateChannelAdmin
-                  communityId={community.id}
-                  communityName={community.name}
-                  channel={channel}
-                  localGroup={privateChannels.localGroup}
-                  roster={privateChannels.roster}
-                  viewerIsAdmin={privateChannels.viewerIsAdmin}
+                  channelId={channel.id}
+                  channelName={channel.name}
+                  summary={resources.summary}
+                  permissions={resources.permissions}
+                  uploads={resources.uploads}
                   accent={community.branding.accent}
-                  onEdit={() => setEditRequest((n) => n + 1)}
+                  onGoToMessage={goToMessage}
                 />
-              ) : (
-                <PrivateChannelCreate
+              ) : null}
+              {privateChannels && (channel.isPrivate || privateChannels.canCreate) ? (
+                channel.isPrivate && !privateChannels.canManage ? (
+                  // Everyone in a private channel may see who else is in it;
+                  // only its managers get the menu that changes anything.
+                  <PrivateChannelParticipants
+                    communityId={community.id}
+                    communityName={community.name}
+                    channel={channel}
+                    roster={privateChannels.roster}
+                  />
+                ) : channel.isPrivate ? (
+                  <PrivateChannelAdmin
+                    communityId={community.id}
+                    communityName={community.name}
+                    channel={channel}
+                    localGroup={privateChannels.localGroup}
+                    roster={privateChannels.roster}
+                    viewerIsAdmin={privateChannels.viewerIsAdmin}
+                    accent={community.branding.accent}
+                    onEdit={() => setEditRequest((n) => n + 1)}
+                  />
+                ) : (
+                  <PrivateChannelCreate
+                    communityId={community.id}
+                    communityName={community.name}
+                    localGroup={privateChannels.localGroup}
+                    accent={community.branding.accent}
+                    openRequested={privateChannels.createRequested}
+                  />
+                )
+              ) : null}
+              {channelAdmin ? (
+                <CommunityChannelAdmin
                   communityId={community.id}
-                  communityName={community.name}
-                  localGroup={privateChannels.localGroup}
+                  channel={channel}
+                  sections={channelAdmin.sections}
+                  counts={channelAdmin.counts}
                   accent={community.branding.accent}
-                  openRequested={privateChannels.createRequested}
                 />
-              )}
+              ) : null}
+              {subgroup?.manageHref ? (
+                <Link
+                  href={subgroup.manageHref}
+                  className={cn(
+                    "inline-flex h-8 items-center gap-1.5 rounded-[5px] border border-line-2 px-2.5 text-[13px] text-ink-2",
+                    "transition-colors hover:border-ink-3 hover:text-ink",
+                  )}
+                >
+                  {t("subgroups.manage.menu")}
+                </Link>
+              ) : null}
             </div>
-          ) : null}
-          {channelAdmin ? (
-            <div className="ml-auto">
-              <CommunityChannelAdmin
-                communityId={community.id}
-                channel={channel}
-                sections={channelAdmin.sections}
-                counts={channelAdmin.counts}
-                accent={community.branding.accent}
-              />
-            </div>
-          ) : null}
-          {subgroup?.manageHref ? (
-            <Link
-              href={subgroup.manageHref}
-              className={cn(
-                "ml-auto inline-flex h-8 items-center gap-1.5 rounded-[5px] border border-line-2 px-2.5 text-[13px] text-ink-2",
-                "transition-colors hover:border-ink-3 hover:text-ink",
-              )}
-            >
-              {t("subgroups.manage.menu")}
-            </Link>
           ) : null}
         </div>
       </header>
@@ -314,6 +391,23 @@ export function ChannelView({
             editRequest={editRequest}
           />
 
+          {messageNotice ? (
+            <p
+              role="status"
+              className="mb-4 flex items-start justify-between gap-3 rounded-[6px] border border-line bg-paper px-3.5 py-2.5 text-[13px] text-ink-2"
+            >
+              <span>{messageNotice}</span>
+              <button
+                type="button"
+                onClick={() => setMessageNotice(undefined)}
+                aria-label={t("common.close")}
+                className="-my-1 -mr-1.5 shrink-0 rounded-[5px] p-1 text-ink-3 hover:bg-paper-2 hover:text-ink"
+              >
+                <IconClose size={14} />
+              </button>
+            </p>
+          ) : null}
+
           <ol className="space-y-1">
             {messages.map((message, index) => {
               const previous = messages[index - 1];
@@ -325,7 +419,7 @@ export function ChannelView({
                 Date.parse(message.createdAt) - Date.parse(previous.createdAt) < 10 * 60_000;
 
               return (
-                <li key={message.id}>
+                <li key={message.id} id={`melding-${message.id}`} className="scroll-mt-28">
                   {newDay ? (
                     <div className="flex items-center gap-3 pb-3 pt-6 first:pt-0">
                       <span className="h-px flex-1 bg-line" />
@@ -334,7 +428,13 @@ export function ChannelView({
                     </div>
                   ) : null}
 
-                  <div className={cn("group flex gap-3", grouped ? "mt-0.5" : "mt-4")}>
+                  <div
+                    className={cn(
+                      "group -mx-2 flex gap-3 rounded-[6px] px-2 transition-colors duration-700",
+                      grouped ? "mt-0.5" : "mt-4",
+                      highlightId === message.id ? "bg-paper-2" : "bg-transparent",
+                    )}
+                  >
                     <div className="w-9 shrink-0">
                       {grouped ? (
                         <span className="mt-1 hidden justify-end pr-0.5 text-[10px] tabular-nums text-ink-3 group-hover:flex">
