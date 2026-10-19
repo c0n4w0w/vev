@@ -35,6 +35,7 @@
     "check:custom-emojis": "tsx scripts/check-custom-emojis.ts",
     "check:demo-entry": "tsx scripts/check-demo-entry.ts",
     "check:direct-messages": "tsx scripts/check-direct-messages.ts",
+    "check:disappearing-messages": "tsx scripts/check-disappearing-messages.ts",
     "check:dm-inbox": "tsx scripts/check-dm-inbox.ts",
     "check:email-smtp": "tsx scripts/check-email-smtp.ts",
     "check:event-attendee-removal": "tsx scripts/check-event-attendee-removal.ts",

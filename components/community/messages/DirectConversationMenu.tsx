@@ -9,7 +9,7 @@ import {
 } from "@/app/actions";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { IconInboxIn, IconInboxOut, IconMore, IconTrash } from "@/components/ui/icons";
+import { IconInboxIn, IconInboxOut, IconMore, IconTimer, IconTrash } from "@/components/ui/icons";
 import { cn } from "@/components/ui/primitives";
 import { showToast } from "@/components/ui/Toast";
 import { useT } from "@/lib/i18n/react";
@@ -19,6 +19,9 @@ import { useT } from "@/lib/i18n/react";
  * sidebar, the inbox and archive on the messages page, and the
  * conversation's own header.
  *
+ *   Forsvinnende meldinger
+ *                   only in the conversation's own header, which owns the
+ *                   dialog (DisappearingDialog) and opens it from here.
  *   Arkiver samtale / Gjenopprett samtale
  *                   at once, no dialog: it only moves the conversation
  *                   between the caller's own inbox and archive.
@@ -36,6 +39,7 @@ export function DirectConversationMenu({
   archived = false,
   restoreInMenu = true,
   reveal = "hover",
+  onDisappearing,
   className,
   triggerClassName,
 }: {
@@ -48,6 +52,8 @@ export function DirectConversationMenu({
   restoreInMenu?: boolean;
   /** `hover`: shown on hover and focus, always on touch screens. `always`: e.g. a header. */
   reveal?: "hover" | "always";
+  /** Offers «Forsvinnende meldinger», which opens the owner's dialog. */
+  onDisappearing?: () => void;
   className?: string;
   triggerClassName?: string;
 }) {
@@ -97,6 +103,20 @@ export function DirectConversationMenu({
         align="right"
         triggerRef={triggerRef}
         items={[
+          ...(onDisappearing
+            ? [
+                {
+                  key: "disappearing",
+                  label: t("dm.disappearing.menu"),
+                  icon: <IconTimer size={15} />,
+                  // Focus on the ⋯ first, so the dialog hands it back there.
+                  onSelect: () => {
+                    triggerRef.current?.focus();
+                    onDisappearing();
+                  },
+                },
+              ]
+            : []),
           ...(!archived
             ? [
                 {
@@ -121,7 +141,7 @@ export function DirectConversationMenu({
             label: t("dm.delete"),
             icon: <IconTrash size={15} />,
             danger: true,
-            separatorBefore: !archived || restoreInMenu,
+            separatorBefore: Boolean(onDisappearing) || !archived || restoreInMenu,
             onSelect: () => {
               setError(undefined);
               setConfirming(true);

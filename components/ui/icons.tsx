@@ -237,6 +237,15 @@ export const IconClock = (p: IconProps) => (
   </Svg>
 );
 
+/** Disappearing messages: a dial whose last quarter is running out. */
+export const IconTimer = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3.6a8.4 8.4 0 1 1-8.4 8.4" />
+    <path d="M4.3 8.6h.01M6.4 5.7h.01M9.3 4.1h.01" strokeWidth={2} />
+    <path d="M12 7.6V12l2.8 1.7" />
+  </Svg>
+);
+
 export const IconGlobe = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="8.4" />

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { after } from "next/server";
 import { DirectConversationView } from "@/components/community/DirectConversationView";
 import {
   getCommunityById,
@@ -8,6 +9,7 @@ import {
   markDirectConversationRead,
 } from "@/lib/data";
 import { getAttachmentPolicy } from "@/lib/attachment-data";
+import { purgeExpiredDirectMessages } from "@/lib/attachment-storage";
 import { communityTranslator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
@@ -43,7 +45,27 @@ export default async function DirectConversationPage({
 
   if (!community || !conversation || conversation.communityId !== community.id) notFound();
 
-  await markDirectConversationRead(conversation.id);
+  // Read up to the newest message this page shows. A disappearing message
+  // from the other participant starts its timer here, at the database's
+  // clock; one written after this load has not been seen and does not.
+  const shownThrough = Math.max(0, ...conversation.messages.map((message) => message.seq ?? 0));
+  await markDirectConversationRead(conversation.id, shownThrough);
+
+  // Expired messages are already unreadable; remove them and their files
+  // now rather than waiting for the scheduled sweep.
+  if (
+    conversation.disappearSeconds ||
+    conversation.notices.length > 0 ||
+    conversation.messages.some((message) => message.disappearSeconds)
+  ) {
+    after(async () => {
+      try {
+        await purgeExpiredDirectMessages({ conversationIds: [conversation.id], maxBatches: 1 });
+      } catch (error) {
+        console.error("[messages] expiry purge after opening a conversation failed", error);
+      }
+    });
+  }
 
   return (
     <DirectConversationView

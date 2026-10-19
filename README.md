@@ -266,6 +266,50 @@ overvåkes. En fil som venter i køen er allerede uleselig for alle.
 `npm run check:attachments` (med appen kjørende lokalt) går gjennom hele
 tilgangsmodellen, grensene og oppryddingen mot ekte innloggede kontoer.
 
+**4. Forsvinnende meldinger.** Direktemeldinger med forsvinnende meldinger slått
+på blir uleselige for begge i det øyeblikket tiden er ute — det avgjør
+databasen selv, uten at noen jobb har kjørt (migrasjonen
+`20261107100000_disappearing_direct_messages.sql`). Selve slettingen av tekst,
+vedlegg og varsler skjer i `attachments:sweep` (via
+`purge_expired_direct_messages()`, bare service-rollen) og når noen åpner
+samtalen. Filene går gjennom den samme slettekøen som over.
+
+Ingen planleggerendring er tatt i bruk ennå. Når funksjonen skal ut i
+produksjon, bør sweepen gå oftere enn hver time, så utløpt innhold ikke blir
+liggende lagret lenger enn nødvendig:
+
+```bash
+# crontab: hvert kvarter
+*/15 * * * * cd /sti/til/ting && npm run -s attachments:sweep >> /var/log/ting-attachments.log 2>&1
+```
+
+Sikkerhetskopier er ikke omfattet: en melding som er slettet her, kan finnes i
+en sikkerhetskopi til den kopien utløper etter sin egen oppbevaringstid. Den
+tiden må fastsettes og dokumenteres separat.
+
+**Uløst krav – sikkerhetskopier.** Utløpte private meldinger skal ikke kunne
+gjenopprettes på ubestemt tid fra historiske sikkerhetskopier. Dette er ikke
+løst, og funksjonen skal ikke omtales som «slettet overalt».
+
+- *Bekreftet:* sletting skjer i databasen (tekst, vedlegg, varsler) og i
+  fillageret via slettekøen. Repoet inneholder ingen konfigurasjon, kode eller
+  dokumentasjon for sikkerhetskopier, og direktemeldinger er ikke
+  ende-til-ende-kryptert.
+- *Antatt, ikke verifisert:* at Supabases driftede tjeneste tar jevnlige
+  sikkerhetskopier (og eventuelt punkt-i-tid-gjenoppretting) av databasen, og
+  at disse inneholder utløpte meldinger til de selv utløper. Oppbevaringstid,
+  om fillageret dekkes, og hvem som kan gjenopprette, er ikke undersøkt.
+- *Anbefalt, egen utredning:* (1) faktisk oppførsel og oppbevaringstid for
+  sikkerhetskopier og punkt-i-tid-gjenoppretting hos Supabase; (2) om
+  meldingsinnhold kan holdes utenfor ordinære sikkerhetskopier; (3) om
+  kryptering med separat forvaltede, slettbare meldingsnøkler er gjennomførbar;
+  (4) hvordan vedlegg, varselinnhold og sikkerhetskopier av nøklene da
+  håndteres. Ingen produksjonskonfigurasjon endres før dette er avklart.
+
+`npm run check:disappearing-messages` (med appen kjørende lokalt) går gjennom
+innstillingen, lesetidspunktet, utløp, opprydding og samspillet med arkiv,
+sletting, varsler og vedlegg.
+
 ---
 
 ### 6. Innlogging i produksjon – adresser og grenser

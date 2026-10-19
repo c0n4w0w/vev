@@ -21,6 +21,7 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.conversationArchiveFailed": "The conversation couldn't be archived. Try again.",
   "err.conversationRestoreFailed": "The conversation couldn't be restored. Try again.",
   "err.conversationDeleteFailed": "The conversation couldn't be deleted. Try again.",
+  "err.disappearingFailed": "Disappearing messages couldn't be changed. Try again.",
   "err.attachmentNotAllowed": "You can't attach files in this conversation.",
   "err.attachmentNeedsMutual":
     "File sharing unlocks once you have both sent at least one text message in this conversation.",

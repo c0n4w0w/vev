@@ -24,6 +24,7 @@ export const errors = {
   "err.conversationArchiveFailed": "Samtalen kunne ikke arkiveres. Prøv igjen.",
   "err.conversationRestoreFailed": "Samtalen kunne ikke gjenopprettes. Prøv igjen.",
   "err.conversationDeleteFailed": "Samtalen kunne ikke slettes. Prøv igjen.",
+  "err.disappearingFailed": "Forsvinnende meldinger kunne ikke endres. Prøv igjen.",
   "err.attachmentNotAllowed": "Du kan ikke legge ved filer i denne samtalen.",
   "err.attachmentNeedsMutual":
     "Fildeling åpnes når dere begge har sendt minst én tekstmelding i denne samtalen.",

@@ -282,7 +282,7 @@ export const community: Record<keyof typeof nb, string> = {
   "dm.back": "Back to messages",
   "dm.startWith": "Start the conversation with {name}",
   "dm.storedIn":
-    "Messages are stored in {name} and are visible only to the two of you for as long as you both have access to the community.",
+    "Messages are stored in {name} and are visible only to the two of you for as long as you both have access to the community – or until they disappear, if you turn on disappearing messages.",
   "dm.placeholder": "Write to {name}",
   "dm.notice":
     "Direct messages are protected by access control in TING. They are not end-to-end encrypted.",
@@ -308,6 +308,32 @@ export const community: Record<keyof typeof nb, string> = {
   "dm.done.deleted": "Conversation deleted.",
   "dm.deletedNote":
     "You deleted this conversation on {date}. Only messages written since then are shown here.",
+  "dm.disappearing.menu": "Disappearing messages",
+  "dm.disappearing.title": "Disappearing messages",
+  "dm.disappearing.lead":
+    "Choose when new messages disappear after being read. Unread messages disappear after 30 days.",
+  "dm.disappearing.scope": "Applies to both participants. Existing messages are unaffected.",
+  "dm.disappearing.choices": "Duration",
+  "dm.disappearing.off": "Off",
+  "dm.disappearing.option.3600": "1 hour",
+  "dm.disappearing.option.28800": "8 hours",
+  "dm.disappearing.option.86400": "1 day",
+  "dm.disappearing.option.604800": "1 week",
+  "dm.disappearing.option.2419200": "4 weeks",
+  "dm.disappearing.save": "Save",
+  "dm.disappearing.saving": "Saving …",
+  "dm.disappearing.cancel": "Cancel",
+  "dm.disappearing.statusLabel": "Disappearing messages: {duration}",
+  "dm.disappearing.done.on": "Disappearing messages: {duration}.",
+  "dm.disappearing.done.off": "Disappearing messages are off.",
+  "dm.disappearing.notice.on": "{name} turned on disappearing messages: {duration}.",
+  "dm.disappearing.notice.changed": "{name} changed disappearing messages to {duration}.",
+  "dm.disappearing.notice.off": "{name} turned off disappearing messages.",
+  "dm.disappearing.notice.youOn": "You turned on disappearing messages: {duration}.",
+  "dm.disappearing.notice.youChanged": "You changed disappearing messages to {duration}.",
+  "dm.disappearing.notice.youOff": "You turned off disappearing messages.",
+  "dm.disappearing.message.unread": "Disappearing message ({duration}). The timer starts once {name} has read it.",
+  "dm.disappearing.message.running": "Disappearing message. Disappears {when}.",
 
   // ── Attachments (private groups, private channels, direct messages) ───
   "attachments.attach": "Attach files",

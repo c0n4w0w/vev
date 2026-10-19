@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Avatar, cn } from "@/components/ui/primitives";
 import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/community/EmojiPicker";
 import { AttachmentButton, PendingAttachmentList } from "@/components/community/attachments/ComposerAttachments";
@@ -17,12 +18,60 @@ import {
 } from "@/components/community/messages/MessageChanges";
 import { IconArrowLeft, IconSend } from "@/components/ui/icons";
 import { DirectConversationMenu } from "@/components/community/messages/DirectConversationMenu";
+import {
+  DisappearingDialog,
+  DisappearingNoticeLine,
+  DisappearingStatus,
+  MessageTimer,
+  expiryOf,
+} from "@/components/community/messages/DisappearingMessages";
 import { createDirectMessageAction } from "@/app/actions";
 import { emptyDirectMessageFormState } from "@/lib/direct-message-form";
 import { dayHeading, formatFullDate, formatTime, isSameDay } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/react";
 import { bothHaveWritten, type AttachmentPolicy } from "@/lib/attachment-types";
-import type { Community, CommunityEmoji, CommunityPersona, DirectConversation } from "@/lib/types";
+import type { DisappearSeconds } from "@/lib/disappearing";
+import type {
+  Community,
+  CommunityEmoji,
+  CommunityPersona,
+  DirectConversation,
+  DirectConversationNotice,
+  DirectMessage,
+} from "@/lib/types";
+
+/** How often an open conversation asks for what changed: calm, and only when visible. */
+const REFRESH_MS = 20_000;
+
+/** How often countdowns and expired messages are re-checked against the server's clock. */
+const TICK_MS = 10_000;
+
+type TimelineItem =
+  | { kind: "message"; key: string; createdAt: string; message: DirectMessage }
+  | { kind: "notice"; key: string; createdAt: string; notice: DirectConversationNotice };
+
+/**
+ * Messages and notices in conversation order (their shared `seq`); a message
+ * still on its way has none yet and goes last.
+ */
+function timeline(messages: DirectMessage[], notices: DirectConversationNotice[]): TimelineItem[] {
+  const numbered: (TimelineItem & { seq: number })[] = [
+    ...messages
+      .filter((message) => message.seq !== undefined)
+      .map((message) => ({ kind: "message" as const, key: message.id, createdAt: message.createdAt, message, seq: message.seq! })),
+    ...notices.map((notice) => ({
+      kind: "notice" as const,
+      key: `notice-${notice.id}`,
+      createdAt: notice.createdAt,
+      notice,
+      seq: notice.seq,
+    })),
+  ].sort((a, b) => a.seq - b.seq);
+  const unnumbered: TimelineItem[] = messages
+    .filter((message) => message.seq === undefined)
+    .map((message) => ({ kind: "message", key: message.id, createdAt: message.createdAt, message }));
+  return [...numbered, ...unnumbered];
+}
 
 /**
  * One direct conversation.
@@ -39,6 +88,17 @@ import type { Community, CommunityEmoji, CommunityPersona, DirectConversation } 
  * Each participant may edit or delete their own messages — never the other
  * person's; there is no moderation in a direct conversation. A deleted message
  * keeps its place as a placeholder.
+ *
+ * Disappearing messages: the timer under the other person's name is informational;
+ * «Forsvinnende meldinger» in the ⋯ menu opens the dialog; a change shows
+ * as a notice between the messages. A disappearing message leaves the page
+ * when its time is up, counted from the server's clock as the page last saw
+ * it. That is only the display: the database has already stopped serving it
+ * to anyone (20261107100000).
+ *
+ * The page asks the server again every so often while it is visible, and when
+ * it becomes visible, so the other person's messages and setting changes
+ * arrive without a reload.
  */
 export function DirectConversationView({
   conversation,
@@ -58,7 +118,75 @@ export function DirectConversationView({
 }) {
   const t = useT();
   const locale = useLocale();
+  const router = useRouter();
   const [messages, setMessages] = useState(conversation.messages);
+  const [notices, setNotices] = useState(conversation.notices);
+  const [disappear, setDisappear] = useState<DisappearSeconds | undefined>(conversation.disappearSeconds);
+  const [timerDialog, setTimerDialog] = useState(false);
+
+  // The server's clock, as of this load: when the page was read, and how far
+  // the browser's clock is from it. Countdowns use that, never the browser's
+  // own idea of the time.
+  const [clock, setClock] = useState(() => {
+    const loadedAt = Date.parse(conversation.serverNow);
+    return { loadedAt, offset: loadedAt - Date.now() };
+  });
+  const [serverNow, setServerNow] = useState(() => Date.parse(conversation.serverNow));
+  useEffect(() => {
+    const tick = () => setServerNow(Date.now() + clock.offset);
+    tick();
+    const timer = window.setInterval(tick, TICK_MS);
+    return () => window.clearInterval(timer);
+  }, [clock.offset]);
+
+  // A newer read of the same conversation (a refresh, a revalidation after
+  // sending): take the server's messages, notices and setting, keeping only
+  // what this page has sent since and the server has not returned yet.
+  const firstProps = useRef(true);
+  useEffect(() => {
+    if (firstProps.current) {
+      firstProps.current = false;
+      return;
+    }
+    const loadedAt = Date.parse(conversation.serverNow);
+    setClock({ loadedAt, offset: loadedAt - Date.now() });
+    setNotices(conversation.notices);
+    setDisappear(conversation.disappearSeconds);
+    setMessages((current) => {
+      const server = conversation.messages;
+      const known = new Set(server.map((message) => message.id));
+      // Numbered at or below the counter and missing from the server's
+      // answer: gone (expired, deleted, cleared). Above it, or not numbered
+      // yet: sent from this page after that read.
+      const since = current.filter(
+        (message) => !known.has(message.id) && (message.seq === undefined || message.seq > conversation.latestSeq),
+      );
+      return [...server, ...since];
+    });
+  }, [conversation]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") router.refresh();
+    };
+    const timer = window.setInterval(refresh, REFRESH_MS);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [router]);
+
+  // What is still here: a disappearing message whose time is up is gone.
+  const visibleMessages = useMemo(
+    () =>
+      messages.filter((message) => {
+        const expiry = expiryOf(message, currentUser.id, clock.loadedAt);
+        return expiry === undefined || expiry > serverNow;
+      }),
+    [messages, currentUser.id, clock.loadedAt, serverNow],
+  );
+  const items = useMemo(() => timeline(visibleMessages, notices), [visibleMessages, notices]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | undefined>(undefined);
   const [pending, startTransition] = useTransition();
@@ -93,9 +221,10 @@ export function DirectConversationView({
   });
 
   // To the end when a message arrives — not when one is edited or deleted.
+  const lastKey = items[items.length - 1]?.key;
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length]);
+  }, [lastKey]);
 
   const people = useMemo(
     () => ({
@@ -122,8 +251,9 @@ export function DirectConversationView({
         conversationId: conversation.id,
         authorId: currentUser.id,
         body,
-        createdAt: new Date().toISOString(),
+        createdAt: new Date(Date.now() + clock.offset).toISOString(),
         attachments: files.attachments,
+        disappearSeconds: disappear,
       },
     ]);
     setDraft("");
@@ -168,10 +298,17 @@ export function DirectConversationView({
             <h1 className="truncate text-[0.9375rem] font-medium text-ink">
               {conversation.otherParticipant.name}
             </h1>
-            <p className="truncate text-[12px] text-ink-3">
-              {community.name}
-              {conversation.archived ? ` · ${t("dm.archivedBadge")}` : null}
-            </p>
+            {disappear || conversation.archived ? (
+              <p className="flex min-w-0 items-center gap-1 text-[12px] leading-5 text-ink-3">
+                {disappear ? <DisappearingStatus seconds={disappear} /> : null}
+                {conversation.archived ? (
+                  <span className="shrink-0">
+                    {disappear ? "· " : ""}
+                    {t("dm.archivedBadge")}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
           </div>
           <DirectConversationMenu
             communityId={community.id}
@@ -179,6 +316,7 @@ export function DirectConversationView({
             otherName={conversation.otherParticipant.name}
             archived={conversation.archived}
             reveal="always"
+            onDisappearing={() => setTimerDialog(true)}
             className="shrink-0"
             triggerClassName="h-8 w-8"
           />
@@ -192,7 +330,7 @@ export function DirectConversationView({
               {t("dm.deletedNote", { date: formatFullDate(conversation.deletedAt, locale) })}
             </p>
           ) : null}
-          {messages.length === 0 ? (
+          {items.length === 0 ? (
             <div className="rounded-[6px] border border-dashed border-line-2 bg-surface/60 px-6 py-12 text-center">
               <h2 className="font-display text-lg text-ink">
                 {t("dm.startWith", { name: conversation.otherParticipant.name })}
@@ -203,27 +341,59 @@ export function DirectConversationView({
             </div>
           ) : (
             <ol>
-              {messages.map((message, index) => {
-                const previous = messages[index - 1];
+              {items.map((item, index) => {
+                const before = items[index - 1];
+                const newDay = !before || !isSameDay(before.createdAt, item.createdAt);
+                const dayRule = newDay ? (
+                  <div className="flex items-center gap-3 pb-3 pt-6 first:pt-0">
+                    <span className="h-px flex-1 bg-line" />
+                    <span className="label">{dayHeading(item.createdAt, locale)}</span>
+                    <span className="h-px flex-1 bg-line" />
+                  </div>
+                ) : null;
+
+                if (item.kind === "notice") {
+                  const earlier = items
+                    .slice(0, index)
+                    .reverse()
+                    .find((other): other is Extract<TimelineItem, { kind: "notice" }> => other.kind === "notice");
+                  return (
+                    <li key={item.key}>
+                      {dayRule}
+                      <DisappearingNoticeLine
+                        notice={item.notice}
+                        previous={earlier?.notice.disappearSeconds}
+                        actorName={people[item.notice.actorId]?.name ?? t("common.unknown")}
+                        mine={item.notice.actorId === currentUser.id}
+                      />
+                    </li>
+                  );
+                }
+
+                const message = item.message;
+                // A notice between two messages starts a new group.
+                const previous = before?.kind === "message" ? before.message : undefined;
                 const author = people[message.authorId];
                 const mine = message.authorId === currentUser.id;
-                const newDay = !previous || !isSameDay(previous.createdAt, message.createdAt);
                 const grouped =
                   !newDay &&
                   previous?.authorId === message.authorId &&
                   Date.parse(message.createdAt) - Date.parse(previous.createdAt) < 10 * 60_000;
+                const timer = (
+                  <MessageTimer
+                    message={message}
+                    viewerId={currentUser.id}
+                    otherName={conversation.otherParticipant.name}
+                    loadedAt={clock.loadedAt}
+                    serverNow={serverNow}
+                  />
+                );
                 const editing = changes.editingId === message.id;
                 const ownLive = mine && !message.deleted && !message.id.startsWith("pending-") && !editing;
 
                 return (
-                  <li key={message.id}>
-                    {newDay ? (
-                      <div className="flex items-center gap-3 pb-3 pt-6 first:pt-0">
-                        <span className="h-px flex-1 bg-line" />
-                        <span className="label">{dayHeading(message.createdAt, locale)}</span>
-                        <span className="h-px flex-1 bg-line" />
-                      </div>
-                    ) : null}
+                  <li key={item.key}>
+                    {dayRule}
 
                     <div
                       className={cn(
@@ -236,11 +406,12 @@ export function DirectConversationView({
                         {grouped ? (
                           <span
                             className={cn(
-                              "mt-1 hidden text-[10px] tabular-nums text-ink-3 group-hover:block",
-                              mine && "text-right",
+                              "mt-1 hidden items-center gap-0.5 text-[10px] tabular-nums text-ink-3 group-hover:flex",
+                              mine && "justify-end",
                             )}
                           >
                             {formatTime(message.createdAt, locale)}
+                            {timer}
                           </span>
                         ) : author ? (
                           <Avatar user={author} size="sm" />
@@ -264,8 +435,9 @@ export function DirectConversationView({
                             <span className="text-sm font-medium text-ink">
                               {author?.name ?? t("common.unknown")}
                             </span>
-                            <span className="text-[11px] text-ink-3">
+                            <span className="inline-flex items-center gap-1 text-[11px] text-ink-3">
                               {formatTime(message.createdAt, locale)}
+                              {timer}
                             </span>
                           </p>
                         ) : null}
@@ -333,6 +505,20 @@ export function DirectConversationView({
             </ol>
           )}
           <div ref={endRef} />
+
+          <DisappearingDialog
+            open={timerDialog}
+            // The native dialog hands focus back to what opened it.
+            onClose={() => setTimerDialog(false)}
+            communityId={community.id}
+            conversationId={conversation.id}
+            current={disappear}
+            accent={community.branding.accent}
+            onChanged={(seconds) => {
+              setDisappear(seconds);
+              router.refresh();
+            }}
+          />
 
           <DeleteMessageDialog
             target={changes.deleteTarget}

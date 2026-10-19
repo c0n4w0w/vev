@@ -27,6 +27,7 @@ import type {
   LocalGroupRow,
   CommunityPersonRow,
   CommunityProfileRow,
+  DirectConversationNoticeRow,
   DirectConversationReadRow,
   DirectConversationRow,
   DirectMessageRow,
@@ -55,6 +56,7 @@ import type {
   CommunityPerson,
   CommunityPersona,
   DirectConversation,
+  DirectConversationNotice,
   DirectConversationSummary,
   DirectMessage,
   Subgroup,
@@ -64,6 +66,7 @@ import type {
   ChannelContentCounts,
 } from "@/lib/types";
 import { initialsFor } from "@/lib/format";
+import { isDisappearSeconds, type DisappearSeconds } from "@/lib/disappearing";
 import type { MentionCandidate } from "@/lib/mentions";
 import { parseLocale, type Locale, type MessageKey } from "@/lib/i18n";
 import { getRelatedCommunityConfig, isActiveMember, type RelatedCommunityConfig } from "@/lib/related-communities";
@@ -234,6 +237,20 @@ function toDirectMessage(row: DirectMessageRow): DirectMessage {
     hasAttachments: row.has_attachments || undefined,
     editedAt: row.edited_at ?? undefined,
     deleted: row.deleted_at ? "author" : undefined,
+    seq: row.seq,
+    disappearSeconds: isDisappearSeconds(row.disappear_seconds) ? row.disappear_seconds : undefined,
+    readAt: row.read_at ?? undefined,
+    expiresAt: row.expires_at ?? undefined,
+  };
+}
+
+function toDirectConversationNotice(row: DirectConversationNoticeRow): DirectConversationNotice {
+  return {
+    id: row.id,
+    seq: row.seq,
+    actorId: row.actor_id,
+    createdAt: row.created_at,
+    disappearSeconds: isDisappearSeconds(row.disappear_seconds) ? row.disappear_seconds : undefined,
   };
 }
 
@@ -2464,8 +2481,10 @@ export async function getDirectConversation(
 
   // Messages the caller cleared are not returned at all (direct_messages_select
   // compares each one's number with the caller's own boundary), and neither
-  // are their files.
-  const [{ data: messageRows }, attachments, readMap, other, { data: state }] = await Promise.all([
+  // are their files. Nor is a disappearing message whose time is up, for
+  // either participant (20261107100000).
+  const serverNow = now().toISOString();
+  const [{ data: messageRows }, attachments, readMap, other, { data: state }, { data: noticeRows }] = await Promise.all([
     supabase
       .from("direct_messages")
       .select("*")
@@ -2482,6 +2501,12 @@ export async function getDirectConversation(
       .eq("conversation_id", conversation.id)
       .eq("user_id", userId)
       .maybeSingle(),
+    // Under the same cutoff as the messages.
+    supabase
+      .from("direct_conversation_notices")
+      .select("*")
+      .eq("conversation_id", conversation.id)
+      .order("seq", { ascending: true }),
   ]);
 
   const messages = rows(messageRows).map((row) => ({
@@ -2511,7 +2536,44 @@ export async function getDirectConversation(
     ),
     deletedAt: state?.cleared_at ?? undefined,
     archived: Boolean(state?.archived_at),
+    disappearSeconds: isDisappearSeconds(conversation.disappear_seconds) ? conversation.disappear_seconds : undefined,
+    notices: rows(noticeRows).map(toDirectConversationNotice),
+    serverNow,
+    latestSeq: conversation.message_seq,
   };
+}
+
+export type DisappearingChangeResult =
+  | { ok: true; disappearSeconds?: DisappearSeconds }
+  | { ok: false; error: MessageKey };
+
+/**
+ * Turns disappearing messages off (`null`) or sets the duration for new
+ * messages, for both participants. The database checks that the caller may
+ * write here, takes the conversation's lock and records the change as a
+ * notice; messages already written keep their own duration.
+ */
+export async function setDirectConversationDisappearing(
+  conversationId: string,
+  seconds: DisappearSeconds | null,
+): Promise<DisappearingChangeResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_direct_conversation_disappearing", {
+    p_conversation_id: conversationId,
+    p_seconds: seconds ?? 0,
+  });
+  if (error) {
+    const message = error.message ?? "";
+    return {
+      ok: false,
+      error: /conversation_error:not_found/.test(message)
+        ? "err.conversationNotFound"
+        : /conversation_error:closed/.test(message)
+          ? "err.conversationWriteDenied"
+          : "err.disappearingFailed",
+    };
+  }
+  return { ok: true, disappearSeconds: isDisappearSeconds(data) ? data : undefined };
 }
 
 /**
@@ -2736,10 +2798,16 @@ export async function getMemberDmActions(
   return new Map(rows(data).map((row) => [row.user_id, row.conversation_id ?? undefined]));
 }
 
-export async function markDirectConversationRead(conversationId: string): Promise<boolean> {
+/**
+ * The viewer has the conversation in front of them. `throughSeq` is the
+ * newest message the page showed: a disappearing message written after it
+ * has not been seen, so its timer does not start here.
+ */
+export async function markDirectConversationRead(conversationId: string, throughSeq?: number): Promise<boolean> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("mark_direct_conversation_read", {
     p_conversation_id: conversationId,
+    ...(throughSeq !== undefined ? { p_through_seq: throughSeq } : {}),
   });
   return !error && data === true;
 }

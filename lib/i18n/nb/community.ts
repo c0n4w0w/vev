@@ -280,7 +280,7 @@ export const community = {
   "dm.back": "Tilbake til meldinger",
   "dm.startWith": "Start samtalen med {name}",
   "dm.storedIn":
-    "Meldingen lagres i {name} og er bare synlig for dere to så lenge dere har tilgang til fellesskapet.",
+    "Meldingene lagres i {name} og er bare synlige for dere to så lenge dere har tilgang til fellesskapet – eller til de forsvinner, hvis dere slår på forsvinnende meldinger.",
   "dm.placeholder": "Skriv til {name}",
   "dm.notice":
     "Direkte meldinger er beskyttet av tilgangskontroll i TING. De er ikke ende-til-ende-kryptert.",
@@ -306,6 +306,32 @@ export const community = {
   "dm.done.deleted": "Samtalen er slettet.",
   "dm.deletedNote":
     "Du slettet samtalen {date}. Bare meldinger skrevet etter det vises her.",
+  "dm.disappearing.menu": "Forsvinnende meldinger",
+  "dm.disappearing.title": "Forsvinnende meldinger",
+  "dm.disappearing.lead":
+    "Velg når nye meldinger skal forsvinne etter at de er lest. Uleste meldinger forsvinner etter 30 dager.",
+  "dm.disappearing.scope": "Gjelder begge deltakerne. Eksisterende meldinger påvirkes ikke.",
+  "dm.disappearing.choices": "Varighet",
+  "dm.disappearing.off": "Av",
+  "dm.disappearing.option.3600": "1 time",
+  "dm.disappearing.option.28800": "8 timer",
+  "dm.disappearing.option.86400": "1 dag",
+  "dm.disappearing.option.604800": "1 uke",
+  "dm.disappearing.option.2419200": "4 uker",
+  "dm.disappearing.save": "Lagre",
+  "dm.disappearing.saving": "Lagrer …",
+  "dm.disappearing.cancel": "Avbryt",
+  "dm.disappearing.statusLabel": "Forsvinnende meldinger: {duration}",
+  "dm.disappearing.done.on": "Forsvinnende meldinger: {duration}.",
+  "dm.disappearing.done.off": "Forsvinnende meldinger er slått av.",
+  "dm.disappearing.notice.on": "{name} slo på forsvinnende meldinger: {duration}.",
+  "dm.disappearing.notice.changed": "{name} endret forsvinnende meldinger til {duration}.",
+  "dm.disappearing.notice.off": "{name} slo av forsvinnende meldinger.",
+  "dm.disappearing.notice.youOn": "Du slo på forsvinnende meldinger: {duration}.",
+  "dm.disappearing.notice.youChanged": "Du endret forsvinnende meldinger til {duration}.",
+  "dm.disappearing.notice.youOff": "Du slo av forsvinnende meldinger.",
+  "dm.disappearing.message.unread": "Forsvinnende melding ({duration}). Tiden starter når {name} har lest den.",
+  "dm.disappearing.message.running": "Forsvinnende melding. Forsvinner {when}.",
 
   // ── Attachments (private groups, private channels, direct messages) ───
   "attachments.attach": "Legg ved filer",

@@ -68,6 +68,7 @@ import {
   type DirectConversationChangeResult,
   restoreDirectConversation,
   deleteDirectConversation,
+  setDirectConversationDisappearing,
   setAcceptsMemberDms,
   setChannelDetails,
   setCommunityAbout,
@@ -98,6 +99,7 @@ import {
 } from "@/lib/emoji-image";
 import type { DmSettingFormState } from "@/lib/dm-settings-form";
 import type { DirectMessageFormState } from "@/lib/direct-message-form";
+import { isDisappearSeconds, type DisappearSeconds } from "@/lib/disappearing";
 import {
   EVENT_CREATE_REFUSED,
   EVENT_FULL,
@@ -547,6 +549,36 @@ export async function restoreDirectConversationAction(
   conversationId: string,
 ): Promise<DirectConversationActionResult> {
   return changeDirectConversation(communityId, conversationId, restoreDirectConversation);
+}
+
+export type DisappearingActionResult = { ok: true; disappearSeconds?: DisappearSeconds } | { ok: false; error: string };
+
+/**
+ * «Forsvinnende meldinger»: either participant sets the duration for new
+ * messages, or turns it off, for both. Sends the conversation id and the
+ * choice; the database decides whether the caller may, and records the
+ * change in the conversation (20261107100000).
+ */
+export async function setDisappearingMessagesAction(
+  communityId: string,
+  conversationId: string,
+  seconds: number | null,
+): Promise<DisappearingActionResult> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const community = typeof communityId === "string" ? communityId : "";
+  const t = await translatorFor(community);
+  if (typeof conversationId !== "string" || !isUuid(conversationId)) {
+    return { ok: false, error: t("err.conversationNotFound") };
+  }
+  if (seconds !== null && !isDisappearSeconds(seconds)) {
+    return { ok: false, error: t("err.disappearingFailed") };
+  }
+  const result = await setDirectConversationDisappearing(conversationId, seconds);
+  if (!result.ok) return { ok: false, error: t(result.error) };
+  revalidateDirectMessages(community, conversationId);
+  return { ok: true, disappearSeconds: result.disappearSeconds };
 }
 
 export async function deleteDirectConversationAction(

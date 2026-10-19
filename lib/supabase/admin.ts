@@ -16,7 +16,9 @@ import type { Database } from "@/lib/supabase/database.types";
  * The third is the message-attachment bucket (lib/attachment-storage.ts):
  * browsers have no write access to it at all, so the server stores an object
  * once the database has opened the upload for the signed-in person, and
- * removes objects whose row is gone. It reads nothing and decides nothing.
+ * removes objects whose row is gone — including the rows of disappearing
+ * direct messages whose time is up, which the database chooses itself. It
+ * reads nothing and decides nothing.
  * The fourth is the count kept around each password check
  * (lib/account-security.ts): the two functions that count tries per account
  * and per network address take those as arguments, so no client may call

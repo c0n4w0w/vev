@@ -13,6 +13,10 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
  *   purge    remove objects whose row is gone. Storage refuses SQL deletes, so
  *            rows that disappear leave their object names in
  *            message_attachment_purges and this removes them.
+ *   expire   delete disappearing direct messages whose time is up
+ *            (purge_expired_direct_messages, service role only), so their
+ *            files join that same queue. Reading them was already refused by
+ *            the database from the moment they expired.
  *
  * The service role is used for exactly these, and never to decide anything:
  * who may upload, into which conversation, how much, and who may read it
@@ -183,4 +187,40 @@ export async function sweepAbandonedAttachments(
   if (error) console.error(`[attachments] could not sweep abandoned uploads: ${error.message}`);
   const purge = await purgeAttachmentObjects(1000, purgeOptions);
   return { swept: typeof data === "number" ? data : 0, ...purge };
+}
+
+/** Expired messages deleted per database call; a busy backlog takes several. */
+const EXPIRE_BATCH = 500;
+
+/**
+ * Deletes disappearing direct messages that have expired, then removes their
+ * files' objects through the purge queue.
+ *
+ * Nothing is decided here: the database chooses the rows by their own
+ * `expires_at` against its own clock, locks each one and re-reads it before
+ * deleting, so a late or repeated run never touches a message whose timer
+ * started meanwhile, and runs from several places at once skip each other.
+ * `conversationIds` limits it to those conversations; the app passes the one
+ * just opened, the check suite its own, the scheduled sweep nothing (all).
+ */
+export async function purgeExpiredDirectMessages(
+  options: { conversationIds?: string[]; purge?: AttachmentPurgeOptions; maxBatches?: number } = {},
+): Promise<AttachmentPurgeResult & { expired: number }> {
+  const admin = createSupabaseAdminClient();
+  let expired = 0;
+  for (let batch = 0; batch < (options.maxBatches ?? 20); batch += 1) {
+    const { data, error } = await admin.rpc("purge_expired_direct_messages", {
+      p_limit: EXPIRE_BATCH,
+      ...(options.conversationIds ? { p_conversation_ids: options.conversationIds } : {}),
+    });
+    if (error) {
+      console.error(`[messages] could not delete expired direct messages: ${error.message}`);
+      break;
+    }
+    const count = typeof data === "number" ? data : 0;
+    expired += count;
+    if (count < EXPIRE_BATCH) break;
+  }
+  const purge = await purgeAttachmentObjects(1000, options.purge);
+  return { expired, ...purge };
 }

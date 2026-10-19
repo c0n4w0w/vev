@@ -9,6 +9,7 @@
 
 import type { MessageAttachment } from "@/lib/attachment-types";
 import type { Locale } from "@/lib/i18n/locales";
+import type { DisappearSeconds } from "@/lib/disappearing";
 
 export type RoleId = "member" | "moderator" | "admin";
 
@@ -235,6 +236,27 @@ export interface DirectMessage {
   editedAt?: string;
   /** A placeholder for a message its author deleted; it has no text or files. */
   deleted?: "author";
+  /** Position in the conversation, shared with its notices. */
+  seq?: number;
+  /**
+   * A disappearing message: the duration it captured when it was written.
+   * Absent for an ordinary message.
+   */
+  disappearSeconds?: DisappearSeconds;
+  /** When the recipient first read it (server time); its timer runs from then. */
+  readAt?: string;
+  /** When it stops existing for both participants (server time). */
+  expiresAt?: string;
+}
+
+/** Someone changed disappearing messages; shown between the messages. */
+export interface DirectConversationNotice {
+  id: string;
+  seq: number;
+  actorId: string;
+  createdAt: string;
+  /** The new setting; absent when it was turned off. */
+  disappearSeconds?: DisappearSeconds;
 }
 
 export interface DirectConversationSummary {
@@ -271,6 +293,19 @@ export interface DirectConversation {
   deletedAt?: string;
   /** In the viewer's «Arkiverte samtaler». */
   archived: boolean;
+  /** Disappearing messages for new messages here; absent when off. */
+  disappearSeconds?: DisappearSeconds;
+  /** Setting changes the viewer can still see, in conversation order. */
+  notices: DirectConversationNotice[];
+  /** The database's clock when this was read, to count down without trusting the browser's. */
+  serverNow: string;
+  /**
+   * The conversation's message counter when this was read. A message or
+   * notice numbered at or below it that is not in `messages` is gone for the
+   * viewer (expired, deleted, or cleared); anything numbered above it was
+   * written since.
+   */
+  latestSeq: number;
 }
 
 /**

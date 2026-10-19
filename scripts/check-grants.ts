@@ -86,6 +86,7 @@ const AUTHENTICATED_READ = [
   "community_subgroup_managers",
   "community_subgroup_members",
   "community_subgroups",
+  "direct_conversation_notices",
   "direct_conversation_reads",
   "direct_conversation_states",
   "direct_conversations",
@@ -156,6 +157,7 @@ const SERVICE_ROLE_FUNCTIONS = [
   "normalize_display_name(text)",
   "normalize_email(text)",
   "password_throttle_key(text)",
+  "purge_expired_direct_messages(integer,uuid[])",
   "sweep_abandoned_message_attachments(interval)",
 ];
 
@@ -164,6 +166,7 @@ const NEVER_AUTHENTICATED = [
   "begin_password_attempt(text,text)",
   "finish_password_attempt(text,text,boolean)",
   "complete_message_attachment(uuid)",
+  "purge_expired_direct_messages(integer,uuid[])",
   "sweep_abandoned_message_attachments(interval)",
   "local_group_slug(text)",
 ];

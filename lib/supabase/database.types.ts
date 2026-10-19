@@ -2147,6 +2147,51 @@ export type Database = {
           },
         ]
       }
+      direct_conversation_notices: {
+        Row: {
+          actor_id: string
+          conversation_id: string
+          created_at: string
+          disappear_seconds: number | null
+          id: string
+          kind: string
+          seq: number
+        }
+        Insert: {
+          actor_id: string
+          conversation_id: string
+          created_at?: string
+          disappear_seconds?: number | null
+          id?: string
+          kind?: string
+          seq: number
+        }
+        Update: {
+          actor_id?: string
+          conversation_id?: string
+          created_at?: string
+          disappear_seconds?: number | null
+          id?: string
+          kind?: string
+          seq?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_conversation_notices_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_conversation_notices_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "direct_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       direct_conversation_reads: {
         Row: {
           conversation_id: string
@@ -2230,6 +2275,7 @@ export type Database = {
           community_id: string
           created_at: string
           created_by: string
+          disappear_seconds: number | null
           id: string
           last_message_at: string
           message_seq: number
@@ -2242,6 +2288,7 @@ export type Database = {
           community_id: string
           created_at?: string
           created_by?: string
+          disappear_seconds?: number | null
           id?: string
           last_message_at?: string
           message_seq?: number
@@ -2254,6 +2301,7 @@ export type Database = {
           community_id?: string
           created_at?: string
           created_by?: string
+          disappear_seconds?: number | null
           id?: string
           last_message_at?: string
           message_seq?: number
@@ -2300,9 +2348,12 @@ export type Database = {
           conversation_id: string
           created_at: string
           deleted_at: string | null
+          disappear_seconds: number | null
           edited_at: string | null
+          expires_at: string | null
           has_attachments: boolean
           id: string
+          read_at: string | null
           seq: number
         }
         Insert: {
@@ -2311,9 +2362,12 @@ export type Database = {
           conversation_id: string
           created_at?: string
           deleted_at?: string | null
+          disappear_seconds?: number | null
           edited_at?: string | null
+          expires_at?: string | null
           has_attachments?: boolean
           id?: string
+          read_at?: string | null
           seq?: number
         }
         Update: {
@@ -2322,9 +2376,12 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           deleted_at?: string | null
+          disappear_seconds?: number | null
           edited_at?: string | null
+          expires_at?: string | null
           has_attachments?: boolean
           id?: string
+          read_at?: string | null
           seq?: number
         }
         Relationships: [
@@ -2864,6 +2921,7 @@ export type Database = {
           body: string
           community_id: string | null
           created_at: string
+          direct_message_id: string | null
           event_id: string | null
           href: string
           id: string
@@ -2878,6 +2936,7 @@ export type Database = {
           body: string
           community_id?: string | null
           created_at?: string
+          direct_message_id?: string | null
           event_id?: string | null
           href: string
           id?: string
@@ -2892,6 +2951,7 @@ export type Database = {
           body?: string
           community_id?: string | null
           created_at?: string
+          direct_message_id?: string | null
           event_id?: string | null
           href?: string
           id?: string
@@ -2908,6 +2968,13 @@ export type Database = {
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_direct_message_id_fkey"
+            columns: ["direct_message_id"]
+            isOneToOne: false
+            referencedRelation: "direct_messages"
             referencedColumns: ["id"]
           },
           {
@@ -3388,6 +3455,10 @@ export type Database = {
       }
       can_read_message_attachment_object: {
         Args: { p_name: string }
+        Returns: boolean
+      }
+      can_read_notified_direct_message: {
+        Args: { p_direct_message_id: string }
         Returns: boolean
       }
       can_read_notified_message: {
@@ -3877,6 +3948,7 @@ export type Database = {
           community_id: string
           created_at: string
           created_by: string
+          disappear_seconds: number | null
           id: string
           last_message_at: string
           message_seq: number
@@ -3953,9 +4025,12 @@ export type Database = {
           conversation_id: string
           created_at: string
           deleted_at: string | null
+          disappear_seconds: number | null
           edited_at: string | null
+          expires_at: string | null
           has_attachments: boolean
           id: string
+          read_at: string | null
           seq: number
         }
         SetofOptions: {
@@ -4085,7 +4160,7 @@ export type Database = {
         Returns: boolean
       }
       mark_direct_conversation_read: {
-        Args: { p_conversation_id: string }
+        Args: { p_conversation_id: string; p_through_seq?: number }
         Returns: boolean
       }
       mark_notifications_read: { Args: never; Returns: undefined }
@@ -4251,6 +4326,10 @@ export type Database = {
       published_event_image_is_public: {
         Args: { p_name: string }
         Returns: boolean
+      }
+      purge_expired_direct_messages: {
+        Args: { p_conversation_ids?: string[]; p_limit?: number }
+        Returns: number
       }
       purge_unreachable_direct_messages: {
         Args: { p_conversation_id: string }
@@ -4496,6 +4575,10 @@ export type Database = {
       set_community_person_user: {
         Args: { p_person_id: string; p_user_id: string }
         Returns: boolean
+      }
+      set_direct_conversation_disappearing: {
+        Args: { p_conversation_id: string; p_seconds: number }
+        Returns: number
       }
       set_local_group_active: {
         Args: { p_active: boolean; p_local_group_id: string }
@@ -4905,6 +4988,7 @@ export type CommunityPersonRow = Tables<"community_people">
 export type DirectConversationRow = Tables<"direct_conversations">
 export type DirectConversationReadRow = Tables<"direct_conversation_reads">
 export type DirectMessageRow = Tables<"direct_messages">
+export type DirectConversationNoticeRow = Tables<"direct_conversation_notices">
 export type CommunityProfileRow = Tables<"community_profiles">
 
 export type PortalCommunityRow =
