@@ -31,6 +31,7 @@ import {
 import { CommunitySwitcher } from "@/components/shell/CommunitySwitcher";
 import { ChannelCreateDialog } from "@/components/community/channels/ChannelCreateDialog";
 import { DirectConversationMenu } from "@/components/community/messages/DirectConversationMenu";
+import { ToastHost } from "@/components/ui/Toast";
 import type { ShellCommunity, ShellData } from "@/components/shell/shell-data";
 import { communityLocale, type Translator } from "@/lib/i18n";
 import { PLATFORM_LOCALE } from "@/lib/i18n/locales";
@@ -775,6 +776,7 @@ export function AppShell({ data, children }: { data: ShellData; children: ReactN
   return (
     <LocaleProvider locale={locale}>
       <ShellFrame data={data}>{children}</ShellFrame>
+      <ToastHost />
     </LocaleProvider>
   );
 }

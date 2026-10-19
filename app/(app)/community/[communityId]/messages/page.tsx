@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Avatar, Badge, EmptyState, PageContainer, PageHeader, Panel } from "@/components/ui/primitives";
+import { Avatar, Badge, EmptyState, PageContainer, PageHeader, Panel, cn } from "@/components/ui/primitives";
 import { IconArrowRight, IconMail } from "@/components/ui/icons";
-import { DirectConversationMenu } from "@/components/community/messages/DirectConversationMenu";
+import { DirectConversationMenu, RestoreConversationButton } from "@/components/community/messages/DirectConversationMenu";
 import {
   getCommunityById,
   getDirectConversations,
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
-import { communityLocale, communityTranslator, translator, type Translator } from "@/lib/i18n";
+import { communityLocale, communityTranslator, translator, type Locale, type Translator } from "@/lib/i18n";
+import type { DirectConversationSummary } from "@/lib/types";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -30,12 +31,87 @@ function preview(t: Translator, body?: string, hasAttachments?: boolean, deleted
   return compact.length > 120 ? `${compact.slice(0, 117)}...` : compact;
 }
 
+/** Where the messages page's two views live. Presentation only. */
+const ARCHIVE_VIEW = "arkiv";
+
+function ConversationList({
+  conversations,
+  communityId,
+  userId,
+  locale,
+  t,
+}: {
+  conversations: DirectConversationSummary[];
+  communityId: string;
+  userId: string;
+  locale: Locale;
+  t: Translator;
+}) {
+  return (
+    // Not overflow-hidden: each row's "⋯" menu opens below it.
+    <Panel>
+      <ul className="divide-y divide-line">
+        {conversations.map((conversation) => (
+          <li
+            key={conversation.id}
+            className="group flex items-center gap-2 pr-3 transition-colors first:rounded-t-[6px] last:rounded-b-[6px] hover:bg-paper-2/60 focus-within:bg-paper-2/60"
+          >
+            <Link
+              href={`/community/${communityId}/messages/${conversation.id}`}
+              className="flex min-w-0 flex-1 items-center gap-3 py-4 pl-4"
+            >
+              <Avatar user={conversation.otherParticipant} size="md" />
+              <div className="min-w-0 flex-1">
+                <p className="flex min-w-0 items-center gap-2">
+                  <span className="truncate text-[0.9375rem] font-medium text-ink">
+                    {conversation.otherParticipant.name}
+                  </span>
+                  {conversation.unread ? <Badge tone="skog">{t("dm.new")}</Badge> : null}
+                </p>
+                <p className="mt-1 truncate text-[13px] text-ink-2">
+                  {conversation.latestMessage?.authorId === userId ? t("dm.you") : ""}
+                  {preview(
+                    t,
+                    conversation.latestMessage?.body,
+                    conversation.latestMessage?.hasAttachments,
+                    Boolean(conversation.latestMessage?.deleted),
+                  )}
+                </p>
+              </div>
+              <div className="hidden shrink-0 items-center gap-2 text-[12px] text-ink-3 sm:flex">
+                <span>{timeAgo(conversation.lastMessageAt, locale)}</span>
+                <IconArrowRight size={14} />
+              </div>
+            </Link>
+            {conversation.archived ? (
+              <RestoreConversationButton
+                communityId={communityId}
+                conversationId={conversation.id}
+                otherName={conversation.otherParticipant.name}
+              />
+            ) : null}
+            <DirectConversationMenu
+              communityId={communityId}
+              conversationId={conversation.id}
+              otherName={conversation.otherParticipant.name}
+              archived={conversation.archived}
+              // The row's own «Gjenopprett» button is the restore action here.
+              restoreInMenu={false}
+              className="shrink-0"
+            />
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
 export default async function DirectMessagesPage({
   params,
   searchParams,
 }: PageProps<"/community/[communityId]/messages">) {
   const { communityId } = await params;
-  const { feil, status } = await searchParams;
+  const { feil, vis } = await searchParams;
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
@@ -44,7 +120,20 @@ export default async function DirectMessagesPage({
   const locale = communityLocale(community);
   const t = translator(locale);
 
-  const conversations = await getDirectConversations(community.id, user.id);
+  // A deleted conversation is in neither list until a later message.
+  const [inbox, archived] = await Promise.all([
+    getDirectConversations(community.id, user.id),
+    getDirectConversations(community.id, user.id, { archived: true }),
+  ]);
+  const showArchive = vis === ARCHIVE_VIEW;
+  const base = `/community/${community.id}/messages`;
+  const archivedUnread = archived.some((conversation) => conversation.unread);
+
+  const tab = (active: boolean) =>
+    cn(
+      "-mb-px inline-flex items-center gap-1.5 border-b-2 px-1 pb-2 text-sm transition-colors",
+      active ? "border-ink font-medium text-ink" : "border-transparent text-ink-3 hover:text-ink",
+    );
 
   return (
     <PageContainer>
@@ -60,13 +149,37 @@ export default async function DirectMessagesPage({
         </p>
       ) : null}
 
-      {status === "hidden" || status === "cleared" ? (
-        <p role="status" className="mb-4 rounded-[6px] border border-line bg-surface px-4 py-3 text-[13px] text-ink-2">
-          {t(status === "hidden" ? "dm.status.hidden" : "dm.status.cleared")}
-        </p>
+      {archived.length > 0 || showArchive ? (
+        <nav aria-label={t("dm.title")} className="mb-5 flex gap-5 border-b border-line">
+          <Link href={base} aria-current={showArchive ? undefined : "page"} className={tab(!showArchive)}>
+            {t("dm.inbox")}
+          </Link>
+          <Link
+            href={`${base}?vis=${ARCHIVE_VIEW}`}
+            aria-current={showArchive ? "page" : undefined}
+            className={tab(showArchive)}
+          >
+            {t("dm.archived")}
+            <span className="text-[12px] tabular-nums text-ink-3">{archived.length}</span>
+            {archivedUnread ? (
+              <span className="h-1.5 w-1.5 rounded-full bg-rust" aria-label={t("shell.unread")} />
+            ) : null}
+          </Link>
+        </nav>
       ) : null}
 
-      {conversations.length === 0 ? (
+      {showArchive ? (
+        <>
+          <p className="mb-4 text-[13px] text-ink-3">{t("dm.archivedLead")}</p>
+          {archived.length === 0 ? (
+            <p className="rounded-[6px] border border-dashed border-line-2 px-4 py-6 text-center text-[13px] text-ink-3">
+              {t("dm.archivedEmpty")}
+            </p>
+          ) : (
+            <ConversationList conversations={archived} communityId={community.id} userId={user.id} locale={locale} t={t} />
+          )}
+        </>
+      ) : inbox.length === 0 ? (
         <EmptyState
           title={t("dm.empty.title")}
           body={t("dm.empty.body")}
@@ -81,51 +194,7 @@ export default async function DirectMessagesPage({
           }
         />
       ) : (
-        // Not overflow-hidden: each row's "⋯" menu opens below it.
-        <Panel>
-          <ul className="divide-y divide-line">
-            {conversations.map((conversation) => (
-              <li
-                key={conversation.id}
-                className="group flex items-center transition-colors first:rounded-t-[6px] last:rounded-b-[6px] hover:bg-paper-2/60 focus-within:bg-paper-2/60"
-              >
-                <Link
-                  href={`/community/${community.id}/messages/${conversation.id}`}
-                  className="flex min-w-0 flex-1 items-center gap-3 py-4 pl-4 pr-2"
-                >
-                  <Avatar user={conversation.otherParticipant} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <p className="flex min-w-0 items-center gap-2">
-                      <span className="truncate text-[0.9375rem] font-medium text-ink">
-                        {conversation.otherParticipant.name}
-                      </span>
-                      {conversation.unread ? <Badge tone="skog">{t("dm.new")}</Badge> : null}
-                    </p>
-                    <p className="mt-1 truncate text-[13px] text-ink-2">
-                      {conversation.latestMessage?.authorId === user.id ? t("dm.you") : ""}
-                      {preview(
-                        t,
-                        conversation.latestMessage?.body,
-                        conversation.latestMessage?.hasAttachments,
-                        Boolean(conversation.latestMessage?.deleted),
-                      )}
-                    </p>
-                  </div>
-                  <div className="hidden shrink-0 items-center gap-2 text-[12px] text-ink-3 sm:flex">
-                    <span>{timeAgo(conversation.lastMessageAt, locale)}</span>
-                    <IconArrowRight size={14} />
-                  </div>
-                </Link>
-                <DirectConversationMenu
-                  communityId={community.id}
-                  conversationId={conversation.id}
-                  otherName={conversation.otherParticipant.name}
-                  className="mr-3 shrink-0"
-                />
-              </li>
-            ))}
-          </ul>
-        </Panel>
+        <ConversationList conversations={inbox} communityId={community.id} userId={user.id} locale={locale} t={t} />
       )}
     </PageContainer>
   );

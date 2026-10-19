@@ -2182,6 +2182,7 @@ export type Database = {
       }
       direct_conversation_states: {
         Row: {
+          archived_at: string | null
           cleared_at: string | null
           cleared_through_seq: number
           conversation_id: string
@@ -2190,6 +2191,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           cleared_at?: string | null
           cleared_through_seq?: number
           conversation_id: string
@@ -2198,6 +2200,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           cleared_at?: string | null
           cleared_through_seq?: number
           conversation_id?: string
@@ -3277,6 +3280,10 @@ export type Database = {
           token: string
         }[]
       }
+      archive_direct_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
       arm_email_change: { Args: never; Returns: boolean }
       authorize_email_change: { Args: { p_new_email: string }; Returns: string }
       authorize_password_change: { Args: never; Returns: boolean }
@@ -3558,10 +3565,6 @@ export type Database = {
           p_user_id: string
         }
         Returns: string[]
-      }
-      clear_direct_conversation_history: {
-        Args: { p_conversation_id: string }
-        Returns: number
       }
       collaboration_assignees_valid: {
         Args: {
@@ -3854,6 +3857,10 @@ export type Database = {
         Args: { p_channel_id: string; p_confirm_name: string }
         Returns: boolean
       }
+      delete_direct_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: number
+      }
       delete_direct_message: { Args: { p_message_id: string }; Returns: string }
       delete_private_channel: {
         Args: { p_channel_id: string }
@@ -3865,7 +3872,7 @@ export type Database = {
         Returns: boolean
       }
       direct_inbox: {
-        Args: { p_community_id: string; p_limit?: number }
+        Args: { p_archived?: boolean; p_community_id: string; p_limit?: number }
         Returns: {
           community_id: string
           created_at: string
@@ -4003,10 +4010,6 @@ export type Database = {
       has_membership_row: { Args: { cid: string }; Returns: boolean }
       has_pending_access_request: { Args: { p_slug: string }; Returns: boolean }
       hash_invitation_token: { Args: { p_token: string }; Returns: string }
-      hide_direct_conversation: {
-        Args: { p_conversation_id: string }
-        Returns: boolean
-      }
       inbox_proven_recently: { Args: never; Returns: boolean }
       invitation_lifetime: { Args: never; Returns: string }
       invitation_preview: {
@@ -4249,6 +4252,10 @@ export type Database = {
         Args: { p_name: string }
         Returns: boolean
       }
+      purge_unreachable_direct_messages: {
+        Args: { p_conversation_id: string }
+        Returns: number
+      }
       register_collaboration_file: {
         Args: {
           p_collaboration_id: string
@@ -4325,6 +4332,10 @@ export type Database = {
       }
       respond_to_collaboration_sponsorship: {
         Args: { p_accept: boolean; p_sponsorship_id: string }
+        Returns: boolean
+      }
+      restore_direct_conversation: {
+        Args: { p_conversation_id: string }
         Returns: boolean
       }
       restore_event: { Args: { p_event_id: string }; Returns: string }

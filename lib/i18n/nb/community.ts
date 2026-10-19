@@ -286,21 +286,26 @@ export const community = {
     "Direkte meldinger er beskyttet av tilgangskontroll i TING. De er ikke ende-til-ende-kryptert.",
   "dm.actions": "Valg for samtalen",
   "dm.actionsFor": "Valg for samtalen med {name}",
-  "dm.hide": "Fjern fra innboksen",
-  "dm.clear": "Slett samtalehistorikk",
-  "dm.clear.title": "Slette samtalehistorikken?",
-  "dm.clear.mine":
-    "Den eksisterende samtalehistorikken med {name} blir utilgjengelig for deg – meldinger du har sendt og mottatt, og vedleggene i dem.",
-  "dm.clear.other": "{name} kan fortsatt ha sin kopi av samtalen.",
-  "dm.clear.future": "Nye meldinger kan fortsatt starte en ny, synlig historikk i den samme samtalen.",
-  "dm.clear.undo": "Dette kan ikke angres.",
-  "dm.clear.confirm": "Slett historikken",
-  "dm.clear.pending": "Sletter …",
-  "dm.status.hidden":
-    "Samtalen er fjernet fra innboksen din. Den kommer tilbake hvis det kommer en ny melding.",
-  "dm.status.cleared": "Samtalehistorikken er slettet for deg.",
-  "dm.historyCleared":
-    "Du slettet den tidligere samtalehistorikken din {date}. Bare meldinger skrevet etter det vises her.",
+  "dm.inbox": "Innboks",
+  "dm.archived": "Arkiverte samtaler",
+  "dm.archivedLead": "Arkiverte samtaler ligger her til du gjenoppretter dem. Nye meldinger havner også her.",
+  "dm.archivedEmpty": "Ingen arkiverte samtaler.",
+  "dm.archivedBadge": "Arkivert",
+  "dm.archive": "Arkiver samtale",
+  "dm.restore": "Gjenopprett samtale",
+  "dm.restoreShort": "Gjenopprett",
+  "dm.delete": "Slett samtale",
+  "dm.delete.title": "Slett samtale?",
+  "dm.delete.body":
+    "Samtalen slettes permanent for deg, men ikke for den andre personen. Dette kan ikke angres.",
+  "dm.delete.cancel": "Avbryt",
+  "dm.delete.confirm": "Slett samtale",
+  "dm.delete.pending": "Sletter …",
+  "dm.done.archived": "Samtalen er arkivert.",
+  "dm.done.restored": "Samtalen er flyttet til innboksen.",
+  "dm.done.deleted": "Samtalen er slettet.",
+  "dm.deletedNote":
+    "Du slettet samtalen {date}. Bare meldinger skrevet etter det vises her.",
 
   // ── Attachments (private groups, private channels, direct messages) ───
   "attachments.attach": "Legg ved filer",

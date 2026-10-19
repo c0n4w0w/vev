@@ -2360,11 +2360,14 @@ async function latestDirectMessageMeta(
 export async function getDirectConversations(
   communityId: string,
   userId: string,
+  options: { archived?: boolean } = {},
 ): Promise<DirectConversationSummary[]> {
   const supabase = await createSupabaseServerClient();
-  // The caller's inbox: their conversations here, without the ones they took
-  // out of it (direct_inbox, under the conversations' own policy).
-  const { data } = await supabase.rpc("direct_inbox", { p_community_id: communityId });
+  // The caller's inbox, or their «Arkiverte samtaler» (direct_inbox, under
+  // the conversations' own policy). A conversation they deleted is in neither
+  // until a later message.
+  const archived = options.archived ?? false;
+  const { data } = await supabase.rpc("direct_inbox", { p_community_id: communityId, p_archived: archived });
 
   const conversations = rows(data);
   const conversationIds = conversations.map((conversation) => conversation.id);
@@ -2391,6 +2394,7 @@ export async function getDirectConversations(
         otherParticipant: other,
         latestMessage: message,
         lastMessageAt: conversation.last_message_at,
+        archived: archived || undefined,
         unread: Boolean(
           message &&
             message.authorId !== userId &&
@@ -2474,7 +2478,7 @@ export async function getDirectConversation(
     getCommunityPersona(conversation.community_id, otherParticipantId(conversation, userId)),
     supabase
       .from("direct_conversation_states")
-      .select("cleared_at")
+      .select("cleared_at, archived_at")
       .eq("conversation_id", conversation.id)
       .eq("user_id", userId)
       .maybeSingle(),
@@ -2505,46 +2509,66 @@ export async function getDirectConversation(
         last.authorId !== userId &&
         Date.parse(last.createdAt) > Date.parse(read?.last_read_at ?? "0001-01-01T00:00:00.000Z"),
     ),
-    historyClearedAt: state?.cleared_at ?? undefined,
+    deletedAt: state?.cleared_at ?? undefined,
+    archived: Boolean(state?.archived_at),
   };
 }
 
-export type DirectConversationChangeResult = { ok: true } | { ok: false; error: MessageKey };
+/**
+ * `applied` is false when the database accepted the request but left the
+ * state as it was: an archive that lost to a delete (20261106100000).
+ */
+export type DirectConversationChangeResult = { ok: true; applied: boolean } | { ok: false; error: MessageKey };
 
 function directConversationChangeError(message: string | undefined, fallback: MessageKey): MessageKey {
   return /conversation_error:not_found/.test(message ?? "") ? "err.conversationNotFound" : fallback;
 }
 
-/**
- * Takes a conversation out of the caller's own inbox until the next message
- * in it. Nothing else changes, for either participant.
- */
-export async function hideDirectConversation(conversationId: string): Promise<DirectConversationChangeResult> {
+/** Moves a conversation to the caller's own archive until they restore it. */
+export async function archiveDirectConversation(conversationId: string): Promise<DirectConversationChangeResult> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("hide_direct_conversation", { p_conversation_id: conversationId });
+  const { data, error } = await supabase.rpc("archive_direct_conversation", { p_conversation_id: conversationId });
   if (error || data !== true) {
-    return { ok: false, error: directConversationChangeError(error?.message, "err.conversationHideFailed") };
+    return { ok: false, error: directConversationChangeError(error?.message, "err.conversationArchiveFailed") };
   }
-  return { ok: true };
+  // The call returns true even when a delete took precedence and the row
+  // refused the archive, so ask what the caller's own state now says.
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { ok: true, applied: false };
+  const { data: state } = await supabase
+    .from("direct_conversation_states")
+    .select("archived_at")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  return { ok: true, applied: Boolean(state?.archived_at) };
+}
+
+/** Moves an archived conversation back to the caller's inbox. */
+export async function restoreDirectConversation(conversationId: string): Promise<DirectConversationChangeResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("restore_direct_conversation", { p_conversation_id: conversationId });
+  if (error || data !== true) {
+    return { ok: false, error: directConversationChangeError(error?.message, "err.conversationRestoreFailed") };
+  }
+  return { ok: true, applied: true };
 }
 
 /**
- * Clears the caller's own copy of a conversation's history: every message so
- * far becomes unreadable to them, with its files and their notices. The other
- * participant keeps theirs. The database sets the boundary under the
- * conversation's lock (20261104100000); nothing here sends a time or a cursor.
+ * Deletes the conversation for the caller: every message so far becomes
+ * unreadable to them, with its files and their notices, and it leaves their
+ * inbox and archive until a later message. The other participant keeps their
+ * copy. The database sets the cutoff under the conversation's lock and
+ * deletes what neither participant can read any more (20261105100000);
+ * nothing here sends a time or a cursor.
  */
-export async function clearDirectConversationHistory(
-  conversationId: string,
-): Promise<DirectConversationChangeResult> {
+export async function deleteDirectConversation(conversationId: string): Promise<DirectConversationChangeResult> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("clear_direct_conversation_history", {
-    p_conversation_id: conversationId,
-  });
+  const { data, error } = await supabase.rpc("delete_direct_conversation", { p_conversation_id: conversationId });
   if (error || typeof data !== "number") {
-    return { ok: false, error: directConversationChangeError(error?.message, "err.conversationClearFailed") };
+    return { ok: false, error: directConversationChangeError(error?.message, "err.conversationDeleteFailed") };
   }
-  return { ok: true };
+  return { ok: true, applied: true };
 }
 
 export async function startDirectConversation(input: {

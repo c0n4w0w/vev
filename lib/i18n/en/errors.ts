@@ -18,8 +18,9 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.messagePinFailed": "The pin wasn't changed. Try again.",
   "err.conversationOpenFailed": "The conversation couldn't be opened. Try again.",
   "err.conversationNotFound": "The conversation doesn't exist, or you don't have access to it.",
-  "err.conversationHideFailed": "The conversation couldn't be removed from your inbox. Try again.",
-  "err.conversationClearFailed": "The conversation history couldn't be deleted. Try again.",
+  "err.conversationArchiveFailed": "The conversation couldn't be archived. Try again.",
+  "err.conversationRestoreFailed": "The conversation couldn't be restored. Try again.",
+  "err.conversationDeleteFailed": "The conversation couldn't be deleted. Try again.",
   "err.attachmentNotAllowed": "You can't attach files in this conversation.",
   "err.attachmentNeedsMutual":
     "File sharing unlocks once you have both sent at least one text message in this conversation.",

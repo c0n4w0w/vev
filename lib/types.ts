@@ -246,6 +246,8 @@ export interface DirectConversationSummary {
   latestMessage?: DirectMessage;
   lastMessageAt: string;
   unread: boolean;
+  /** In the viewer's «Arkiverte samtaler». */
+  archived?: boolean;
 }
 
 export interface DirectConversation {
@@ -262,11 +264,13 @@ export interface DirectConversation {
   messages: DirectMessage[];
   unread: boolean;
   /**
-   * When the viewer last cleared their own history here. Everything before
-   * it is gone for them (not for the other participant); `messages` holds
-   * only what was written since.
+   * When the viewer last deleted this conversation. Everything before it is
+   * gone for them (not for the other participant); `messages` holds only
+   * what was written since.
    */
-  historyClearedAt?: string;
+  deletedAt?: string;
+  /** In the viewer's «Arkiverte samtaler». */
+  archived: boolean;
 }
 
 /**

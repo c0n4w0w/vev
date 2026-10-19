@@ -64,8 +64,10 @@ import {
   resendInvitation,
   startDirectConversation,
   startDirectConversationWithOrganizationPerson,
-  hideDirectConversation,
-  clearDirectConversationHistory,
+  archiveDirectConversation,
+  type DirectConversationChangeResult,
+  restoreDirectConversation,
+  deleteDirectConversation,
   setAcceptsMemberDms,
   setChannelDetails,
   setCommunityAbout,
@@ -505,19 +507,20 @@ export async function createDirectMessageAction(
   return { status: "ok", message: result.message };
 }
 
-export type DirectConversationActionResult = { ok: true } | { ok: false; error: string };
+/** `applied` is false when the request was accepted but changed nothing (an archive after a delete). */
+export type DirectConversationActionResult = { ok: true; applied: boolean } | { ok: false; error: string };
 
 /**
- * «Fjern fra innboksen» and «Slett samtalehistorikk». The conversation id is
- * all either sends; the database decides who is asking (auth.uid()), refuses
- * anyone who is not in the conversation, and only ever touches the caller's
- * own state (20261104100000). `communityId` only picks the reply's language
+ * «Arkiver samtale», «Gjenopprett samtale» and «Slett samtale». The
+ * conversation id is all any of them sends; the database decides who is
+ * asking (auth.uid()), refuses anyone who is not in the conversation, and
+ * only ever touches the caller's own state (20261105100000). `communityId` only picks the reply's language
  * and the pages to refresh.
  */
 async function changeDirectConversation(
   communityId: unknown,
   conversationId: unknown,
-  change: (conversationId: string) => Promise<{ ok: true } | { ok: false; error: MessageKey }>,
+  change: (conversationId: string) => Promise<DirectConversationChangeResult>,
 ): Promise<DirectConversationActionResult> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -529,29 +532,37 @@ async function changeDirectConversation(
   const result = await change(conversationId);
   if (!result.ok) return { ok: false, error: (await translatorFor(community))(result.error) };
   revalidateDirectMessages(community, conversationId);
-  return { ok: true };
+  return { ok: true, applied: result.applied };
 }
 
-export async function hideDirectConversationAction(
+export async function archiveDirectConversationAction(
   communityId: string,
   conversationId: string,
 ): Promise<DirectConversationActionResult> {
-  return changeDirectConversation(communityId, conversationId, hideDirectConversation);
+  return changeDirectConversation(communityId, conversationId, archiveDirectConversation);
 }
 
-export async function clearDirectConversationHistoryAction(
+export async function restoreDirectConversationAction(
   communityId: string,
   conversationId: string,
 ): Promise<DirectConversationActionResult> {
-  const result = await changeDirectConversation(communityId, conversationId, clearDirectConversationHistory);
+  return changeDirectConversation(communityId, conversationId, restoreDirectConversation);
+}
+
+export async function deleteDirectConversationAction(
+  communityId: string,
+  conversationId: string,
+): Promise<DirectConversationActionResult> {
+  const result = await changeDirectConversation(communityId, conversationId, deleteDirectConversation);
   if (result.ok) {
-    // Unsent uploads of the caller's in this conversation went with the
-    // history; their objects are queued for removal.
+    // The caller's unsent uploads went with it, and so did every file
+    // neither participant can read any more; their objects are queued.
+    // Removal is retried by the next purge or the scheduled sweep.
     after(async () => {
       try {
         await purgeAttachmentObjects();
       } catch (error) {
-        console.error("[attachments] purge after clearing history failed", error);
+        console.error("[attachments] purge after deleting a conversation failed", error);
       }
     });
   }

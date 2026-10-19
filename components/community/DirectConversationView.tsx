@@ -168,12 +168,16 @@ export function DirectConversationView({
             <h1 className="truncate text-[0.9375rem] font-medium text-ink">
               {conversation.otherParticipant.name}
             </h1>
-            <p className="truncate text-[12px] text-ink-3">{community.name}</p>
+            <p className="truncate text-[12px] text-ink-3">
+              {community.name}
+              {conversation.archived ? ` · ${t("dm.archivedBadge")}` : null}
+            </p>
           </div>
           <DirectConversationMenu
             communityId={community.id}
             conversationId={conversation.id}
             otherName={conversation.otherParticipant.name}
+            archived={conversation.archived}
             reveal="always"
             className="shrink-0"
             triggerClassName="h-8 w-8"
@@ -183,9 +187,9 @@ export function DirectConversationView({
 
       <div className="flex-1 px-5 py-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
-          {conversation.historyClearedAt ? (
+          {conversation.deletedAt ? (
             <p className="mb-6 text-center text-[12px] text-ink-3">
-              {t("dm.historyCleared", { date: formatFullDate(conversation.historyClearedAt, locale) })}
+              {t("dm.deletedNote", { date: formatFullDate(conversation.deletedAt, locale) })}
             </p>
           ) : null}
           {messages.length === 0 ? (

@@ -288,21 +288,26 @@ export const community: Record<keyof typeof nb, string> = {
     "Direct messages are protected by access control in TING. They are not end-to-end encrypted.",
   "dm.actions": "Conversation options",
   "dm.actionsFor": "Options for your conversation with {name}",
-  "dm.hide": "Remove from inbox",
-  "dm.clear": "Delete conversation history",
-  "dm.clear.title": "Delete conversation history?",
-  "dm.clear.mine":
-    "Your existing conversation history with {name} will no longer be accessible to you — messages you've sent and received, and their attachments.",
-  "dm.clear.other": "{name} may still have their copy of the conversation.",
-  "dm.clear.future": "New messages can still start a new visible history in the same conversation.",
-  "dm.clear.undo": "This can't be undone.",
-  "dm.clear.confirm": "Delete history",
-  "dm.clear.pending": "Deleting…",
-  "dm.status.hidden":
-    "The conversation has been removed from your inbox. It will come back if a new message arrives.",
-  "dm.status.cleared": "The conversation history has been deleted for you.",
-  "dm.historyCleared":
-    "You deleted your earlier conversation history on {date}. Only messages written since then are shown here.",
+  "dm.inbox": "Inbox",
+  "dm.archived": "Archived conversations",
+  "dm.archivedLead": "Archived conversations stay here until you restore them. New messages arrive here too.",
+  "dm.archivedEmpty": "No archived conversations.",
+  "dm.archivedBadge": "Archived",
+  "dm.archive": "Archive conversation",
+  "dm.restore": "Restore conversation",
+  "dm.restoreShort": "Restore",
+  "dm.delete": "Delete conversation",
+  "dm.delete.title": "Delete conversation?",
+  "dm.delete.body":
+    "This conversation will be permanently deleted for you, but not for the other person. This can't be undone.",
+  "dm.delete.cancel": "Cancel",
+  "dm.delete.confirm": "Delete conversation",
+  "dm.delete.pending": "Deleting…",
+  "dm.done.archived": "Conversation archived.",
+  "dm.done.restored": "Conversation moved to your inbox.",
+  "dm.done.deleted": "Conversation deleted.",
+  "dm.deletedNote":
+    "You deleted this conversation on {date}. Only messages written since then are shown here.",
 
   // ── Attachments (private groups, private channels, direct messages) ───
   "attachments.attach": "Attach files",
