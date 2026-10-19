@@ -284,6 +284,23 @@ export const community = {
   "dm.placeholder": "Skriv til {name}",
   "dm.notice":
     "Direkte meldinger er beskyttet av tilgangskontroll i TING. De er ikke ende-til-ende-kryptert.",
+  "dm.actions": "Valg for samtalen",
+  "dm.actionsFor": "Valg for samtalen med {name}",
+  "dm.hide": "Fjern fra innboksen",
+  "dm.clear": "Slett samtalehistorikk",
+  "dm.clear.title": "Slette samtalehistorikken?",
+  "dm.clear.mine":
+    "Den eksisterende samtalehistorikken med {name} blir utilgjengelig for deg – meldinger du har sendt og mottatt, og vedleggene i dem.",
+  "dm.clear.other": "{name} kan fortsatt ha sin kopi av samtalen.",
+  "dm.clear.future": "Nye meldinger kan fortsatt starte en ny, synlig historikk i den samme samtalen.",
+  "dm.clear.undo": "Dette kan ikke angres.",
+  "dm.clear.confirm": "Slett historikken",
+  "dm.clear.pending": "Sletter …",
+  "dm.status.hidden":
+    "Samtalen er fjernet fra innboksen din. Den kommer tilbake hvis det kommer en ny melding.",
+  "dm.status.cleared": "Samtalehistorikken er slettet for deg.",
+  "dm.historyCleared":
+    "Du slettet den tidligere samtalehistorikken din {date}. Bare meldinger skrevet etter det vises her.",
 
   // ── Attachments (private groups, private channels, direct messages) ───
   "attachments.attach": "Legg ved filer",

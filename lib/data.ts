@@ -2362,11 +2362,9 @@ export async function getDirectConversations(
   userId: string,
 ): Promise<DirectConversationSummary[]> {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
-    .from("direct_conversations")
-    .select("*")
-    .eq("community_id", communityId)
-    .order("last_message_at", { ascending: false });
+  // The caller's inbox: their conversations here, without the ones they took
+  // out of it (direct_inbox, under the conversations' own policy).
+  const { data } = await supabase.rpc("direct_inbox", { p_community_id: communityId });
 
   const conversations = rows(data);
   const conversationIds = conversations.map((conversation) => conversation.id);
@@ -2410,12 +2408,7 @@ export async function getRecentDirectConversations(
   limit = 5,
 ): Promise<DirectConversationSummary[]> {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
-    .from("direct_conversations")
-    .select("*")
-    .eq("community_id", communityId)
-    .order("last_message_at", { ascending: false })
-    .limit(limit);
+  const { data } = await supabase.rpc("direct_inbox", { p_community_id: communityId, p_limit: limit });
 
   const conversations = rows(data);
   const conversationIds = conversations.map((conversation) => conversation.id);
@@ -2465,17 +2458,26 @@ export async function getDirectConversation(
 
   if (!conversation) return undefined;
 
-  const [{ data: messageRows }, attachments, readMap, other] = await Promise.all([
+  // Messages the caller cleared are not returned at all (direct_messages_select
+  // compares each one's number with the caller's own boundary), and neither
+  // are their files.
+  const [{ data: messageRows }, attachments, readMap, other, { data: state }] = await Promise.all([
     supabase
       .from("direct_messages")
       .select("*")
       .eq("conversation_id", conversation.id)
-      .order("created_at", { ascending: true }),
+      .order("seq", { ascending: true }),
     getConversationAttachments(conversation.id),
     directReadState([conversation.id]),
     // The other participant as they appear in this conversation's own
     // community — the only identity this conversation has ever known them by.
     getCommunityPersona(conversation.community_id, otherParticipantId(conversation, userId)),
+    supabase
+      .from("direct_conversation_states")
+      .select("cleared_at")
+      .eq("conversation_id", conversation.id)
+      .eq("user_id", userId)
+      .maybeSingle(),
   ]);
 
   const messages = rows(messageRows).map((row) => ({
@@ -2503,7 +2505,46 @@ export async function getDirectConversation(
         last.authorId !== userId &&
         Date.parse(last.createdAt) > Date.parse(read?.last_read_at ?? "0001-01-01T00:00:00.000Z"),
     ),
+    historyClearedAt: state?.cleared_at ?? undefined,
   };
+}
+
+export type DirectConversationChangeResult = { ok: true } | { ok: false; error: MessageKey };
+
+function directConversationChangeError(message: string | undefined, fallback: MessageKey): MessageKey {
+  return /conversation_error:not_found/.test(message ?? "") ? "err.conversationNotFound" : fallback;
+}
+
+/**
+ * Takes a conversation out of the caller's own inbox until the next message
+ * in it. Nothing else changes, for either participant.
+ */
+export async function hideDirectConversation(conversationId: string): Promise<DirectConversationChangeResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("hide_direct_conversation", { p_conversation_id: conversationId });
+  if (error || data !== true) {
+    return { ok: false, error: directConversationChangeError(error?.message, "err.conversationHideFailed") };
+  }
+  return { ok: true };
+}
+
+/**
+ * Clears the caller's own copy of a conversation's history: every message so
+ * far becomes unreadable to them, with its files and their notices. The other
+ * participant keeps theirs. The database sets the boundary under the
+ * conversation's lock (20261104100000); nothing here sends a time or a cursor.
+ */
+export async function clearDirectConversationHistory(
+  conversationId: string,
+): Promise<DirectConversationChangeResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("clear_direct_conversation_history", {
+    p_conversation_id: conversationId,
+  });
+  if (error || typeof data !== "number") {
+    return { ok: false, error: directConversationChangeError(error?.message, "err.conversationClearFailed") };
+  }
+  return { ok: true };
 }
 
 export async function startDirectConversation(input: {

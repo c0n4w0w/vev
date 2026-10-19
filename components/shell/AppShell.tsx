@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/icons";
 import { CommunitySwitcher } from "@/components/shell/CommunitySwitcher";
 import { ChannelCreateDialog } from "@/components/community/channels/ChannelCreateDialog";
+import { DirectConversationMenu } from "@/components/community/messages/DirectConversationMenu";
 import type { ShellCommunity, ShellData } from "@/components/shell/shell-data";
 import { communityLocale, type Translator } from "@/lib/i18n";
 import { PLATFORM_LOCALE } from "@/lib/i18n/locales";
@@ -108,34 +109,48 @@ function DirectConversationNavLink({
 }) {
   const t = useT();
   return (
-    <Link
-      href={href}
-      onClick={onNavigate}
-      aria-current={active ? "page" : undefined}
+    <div
       className={cn(
-        "group relative flex min-w-0 items-center gap-2.5 rounded-[5px] px-2.5 py-[7px] text-sm transition-colors",
-        active ? "bg-paper-2 font-medium text-ink" : "text-ink-2 hover:bg-paper-2/70 hover:text-ink",
+        "group relative flex min-w-0 items-center rounded-[5px] transition-colors",
+        active ? "bg-paper-2" : "hover:bg-paper-2/70 focus-within:bg-paper-2/70",
       )}
     >
-      {active ? (
-        <span
-          className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full"
-          style={{ backgroundColor: accent ?? "var(--color-skog)" }}
-        />
-      ) : null}
-      <Avatar user={conversation.otherParticipant} size="xs" />
-      <span
+      <Link
+        href={href}
+        onClick={onNavigate}
+        aria-current={active ? "page" : undefined}
         className={cn(
-          "min-w-0 flex-1 truncate",
-          conversation.unread && !active && "font-medium text-ink",
+          "relative flex min-w-0 flex-1 items-center gap-2.5 rounded-[5px] py-[7px] pl-2.5 pr-1 text-sm transition-colors",
+          active ? "font-medium text-ink" : "text-ink-2 hover:text-ink",
         )}
       >
-        {conversation.otherParticipant.name}
-      </span>
-      {conversation.unread && !active ? (
-        <span className="h-2 w-2 shrink-0 rounded-full bg-rust" aria-label={t("shell.unread")} />
-      ) : null}
-    </Link>
+        {active ? (
+          <span
+            className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full"
+            style={{ backgroundColor: accent ?? "var(--color-skog)" }}
+          />
+        ) : null}
+        <Avatar user={conversation.otherParticipant} size="xs" />
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate",
+            conversation.unread && !active && "font-medium text-ink",
+          )}
+        >
+          {conversation.otherParticipant.name}
+        </span>
+        {conversation.unread && !active ? (
+          <span className="h-2 w-2 shrink-0 rounded-full bg-rust" aria-label={t("shell.unread")} />
+        ) : null}
+      </Link>
+      <DirectConversationMenu
+        communityId={conversation.communityId}
+        conversationId={conversation.id}
+        otherName={conversation.otherParticipant.name}
+        className="mr-0.5 shrink-0"
+        triggerClassName="h-6 w-6"
+      />
+    </div>
   );
 }
 

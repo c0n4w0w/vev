@@ -16,9 +16,10 @@ import {
   useMessageChanges,
 } from "@/components/community/messages/MessageChanges";
 import { IconArrowLeft, IconSend } from "@/components/ui/icons";
+import { DirectConversationMenu } from "@/components/community/messages/DirectConversationMenu";
 import { createDirectMessageAction } from "@/app/actions";
 import { emptyDirectMessageFormState } from "@/lib/direct-message-form";
-import { dayHeading, formatTime, isSameDay } from "@/lib/format";
+import { dayHeading, formatFullDate, formatTime, isSameDay } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/react";
 import { bothHaveWritten, type AttachmentPolicy } from "@/lib/attachment-types";
 import type { Community, CommunityEmoji, CommunityPersona, DirectConversation } from "@/lib/types";
@@ -163,17 +164,30 @@ export function DirectConversationView({
             <IconArrowLeft size={18} />
           </Link>
           <Avatar user={conversation.otherParticipant} size="sm" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="truncate text-[0.9375rem] font-medium text-ink">
               {conversation.otherParticipant.name}
             </h1>
             <p className="truncate text-[12px] text-ink-3">{community.name}</p>
           </div>
+          <DirectConversationMenu
+            communityId={community.id}
+            conversationId={conversation.id}
+            otherName={conversation.otherParticipant.name}
+            reveal="always"
+            className="shrink-0"
+            triggerClassName="h-8 w-8"
+          />
         </div>
       </header>
 
       <div className="flex-1 px-5 py-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
+          {conversation.historyClearedAt ? (
+            <p className="mb-6 text-center text-[12px] text-ink-3">
+              {t("dm.historyCleared", { date: formatFullDate(conversation.historyClearedAt, locale) })}
+            </p>
+          ) : null}
           {messages.length === 0 ? (
             <div className="rounded-[6px] border border-dashed border-line-2 bg-surface/60 px-6 py-12 text-center">
               <h2 className="font-display text-lg text-ink">

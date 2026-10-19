@@ -20,6 +20,9 @@ export const errors = {
   "err.messageDeleteFailed": "Meldingen ble ikke slettet. Prøv igjen.",
   "err.messagePinFailed": "Festingen ble ikke endret. Prøv igjen.",
   "err.conversationOpenFailed": "Samtalen kunne ikke åpnes. Prøv igjen.",
+  "err.conversationNotFound": "Samtalen finnes ikke, eller du har ikke tilgang til den.",
+  "err.conversationHideFailed": "Samtalen kunne ikke fjernes fra innboksen. Prøv igjen.",
+  "err.conversationClearFailed": "Samtalehistorikken kunne ikke slettes. Prøv igjen.",
   "err.attachmentNotAllowed": "Du kan ikke legge ved filer i denne samtalen.",
   "err.attachmentNeedsMutual":
     "Fildeling åpnes når dere begge har sendt minst én tekstmelding i denne samtalen.",

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Avatar, Badge, EmptyState, PageContainer, PageHeader, Panel } from "@/components/ui/primitives";
 import { IconArrowRight, IconMail } from "@/components/ui/icons";
+import { DirectConversationMenu } from "@/components/community/messages/DirectConversationMenu";
 import {
   getCommunityById,
   getDirectConversations,
@@ -34,7 +35,7 @@ export default async function DirectMessagesPage({
   searchParams,
 }: PageProps<"/community/[communityId]/messages">) {
   const { communityId } = await params;
-  const { feil } = await searchParams;
+  const { feil, status } = await searchParams;
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
@@ -59,6 +60,12 @@ export default async function DirectMessagesPage({
         </p>
       ) : null}
 
+      {status === "hidden" || status === "cleared" ? (
+        <p role="status" className="mb-4 rounded-[6px] border border-line bg-surface px-4 py-3 text-[13px] text-ink-2">
+          {t(status === "hidden" ? "dm.status.hidden" : "dm.status.cleared")}
+        </p>
+      ) : null}
+
       {conversations.length === 0 ? (
         <EmptyState
           title={t("dm.empty.title")}
@@ -74,13 +81,17 @@ export default async function DirectMessagesPage({
           }
         />
       ) : (
-        <Panel className="overflow-hidden">
+        // Not overflow-hidden: each row's "⋯" menu opens below it.
+        <Panel>
           <ul className="divide-y divide-line">
             {conversations.map((conversation) => (
-              <li key={conversation.id}>
+              <li
+                key={conversation.id}
+                className="group flex items-center transition-colors first:rounded-t-[6px] last:rounded-b-[6px] hover:bg-paper-2/60 focus-within:bg-paper-2/60"
+              >
                 <Link
                   href={`/community/${community.id}/messages/${conversation.id}`}
-                  className="flex items-center gap-3 p-4 transition-colors hover:bg-paper-2/60"
+                  className="flex min-w-0 flex-1 items-center gap-3 py-4 pl-4 pr-2"
                 >
                   <Avatar user={conversation.otherParticipant} size="md" />
                   <div className="min-w-0 flex-1">
@@ -105,6 +116,12 @@ export default async function DirectMessagesPage({
                     <IconArrowRight size={14} />
                   </div>
                 </Link>
+                <DirectConversationMenu
+                  communityId={community.id}
+                  conversationId={conversation.id}
+                  otherName={conversation.otherParticipant.name}
+                  className="mr-3 shrink-0"
+                />
               </li>
             ))}
           </ul>

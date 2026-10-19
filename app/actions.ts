@@ -64,6 +64,8 @@ import {
   resendInvitation,
   startDirectConversation,
   startDirectConversationWithOrganizationPerson,
+  hideDirectConversation,
+  clearDirectConversationHistory,
   setAcceptsMemberDms,
   setChannelDetails,
   setCommunityAbout,
@@ -139,6 +141,7 @@ import {
   type MessageKey,
   type Translator,
 } from "@/lib/i18n";
+import { isUuid } from "@/lib/channel-resources";
 import { getSessionUser } from "@/lib/session";
 import { safeInternalPath } from "@/lib/safe-path";
 import { siteOrigin } from "@/lib/site-url";
@@ -500,6 +503,59 @@ export async function createDirectMessageAction(
   }
   revalidateDirectMessages(communityId, conversationId);
   return { status: "ok", message: result.message };
+}
+
+export type DirectConversationActionResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * «Fjern fra innboksen» and «Slett samtalehistorikk». The conversation id is
+ * all either sends; the database decides who is asking (auth.uid()), refuses
+ * anyone who is not in the conversation, and only ever touches the caller's
+ * own state (20261104100000). `communityId` only picks the reply's language
+ * and the pages to refresh.
+ */
+async function changeDirectConversation(
+  communityId: unknown,
+  conversationId: unknown,
+  change: (conversationId: string) => Promise<{ ok: true } | { ok: false; error: MessageKey }>,
+): Promise<DirectConversationActionResult> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const community = typeof communityId === "string" ? communityId : "";
+  if (typeof conversationId !== "string" || !isUuid(conversationId)) {
+    return { ok: false, error: (await translatorFor(community))("err.conversationNotFound") };
+  }
+  const result = await change(conversationId);
+  if (!result.ok) return { ok: false, error: (await translatorFor(community))(result.error) };
+  revalidateDirectMessages(community, conversationId);
+  return { ok: true };
+}
+
+export async function hideDirectConversationAction(
+  communityId: string,
+  conversationId: string,
+): Promise<DirectConversationActionResult> {
+  return changeDirectConversation(communityId, conversationId, hideDirectConversation);
+}
+
+export async function clearDirectConversationHistoryAction(
+  communityId: string,
+  conversationId: string,
+): Promise<DirectConversationActionResult> {
+  const result = await changeDirectConversation(communityId, conversationId, clearDirectConversationHistory);
+  if (result.ok) {
+    // Unsent uploads of the caller's in this conversation went with the
+    // history; their objects are queued for removal.
+    after(async () => {
+      try {
+        await purgeAttachmentObjects();
+      } catch (error) {
+        console.error("[attachments] purge after clearing history failed", error);
+      }
+    });
+  }
+  return result;
 }
 
 export async function setCommunityPersonAccountLinkAction(formData: FormData): Promise<void> {

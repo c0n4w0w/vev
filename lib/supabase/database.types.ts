@@ -2180,6 +2180,48 @@ export type Database = {
           },
         ]
       }
+      direct_conversation_states: {
+        Row: {
+          cleared_at: string | null
+          cleared_through_seq: number
+          conversation_id: string
+          hidden_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cleared_at?: string | null
+          cleared_through_seq?: number
+          conversation_id: string
+          hidden_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cleared_at?: string | null
+          cleared_through_seq?: number
+          conversation_id?: string
+          hidden_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_conversation_states_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "direct_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_conversation_states_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       direct_conversations: {
         Row: {
           community_id: string
@@ -2187,6 +2229,7 @@ export type Database = {
           created_by: string
           id: string
           last_message_at: string
+          message_seq: number
           participant_one_id: string
           participant_one_wrote: boolean
           participant_two_id: string
@@ -2198,6 +2241,7 @@ export type Database = {
           created_by?: string
           id?: string
           last_message_at?: string
+          message_seq?: number
           participant_one_id: string
           participant_one_wrote?: boolean
           participant_two_id: string
@@ -2209,6 +2253,7 @@ export type Database = {
           created_by?: string
           id?: string
           last_message_at?: string
+          message_seq?: number
           participant_one_id?: string
           participant_one_wrote?: boolean
           participant_two_id?: string
@@ -2255,6 +2300,7 @@ export type Database = {
           edited_at: string | null
           has_attachments: boolean
           id: string
+          seq: number
         }
         Insert: {
           author_id?: string
@@ -2265,6 +2311,7 @@ export type Database = {
           edited_at?: string | null
           has_attachments?: boolean
           id?: string
+          seq?: number
         }
         Update: {
           author_id?: string
@@ -2275,6 +2322,7 @@ export type Database = {
           edited_at?: string | null
           has_attachments?: boolean
           id?: string
+          seq?: number
         }
         Relationships: [
           {
@@ -3313,6 +3361,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      can_read_direct_message: {
+        Args: { p_conversation_id: string; p_seq: number }
+        Returns: boolean
+      }
       can_read_event: { Args: { p_event_id: string }; Returns: boolean }
       can_read_member_avatar_object: {
         Args: { p_name: string }
@@ -3506,6 +3558,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: string[]
+      }
+      clear_direct_conversation_history: {
+        Args: { p_conversation_id: string }
+        Returns: number
       }
       collaboration_assignees_valid: {
         Args: {
@@ -3804,6 +3860,31 @@ export type Database = {
         Returns: boolean
       }
       delete_subgroup: { Args: { p_subgroup_id: string }; Returns: boolean }
+      direct_attachment_message_visible: {
+        Args: { p_direct_message_id: string }
+        Returns: boolean
+      }
+      direct_inbox: {
+        Args: { p_community_id: string; p_limit?: number }
+        Returns: {
+          community_id: string
+          created_at: string
+          created_by: string
+          id: string
+          last_message_at: string
+          message_seq: number
+          participant_one_id: string
+          participant_one_wrote: boolean
+          participant_two_id: string
+          participant_two_wrote: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "direct_conversations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       direct_member_dm_actions: {
         Args: { p_community_id: string }
         Returns: {
@@ -3818,6 +3899,10 @@ export type Database = {
           p_old_body: string
         }
         Returns: undefined
+      }
+      direct_message_visible_to: {
+        Args: { p_conversation_id: string; p_seq: number; p_user_id: string }
+        Returns: boolean
       }
       direct_unread_count: { Args: { p_community_id: string }; Returns: number }
       discard_message_attachment: {
@@ -3864,6 +3949,7 @@ export type Database = {
           edited_at: string | null
           has_attachments: boolean
           id: string
+          seq: number
         }
         SetofOptions: {
           from: "*"
@@ -3917,6 +4003,10 @@ export type Database = {
       has_membership_row: { Args: { cid: string }; Returns: boolean }
       has_pending_access_request: { Args: { p_slug: string }; Returns: boolean }
       hash_invitation_token: { Args: { p_token: string }; Returns: string }
+      hide_direct_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
       inbox_proven_recently: { Args: never; Returns: boolean }
       invitation_lifetime: { Args: never; Returns: string }
       invitation_preview: {

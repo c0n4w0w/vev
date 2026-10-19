@@ -286,6 +286,23 @@ export const community: Record<keyof typeof nb, string> = {
   "dm.placeholder": "Write to {name}",
   "dm.notice":
     "Direct messages are protected by access control in TING. They are not end-to-end encrypted.",
+  "dm.actions": "Conversation options",
+  "dm.actionsFor": "Options for your conversation with {name}",
+  "dm.hide": "Remove from inbox",
+  "dm.clear": "Delete conversation history",
+  "dm.clear.title": "Delete conversation history?",
+  "dm.clear.mine":
+    "Your existing conversation history with {name} will no longer be accessible to you — messages you've sent and received, and their attachments.",
+  "dm.clear.other": "{name} may still have their copy of the conversation.",
+  "dm.clear.future": "New messages can still start a new visible history in the same conversation.",
+  "dm.clear.undo": "This can't be undone.",
+  "dm.clear.confirm": "Delete history",
+  "dm.clear.pending": "Deleting…",
+  "dm.status.hidden":
+    "The conversation has been removed from your inbox. It will come back if a new message arrives.",
+  "dm.status.cleared": "The conversation history has been deleted for you.",
+  "dm.historyCleared":
+    "You deleted your earlier conversation history on {date}. Only messages written since then are shown here.",
 
   // ── Attachments (private groups, private channels, direct messages) ───
   "attachments.attach": "Attach files",

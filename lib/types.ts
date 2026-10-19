@@ -261,6 +261,12 @@ export interface DirectConversation {
   otherParticipant: CommunityPersona;
   messages: DirectMessage[];
   unread: boolean;
+  /**
+   * When the viewer last cleared their own history here. Everything before
+   * it is gone for them (not for the other participant); `messages` holds
+   * only what was written since.
+   */
+  historyClearedAt?: string;
 }
 
 /**

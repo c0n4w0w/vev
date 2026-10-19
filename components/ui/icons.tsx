@@ -251,6 +251,15 @@ export const IconMail = (p: IconProps) => (
   </Svg>
 );
 
+/** An inbox tray with something lifted out of it: "Fjern fra innboksen". */
+export const IconInboxOut = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.6 14h4.5l1.5 2.4h4.8l1.5-2.4h4.5" />
+    <path d="M7 8.6H5.8L3.6 14v4.6a1.4 1.4 0 0 0 1.4 1.4h14a1.4 1.4 0 0 0 1.4-1.4V14l-2.2-5.4H17" />
+    <path d="M12 12V3.8M9.2 6.6 12 3.8l2.8 2.8" />
+  </Svg>
+);
+
 export const IconExternal = (p: IconProps) => (
   <Svg {...p}>
     <path d="M14 4.6h5.4V10M19 5 11.6 12.4" />

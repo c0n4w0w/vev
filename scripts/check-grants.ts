@@ -87,6 +87,7 @@ const AUTHENTICATED_READ = [
   "community_subgroup_members",
   "community_subgroups",
   "direct_conversation_reads",
+  "direct_conversation_states",
   "direct_conversations",
   "direct_messages",
   "event_attendees",
