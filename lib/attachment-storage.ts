@@ -76,6 +76,17 @@ export type AttachmentPurgeResult = {
 /** How a batch of objects is removed. Replaceable so a failure can be rehearsed. */
 type RemoveObjects = (paths: string[]) => Promise<{ error: { message: string } | null }>;
 
+export type AttachmentPurgeOptions = {
+  remove?: RemoveObjects;
+  /**
+   * Queued names this run must leave alone — neither removed nor counted.
+   * Only the check scripts pass it, with every object that existed before
+   * they started, so a suite never removes a file it did not create. The app
+   * and the scheduled sweep purge the whole queue.
+   */
+  keep?: ReadonlySet<string>;
+};
+
 /**
  * Removes queued objects from the bucket and clears what was removed.
  *
@@ -93,7 +104,7 @@ type RemoveObjects = (paths: string[]) => Promise<{ error: { message: string } |
  */
 export async function purgeAttachmentObjects(
   limit = 200,
-  options: { remove?: RemoveObjects } = {},
+  options: AttachmentPurgeOptions = {},
 ): Promise<AttachmentPurgeResult> {
   const admin = createSupabaseAdminClient();
   const remove: RemoveObjects = options.remove ?? ((paths) => admin.storage.from(BUCKET).remove(paths));
@@ -101,17 +112,19 @@ export async function purgeAttachmentObjects(
   let removed = 0;
   let failed = 0;
 
-  const { data: queued, error } = await admin
+  const keep = options.keep ?? new Set<string>();
+  const { data: read, error } = await admin
     .from("message_attachment_purges")
     .select("storage_path")
     .order("queued_at", { ascending: true })
-    .limit(limit);
+    .limit(limit + keep.size);
   if (error) {
     console.error(`[attachments] could not read the purge queue: ${error.message}`);
   }
+  const queued = (read ?? []).filter((row) => !keep.has(row.storage_path)).slice(0, limit);
 
-  for (let start = 0; start < (queued?.length ?? 0); start += 50) {
-    const paths = queued!.slice(start, start + 50).map((row) => row.storage_path);
+  for (let start = 0; start < queued.length; start += 50) {
+    const paths = queued.slice(start, start + 50).map((row) => row.storage_path);
     let problem: string | undefined;
     try {
       problem = (await remove(paths)).error?.message;
@@ -130,6 +143,15 @@ export async function purgeAttachmentObjects(
     } else {
       removed += paths.length;
     }
+  }
+
+  if (keep.size > 0) {
+    const { data: left } = await admin
+      .from("message_attachment_purges")
+      .select("storage_path, queued_at")
+      .order("queued_at", { ascending: true });
+    const own = (left ?? []).filter((row) => !keep.has(row.storage_path));
+    return { removed, failed, remaining: own.length, oldestQueuedAt: own[0]?.queued_at };
   }
 
   const { data: oldest, count } = await admin
@@ -152,12 +174,13 @@ export async function purgeAttachmentObjects(
  */
 export async function sweepAbandonedAttachments(
   olderThanHours = 24,
+  purgeOptions: AttachmentPurgeOptions = {},
 ): Promise<AttachmentPurgeResult & { swept: number }> {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin.rpc("sweep_abandoned_message_attachments", {
     p_older_than: `${olderThanHours} hours`,
   });
   if (error) console.error(`[attachments] could not sweep abandoned uploads: ${error.message}`);
-  const purge = await purgeAttachmentObjects(1000);
+  const purge = await purgeAttachmentObjects(1000, purgeOptions);
   return { swept: typeof data === "number" ? data : 0, ...purge };
 }

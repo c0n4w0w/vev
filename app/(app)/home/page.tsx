@@ -19,6 +19,7 @@ import {
   getEventsForUser,
   getHomeFeed,
   getLatestMessage,
+  getVisibleCommunityPersonas,
   getGroupedChannels,
   getCommunityById,
   getCommunityPersona,
@@ -26,6 +27,7 @@ import {
   personaKey,
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
+import { mentionIds, mentionsAsText } from "@/lib/mentions";
 import { publicMemberTitle } from "@/lib/roles";
 import { PLATFORM_LOCALE } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
@@ -83,8 +85,13 @@ export default async function HomePage() {
           channels.map(async (channel) => {
             const latest = await getLatestMessage(channel.id);
             if (!latest) return null;
-            const author = await getCommunityPersona(community.id, latest.authorId);
-            return { community, channel, latest, authorName: author?.name.split(" ")[0] };
+            const [author, mentioned] = await Promise.all([
+              getCommunityPersona(community.id, latest.authorId),
+              getVisibleCommunityPersonas(community.id, mentionIds(latest.body)),
+            ]);
+            // Mentions read "@Name" here, as they are called in that community now.
+            const text = mentionsAsText(latest.body, (id) => mentioned.get(id)?.name).trim();
+            return { community, channel, latest, text, authorName: author?.name.split(" ")[0] };
           }),
         );
       }),
@@ -177,7 +184,7 @@ export default async function HomePage() {
             <section>
               <SectionHeading>Aktive kanaler</SectionHeading>
               <Panel className="divide-y divide-line">
-                {activeChannels.map(({ community, channel, latest, authorName }) => (
+                {activeChannels.map(({ community, channel, latest, text, authorName }) => (
                   <Link
                     key={channel.id}
                     href={`/community/${community.id}/channel/${channel.id}`}
@@ -202,7 +209,7 @@ export default async function HomePage() {
                         ? "Meldingen ble fjernet av en moderator."
                         : latest.deleted
                           ? "Meldingen er slettet."
-                          : latest.body.trim() || "Vedlegg"}
+                          : text || "Vedlegg"}
                     </span>
                   </Link>
                 ))}

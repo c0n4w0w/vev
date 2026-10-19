@@ -28,6 +28,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import { channels as fixtureChannels } from "@/lib/mock/communities";
 import type { Database } from "@/lib/supabase/database.types";
+import { rememberChannelParticipants, restoreChannelParticipants } from "./lib/participation-isolation";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -193,9 +194,11 @@ async function cleanup() {
     }
     await admin.from("community_local_groups").delete().eq("id", group.id);
   }
+  restoreChannelParticipants();
 }
 
 async function main() {
+  rememberChannelParticipants();
   await cleanup();
 
   const ftrOslo = await groupId(FTR, "FTR Oslo");

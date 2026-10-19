@@ -64,6 +64,7 @@ import type {
   ChannelContentCounts,
 } from "@/lib/types";
 import { initialsFor } from "@/lib/format";
+import type { MentionCandidate } from "@/lib/mentions";
 import { parseLocale, type Locale, type MessageKey } from "@/lib/i18n";
 import { getRelatedCommunityConfig, isActiveMember, type RelatedCommunityConfig } from "@/lib/related-communities";
 import {
@@ -418,6 +419,110 @@ export async function getCommunityPersonas(
   return new Map(
     userIds.map((id) => [id, personas.get(id) ?? unknownPersona(communityId, id)]),
   );
+}
+
+/**
+ * Name and photo of the people among `userIds` whose identity here the caller
+ * may see (community_identities → can_view_community_identity): everyone
+ * whose profile they may see, plus people a message they can read mentions
+ * and people they share a private channel or group with. Nobody else gets an
+ * entry, not even a placeholder. Never the bio: `bio` is always empty here.
+ */
+export async function getVisibleCommunityPersonas(
+  communityId: string,
+  userIds: string[],
+): Promise<Map<string, CommunityPersona>> {
+  const ids = [...new Set(userIds)].slice(0, 200);
+  if (ids.length === 0) return new Map();
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("community_identities", {
+    p_community_id: communityId,
+    p_user_ids: ids,
+  });
+  if (error) return new Map();
+  return new Map(
+    rows(data).map((row) => [
+      row.user_id,
+      {
+        id: row.user_id,
+        communityId,
+        name: row.display_name,
+        initials: initialsFor(row.display_name),
+        bio: "",
+        avatarUrl: row.avatar_version
+          ? memberAvatarUrl(communityId, row.user_id, `${communityId}/${row.user_id}/${row.avatar_version}`)
+          : undefined,
+      },
+    ]),
+  );
+}
+
+/** A name opened in a channel: who they are here, as the database allows. */
+export interface ChannelPersonCard {
+  persona: CommunityPersona;
+  /** Only when the caller may see the whole profile, and it is not empty. */
+  bio?: string;
+  /**
+   * Under The Rug only: the caller may write to this person
+   * (can_send_dm), and the conversation if it exists already.
+   */
+  dm?: { conversationId?: string };
+}
+
+/**
+ * Members message each other from a name in a chat in Under The Rug alone.
+ * Tryggere Ruspolitikk and Tryggere Ungdom keep their own direct-message
+ * policy, reached from their member pages; the card never offers it there,
+ * whatever can_send_dm would answer — including between two people who both
+ * also belong to Under The Rug.
+ */
+const CARD_DM_COMMUNITY = "under-the-rug";
+
+/**
+ * The card for a name in a channel (channel_person_card): only someone who
+ * belongs to that channel's conversation, for a caller who can read it now
+ * and may see their identity. The bio only where the whole profile is
+ * visible. Undefined for anyone else.
+ */
+export async function getChannelPersonCard(
+  communityId: string,
+  channelId: string,
+  userId: string,
+): Promise<ChannelPersonCard | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .rpc("channel_person_card", { p_channel_id: channelId, p_user_id: userId })
+    .maybeSingle();
+  if (error || !data) return undefined;
+  const persona: CommunityPersona = {
+    id: data.user_id,
+    communityId,
+    name: data.display_name,
+    initials: initialsFor(data.display_name),
+    bio: data.bio ?? "",
+    avatarUrl: data.avatar_version
+      ? memberAvatarUrl(communityId, data.user_id, `${communityId}/${data.user_id}/${data.avatar_version}`)
+      : undefined,
+  };
+
+  let dm: ChannelPersonCard["dm"];
+  const viewer = (await supabase.auth.getUser()).data.user?.id;
+  if (communityId === CARD_DM_COMMUNITY && viewer && viewer !== userId) {
+    const { data: allowed } = await supabase.rpc("can_send_dm", { cid: communityId, recipient: userId });
+    if (allowed === true) {
+      // Read under the conversations' own policy: only one the caller is in.
+      const { data: existing } = await supabase
+        .from("direct_conversations")
+        .select("id")
+        .eq("community_id", communityId)
+        .or(
+          `and(participant_one_id.eq.${viewer},participant_two_id.eq.${userId}),and(participant_one_id.eq.${userId},participant_two_id.eq.${viewer})`,
+        )
+        .maybeSingle();
+      dm = { conversationId: existing?.id ?? undefined };
+    }
+  }
+  return { persona, bio: data.bio ?? undefined, dm };
 }
 
 /** Key for `getPersonasAcrossCommunities`. */
@@ -1919,6 +2024,39 @@ export async function getMessages(channelId: string): Promise<Message[]> {
   return rows(data).map((row) => ({ ...toMessage(row), attachments: attachments.get(row.id) }));
 }
 
+// ── Mentions ────────────────────────────────────────────────────────────
+
+/**
+ * Mention suggestions for the composer in one channel.
+ *
+ * search_channel_mention_candidates() decides everything: it answers only
+ * someone who may write in that channel now, and only with people who may be
+ * mentioned there (contributors in an open channel; invited people in a
+ * private lokallag channel or a group), at most 8, never the caller. An
+ * unreadable channel, an archived one or a query nobody matches is the same
+ * empty list.
+ */
+export async function searchMentionCandidates(
+  communityId: string,
+  channelId: string,
+  query: string,
+): Promise<MentionCandidate[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("search_channel_mention_candidates", {
+    p_channel_id: channelId,
+    p_query: query,
+  });
+  if (error) return [];
+  return rows(data).map((row) => ({
+    id: row.user_id,
+    name: row.display_name,
+    initials: initialsFor(row.display_name),
+    avatarUrl: row.avatar_version
+      ? memberAvatarUrl(communityId, row.user_id, `${communityId}/${row.user_id}/${row.avatar_version}`)
+      : undefined,
+  }));
+}
+
 export async function getLatestMessage(channelId: string): Promise<Message | undefined> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
@@ -1977,6 +2115,10 @@ function attachmentSendError(refusal: AttachmentRefusal, denied: MessageKey): Me
       return "err.attachmentTooManySent";
     case "tooLong":
       return "err.messageTooLong";
+    case "mention":
+      return "err.mentionNotAllowed";
+    case "tooManyMentions":
+      return "err.mentionTooMany";
     case "invalid":
     case "type":
     case "tooLarge":
@@ -2027,6 +2169,10 @@ function messageWriteError(message: string): MessageKey {
   if (message.includes("messages_not_archived")) {
     return "err.channelArchived";
   }
+  // messages_sync_mentions: someone who may not be mentioned here.
+  if (message.includes("message_error:mention_not_allowed")) return "err.mentionNotAllowed";
+  if (message.includes("message_error:too_many_mentions")) return "err.mentionTooMany";
+  if (message.includes("message_error:archived")) return "err.channelArchived";
   if (message.includes("row-level security")) {
     return "err.channelWriteDenied";
   }
@@ -2061,6 +2207,10 @@ function messageChangeError(message: string | undefined, fallback: MessageKey): 
       return "err.messageEmpty";
     case "too_long":
       return "err.messageTooLong";
+    case "mention_not_allowed":
+      return "err.mentionNotAllowed";
+    case "too_many_mentions":
+      return "err.mentionTooMany";
     default:
       return fallback;
   }

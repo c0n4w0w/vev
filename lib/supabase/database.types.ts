@@ -2673,6 +2673,42 @@ export type Database = {
           },
         ]
       }
+      message_mentions: {
+        Row: {
+          channel_id: string
+          created_at: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_mentions_message_fkey"
+            columns: ["message_id", "channel_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id", "channel_id"]
+          },
+          {
+            foreignKeyName: "message_mentions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_moderation_log: {
         Row: {
           action: string
@@ -2781,6 +2817,7 @@ export type Database = {
           href: string
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
+          message_id: string | null
           post_id: string | null
           read: boolean
           title: string
@@ -2794,6 +2831,7 @@ export type Database = {
           href: string
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
+          message_id?: string | null
           post_id?: string | null
           read?: boolean
           title: string
@@ -2807,6 +2845,7 @@ export type Database = {
           href?: string
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
+          message_id?: string | null
           post_id?: string | null
           read?: boolean
           title?: string
@@ -2825,6 +2864,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
           {
@@ -3285,6 +3331,10 @@ export type Database = {
         Args: { p_name: string }
         Returns: boolean
       }
+      can_read_notified_message: {
+        Args: { p_message_id: string }
+        Returns: boolean
+      }
       can_reply_direct_conversation: {
         Args: { p_conversation_id: string }
         Returns: boolean
@@ -3329,6 +3379,10 @@ export type Database = {
         Args: { p_participant_id: string }
         Returns: boolean
       }
+      can_view_community_identity: {
+        Args: { p_community_id: string; p_user_id: string }
+        Returns: boolean
+      }
       can_view_community_profile: {
         Args: { p_community_id: string; p_user_id: string }
         Returns: boolean
@@ -3353,6 +3407,15 @@ export type Database = {
       channel_message_moderate_admits: {
         Args: { p_channel_id: string; p_user_id: string }
         Returns: boolean
+      }
+      channel_person_card: {
+        Args: { p_channel_id: string; p_user_id: string }
+        Returns: {
+          avatar_version: string
+          bio: string
+          display_name: string
+          user_id: string
+        }[]
       }
       channel_resource_contributors: {
         Args: { p_channel_id: string }
@@ -3558,6 +3621,18 @@ export type Database = {
       community_channel_id: {
         Args: { p_community_id: string; p_name: string }
         Returns: string
+      }
+      community_identities: {
+        Args: { p_community_id: string; p_user_ids: string[] }
+        Returns: {
+          avatar_version: string
+          display_name: string
+          user_id: string
+        }[]
+      }
+      community_identity_admits: {
+        Args: { p_community_id: string; p_user_id: string; p_viewer: string }
+        Returns: boolean
       }
       community_member_accounts: {
         Args: { p_community_id: string }
@@ -3921,6 +3996,10 @@ export type Database = {
         Returns: boolean
       }
       mark_notifications_read: { Args: never; Returns: undefined }
+      mention_target_admits: {
+        Args: { p_channel_id: string; p_user_id: string }
+        Returns: boolean
+      }
       message_attachment_extension: {
         Args: { p_mime_type: string }
         Returns: string
@@ -3954,6 +4033,7 @@ export type Database = {
         }[]
       }
       message_attachment_storage_read_allowed: { Args: never; Returns: boolean }
+      message_mention_ids: { Args: { p_body: string }; Returns: string[] }
       move_channel_resource: {
         Args: { p_folder_id: string; p_id: string; p_type: string }
         Returns: boolean
@@ -4174,6 +4254,14 @@ export type Database = {
           p_title: string
         }
         Returns: Record<string, unknown>
+      }
+      search_channel_mention_candidates: {
+        Args: { p_channel_id: string; p_query: string }
+        Returns: {
+          avatar_version: string
+          display_name: string
+          user_id: string
+        }[]
       }
       search_new_subgroup_candidates: {
         Args: { p_community_id: string; p_query: string }

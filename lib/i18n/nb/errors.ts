@@ -7,6 +7,8 @@ export const errors = {
   // ── Messages and posts ────────────────────────────────────────────────
   "err.messageEmpty": "Meldingen kan ikke være tom.",
   "err.messageTooLong": "Meldingen kan være høyst 4000 tegn.",
+  "err.mentionNotAllowed": "Én av personene du nevner, kan ikke nevnes i denne kanalen. Fjern navnet og prøv igjen.",
+  "err.mentionTooMany": "Du kan nevne høyst 20 personer i én melding.",
   "err.messageLength": "Meldingen kan være mellom 1 og 4000 tegn.",
   "err.channelWriteDenied": "Du har ikke tilgang til å skrive i denne kanalen.",
   "err.conversationWriteDenied": "Du har ikke tilgang til å skrive i denne samtalen.",

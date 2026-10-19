@@ -37,12 +37,14 @@ import { createServerClient } from "@supabase/ssr";
 import sharp from "sharp";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { detectAttachmentFileType, cleanAttachmentName } from "@/lib/attachment-file-type";
-import { purgeAttachmentObjects, sweepAbandonedAttachments, thumbnailPath } from "@/lib/attachment-storage";
+import { thumbnailPath } from "@/lib/attachment-storage";
+import { purgeOwnAttachmentObjects, rememberExistingAttachmentObjects, sweepOwnAbandonedAttachments } from "./lib/attachment-isolation";
 import { attachmentFileType, bothHaveWritten } from "@/lib/attachment-types";
 import { stripImageMetadata } from "@/lib/image-metadata";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import type { Database } from "@/lib/supabase/database.types";
+import { rememberChannelParticipants, restoreChannelParticipants } from "./lib/participation-isolation";
 import {
   METADATA_SECRET,
   animatedGifFixture,
@@ -425,12 +427,15 @@ async function cleanup() {
 
   // Rows this suite inserted by hand, and whatever the above left queued.
   await admin.from("message_attachments").delete().like("display_name", `${BODY}%`);
-  await purgeAttachmentObjects(1000);
+  await purgeOwnAttachmentObjects(1000);
+  restoreChannelParticipants();
 }
 
 // ── The checks ──────────────────────────────────────────────────────────
 
 async function main() {
+  rememberChannelParticipants();
+  rememberExistingAttachmentObjects();
   await cleanup();
 
   const reachable = await fetch(`${APP}/login`, { redirect: "manual" }).then((response) => response.status < 500, () => false);
@@ -1046,17 +1051,21 @@ async function main() {
     for (let i = 0; i < 12; i += 1) await begin(kristoffer, P, { name: `${BODY} kø ${i}.txt`, mime: "text/plain", size: 10 });
     expect("høyst ti usendte opplastinger per samtale", (await admin.from("message_attachments").select("id", { count: "exact", head: true }).eq("channel_id", ftrPrivate).eq("uploader_id", id("kristoffer")).neq("status", "sent")).count, 10);
 
-    // Abandoned: an old unsent upload is swept, a fresh one is not.
+    // Abandoned: an old unsent upload is swept, a fresh one is not. The
+    // production threshold (24 hours) is the sweep script's default; here it
+    // is a century, so a developer's own unsent uploads are never touched.
     const stalePath = `${FTR}/${crypto.randomUUID()}.txt`;
     await admin.storage.from(BUCKET).upload(stalePath, txt.bytes, { contentType: "text/plain" });
     const { data: stale } = await admin.from("message_attachments").insert({
       community_id: FTR, channel_id: G.channelId, uploader_id: id("kristoffer"), storage_path: stalePath,
       display_name: `${BODY} forlatt.txt`, mime_type: "text/plain", size_bytes: txt.bytes.byteLength, status: "ready",
-      created_at: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
+      // Older than anything a person left behind, so the sweep below — run
+      // with a threshold only this row can meet — takes nobody else's draft.
+      created_at: new Date(Date.now() - 200 * 365 * 24 * 3600 * 1000).toISOString(),
     }).select("id").single();
     const fresh = await upload(kristoffer, G, txt);
     expect("opprydding kan ikke startes av klienter", Boolean((await kristoffer.rpc("sweep_abandoned_message_attachments", { p_older_than: "1 second" })).error), true);
-    const swept = await sweepAbandonedAttachments(24);
+    const swept = await sweepOwnAbandonedAttachments(100 * 365 * 24);
     expect("forlatt opplasting ryddes", `${swept.swept >= 1}/${await row(stale!.id)}`, "true/null");
     expect("forlatt fil fjernes fra bøtta", await objectExists(stalePath), false);
     expect("fersk opplasting røres ikke", (await row(fresh.id!))?.status, "ready");
@@ -1078,13 +1087,13 @@ async function main() {
     const logged: string[] = [];
     const realError = console.error;
     console.error = (...parts: unknown[]) => void logged.push(parts.join(" "));
-    const refused = await purgeAttachmentObjects(200, { remove: async () => ({ error: { message: "simulert Storage-feil" } }) });
+    const refused = await purgeOwnAttachmentObjects(200, { remove: async () => ({ error: { message: "simulert Storage-feil" } }) });
     console.error = realError;
     expect("mislykket fjerning: rapporteres med antall", `${refused.removed}/${refused.failed >= 1}/${refused.remaining >= 1}/${Boolean(refused.oldestQueuedAt)}`, "0/true/true/true");
     expect("mislykket fjerning: logges med årsak", logged.some((line) => line.includes("simulert Storage-feil")), true);
     expect("mislykket fjerning: filen står fortsatt i køen", (await admin.from("message_attachment_purges").select("storage_path").eq("storage_path", doomedRow!.storage_path)).data?.length, 1);
     expect("mislykket fjerning: filen er fortsatt uleselig for alle", await storageDownload(mia, doomedRow!.storage_path), false);
-    const retried = await purgeAttachmentObjects();
+    const retried = await purgeOwnAttachmentObjects();
     expect("neste forsøk fjerner den", `${retried.failed}/${retried.remaining}`, "0/0");
     expect("melding slettet: filen er fjernet", await objectExists(doomedRow!.storage_path), false);
     expect("andre meldingers filer er urørt", await objectExists(sentRow!.storage_path), true);
@@ -1095,7 +1104,7 @@ async function main() {
     expect("privat kanal slettes", (await mia.rpc("delete_private_channel", { p_channel_id: ftrPrivate })).data, true);
     expect("kanal slettet: ingen vedleggsrader igjen", (await admin.from("message_attachments").select("id", { count: "exact", head: true }).in("storage_path", privatePaths)).count, 0);
     expect("kanal slettet: tidligere deltaker får 404", await httpStatus(kristoffer, FTR, privateFile.attachment!.id), 404);
-    await purgeAttachmentObjects();
+    await purgeOwnAttachmentObjects();
     expect("kanal slettet: filene er fjernet", (await Promise.all(privatePaths.map(objectExists))).some(Boolean), false);
 
     // A group deleted permanently.
@@ -1104,7 +1113,7 @@ async function main() {
     expect("gruppen slettes", (await mia.rpc("delete_subgroup", { p_subgroup_id: ftrGroup.subgroupId })).data, true);
     expect("gruppe slettet: ingen vedleggsrader igjen", (await admin.from("message_attachments").select("id", { count: "exact", head: true }).eq("channel_id", G.channelId)).count, 0);
     expect("gruppe slettet: 404", await httpStatus(mia, FTR, pending.id), 404);
-    await purgeAttachmentObjects();
+    await purgeOwnAttachmentObjects();
     expect("gruppe slettet: filer og miniatyrer er fjernet", (await Promise.all(groupPaths.map(objectExists))).some(Boolean), false);
     expect("andre samtalers filer er urørt", await objectExists(orgRow!.storage_path), true);
     expect("TU-filene er urørt", await objectExists((await row(tuFile.attachment!.id))!.storage_path), true);

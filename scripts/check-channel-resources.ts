@@ -27,12 +27,13 @@ import { execFileSync } from "node:child_process";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cleanAttachmentName, detectAttachmentFileType } from "@/lib/attachment-file-type";
-import { purgeAttachmentObjects } from "@/lib/attachment-storage";
+import { purgeOwnAttachmentObjects, rememberExistingAttachmentObjects } from "./lib/attachment-isolation";
 import { channelTakesFiles, normalizeLinkUrl } from "@/lib/channel-resources";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import type { Database } from "@/lib/supabase/database.types";
 import { pdfFixture, pngFixture, type Fixture } from "./lib/attachment-fixtures";
+import { rememberChannelParticipants, restoreChannelParticipants } from "./lib/participation-isolation";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -286,14 +287,17 @@ async function cleanup() {
   sql(`delete from channels where (name like '${TAG}%' and local_group_id is null and subgroup_id is null) or (is_private and name like '${PRIVATE}%')`);
   sql(`delete from channel_retired_ids where id like '%check-ressurs%'`);
   for (let pass = 0; pass < 10; pass += 1) {
-    const result = await purgeAttachmentObjects(1000);
+    const result = await purgeOwnAttachmentObjects(1000);
     if (result.remaining === 0 || result.removed === 0) break;
   }
+  restoreChannelParticipants();
 }
 
 // ── The checks ──────────────────────────────────────────────────────────
 
 async function main() {
+  rememberChannelParticipants();
+  rememberExistingAttachmentObjects();
   await cleanup();
   const reachable = await fetch(`${APP}/login`, { redirect: "manual" }).then((response) => response.status < 500, () => false);
   if (!reachable) {
@@ -690,7 +694,7 @@ async function main() {
     await admin.from("messages").delete().eq("id", trdFile.messageId);
     expect("L: slettet melding – fila er ute av ressursene", (await list(eli, TRD, { kind: "file", search: TAG })).length, 0);
     expect("L: … plassering og feste er borte", sql(`select (select count(*) from channel_attachment_placements where attachment_id = '${trdFile.attachmentId}') + (select count(*) from channel_resource_pins where attachment_id = '${trdFile.attachmentId}')`), 0);
-    await purgeAttachmentObjects(1000);
+    await purgeOwnAttachmentObjects(1000);
     expect("L: … objektet er fjernet fra lagringen", sql(`select count(*) from storage.objects where bucket_id = '${BUCKET}' and name = '${trdPath}'`), 0);
     expect("L: lokallagets hovedkanal kan ikke arkiveres (følger lokallaget)", Boolean((await admin.from("channels").update({ archived_at: new Date().toISOString() }).eq("id", TRD)).error), true);
 

@@ -137,6 +137,8 @@ export type AttachmentRefusal =
   | "tooMany"
   | "invalid"
   | "tooLong"
+  | "mention"
+  | "tooManyMentions"
   | "failed";
 
 /** The database's refusal, as one of the reasons the interface can explain. */
@@ -150,6 +152,8 @@ export function attachmentRefusal(message: string | undefined): AttachmentRefusa
   if (text.includes("attachment_too_many")) return "tooMany";
   if (text.includes("attachment_invalid") || text.includes("attachment_required")) return "invalid";
   if (text.includes("message_too_long")) return "tooLong";
+  if (text.includes("message_error:mention_not_allowed")) return "mention";
+  if (text.includes("message_error:too_many_mentions")) return "tooManyMentions";
   return "failed";
 }
 

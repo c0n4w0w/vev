@@ -4,6 +4,8 @@ export const errors: Record<keyof typeof nb, string> = {
   // ── Messages and posts ────────────────────────────────────────────────
   "err.messageEmpty": "The message can't be empty.",
   "err.messageTooLong": "The message can be at most 4,000 characters.",
+  "err.mentionNotAllowed": "Someone you mention can't be mentioned in this channel. Remove the name and try again.",
+  "err.mentionTooMany": "You can mention at most 20 people in one message.",
   "err.messageLength": "The message must be between 1 and 4,000 characters.",
   "err.channelWriteDenied": "You don't have access to write in this channel.",
   "err.conversationWriteDenied": "You don't have access to write in this conversation.",

@@ -34,7 +34,7 @@ import { join } from "node:path";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cleanAttachmentName, detectAttachmentFileType } from "@/lib/attachment-file-type";
-import { purgeAttachmentObjects } from "@/lib/attachment-storage";
+import { purgeOwnAttachmentObjects, rememberExistingAttachmentObjects } from "./lib/attachment-isolation";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import type { Database } from "@/lib/supabase/database.types";
@@ -295,7 +295,7 @@ async function cleanup() {
   }
   sql(`delete from channel_retired_ids where id like '%check-melding%'`);
   for (let pass = 0; pass < 10; pass += 1) {
-    const result = await purgeAttachmentObjects(1000);
+    const result = await purgeOwnAttachmentObjects(1000);
     if (result.remaining === 0 || result.removed === 0) break;
   }
 }
@@ -303,6 +303,7 @@ async function cleanup() {
 // ── The checks ──────────────────────────────────────────────────────────
 
 async function main() {
+  rememberExistingAttachmentObjects();
   await cleanup();
   const reachable = await fetch(`${APP}/login`, { redirect: "manual" }).then((response) => response.status < 500, () => false);
   if (!reachable) {
@@ -563,7 +564,7 @@ async function main() {
     const route = await fetch(`${APP}/community/${FTR}/attachments/${shared.attachmentId}`, { headers: { Cookie: await cookiesFor(linn) }, redirect: "manual" });
     await route.arrayBuffer();
     expect("K4 vedleggsruten svarer 404", route.status, 404);
-    await purgeAttachmentObjects(1000);
+    await purgeOwnAttachmentObjects(1000);
     const swept = await admin.storage.from(BUCKET).list(shared.path.split("/")[0], { search: shared.path.split("/")[1].split(".")[0] });
     expect("K5 opprydningen fjerner objektene", swept.data?.length ?? 0, 0);
     expect("K5 den urørte filen kan fortsatt lastes ned", Boolean((await linn.storage.from(BUCKET).download(unrelated.path)).data), true);

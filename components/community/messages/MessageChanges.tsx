@@ -3,15 +3,17 @@
 import { useEffect, useRef, useState, useTransition, type Dispatch, type SetStateAction } from "react";
 import { deleteMessageAction, editMessageAction, setMessagePinnedAction } from "@/app/message-actions";
 import { EmojiText } from "@/components/community/EmojiPicker";
+import { useMentionAutocomplete, type MentionScope } from "@/components/community/messages/Mentions";
 import { ActionMenu, type ActionMenuItem } from "@/components/ui/ActionMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconMore, IconPencil, IconPin, IconTrash } from "@/components/ui/icons";
 import { cn } from "@/components/ui/primitives";
 import { formatDate, formatTime } from "@/lib/format";
 import { MESSAGE_BODY_MAX } from "@/lib/message-form";
+import { mentionsAsText, mentionsToDraft, type MentionCandidate } from "@/lib/mentions";
 import { useLocale, useT } from "@/lib/i18n/react";
 import type { MessageAttachment } from "@/lib/attachment-types";
-import type { CommunityEmoji, MessageDeletion } from "@/lib/types";
+import type { CommunityEmoji, CommunityPersona, MessageDeletion } from "@/lib/types";
 
 /**
  * Editing, deleting and pinning a chat message, shared by channels and direct
@@ -231,13 +233,21 @@ export function MessageMenu({
   );
 }
 
-/** Inline editor in place of the message's text. Enter saves, Shift+Enter breaks a line, Escape cancels. */
+/**
+ * Inline editor in place of the message's text. Enter saves, Shift+Enter
+ * breaks a line, Escape cancels.
+ *
+ * In a channel (`mentions`) the text's mentions show as "@Name" and "@" offers
+ * people again, as in the composer; what is saved has them as mentions. The
+ * database checks every mention the edit adds, and leaves the ones it keeps.
+ */
 export function MessageEditor({
   initialBody,
   allowEmpty,
   accent,
   onSave,
   onCancel,
+  mentions,
 }: {
   initialBody: string;
   /** The message carries files, so it may be left without text. */
@@ -245,12 +255,33 @@ export function MessageEditor({
   accent: string;
   onSave: (body: string) => Promise<string | undefined>;
   onCancel: () => void;
+  mentions?: {
+    scope: MentionScope;
+    people: Record<string, CommunityPersona | undefined>;
+    onPick?: (candidate: MentionCandidate) => void;
+  };
 }) {
   const t = useT();
-  const [draft, setDraft] = useState(initialBody);
+  const [initial] = useState(() =>
+    mentions
+      ? mentionsToDraft(initialBody, (id) => mentions.people[id]?.name)
+      : { text: initialBody, mentions: [] },
+  );
+  const [draft, setDraft] = useState(initial.text);
   const [error, setError] = useState<string | undefined>(undefined);
   const [saving, startSaving] = useTransition();
   const ref = useRef<HTMLTextAreaElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const autocomplete = useMentionAutocomplete({
+    scope: mentions?.scope,
+    textareaRef: ref,
+    anchorRef: frameRef,
+    value: draft,
+    setValue: setDraft,
+    initialMentions: initial.mentions,
+    placement: "below",
+    onPick: mentions?.onPick,
+  });
 
   useEffect(() => {
     const el = ref.current;
@@ -270,19 +301,20 @@ export function MessageEditor({
       setError(t(empty ? "err.messageEmpty" : "err.messageTooLong"));
       return;
     }
-    if (draft.trim() === initialBody.trim()) {
+    const stored = autocomplete.stored(draft);
+    if (stored.trim() === initialBody.trim()) {
       onCancel();
       return;
     }
     setError(undefined);
     startSaving(async () => {
-      const refusal = await onSave(draft);
+      const refusal = await onSave(stored);
       if (refusal) setError(refusal);
     });
   }
 
   return (
-    <div className="mt-0.5">
+    <div ref={frameRef} className="relative mt-0.5">
       <textarea
         ref={ref}
         value={draft}
@@ -290,13 +322,19 @@ export function MessageEditor({
         maxLength={MESSAGE_BODY_MAX}
         aria-label={t("message.editLabel")}
         disabled={saving}
+        {...autocomplete.textareaProps}
         onChange={(event) => {
           setDraft(event.target.value);
+          autocomplete.onChange(event);
           const el = event.target;
           el.style.height = "auto";
           el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
         }}
+        onPaste={autocomplete.onPaste}
+        onClick={autocomplete.onCaretMove}
+        onKeyUp={autocomplete.onKeyUp}
         onKeyDown={(event) => {
+          if (autocomplete.onKeyDown(event)) return;
           if (event.key === "Escape") {
             event.preventDefault();
             onCancel();
@@ -307,6 +345,7 @@ export function MessageEditor({
         }}
         className="block max-h-60 min-h-[2.5rem] w-full resize-none rounded-[5px] border border-line-2 bg-surface px-3 py-2 text-left text-[0.9375rem] leading-6 text-ink outline-none focus:border-ink-3 disabled:opacity-60"
       />
+      {autocomplete.menu}
       {error ? (
         <p role="alert" className="mt-1.5 text-left text-[12px] text-rust">
           {error}
@@ -479,14 +518,17 @@ export function PinnedMessageBar({
   authorName,
   customEmojis,
   onOpen,
+  people,
 }: {
   message: ChangeableMessage;
   authorName: string;
   customEmojis: CommunityEmoji[];
   onOpen: () => void;
+  /** Names for the mentions in it, shown as "@Name". */
+  people?: Record<string, CommunityPersona | undefined>;
 }) {
   const t = useT();
-  const preview = message.body.replace(/\s+/g, " ").trim();
+  const preview = mentionsAsText(message.body, (id) => people?.[id]?.name).replace(/\s+/g, " ").trim();
   return (
     <button
       type="button"

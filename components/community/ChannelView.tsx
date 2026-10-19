@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Avatar, Badge, cn } from "@/components/ui/primitives";
 import { ChannelIntroCard } from "@/components/community/ChannelIntroCard";
 import { PrivateChannelAdmin } from "@/components/community/PrivateChannelAdmin";
 import { CommunityChannelAdmin } from "@/components/community/channels/CommunityChannelAdmin";
 import { PrivateChannelCreate } from "@/components/community/PrivateChannelCreate";
 import { PrivateChannelParticipants } from "@/components/community/PrivateChannelParticipants";
-import { ComposerEmojiButton, EmojiText, useComposerInsert } from "@/components/community/EmojiPicker";
+import { ComposerEmojiButton, useComposerInsert } from "@/components/community/EmojiPicker";
+import { MessageText, useMentionAutocomplete, type MentionScope } from "@/components/community/messages/Mentions";
+import { PersonPopover } from "@/components/community/messages/PersonPopover";
 import { AttachmentButton, PendingAttachmentList } from "@/components/community/attachments/ComposerAttachments";
 import { ChannelResourceLibrary, type ResourcePermissions } from "@/components/community/resources/ChannelResourceLibrary";
 import { MessageAttachments } from "@/components/community/attachments/MessageAttachments";
@@ -31,6 +33,7 @@ import { useLocale, useT } from "@/lib/i18n/react";
 import { emptyMessageFormState } from "@/lib/message-form";
 import type { AttachmentPolicy } from "@/lib/attachment-types";
 import type { ResourceSummary } from "@/lib/channel-resources";
+import type { MentionCandidate } from "@/lib/mentions";
 import type {
   Channel,
   Community,
@@ -119,6 +122,7 @@ export function ChannelView({
   focusMessageId,
   canModerate,
   pinnedMessageId,
+  mentionPeople = {},
 }: {
   channel: Channel;
   community: Community;
@@ -167,6 +171,11 @@ export function ChannelView({
   canModerate: boolean;
   /** The message pinned beneath the header, if any. */
   pinnedMessageId?: string;
+  /**
+   * The people this channel's messages mention whom the viewer may see, as
+   * they appear in this community now. Anyone missing reads "@ukjent".
+   */
+  mentionPeople?: Record<string, CommunityPersona>;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -190,7 +199,35 @@ export function ChannelView({
   const [pending, startTransition] = useTransition();
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const composerFrameRef = useRef<HTMLDivElement>(null);
   const insertText = useComposerInsert(composerRef, draft, setDraft);
+  // People picked from the suggestions here, so a sent or edited message
+  // names them before the page is loaded again.
+  const [picked, setPicked] = useState<Record<string, CommunityPersona>>({});
+  const mentionScope = useMemo<MentionScope>(
+    () => ({
+      communityId: community.id,
+      channelId: channel.id,
+      invited: channel.isPrivate || Boolean(channel.subgroupId),
+    }),
+    [community.id, channel.id, channel.isPrivate, channel.subgroupId],
+  );
+  const rememberPick = useCallback(
+    (candidate: MentionCandidate) =>
+      setPicked((current) => ({
+        ...current,
+        [candidate.id]: { ...candidate, communityId: community.id, bio: "" },
+      })),
+    [community.id],
+  );
+  const mentions = useMentionAutocomplete({
+    scope: canPost ? mentionScope : undefined,
+    textareaRef: composerRef,
+    anchorRef: composerFrameRef,
+    value: draft,
+    setValue: setDraft,
+    onPick: rememberPick,
+  });
   const uploads = useAttachmentUploads({
     communityId: community.id,
     target: { channelId: channel.id },
@@ -267,15 +304,17 @@ export function ChannelView({
   }
 
   const people = useMemo(
-    () => ({ ...authors, [currentUser.id]: currentUser }),
-    [authors, currentUser],
+    () => ({ ...mentionPeople, ...picked, ...authors, [currentUser.id]: currentUser }),
+    [mentionPeople, picked, authors, currentUser],
   );
   const pinnedMessage = pinnedId
     ? messages.find((message) => message.id === pinnedId && !message.deleted)
     : undefined;
 
   function send() {
-    const body = draft.trim();
+    const text = draft;
+    const picks = mentions.mentions;
+    const body = mentions.stored(draft).trim();
     if ((!body && uploads.isEmpty) || pending) return;
     // Files still on their way up, or one that failed: nothing is sent until
     // every picked file is either uploaded or taken out.
@@ -301,6 +340,7 @@ export function ChannelView({
       },
     ]);
     setDraft("");
+    mentions.reset();
     setError(undefined);
     composerRef.current?.focus();
 
@@ -321,7 +361,11 @@ export function ChannelView({
       }
       setMessages((current) => current.filter((message) => message.id !== pendingId));
       setError(result.status === "error" ? result.error : undefined);
-      setDraft((current) => current || body);
+      // Back into an empty composer only: whatever was typed since stays.
+      if (!composerRef.current?.value) {
+        setDraft(text);
+        mentions.restore(picks);
+      }
       // The uploads are still there; they go back above the composer.
       files.restore();
     });
@@ -420,6 +464,7 @@ export function ChannelView({
             message={pinnedMessage}
             authorName={people[pinnedMessage.authorId]?.name ?? t("common.unknown")}
             customEmojis={customEmojis}
+            people={people}
             onOpen={() => goToMessage(pinnedMessage.id)}
           />
         ) : null}
@@ -507,9 +552,21 @@ export function ChannelView({
                     <div className={cn("min-w-0 flex-1", hasMenu && "pr-8")}>
                       {!grouped ? (
                         <p className="mb-0.5 flex items-baseline gap-2">
-                          <span className="text-sm font-medium text-ink">
-                            {author?.name ?? t("common.unknown")}
-                          </span>
+                          {author && !message.id.startsWith("pending-") ? (
+                            <PersonPopover
+                              communityId={community.id}
+                              channelId={channel.id}
+                              userId={message.authorId}
+                              person={author}
+                              className="text-sm font-medium text-ink hover:underline"
+                            >
+                              {author.name}
+                            </PersonPopover>
+                          ) : (
+                            <span className="text-sm font-medium text-ink">
+                              {author?.name ?? t("common.unknown")}
+                            </span>
+                          )}
                           <span className="text-[11px] text-ink-3">
                             {formatTime(message.createdAt, locale)}
                           </span>
@@ -536,10 +593,18 @@ export function ChannelView({
                           accent={community.branding.accent}
                           onSave={(body) => changes.saveEdit(message, body)}
                           onCancel={changes.cancelEdit}
+                          mentions={{ scope: mentionScope, people, onPick: rememberPick }}
                         />
                       ) : message.body ? (
                         <p className="whitespace-pre-line break-words text-[0.9375rem] leading-[1.65] text-ink-2">
-                          <EmojiText body={message.body} emojis={customEmojis} />
+                          <MessageText
+                            body={message.body}
+                            emojis={customEmojis}
+                            people={people}
+                            communityId={community.id}
+                            channelId={channel.id}
+                            viewerId={currentUser.id}
+                          />
                           {message.editedAt ? <EditedMark editedAt={message.editedAt} /> : null}
                         </p>
                       ) : message.editedAt ? (
@@ -625,20 +690,31 @@ export function ChannelView({
             />
           ) : null}
           {canPost ? (
-            <div className="flex items-end gap-3 rounded-[6px] border border-line-2 bg-surface p-2 focus-within:border-ink-3">
+            <div
+              ref={composerFrameRef}
+              className="relative flex items-end gap-3 rounded-[6px] border border-line-2 bg-surface p-2 focus-within:border-ink-3"
+            >
+              {mentions.menu}
               <Avatar user={currentUser} size="sm" className="mb-0.5" />
               <textarea
                 ref={composerRef}
                 rows={1}
                 value={draft}
+                aria-label={t("channel.placeholder", { name: channel.name })}
+                {...mentions.textareaProps}
                 onChange={(event) => {
                   setDraft(event.target.value);
+                  mentions.onChange(event);
                   const el = event.target;
                   el.style.height = "auto";
                   el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
                 }}
+                onPaste={mentions.onPaste}
+                onClick={mentions.onCaretMove}
+                onKeyUp={mentions.onKeyUp}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
+                  if (mentions.onKeyDown(event)) return;
+                  if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                     event.preventDefault();
                     send();
                   }

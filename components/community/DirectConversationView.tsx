@@ -252,53 +252,62 @@ export function DirectConversationView({
                           </p>
                         ) : null}
 
-                        {message.deleted ? (
-                          <DeletedMessage
-                            deleted={message.deleted}
-                            className="inline-block rounded-[6px] border border-dashed border-line-2 px-3 py-2 text-left"
-                          />
-                        ) : editing ? (
-                          <MessageEditor
-                            initialBody={message.body}
-                            allowEmpty={Boolean(message.hasAttachments || message.attachments?.length)}
-                            accent={community.branding.accent}
-                            onSave={(body) => changes.saveEdit(message, body)}
-                            onCancel={changes.cancelEdit}
-                          />
-                        ) : message.body ? (
-                          <p
-                            className={cn(
-                              "inline-block max-w-full whitespace-pre-line break-words rounded-[6px] px-3 py-2 text-left text-[0.9375rem] leading-[1.55]",
-                              mine
-                                ? "bg-skog text-white"
-                                : "border border-line bg-surface text-ink-2",
-                            )}
-                          >
-                            <EmojiText body={message.body} emojis={customEmojis} />
-                            {message.editedAt ? (
-                              <EditedMark editedAt={message.editedAt} className={mine ? "text-white/70" : undefined} />
+                        <div
+                          className={cn(
+                            "flex items-start gap-2",
+                            mine && "flex-row-reverse",
+                            editing && "w-full",
+                          )}
+                        >
+                          <div className={cn("min-w-0", editing && "w-full")}>
+                            {message.deleted ? (
+                              <DeletedMessage
+                                deleted={message.deleted}
+                                className="inline-block rounded-[6px] border border-dashed border-line-2 px-3 py-2 text-left"
+                              />
+                            ) : editing ? (
+                              <MessageEditor
+                                initialBody={message.body}
+                                allowEmpty={Boolean(message.hasAttachments || message.attachments?.length)}
+                                accent={community.branding.accent}
+                                onSave={(body) => changes.saveEdit(message, body)}
+                                onCancel={changes.cancelEdit}
+                              />
+                            ) : message.body ? (
+                              <p
+                                className={cn(
+                                  "inline-block max-w-full whitespace-pre-line break-words rounded-[6px] px-3 py-2 text-left text-[0.9375rem] leading-[1.55]",
+                                  mine
+                                    ? "bg-skog text-white"
+                                    : "border border-line bg-surface text-ink-2",
+                                )}
+                              >
+                                <EmojiText body={message.body} emojis={customEmojis} />
+                                {message.editedAt ? (
+                                  <EditedMark editedAt={message.editedAt} className={mine ? "text-white/70" : undefined} />
+                                ) : null}
+                              </p>
+                            ) : message.editedAt ? (
+                              <EditedMark editedAt={message.editedAt} className="block" />
                             ) : null}
-                          </p>
-                        ) : message.editedAt ? (
-                          <EditedMark editedAt={message.editedAt} className="block" />
-                        ) : null}
 
-                        <MessageAttachments
-                          attachments={message.attachments}
-                          align={mine ? "end" : "start"}
-                          className={message.body ? "mt-1.5" : undefined}
-                        />
+                            <MessageAttachments
+                              attachments={message.attachments}
+                              align={mine ? "end" : "start"}
+                              className={message.body ? "mt-1.5" : undefined}
+                            />
+                          </div>
+                          {ownLive ? (
+                            <MessageMenu
+                              onEdit={() => changes.startEdit(message)}
+                              onDelete={() => changes.askDelete(message)}
+                              align="right"
+                              anchorToRow
+                              className="shrink-0 self-start"
+                            />
+                          ) : null}
+                        </div>
                       </div>
-
-                      {ownLive ? (
-                        <MessageMenu
-                          onEdit={() => changes.startEdit(message)}
-                          onDelete={() => changes.askDelete(message)}
-                          align="right"
-                          anchorToRow
-                          className={cn("shrink-0 self-start", grouped ? "mt-0.5" : "mt-6")}
-                        />
-                      ) : null}
                     </div>
                   </li>
                 );

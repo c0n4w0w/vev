@@ -473,6 +473,16 @@ export const community = {
   "message.pinReplaceConfirm": "Fest denne i stedet",
   "message.pinned": "Festet melding",
   "message.pinnedOpen": "Gå til den festede meldingen fra {name}",
+  "profileCard.label": "Profilkort",
+  "profileCard.loading": "Henter …",
+  "profileCard.unavailable": "Profilen er ikke tilgjengelig.",
+  "mention.listLabel": "Personer du kan nevne",
+  "mention.searching": "Søker …",
+  "mention.none": "Ingen å nevne med det navnet her",
+  "mention.hint": "Bare personer som har skrevet i kanalen, kan nevnes.",
+  "mention.hintInvited": "Bare personer som er med i samtalen, kan nevnes.",
+  "mention.results": "{count} forslag. Bruk pil opp og ned, Enter for å velge.",
+  "mention.you": "Nevner deg",
 
   // ── Members ───────────────────────────────────────────────────────────
   "members.title": "Medlemmer",

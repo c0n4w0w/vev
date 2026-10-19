@@ -129,6 +129,7 @@ const SERVER_ONLY = [
   "channel_retired_ids",
   "collaboration_audit_log",
   "message_attachment_purges",
+  "message_mentions",
   "message_moderation_log",
 ];
 

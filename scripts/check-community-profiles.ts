@@ -21,6 +21,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import { avatarPng } from "@/lib/mock/community-profiles";
 import type { Database } from "@/lib/supabase/database.types";
+import { rememberChannelParticipants, restoreChannelParticipants } from "./lib/participation-isolation";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -172,6 +173,7 @@ async function tidyReplaced(client: Client, path: string | null) {
 let inactiveRestore: { userId: string; communityId: string } | undefined;
 
 async function main() {
+  rememberChannelParticipants();
   const ids = {
     kari: await profileId("karimoen"),
     ingrid: await profileId("ingrid"),
@@ -741,6 +743,7 @@ async function cleanup() {
       }
     }
   }
+  restoreChannelParticipants();
 }
 
 main()

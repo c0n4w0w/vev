@@ -18,11 +18,13 @@ import {
   getPinnedMessageId,
   getPrivateChannelRoster,
   getSubgroups,
+  getVisibleCommunityPersonas,
 } from "@/lib/data";
 import { getAttachmentPolicy } from "@/lib/attachment-data";
 import { getChannelResourcePermissions, getChannelResourceSummary } from "@/lib/channel-resource-data";
 import { channelTakesFiles, isUuid } from "@/lib/channel-resources";
 import { isCommunityChannel } from "@/lib/channel-management-form";
+import { mentionIds } from "@/lib/mentions";
 import { timeAgo } from "@/lib/format";
 import { communityLocale, communityTranslator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
@@ -172,6 +174,15 @@ export default async function ChannelPage({
     ...new Set([user.id, ...messages.map((message) => message.authorId)]),
   ]);
   const authors = Object.fromEntries(personas);
+  // Whom the messages mention, as they are called here now — only those this
+  // viewer may see (can_view_community_profile, which admits anyone mentioned
+  // in a message they can read). A display name changed since is shown as it
+  // is now; the message itself only holds the account id.
+  const mentionPeople = Object.fromEntries(
+    await getVisibleCommunityPersonas(community.id, [
+      ...new Set(messages.flatMap((message) => mentionIds(message.body))),
+    ]),
+  );
 
   return (
     <ChannelView
@@ -219,6 +230,7 @@ export default async function ChannelPage({
       focusMessageId={focusMessageId}
       canModerate={canModerate}
       pinnedMessageId={pinnedMessageId}
+      mentionPeople={mentionPeople}
       channelAdmin={channelAdmin ? { sections: channelAdmin[0], counts: channelAdmin[1] } : undefined}
       lastActivityLabel={
         messages.length > 0

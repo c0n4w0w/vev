@@ -472,6 +472,16 @@ export const community: Record<keyof typeof nb, string> = {
   "message.pinReplaceConfirm": "Pin this instead",
   "message.pinned": "Pinned message",
   "message.pinnedOpen": "Go to the pinned message from {name}",
+  "profileCard.label": "Profile card",
+  "profileCard.loading": "Loading …",
+  "profileCard.unavailable": "This profile isn't available.",
+  "mention.listLabel": "People you can mention",
+  "mention.searching": "Searching …",
+  "mention.none": "Nobody by that name to mention here",
+  "mention.hint": "Only people who have posted in this channel can be mentioned.",
+  "mention.hintInvited": "Only people in this conversation can be mentioned.",
+  "mention.results": "{count} suggestions. Use the up and down arrows, Enter to choose.",
+  "mention.you": "Mentions you",
 
   // ── Members ───────────────────────────────────────────────────────────
   "members.title": "Members",

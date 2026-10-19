@@ -37,7 +37,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
-import { purgeAttachmentObjects } from "@/lib/attachment-storage";
+import { purgeOwnAttachmentObjects, rememberExistingAttachmentObjects } from "./lib/attachment-isolation";
 import type { Database } from "@/lib/supabase/database.types";
 
 config({ path: ".env.local" });
@@ -208,7 +208,7 @@ async function cleanUp() {
   sql(`delete from channels where (name like '%${TAG}%' or id like '%${TAG}%') and local_group_id is null and subgroup_id is null`);
   sql(`delete from channel_sections where name like '%${TAG}%'`);
   sql(`delete from channel_retired_ids where id like '%${TAG}%'`);
-  await purgeAttachmentObjects();
+  await purgeOwnAttachmentObjects();
 }
 
 // ── A. Catalog ────────────────────────────────────────────────────────────
@@ -283,6 +283,7 @@ function checkCatalog() {
 // ── B, C, D ───────────────────────────────────────────────────────────────
 
 async function main() {
+  rememberExistingAttachmentObjects();
   checkCatalog();
 
   const mia = await signIn("miaminge"); // FTR admin
@@ -513,7 +514,7 @@ async function main() {
     expect("D: filen står i slettekøen", sql(`select count(*) from message_attachment_purges where storage_path = '${path}'`), 1);
     expect("D: varselet til kanalen er borte", sql(`select count(*) from notifications where title = 'Til kanalen ${TAG}'`), 0);
     expect("D: andre varsler står", sql(`select count(*) from notifications where title = 'Til en annen ${TAG}'`), 1);
-    await purgeAttachmentObjects();
+    await purgeOwnAttachmentObjects();
     const { data: leftover } = await admin.storage.from(BUCKET).list(FTR, { search: fileId });
     expect("D: filen er fjernet fra Storage", (leftover ?? []).length, 0);
     expect("D: slettekøen er tom for filen", sql(`select count(*) from message_attachment_purges where storage_path = '${path}'`), 0);

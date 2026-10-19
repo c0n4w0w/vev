@@ -35,12 +35,13 @@ import { execFileSync } from "node:child_process";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cleanAttachmentName, detectAttachmentFileType } from "@/lib/attachment-file-type";
-import { purgeAttachmentObjects } from "@/lib/attachment-storage";
+import { purgeOwnAttachmentObjects, rememberExistingAttachmentObjects } from "./lib/attachment-isolation";
 import { channelTakesFiles } from "@/lib/channel-resources";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import type { Database } from "@/lib/supabase/database.types";
 import { pdfFixture, pngFixture, textFixture, type Fixture } from "./lib/attachment-fixtures";
+import { rememberChannelParticipants, restoreChannelParticipants } from "./lib/participation-isolation";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -356,14 +357,17 @@ async function cleanup() {
   // A pass reads at most 1000 queued names (the API's row limit); a channel
   // of thousands of files takes several, as the scheduled sweep would.
   for (let pass = 0; pass < 20; pass += 1) {
-    const result = await purgeAttachmentObjects(1000);
+    const result = await purgeOwnAttachmentObjects(1000);
     if (result.remaining === 0 || result.removed === 0) break;
   }
+  restoreChannelParticipants();
 }
 
 // ── The checks ──────────────────────────────────────────────────────────
 
 async function main() {
+  rememberChannelParticipants();
+  rememberExistingAttachmentObjects();
   await cleanup();
 
   const reachable = await fetch(`${APP}/login`, { redirect: "manual" }).then((response) => response.status < 500, () => false);
@@ -754,7 +758,7 @@ async function main() {
     expect("K: slettet melding – filene er ute av biblioteket", (await files(linn, on)).some((r) => r.id === httpPdf.id || r.id === httpPng.id), false);
     expect("K: slettet melding – 404 på fila", await httpStatus(linn, attachmentPath(FTR, httpPdf.id!)), 404);
     expect("K: slettet melding – i slettekøen", sql(`select count(*) from message_attachment_purges where storage_path in ('${pathBefore}', '${pngPath}')`), 2);
-    await purgeAttachmentObjects(1000);
+    await purgeOwnAttachmentObjects(1000);
     expect("K: slettet melding – objektet er borte", await objectExists(pathBefore), false);
 
     // A channel deleted by its administrator takes every file with it, and
@@ -766,7 +770,7 @@ async function main() {
     expect("K: admin sletter kanalen", deleted.data, true);
     expect("K: ingen vedleggsrader igjen", sql(`select count(*) from message_attachments where channel_id = '${on}'`), 0);
     expect("K: alle objektene i slettekøen", sql(`select count(*) from message_attachment_purges where storage_path = any(string_to_array('${onPaths.join(",")}', ','))`), onPaths.length);
-    await purgeAttachmentObjects(1000);
+    await purgeOwnAttachmentObjects(1000);
     expect("K: objektene er fjernet", (await Promise.all(onPaths.map(objectExists))).some(Boolean), false);
     expect("K: slettekøen er tom for dem", sql(`select count(*) from message_attachment_purges where storage_path = any(string_to_array('${onPaths.join(",")}', ','))`), 0);
     expect("K: andre kanalers filer er uberørt", await fileCount(kristoffer, privateId), otherBefore);

@@ -32,6 +32,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import type { Database } from "@/lib/supabase/database.types";
+import { rememberChannelParticipants, restoreChannelParticipants } from "./lib/participation-isolation";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -205,9 +206,11 @@ async function cleanup() {
   await admin.from("events").delete().in("subgroup_id", ids);
   await admin.from("channels").delete().in("subgroup_id", ids);
   await admin.from("community_subgroups").delete().in("id", ids);
+  restoreChannelParticipants();
 }
 
 async function main() {
+  rememberChannelParticipants();
   await cleanup();
 
   const safeSpace = await safeSpaceSnapshot();
