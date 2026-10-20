@@ -1,0 +1,46 @@
+# TING: delete expired disappearing direct messages and their files, and
+# clean up attachments that were uploaded but never sent.
+#
+# Started every five minutes by ting-sweep.timer; never enabled on its own.
+# Install and check it as described in deploy/systemd/README.md.
+#
+# The script reads /var/www/vev/.env.local itself (SUPABASE_SERVICE_ROLE_KEY,
+# NEXT_PUBLIC_SUPABASE_URL), so it needs the same working directory as
+# vev.service and nothing else from the environment. It exits non-zero when
+# an expired message or a queued file is still stored afterwards; systemd
+# then starts ting-sweep-alert.service.
+
+[Unit]
+Description=TING: opprydding av utløpte forsvinnende meldinger og vedlegg
+After=network-online.target
+Wants=network-online.target
+OnFailure=ting-sweep-alert.service
+
+[Service]
+Type=oneshot
+User=vev
+Group=vev
+WorkingDirectory=/var/www/vev
+Environment=NODE_ENV=production
+# npm and tsx want somewhere to write; keep it private and throwaway.
+Environment=npm_config_cache=/tmp/npm-cache
+Environment=npm_config_update_notifier=false
+# Same npm as vev.service uses. Adjust the path if node is installed elsewhere
+# (`command -v npm` as the vev user).
+ExecStart=/usr/bin/npm run -s attachments:sweep
+# A run takes seconds. One that hangs is killed (and counts as a failure)
+# well before the next one is due.
+TimeoutStartSec=4min
+
+# Same confinement as the app: read-only system, private /tmp, no new
+# privileges. The script only talks to Supabase over HTTPS.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true

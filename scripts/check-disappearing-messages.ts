@@ -3,7 +3,10 @@
  * under real authenticated sessions: the setting, what each message captures,
  * when its timer starts, that expired content is refused on every path at
  * once, and that the physical cleanup removes text, files and notices —
- * repeatedly, concurrently and late — without touching anything else.
+ * repeatedly, concurrently, late and in batches, leaving no expired row
+ * behind — without touching anything else. Also the step after a database
+ * restore (20261109100000), which deletes every disappearing message from
+ * before the restore point.
  *
  * Time is not waited for. A message is "aged" by moving its own timestamps
  * back (created_at, read_at, expires_at together) with the database's
@@ -293,12 +296,15 @@ async function cookiesFor(client: Client): Promise<string> {
   return [...jar].map(([name, value]) => `${name}=${encodeURIComponent(value)}`).join("; ");
 }
 
-async function http(client: Client, path: string): Promise<{ status: number | string; body: string }> {
+async function http(
+  client: Client,
+  path: string,
+): Promise<{ status: number | string; body: string; cacheControl: string | null }> {
   try {
     const response = await fetch(`${APP}${path}`, { headers: { Cookie: await cookiesFor(client) }, redirect: "manual" });
-    return { status: response.status, body: await response.text() };
+    return { status: response.status, body: await response.text(), cacheControl: response.headers.get("cache-control") };
   } catch {
-    return { status: "utilgjengelig", body: "" };
+    return { status: "utilgjengelig", body: "", cacheControl: null };
   }
 }
 
@@ -518,7 +524,11 @@ async function main() {
     const file = await sendFile(ben.client, conv, `CHECK DIS med fil ${RUN}`, "forsvinner.txt");
     expect("fil: Ana ser vedlegget", await seesAttachment(ana.client, file.attachmentId), true);
     expect("fil: Ana kan laste ned", await downloads(ana.client, file.path), true);
-    expect("fil: ruten svarer Ana", (await http(ana.client, `/community/${UTR}/attachments/${file.attachmentId}`)).status, 200);
+    const served = await http(ana.client, `/community/${UTR}/attachments/${file.attachmentId}`);
+    expect("fil: ruten svarer Ana", served.status, 200);
+    // A file in a direct conversation is never kept by the browser: a copy on
+    // disk would outlive the message.
+    expect("fil: aldri lagret i nettleseren", served.cacheControl, "private, no-store");
     await markRead(ana.client, conv);
     const fileNoticeBefore = await directNotices(ana.client, UTR, conv);
 
@@ -585,6 +595,31 @@ async function main() {
     expect("samtidig opprydding: hver melding slettet nøyaktig én gang", counts.reduce((a, b) => a + b, 0), 12);
     expect("samtidig opprydding: den nye er urørt", await sees(ben.client, keep.id), true);
     expect("samtidig opprydding: via appens hjelper er det tomt", (await purgeExpiredDirectMessages({ conversationIds: [conv], purge: { keep: new Set(sql("select storage_path from message_attachment_purges").split("\n")) } })).expired, 0);
+
+    // A backlog larger than one database call, through the same helper the
+    // scheduled sweep uses. A run that cannot take all of it says how many
+    // expired messages are still stored (the sweep then fails and alerts);
+    // the next run leaves none.
+    const BACKLOG = 600;
+    sql(
+      `insert into direct_messages (conversation_id, author_id, body)
+       select '${conv}', '${ana.id}', 'CHECK DIS kø ' || g || ' ${RUN}' from generate_series(1, ${BACKLOG}) g`,
+    );
+    sql(
+      `begin; set local session_replication_role = replica;
+       update direct_messages set created_at = created_at - interval '31 days', expires_at = expires_at - interval '31 days'
+        where conversation_id = '${conv}' and body like 'CHECK DIS kø %'; commit;`,
+    );
+    const otherQueued = () => ({ keep: new Set(sql("select storage_path from message_attachment_purges").split("\n")) });
+    const partial = await purgeExpiredDirectMessages({ conversationIds: [conv], maxBatches: 1, verify: true, purge: otherQueued() });
+    expect("sweep: én omgang tar én porsjon", partial.expired, 500);
+    expect("sweep: det som ble liggende, meldes", partial.expiredLeft, BACKLOG - 500);
+    const swept = await purgeExpiredDirectMessages({ conversationIds: [conv], verify: true, purge: otherQueued() });
+    expect("sweep: neste kjøring tar resten", swept.expired, BACKLOG - 500);
+    expect("sweep: ingen utløpt rad igjen etter kjøringen", swept.expiredLeft, 0);
+    expect("sweep: heller ikke i databasen", sql(`select count(*) from direct_messages where conversation_id = '${conv}' and expires_at <= now()`), 0);
+    expect("sweep: varslene for køen er borte", sql(`select count(*) from notifications n join direct_messages dm on dm.id = n.direct_message_id where dm.conversation_id = '${conv}' and dm.body like 'CHECK DIS kø %'`), 0);
+    expect("sweep: den nye er fortsatt urørt", await sees(ben.client, keep.id), true);
 
     // A late run never deletes a message whose timer started meanwhile.
     const race = await send(ben.client, conv, `CHECK DIS kappløp ${RUN}`);
@@ -683,6 +718,61 @@ async function main() {
     const norwegian = await http(ana.client, `/community/${FTR}/messages/${ftr}`);
     expect("norsk (FTR): status i toppen", norwegian.body.includes("1 uke"), true);
     expect("norsk (FTR): merknad", norwegian.body.includes("slo på forsvinnende meldinger"), true);
+
+    // ── 13. After a database restore ──
+    // A restore to before the recipient's first read brings a message back
+    // unread, with created_at + 30 days to run: one that had already
+    // disappeared is readable again. The post-restore step deletes every
+    // disappearing message from before the restore point, read or not,
+    // expired or not, and leaves ordinary messages alone.
+    await setTimer(ben.client, nconv, HOUR);
+    const restoredUnread = await send(ben.client, nconv, `CHECK DIS gjenopprettet ulest ${RUN}`);
+    const restoredRead = await send(ben.client, nconv, `CHECK DIS gjenopprettet lest ${RUN}`);
+    // As restored from a backup taken before Cy read it, three hours after it
+    // was written: in the real timeline it expired two hours ago.
+    sql(
+      `begin; set local session_replication_role = replica;
+       update direct_messages set created_at = created_at - interval '3 hours', read_at = null,
+                                  expires_at = created_at - interval '3 hours' + interval '720 hours'
+        where id = '${restoredRead.id}'; commit;`,
+    );
+    expect("gjenoppretting: uten steget er en utløpt melding lesbar igjen", await sees(cy.client, restoredRead.id), true);
+    await setTimer(ben.client, nconv, null);
+    const ordinaryBefore = await send(ben.client, nconv, `CHECK DIS gjenopprettet vanlig ${RUN}`);
+    const restoredTo = sql("select now()");
+    await sleep(1100);
+    await setTimer(ben.client, nconv, HOUR);
+    const afterReopen = await send(ben.client, nconv, `CHECK DIS etter gjenåpning ${RUN}`);
+
+    const restorePurge = (client: Client, at: string) =>
+      client.rpc("purge_restored_disappearing_direct_messages", { p_restored_to: at, p_conversation_ids: [nconv] });
+    expect("gjenoppretting: medlem kan ikke kjøre steget", Boolean((await restorePurge(cy.client, restoredTo)).error), true);
+    expect(
+      "gjenoppretting: tidspunkt i fremtiden avvises",
+      /invalid_cutoff/.test((await restorePurge(admin, new Date(Date.now() + HOUR * 1000).toISOString())).error?.message ?? ""),
+      true,
+    );
+    const restoredCount = Number(
+      sql(`select count(*) from direct_messages where conversation_id = '${nconv}' and disappear_seconds is not null and created_at < '${restoredTo}'`),
+    );
+    expect("gjenoppretting: det finnes forsvinnende meldinger å slette", restoredCount >= 2, true);
+    const { data: restoreDeleted, error: restoreError } = await restorePurge(admin, restoredTo);
+    expect("gjenoppretting: steget kjører", restoreError?.message ?? "ok", "ok");
+    expect("gjenoppretting: hver forsvinnende melding fra før punktet slettes", restoreDeleted, restoredCount);
+    expect(
+      "gjenoppretting: ingen igjen fra før punktet",
+      sql(`select count(*) from direct_messages where conversation_id = '${nconv}' and disappear_seconds is not null and created_at < '${restoredTo}'`),
+      0,
+    );
+    expect("gjenoppretting: den gjenopprettede leste er borte", row(restoredRead.id) ? "ja" : "nei", "nei");
+    expect("gjenoppretting: den uleste er også borte", row(restoredUnread.id) ? "ja" : "nei", "nei");
+    expect("gjenoppretting: Cy ser den ikke", await sees(cy.client, restoredRead.id), false);
+    expect("gjenoppretting: varslene er slettet", sql(`select count(*) from notifications where direct_message_id in ('${restoredRead.id}', '${restoredUnread.id}')`), 0);
+    expect("gjenoppretting: vanlige meldinger er urørt", await sees(cy.client, ordinaryBefore.id), true);
+    expect("gjenoppretting: meldinger etter punktet er urørt", await sees(cy.client, afterReopen.id), true);
+    expect("gjenoppretting: innstillingen står", await conversationSetting(cy.client, nconv), HOUR);
+    const afterRestoreSweep = await purgeExpiredDirectMessages({ conversationIds: [...conversationIds], verify: true, purge: otherQueued() });
+    expect("gjenoppretting: oppryddingen etterpå finner ingen utløpt rad", afterRestoreSweep.expiredLeft, 0);
 
     expect(
       "utviklingsdata: andres meldinger er urørt",

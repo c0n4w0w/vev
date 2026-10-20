@@ -4446,6 +4446,10 @@ export type Database = {
         Args: { p_conversation_ids?: string[]; p_limit?: number }
         Returns: number
       }
+      purge_restored_disappearing_direct_messages: {
+        Args: { p_conversation_ids?: string[]; p_restored_to: string }
+        Returns: number
+      }
       purge_unreachable_direct_messages: {
         Args: { p_conversation_id: string }
         Returns: number

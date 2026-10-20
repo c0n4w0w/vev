@@ -255,6 +255,9 @@ i tillegg dette jevnlig (krever `SUPABASE_SERVICE_ROLE_KEY`):
 17 * * * * cd /sti/til/ting && npm run -s attachments:sweep >> /var/log/ting-attachments.log 2>&1
 ```
 
+Med forsvinnende meldinger slått på trengs det oftere: se punkt 4 under og
+`deploy/systemd/`, som erstatter crontab-linjen.
+
 Den fjerner opplastinger som aldri ble sendt (eldre enn 24 timer) og filer som
 står i slettekøen `message_attachment_purges`. Køen er fasiten på hva som
 skal bort: en rad forsvinner derfra først når Storage har bekreftet slettingen,
@@ -274,18 +277,22 @@ vedlegg og varsler skjer i `attachments:sweep` (via
 `purge_expired_direct_messages()`, bare service-rollen) og når noen åpner
 samtalen. Filene går gjennom den samme slettekøen som over.
 
-Ingen planleggerendring er tatt i bruk ennå. Når funksjonen skal ut i
-produksjon, bør sweepen gå oftere enn hver time, så utløpt innhold ikke blir
-liggende lagret lenger enn nødvendig:
-
-```bash
-# crontab: hvert kvarter
-*/15 * * * * cd /sti/til/ting && npm run -s attachments:sweep >> /var/log/ting-attachments.log 2>&1
-```
+Når funksjonen er i produksjon, skal sweepen gå hvert femte minutt, så utløpt
+innhold ikke blir liggende lagret lenger enn nødvendig. `deploy/systemd/` har
+en timer for det, med e-postvarsel når en kjøring feiler; `deploy/systemd/README.md`
+sier hvordan den installeres. Den er ikke installert ennå. Sweepen feiler også
+hvis en melding som hadde utløpt før kjøringen, fortsatt er lagret etterpå.
 
 Sikkerhetskopier er ikke omfattet: en melding som er slettet her, kan finnes i
-en sikkerhetskopi til den kopien utløper etter sin egen oppbevaringstid. Den
-tiden må fastsettes og dokumenteres separat.
+en sikkerhetskopi til den kopien utløper etter sin egen oppbevaringstid
+(`lib/backup-retention.ts`, ikke bekreftet ennå). **Etter enhver
+gjenoppretting av databasen** skal alle forsvinnende meldinger fra før
+gjenopprettingspunktet slettes før appen åpnes igjen — ellers blir meldinger
+som allerede hadde forsvunnet, lesbare på nytt. Se `docs/ops/post-restore.md`.
+
+Vedlegg i direktemeldinger sendes med `Cache-Control: private, no-store`, så
+nettleseren ikke beholder en kopi på disk etter at meldingen har forsvunnet.
+Vedlegg i kanaler revalideres ved hver bruk (`private, no-cache`).
 
 **Uløst krav – sikkerhetskopier.** Utløpte private meldinger skal ikke kunne
 gjenopprettes på ubestemt tid fra historiske sikkerhetskopier. Dette er ikke
@@ -307,8 +314,9 @@ løst, og funksjonen skal ikke omtales som «slettet overalt».
   håndteres. Ingen produksjonskonfigurasjon endres før dette er avklart.
 
 `npm run check:disappearing-messages` (med appen kjørende lokalt) går gjennom
-innstillingen, lesetidspunktet, utløp, opprydding og samspillet med arkiv,
-sletting, varsler og vedlegg.
+innstillingen, lesetidspunktet, utløp, opprydding (også i flere porsjoner, til
+ingen utløpt rad er igjen), steget etter en gjenoppretting og samspillet med
+arkiv, sletting, varsler og vedlegg.
 
 ---
 

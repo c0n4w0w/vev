@@ -160,6 +160,7 @@ const SERVICE_ROLE_FUNCTIONS = [
   "normalize_email(text)",
   "password_throttle_key(text)",
   "purge_expired_direct_messages(integer,uuid[])",
+  "purge_restored_disappearing_direct_messages(timestamp with time zone,uuid[])",
   "sweep_abandoned_message_attachments(interval)",
 ];
 
@@ -169,6 +170,7 @@ const NEVER_AUTHENTICATED = [
   "finish_password_attempt(text,text,boolean)",
   "complete_message_attachment(uuid)",
   "purge_expired_direct_messages(integer,uuid[])",
+  "purge_restored_disappearing_direct_messages(timestamp with time zone,uuid[])",
   "sweep_abandoned_message_attachments(interval)",
   "local_group_slug(text)",
 ];

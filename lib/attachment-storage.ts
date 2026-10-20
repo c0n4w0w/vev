@@ -192,6 +192,9 @@ export async function sweepAbandonedAttachments(
 /** Expired messages deleted per database call; a busy backlog takes several. */
 const EXPIRE_BATCH = 500;
 
+/** How long before a verifying run started a message must have expired to count as left over. */
+const EXPIRE_CLOCK_MARGIN_MS = 60_000;
+
 /**
  * Deletes disappearing direct messages that have expired, then removes their
  * files' objects through the purge queue.
@@ -202,11 +205,25 @@ const EXPIRE_BATCH = 500;
  * started meanwhile, and runs from several places at once skip each other.
  * `conversationIds` limits it to those conversations; the app passes the one
  * just opened, the check suite its own, the scheduled sweep nothing (all).
+ *
+ * With `verify`, it then counts the messages in the same scope that were
+ * already expired when it started and are still there (`expiredLeft`): a
+ * failed database call, or a backlog larger than `maxBatches` can take
+ * (null if it could not count).
+ * The scheduled sweep fails on anything above zero. The margin keeps a gap
+ * between this machine's clock and the database's from counting a message
+ * that expired while the run was under way.
  */
 export async function purgeExpiredDirectMessages(
-  options: { conversationIds?: string[]; purge?: AttachmentPurgeOptions; maxBatches?: number } = {},
-): Promise<AttachmentPurgeResult & { expired: number }> {
+  options: {
+    conversationIds?: string[];
+    purge?: AttachmentPurgeOptions;
+    maxBatches?: number;
+    verify?: boolean;
+  } = {},
+): Promise<AttachmentPurgeResult & { expired: number; expiredLeft?: number | null }> {
   const admin = createSupabaseAdminClient();
+  const startedBefore = new Date(Date.now() - EXPIRE_CLOCK_MARGIN_MS).toISOString();
   let expired = 0;
   for (let batch = 0; batch < (options.maxBatches ?? 20); batch += 1) {
     const { data, error } = await admin.rpc("purge_expired_direct_messages", {
@@ -222,5 +239,15 @@ export async function purgeExpiredDirectMessages(
     if (count < EXPIRE_BATCH) break;
   }
   const purge = await purgeAttachmentObjects(1000, options.purge);
-  return { expired, ...purge };
+  if (!options.verify) return { expired, ...purge };
+
+  let left = admin
+    .from("direct_messages")
+    .select("id", { count: "exact", head: true })
+    .lte("expires_at", startedBefore);
+  if (options.conversationIds) left = left.in("conversation_id", options.conversationIds);
+  const { count, error } = await left;
+  if (error) console.error(`[messages] could not count expired direct messages: ${error.message}`);
+  // null: unknown, which a sweep must treat as not clean.
+  return { expired, ...purge, expiredLeft: error ? null : (count ?? 0) };
 }

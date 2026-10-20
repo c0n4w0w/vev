@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "attachments:sweep": "tsx scripts/sweep-attachments.ts",
     "email:check": "tsx scripts/email-check.ts",
+    "ops:alert": "tsx scripts/ops-alert.ts",
     "check:access-requests": "tsx scripts/check-access-requests.ts",
     "check:account-security": "tsx scripts/check-account-security.ts",
     "check:attachments": "tsx scripts/check-attachments.ts",

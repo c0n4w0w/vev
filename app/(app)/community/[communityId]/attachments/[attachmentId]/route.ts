@@ -28,8 +28,10 @@ import { getSessionUser } from "@/lib/session";
  * Whatever the file is, it cannot act as a page: the type is the one the
  * server read from the bytes at upload, sniffing is off, and the response is
  * sandboxed with no script or network of its own. Nothing is stored in a
- * shared cache; the browser may keep a copy but must ask again before using
- * it, and is told 304 only after the same authorisation.
+ * shared cache. For a channel's file the browser may keep a copy but must ask
+ * again before using it, and is told 304 only after the same authorisation.
+ * A direct conversation's file is never stored at all: a message there may
+ * disappear, and a copy on disk would outlive it.
  */
 export const dynamic = "force-dynamic";
 
@@ -94,19 +96,22 @@ export async function GET(
 
   // The content behind an attachment id never changes, so the id is its tag.
   const etag = `"${attachmentId}-${file.thumbnail ? "t" : "o"}"`;
+  // A download, or any file in a direct conversation, is never kept. A
+  // channel's file is private and revalidated on every use — the
+  // revalidation is this same handler, so a cached copy is never shown to
+  // someone who lost access.
+  const noStore = wantsDownload || file.direct;
   const headers = new Headers({
     ...SECURITY_HEADERS,
     "Content-Type": contentType,
     "Content-Disposition": contentDisposition(inline ? "inline" : "attachment", file.name),
-    // Private, and revalidated on every use — the revalidation is this same
-    // handler, so a cached copy is never shown to someone who lost access.
-    "Cache-Control": wantsDownload ? "private, no-store" : "private, no-cache",
+    "Cache-Control": noStore ? "private, no-store" : "private, no-cache",
     "Accept-Ranges": "bytes",
     ETag: etag,
     Vary: "Cookie",
   });
 
-  if (!wantsDownload && request.headers.get("if-none-match") === etag) {
+  if (!noStore && request.headers.get("if-none-match") === etag) {
     headers.delete("Content-Type");
     headers.delete("Content-Disposition");
     return new Response(null, { status: 304, headers });

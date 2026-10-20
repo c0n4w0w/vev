@@ -209,6 +209,8 @@ export type AttachmentFile = {
   mimeType: string;
   /** False when the small rendition was asked for but there is none. */
   thumbnail: boolean;
+  /** In a direct conversation, where a message may be set to disappear. */
+  direct: boolean;
 };
 
 /**
@@ -229,7 +231,7 @@ export async function findAttachmentFile(
   const supabase = await createSupabaseServerClient();
   const { data: row } = await supabase
     .from("message_attachments")
-    .select("storage_path, thumb_path, display_name, mime_type")
+    .select("storage_path, thumb_path, display_name, mime_type, conversation_id")
     .eq("community_id", communityId)
     .eq("id", attachmentId)
     .maybeSingle();
@@ -241,6 +243,7 @@ export async function findAttachmentFile(
     name: row.display_name,
     mimeType: thumbnail ? "image/webp" : row.mime_type,
     thumbnail,
+    direct: Boolean(row.conversation_id),
   };
 }
 

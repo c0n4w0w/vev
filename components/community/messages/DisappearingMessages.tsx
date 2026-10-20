@@ -6,6 +6,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconCheck, IconTimer } from "@/components/ui/icons";
 import { cn } from "@/components/ui/primitives";
 import { showToast } from "@/components/ui/Toast";
+import { BACKUP_RETENTION_DAYS } from "@/lib/backup-retention";
 import { DISAPPEAR_LABEL, DISAPPEAR_OPTIONS, type DisappearSeconds } from "@/lib/disappearing";
 import { tn, type Locale } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/react";
@@ -157,6 +158,9 @@ function DisappearingChoice({
       </fieldset>
 
       <p className="mt-3 text-[12px] leading-relaxed text-ink-3">{t("dm.disappearing.scope")}</p>
+      <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
+        {t("dm.disappearing.retention", { days: BACKUP_RETENTION_DAYS })}
+      </p>
 
       {error ? (
         <p role="alert" className="mt-3 text-[13px] text-rust">

@@ -1,0 +1,34 @@
+# TING: mails an operator when ting-sweep.service fails.
+#
+# Started by OnFailure= in ting-sweep.service. Sends one email to
+# TING_OPS_ALERT_EMAIL (in /var/www/vev/.env.local) through TING's own mail
+# settings; see scripts/ops-alert.ts. While the sweep keeps failing, systemd
+# refuses to start this more than once an hour, so a broken night is one
+# email, not a hundred. The refusals are in the journal.
+
+[Unit]
+Description=TING: varsel om feilet opprydding
+StartLimitIntervalSec=1h
+StartLimitBurst=1
+
+[Service]
+Type=oneshot
+User=vev
+Group=vev
+WorkingDirectory=/var/www/vev
+Environment=NODE_ENV=production
+Environment=npm_config_cache=/tmp/npm-cache
+Environment=npm_config_update_notifier=false
+ExecStart=/usr/bin/npm run -s ops:alert -- ting-sweep.service
+TimeoutStartSec=2min
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true

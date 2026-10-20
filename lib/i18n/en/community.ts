@@ -333,6 +333,8 @@ export const community: Record<keyof typeof nb, string> = {
   "dm.delete.title": "Delete conversation?",
   "dm.delete.body":
     "This conversation will be permanently deleted for you, but not for the other person. This can't be undone.",
+  "dm.delete.retention":
+    "A message is deleted from TING once neither of you can see it. Copies can remain in our hosting provider's encrypted backups for up to {days} days. The other person may also have saved the conversation or taken screenshots of it.",
   "dm.delete.cancel": "Cancel",
   "dm.delete.confirm": "Delete conversation",
   "dm.delete.pending": "Deleting…",
@@ -346,6 +348,8 @@ export const community: Record<keyof typeof nb, string> = {
   "dm.disappearing.lead":
     "Choose when new messages disappear after being read. Unread messages disappear after 30 days.",
   "dm.disappearing.scope": "Applies to both participants. Existing messages are unaffected.",
+  "dm.disappearing.retention":
+    "When a message disappears, it is deleted from TING with its attachments within minutes. Copies can remain in our hosting provider's encrypted backups for up to {days} days. The other person can still save, copy or take a screenshot of anything you send.",
   "dm.disappearing.choices": "Duration",
   "dm.disappearing.off": "Off",
   "dm.disappearing.option.3600": "1 hour",
@@ -544,6 +548,8 @@ export const community: Record<keyof typeof nb, string> = {
     "The message is replaced by “This message was deleted.” for everyone in the conversation. Any attachments are deleted too and disappear from Resources. This can't be undone.",
   "message.deleteBodyDirect":
     "The message is replaced by “This message was deleted.” for both of you. Any attachments are deleted too. This can't be undone.",
+  "message.deleteRetentionDirect":
+    "The text and files are deleted from TING. Copies can remain in our hosting provider's encrypted backups for up to {days} days, and the other person may already have saved the message or taken a screenshot of it.",
   "message.removeTitle": "Remove this message?",
   "message.removeBody":
     "The message from {name} is replaced by “This message was removed by a moderator.” for everyone. Any attachments are deleted too and disappear from Resources. This can't be undone.",

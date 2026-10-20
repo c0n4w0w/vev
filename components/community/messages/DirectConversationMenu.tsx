@@ -12,6 +12,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconInboxIn, IconInboxOut, IconMore, IconTimer, IconTrash } from "@/components/ui/icons";
 import { cn } from "@/components/ui/primitives";
 import { showToast } from "@/components/ui/Toast";
+import { BACKUP_RETENTION_DAYS } from "@/lib/backup-retention";
 import { useT } from "@/lib/i18n/react";
 
 /**
@@ -168,6 +169,9 @@ export function DirectConversationMenu({
           {t("dm.delete.title")}
         </h3>
         <p className="mt-2 text-sm leading-relaxed text-ink-2">{t("dm.delete.body")}</p>
+        <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
+          {t("dm.delete.retention", { days: BACKUP_RETENTION_DAYS })}
+        </p>
         {error ? (
           <p role="alert" className="mt-3 text-[13px] text-rust">
             {error}

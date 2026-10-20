@@ -1,0 +1,19 @@
+# TING: runs ting-sweep.service every five minutes.
+#
+# Disappearing messages are unreadable from the moment they expire, whether
+# or not this has run (the database refuses them). The timer decides how long
+# the expired text and files stay stored after that: at most about five
+# minutes plus one run.
+
+[Unit]
+Description=TING: opprydding hvert femte minutt
+
+[Timer]
+OnCalendar=*:0/5
+# A missed run (the server was down) runs once at boot.
+Persistent=true
+RandomizedDelaySec=30s
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

@@ -8,6 +8,7 @@ import { ActionMenu, type ActionMenuItem } from "@/components/ui/ActionMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconMore, IconPencil, IconPin, IconTrash } from "@/components/ui/icons";
 import { cn } from "@/components/ui/primitives";
+import { BACKUP_RETENTION_DAYS } from "@/lib/backup-retention";
 import { formatDate, formatTime } from "@/lib/format";
 import { MESSAGE_BODY_MAX } from "@/lib/message-form";
 import { mentionsAsText, mentionsToDraft, type MentionCandidate } from "@/lib/mentions";
@@ -431,6 +432,11 @@ export function DeleteMessageDialog({
           ? t(direct ? "message.deleteBodyDirect" : "message.deleteBody")
           : t("message.removeBody", { name: authorName ?? t("common.unknown") })}
       </p>
+      {ownMessage && direct ? (
+        <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
+          {t("message.deleteRetentionDirect", { days: BACKUP_RETENTION_DAYS })}
+        </p>
+      ) : null}
       {error ? (
         <p role="alert" className="mt-3 text-[13px] text-rust">
           {error}

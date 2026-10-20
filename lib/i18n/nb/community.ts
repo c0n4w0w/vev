@@ -331,6 +331,8 @@ export const community = {
   "dm.delete.title": "Slett samtale?",
   "dm.delete.body":
     "Samtalen slettes permanent for deg, men ikke for den andre personen. Dette kan ikke angres.",
+  "dm.delete.retention":
+    "En melding slettes fra TING når ingen av dere lenger kan se den. Kopier kan ligge igjen i krypterte sikkerhetskopier hos driftsleverandøren vår i opptil {days} dager. Den andre personen kan også ha lagret samtalen eller tatt skjermbilder av den.",
   "dm.delete.cancel": "Avbryt",
   "dm.delete.confirm": "Slett samtale",
   "dm.delete.pending": "Sletter …",
@@ -344,6 +346,8 @@ export const community = {
   "dm.disappearing.lead":
     "Velg når nye meldinger skal forsvinne etter at de er lest. Uleste meldinger forsvinner etter 30 dager.",
   "dm.disappearing.scope": "Gjelder begge deltakerne. Eksisterende meldinger påvirkes ikke.",
+  "dm.disappearing.retention":
+    "Når en melding forsvinner, slettes den og vedleggene fra TING i løpet av noen minutter. Kopier kan ligge igjen i krypterte sikkerhetskopier hos driftsleverandøren vår i opptil {days} dager. Den andre personen kan fortsatt lagre, kopiere eller ta skjermbilde av det du sender.",
   "dm.disappearing.choices": "Varighet",
   "dm.disappearing.off": "Av",
   "dm.disappearing.option.3600": "1 time",
@@ -545,6 +549,8 @@ export const community = {
     "Meldingen erstattes av «Meldingen er slettet.» for alle i samtalen. Eventuelle vedlegg slettes også, og forsvinner fra Ressurser. Dette kan ikke angres.",
   "message.deleteBodyDirect":
     "Meldingen erstattes av «Meldingen er slettet.» for dere begge. Eventuelle vedlegg slettes også. Dette kan ikke angres.",
+  "message.deleteRetentionDirect":
+    "Teksten og filene slettes fra TING. Kopier kan ligge igjen i krypterte sikkerhetskopier hos driftsleverandøren vår i opptil {days} dager, og den andre personen kan allerede ha lagret meldingen eller tatt skjermbilde av den.",
   "message.removeTitle": "Fjerne meldingen?",
   "message.removeBody":
     "Meldingen fra {name} erstattes av «Meldingen ble fjernet av en moderator.» for alle. Eventuelle vedlegg slettes også, og forsvinner fra Ressurser. Dette kan ikke angres.",
