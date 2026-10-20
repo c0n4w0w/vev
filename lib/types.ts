@@ -117,6 +117,11 @@ export interface Community extends CommunityPublic {
    * accident. Absent means the monogram in `branding` is used.
    */
   avatarUrl?: string;
+  /**
+   * Who may see who reacted in this community's own channels and
+   * community-wide posts. Presentation only: reaction_authors() decides.
+   */
+  reactionAuthorVisibility: ReactionAuthorVisibility;
 }
 
 export type MembershipStatus = "active" | "invited" | "requested";
@@ -247,6 +252,8 @@ export interface DirectMessage {
   readAt?: string;
   /** When it stops existing for both participants (server time). */
   expiresAt?: string;
+  /** Counts per emoji, and which are the viewer's. They go with the message. */
+  reactions?: Reaction[];
 }
 
 /** Someone changed disappearing messages; shown between the messages. */
@@ -414,8 +421,8 @@ export interface Message {
   body: string;
   /** ISO timestamp. */
   createdAt: string;
-  /** Emoji → user ids who reacted. */
-  reactions?: { emoji: string; userIds: string[] }[];
+  /** Counts per emoji, and which are the viewer's. Never who reacted. */
+  reactions?: Reaction[];
   /** Set on the first message of a day, computed at read time. */
   attachment?: { kind: "file" | "link"; label: string; meta: string };
   /**
@@ -524,19 +531,38 @@ export interface Comment {
 }
 
 /**
- * One aggregated reaction on a post, derived by the database from the
- * individual reaction rows.
+ * One emoji's reactions on a post, channel message or direct message, derived
+ * by the database from the individual reaction rows.
  *
- * Exactly one of `emoji` (a built-in Unicode character) and `emojiId` (a
- * custom emoji belonging to this post's community) is set.
+ * Exactly one of `emoji` (a built-in Unicode emoji, canonical form) and
+ * `emojiId` (a custom emoji belonging to the parent's community) is set.
+ *
+ * Deliberately no account ids: who reacted is asked for separately
+ * (reaction_authors), and only answered where the viewer may know.
  */
 export interface Reaction {
   emoji: string | null;
   emojiId: string | null;
   /** The custom emoji's name, without colons. Null for built-ins. */
   name: string | null;
-  userIds: string[];
+  count: number;
+  /** Whether the viewer is among them. */
+  mine: boolean;
 }
+
+/**
+ * Who reacted with one emoji, as far as the viewer may know: display names
+ * (the viewer's own marked), or only the count.
+ */
+export type ReactionAuthors =
+  | { visible: true; total: number; mine: boolean; people: { name: string; me: boolean }[]; unnamed: number }
+  | { visible: false; total: number; mine: boolean };
+
+/** What a reaction hangs off. */
+export type ReactionKind = "message" | "direct" | "post";
+
+/** Who may see who reacted in a community's own channels and community-wide posts. */
+export type ReactionAuthorVisibility = "moderators" | "channel";
 
 /** A custom emoji. Belongs to exactly one community and is never shared. */
 export interface CommunityEmoji {

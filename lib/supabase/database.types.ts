@@ -1725,6 +1725,7 @@ export type Database = {
           monogram: string
           name: string
           public_description: string
+          reaction_author_visibility: Database["public"]["Enums"]["reaction_author_visibility"]
           slug: string
           tagline: string
         }
@@ -1745,6 +1746,7 @@ export type Database = {
           monogram: string
           name: string
           public_description: string
+          reaction_author_visibility?: Database["public"]["Enums"]["reaction_author_visibility"]
           slug: string
           tagline: string
         }
@@ -1765,6 +1767,7 @@ export type Database = {
           monogram?: string
           name?: string
           public_description?: string
+          reaction_author_visibility?: Database["public"]["Enums"]["reaction_author_visibility"]
           slug?: string
           tagline?: string
         }
@@ -2341,6 +2344,55 @@ export type Database = {
           },
         ]
       }
+      direct_message_reactions: {
+        Row: {
+          created_at: string
+          direct_message_id: string
+          emoji: string | null
+          emoji_id: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          direct_message_id: string
+          emoji?: string | null
+          emoji_id?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          direct_message_id?: string
+          emoji?: string | null
+          emoji_id?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_message_reactions_direct_message_id_fkey"
+            columns: ["direct_message_id"]
+            isOneToOne: false
+            referencedRelation: "direct_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_message_reactions_emoji_id_fkey"
+            columns: ["emoji_id"]
+            isOneToOne: false
+            referencedRelation: "community_emojis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_message_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       direct_messages: {
         Row: {
           author_id: string
@@ -2353,6 +2405,7 @@ export type Database = {
           expires_at: string | null
           has_attachments: boolean
           id: string
+          reactions: Json
           read_at: string | null
           seq: number
         }
@@ -2367,6 +2420,7 @@ export type Database = {
           expires_at?: string | null
           has_attachments?: boolean
           id?: string
+          reactions?: Json
           read_at?: string | null
           seq?: number
         }
@@ -2381,6 +2435,7 @@ export type Database = {
           expires_at?: string | null
           has_attachments?: boolean
           id?: string
+          reactions?: Json
           read_at?: string | null
           seq?: number
         }
@@ -2858,6 +2913,55 @@ export type Database = {
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string | null
+          emoji_id: string | null
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string | null
+          emoji_id?: string | null
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string | null
+          emoji_id?: string | null
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_emoji_id_fkey"
+            columns: ["emoji_id"]
+            isOneToOne: false
+            referencedRelation: "community_emojis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -3547,6 +3651,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      channel_reaction_authors_visible: {
+        Args: { p_channel_id: string }
+        Returns: boolean
+      }
       channel_resource_contributors: {
         Args: { p_channel_id: string }
         Returns: {
@@ -3971,6 +4079,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      direct_message_reaction_counts: {
+        Args: { p_message_id: string }
+        Returns: Json
+      }
       direct_message_requote_notification: {
         Args: {
           p_message: Database["public"]["Tables"]["direct_messages"]["Row"]
@@ -4030,6 +4142,7 @@ export type Database = {
           expires_at: string | null
           has_attachments: boolean
           id: string
+          reactions: Json
           read_at: string | null
           seq: number
         }
@@ -4202,6 +4315,7 @@ export type Database = {
       }
       message_attachment_storage_read_allowed: { Args: never; Returns: boolean }
       message_mention_ids: { Args: { p_body: string }; Returns: string[] }
+      message_reaction_counts: { Args: { p_message_id: string }; Returns: Json }
       move_channel_resource: {
         Args: { p_folder_id: string; p_id: string; p_type: string }
         Returns: boolean
@@ -4288,6 +4402,7 @@ export type Database = {
         }
         Returns: string
       }
+      post_reaction_counts: { Args: { p_post_id: string }; Returns: Json }
       private_channel_access_admits: {
         Args: {
           p_channel_id: string
@@ -4334,6 +4449,40 @@ export type Database = {
       purge_unreachable_direct_messages: {
         Args: { p_conversation_id: string }
         Returns: number
+      }
+      reaction_authors: {
+        Args: {
+          p_emoji: string
+          p_emoji_id: string
+          p_kind: string
+          p_target_id: string
+        }
+        Returns: Json
+      }
+      reaction_authors_admit: {
+        Args: { p_kind: string; p_target_id: string; p_viewer: string }
+        Returns: boolean
+      }
+      reaction_emoji_shape_ok: { Args: { p_emoji: string }; Returns: boolean }
+      reaction_rows: {
+        Args: {
+          p_emoji: string
+          p_emoji_id: string
+          p_kind: string
+          p_target_id: string
+        }
+        Returns: {
+          created_at: string
+          user_id: string
+        }[]
+      }
+      reaction_target_readable: {
+        Args: { p_kind: string; p_target_id: string; p_viewer: string }
+        Returns: boolean
+      }
+      reaction_view: {
+        Args: { p_kind: string; p_target_id: string; p_viewer: string }
+        Returns: Json
       }
       register_collaboration_file: {
         Args: {
@@ -4576,6 +4725,10 @@ export type Database = {
         Args: { p_person_id: string; p_user_id: string }
         Returns: boolean
       }
+      set_community_reaction_visibility: {
+        Args: { p_community_id: string; p_value: string }
+        Returns: string
+      }
       set_direct_conversation_disappearing: {
         Args: { p_conversation_id: string; p_seconds: number }
         Returns: number
@@ -4613,6 +4766,16 @@ export type Database = {
       set_private_channel_manager: {
         Args: { p_channel_id: string; p_is_manager: boolean; p_user_id: string }
         Returns: boolean
+      }
+      set_reaction: {
+        Args: {
+          p_emoji: string
+          p_emoji_id: string
+          p_kind: string
+          p_on: boolean
+          p_target_id: string
+        }
+        Returns: Json
       }
       set_subgroup_archived: {
         Args: { p_archived: boolean; p_subgroup_id: string }
@@ -4790,6 +4953,7 @@ export type Database = {
         | "membership"
         | "direct_message"
       post_kind: "post" | "announcement"
+      reaction_author_visibility: "moderators" | "channel"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4965,6 +5129,7 @@ export const Constants = {
         "direct_message",
       ],
       post_kind: ["post", "announcement"],
+      reaction_author_visibility: ["moderators", "channel"],
     },
   },
 } as const

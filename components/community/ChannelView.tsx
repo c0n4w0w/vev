@@ -12,6 +12,7 @@ import { PrivateChannelParticipants } from "@/components/community/PrivateChanne
 import { ComposerEmojiButton, useComposerInsert } from "@/components/community/EmojiPicker";
 import { MessageText, useMentionAutocomplete, type MentionScope } from "@/components/community/messages/Mentions";
 import { PersonPopover } from "@/components/community/messages/PersonPopover";
+import { ReactionRow } from "@/components/community/reactions/ReactionRow";
 import { AttachmentButton, PendingAttachmentList } from "@/components/community/attachments/ComposerAttachments";
 import { ChannelResourceLibrary, type ResourcePermissions } from "@/components/community/resources/ChannelResourceLibrary";
 import { MessageAttachments } from "@/components/community/attachments/MessageAttachments";
@@ -123,6 +124,7 @@ export function ChannelView({
   canModerate,
   pinnedMessageId,
   mentionPeople = {},
+  reactionAuthorsVisible = false,
 }: {
   channel: Channel;
   community: Community;
@@ -176,6 +178,12 @@ export function ChannelView({
    * they appear in this community now. Anyone missing reads "@ukjent".
    */
   mentionPeople?: Record<string, CommunityPersona>;
+  /**
+   * Whether names are offered on this channel's reactions
+   * (channel_reaction_authors_visible). Presentation only: each request for
+   * them is decided again by reaction_authors().
+   */
+  reactionAuthorsVisible?: boolean;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -302,6 +310,9 @@ export function ChannelView({
       `/community/${encodeURIComponent(community.id)}/channel/${encodeURIComponent(channel.id)}?melding=${encodeURIComponent(messageId)}`,
     );
   }
+
+  // An archived channel keeps its reactions as they were.
+  const reactable = !channel.archived;
 
   const people = useMemo(
     () => ({ ...mentionPeople, ...picked, ...authors, [currentUser.id]: currentUser }),
@@ -549,7 +560,12 @@ export function ChannelView({
                       ) : null}
                     </div>
 
-                    <div className={cn("min-w-0 flex-1", hasMenu && "pr-8")}>
+                    <div
+                      className={cn(
+                        "min-w-0 flex-1",
+                        hasMenu && live && reactable ? "pr-16" : (hasMenu || (live && reactable)) && "pr-8",
+                      )}
+                    >
                       {!grouped ? (
                         <p className="mb-0.5 flex items-baseline gap-2">
                           {author && !message.id.startsWith("pending-") ? (
@@ -630,18 +646,18 @@ export function ChannelView({
                         </div>
                       ) : null}
 
-                      {message.reactions?.length ? (
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                          {message.reactions.map((reaction) => (
-                            <span
-                              key={reaction.emoji}
-                              className="inline-flex items-center gap-1 rounded-full border border-line bg-paper px-2 py-0.5 text-xs text-ink-2"
-                            >
-                              <span aria-hidden="true">{reaction.emoji}</span>
-                              {reaction.userIds.length}
-                            </span>
-                          ))}
-                        </div>
+                      {live && (message.reactions?.length || reactable) ? (
+                        <ReactionRow
+                          target={{ kind: "message", id: message.id }}
+                          scope={{ communityId: community.id, channelId: channel.id }}
+                          reactions={message.reactions ?? []}
+                          customEmojis={customEmojis}
+                          accent={community.branding.accent}
+                          canReact={reactable}
+                          authorsVisible={reactionAuthorsVisible}
+                          emptyButtonClassName={cn("absolute top-0", hasMenu ? "right-7" : "right-0")}
+                          className="mt-1.5"
+                        />
                       ) : null}
                     </div>
 

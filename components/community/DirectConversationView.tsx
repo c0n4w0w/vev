@@ -18,6 +18,7 @@ import {
 } from "@/components/community/messages/MessageChanges";
 import { IconArrowLeft, IconSend } from "@/components/ui/icons";
 import { DirectConversationMenu } from "@/components/community/messages/DirectConversationMenu";
+import { ReactionRow } from "@/components/community/reactions/ReactionRow";
 import {
   DisappearingDialog,
   DisappearingNoticeLine,
@@ -449,7 +450,7 @@ export function DirectConversationView({
                             editing && "w-full",
                           )}
                         >
-                          <div className={cn("min-w-0", editing && "w-full")}>
+                          <div className={cn("relative min-w-0", editing && "w-full")}>
                             {message.deleted ? (
                               <DeletedMessage
                                 deleted={message.deleted}
@@ -486,6 +487,25 @@ export function DirectConversationView({
                               align={mine ? "end" : "start"}
                               className={message.body ? "mt-1.5" : undefined}
                             />
+
+                            {!message.deleted && !message.id.startsWith("pending-") && !editing ? (
+                              <ReactionRow
+                                target={{ kind: "direct", id: message.id }}
+                                scope={{ communityId: community.id, conversationId: conversation.id }}
+                                reactions={message.reactions ?? []}
+                                customEmojis={customEmojis}
+                                accent={community.branding.accent}
+                                authorsVisible
+                                align={mine ? "end" : "start"}
+                                emptyButtonClassName={cn(
+                                  "absolute top-1",
+                                  // Beside the bubble, on the side away from the
+                                  // conversation's edge — past the ⋯ menu on one's own.
+                                  mine ? (ownLive ? "right-full mr-10" : "right-full mr-1") : "left-full ml-1",
+                                )}
+                                className="mt-1.5"
+                              />
+                            ) : null}
                           </div>
                           {ownLive ? (
                             <MessageMenu

@@ -327,6 +327,16 @@ export const IconSmile = (p: IconProps) => (
   </Svg>
 );
 
+/** A face with a plus: add a reaction. */
+export const IconSmilePlus = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M19.6 12.6a7.7 7.7 0 1 1-8.2-8.2" />
+    <path d="M8.6 14.2a4 4 0 0 0 6.8 0" />
+    <path d="M9.2 9.8h.01M14.8 9.8h.01" strokeWidth={2} />
+    <path d="M18.5 2.8v5.4M15.8 5.5h5.4" />
+  </Svg>
+);
+
 export const IconChevronLeft = (p: IconProps) => (
   <Svg {...p}>
     <path d="M14.5 5.5 8 12l6.5 6.5" />

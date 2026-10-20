@@ -258,6 +258,7 @@ async function main() {
           .update({
             member_directory_visibility: policy.memberDirectoryVisibility,
             dm_policy: policy.dmPolicy,
+            reaction_author_visibility: policy.reactionAuthorVisibility,
           })
           .eq("id", policy.communityId)
       ).error,
@@ -649,25 +650,46 @@ async function main() {
   fail("reaksjoner", (await supabase.from("post_reactions").insert(reactionRows)).error);
   console.log(`  ${reactionRows.length} reaksjoner`);
 
-  fail(
-    "meldinger",
-    (
-      await supabase.from("messages").insert(
-        messages.map((message) => ({
-          channel_id: message.channelId,
-          author_id: uid.get(message.authorId)!,
-          body: message.body,
-          created_at: at(message.createdAt),
-          attachment: message.attachment ?? null,
-          reactions: (message.reactions ?? []).map((reaction) => ({
-            emoji: reaction.emoji,
-            userIds: reaction.userIds.map((id) => uid.get(id) ?? id),
-          })),
-        })),
-      )
-    ).error,
-  );
+  const { data: insertedMessages, error: messageError } = await supabase
+    .from("messages")
+    .insert(
+      messages.map((message) => ({
+        channel_id: message.channelId,
+        author_id: uid.get(message.authorId)!,
+        body: message.body,
+        created_at: at(message.createdAt),
+        attachment: message.attachment ?? null,
+      })),
+    )
+    .select("id, channel_id, created_at");
+  fail("meldinger", messageError);
   console.log(`  ${messages.length} meldinger`);
+
+  // One row per person per emoji, as for posts; the counts on each message are
+  // derived from these by the database. A fixture person who is not seeded is
+  // left out rather than invented.
+  const messageIdByKey = new Map(
+    (insertedMessages ?? []).map((row) => [`${row.channel_id}|${Date.parse(row.created_at)}`, row.id]),
+  );
+  const messageReactionRows = messages.flatMap((message) => {
+    const id = messageIdByKey.get(`${message.channelId}|${Date.parse(at(message.createdAt))}`);
+    if (!id) return [];
+    return (message.reactions ?? []).flatMap((reaction, emojiIndex) =>
+      reaction.userIds.flatMap((personId, index) => {
+        const userId = uid.get(personId);
+        return userId
+          ? [{
+              message_id: id,
+              user_id: userId,
+              emoji: reaction.emoji,
+              created_at: new Date(Date.parse(at(message.createdAt)) + (emojiIndex * 100 + index + 1) * 1000).toISOString(),
+            }]
+          : [];
+      }),
+    );
+  });
+  fail("meldingsreaksjoner", (await supabase.from("message_reactions").insert(messageReactionRows)).error);
+  console.log(`  ${messageReactionRows.length} meldingsreaksjoner`);
 
   const { data: insertedEvents, error: eventError } = await supabase
     .from("events")

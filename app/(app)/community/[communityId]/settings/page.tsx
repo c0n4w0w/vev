@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { CommunityAvatarSettings } from "@/components/community/CommunityAvatarSettings";
 import { DmAvailabilityToggle } from "@/components/community/DmAvailabilityToggle";
+import { ReactionVisibilitySetting } from "@/components/community/ReactionVisibilitySetting";
 import {
   EmptyState,
   PageContainer,
@@ -32,10 +33,10 @@ export async function generateMetadata({ params }: PageProps<"/community/[commun
  * why a moderator reaches them as readily as an administrator, and why the
  * page never shows anybody else's.
  *
- * The one exception is the community's profile image, shown to the
- * administrator alone. That is presentation — the storage policies and the
- * database function behind it refuse everyone else regardless of what this
- * page draws.
+ * The exceptions are the community's profile image and who may see who
+ * reacted in its channels, shown to the administrator alone. That is
+ * presentation — the storage policies and the database functions behind them
+ * refuse everyone else regardless of what this page draws.
  */
 export default async function CommunitySettingsPage({
   params,
@@ -98,6 +99,20 @@ export default async function CommunitySettingsPage({
               avatarUrl: community.avatarUrl,
             }}
           />
+        </section>
+      ) : null}
+
+      {isAdmin ? (
+        <section className="mb-10">
+          <SectionHeading>{t("settings.reactions")}</SectionHeading>
+          <Panel className="overflow-hidden">
+            <ReactionVisibilitySetting
+              communityId={community.id}
+              communityName={community.name}
+              accent={community.branding.accent}
+              initial={community.reactionAuthorVisibility}
+            />
+          </Panel>
         </section>
       ) : null}
 

@@ -93,11 +93,12 @@ async function main() {
   expect("standardreaksjon på nyere innlegg", (await react(kristoffer, recent.id, { emoji: "🎉" })).error?.message ?? "ok", "ok");
   expect("egen emoji på festet innlegg", (await react(kristoffer, pinned.id, { emoji_id: emoji!.id })).error?.message ?? "ok", "ok");
   const aggregate = await kristoffer.client.from("posts").select("reactions").eq("id", pinned.id).single();
-  expect(
-    "reaksjonene vises på kortet",
-    JSON.stringify(aggregate.data?.reactions).includes(kristoffer.id),
-    true,
+  const thumbs = (aggregate.data?.reactions as { emoji?: string; count?: number }[] | undefined)?.find(
+    (entry) => entry.emoji === "👍",
   );
+  expect("reaksjonene vises på kortet, som antall", (thumbs?.count ?? 0) >= 1, true);
+  // Counts only: who reacted is never part of the post (20261108100000).
+  expect("kortet sier ikke hvem som reagerte", JSON.stringify(aggregate.data?.reactions).includes(kristoffer.id), false);
   expect("samme reaksjon to ganger avvises", !!(await react(kristoffer, pinned.id, { emoji: "👍" })).error, true);
 
   // Comments from the Overview cards.

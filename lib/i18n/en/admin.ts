@@ -92,6 +92,17 @@ export const admin: Record<keyof typeof nb, string> = {
   "settings.lead.staff": "Your own choices in {name}. They apply only to you, and only here.",
   "settings.communityProfile": "Community profile",
   "settings.directMessages": "Direct messages",
+  "settings.reactions": "Reactions",
+  "settings.reactions.question": "Who can see who reacted in public channels?",
+  "settings.reactions.moderators": "Administrators and moderators only",
+  "settings.reactions.moderatorsHelp": "Members see how many reacted, but not who.",
+  "settings.reactions.channel": "Everyone with channel access",
+  "settings.reactions.channelHelp": "Everyone who can read the channel sees the names of those who reacted.",
+  "settings.reactions.scope":
+    "Applies to the channels and posts in {name} that the whole community can read, including reactions already given. In lokallag, private channels, groups and direct messages, everyone in the conversation can see who reacted.",
+  "settings.reactions.save": "Save",
+  "settings.reactions.saved": "Saved.",
+  "settings.reactions.failed": "The setting couldn't be saved.",
   "settings.dm.staffOnly":
     "{name} has turned off direct messages between members. By default, members can't write to administrators and moderators either — each of us chooses whether to be available.",
   "settings.dm.open":

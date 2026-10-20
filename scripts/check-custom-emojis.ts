@@ -12,7 +12,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
 import type { Database } from "@/lib/supabase/database.types";
 import { emojiMatchesQuery, emojiToken, insertAtSelection, splitEmojiText } from "@/lib/emoji-text";
-import { reactionPalette } from "@/lib/comment-form";
+import { QUICK_REACTIONS } from "@/lib/emoji/types";
 import { MESSAGE_BODY_MAX, messageBodyError } from "@/lib/message-form";
 
 config({ path: ".env.local" });
@@ -110,7 +110,7 @@ async function main() {
   expect("innsetting midt i teksten", insertAtSelection("ab", 1, 1, "🎉").value, "a🎉b");
   expect("innsetting erstatter markering", insertAtSelection("abcd", 1, 3, "🎉").value, "a🎉d");
   expect("utkastet beholdes ved innsetting", insertAtSelection("utkast", 0, 0, "x").value.endsWith("utkast"), true);
-  expect("standardpaletten har 👍 og 🎉", reactionPalette.includes("👍") && reactionPalette.includes("🎉"), true);
+  expect("hurtigreaksjonene er ❤️ 👍 👏 😂 🎉 🔥", QUICK_REACTIONS.join(" "), "❤️ 👍 👏 😂 🎉 🔥");
 
   // ── Community scoping and RLS ─────────────────────────────────────────
   const ingrid = await signIn("ingrid"); // member of TR, TU and UTR

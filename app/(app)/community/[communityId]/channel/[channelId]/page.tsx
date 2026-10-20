@@ -5,6 +5,7 @@ import {
   canCreatePrivateChannel,
   canModerateChannelMessages,
   canManagePrivateChannel,
+  channelReactionAuthorsVisible,
   canManageSubgroup,
   getChannel,
   getChannelSections,
@@ -89,6 +90,7 @@ export default async function ChannelPage({
     resourcePermissions,
     canModerate,
     pinnedMessageId,
+    reactionAuthorsVisible,
   ] = await Promise.all([
     getMembership(user.id, community.id),
     getMessages(channel.id),
@@ -110,6 +112,11 @@ export default async function ChannelPage({
     // theirs (can_moderate_channel_messages). Asked again on every action.
     canModerateChannelMessages(channel.id),
     getPinnedMessageId(channel.id),
+    // Whether names are offered on reactions here: everyone in a lokallag,
+    // private channel or group chat; in a community channel, its admins and
+    // moderators — or everyone, if the community chose that. Asked again by
+    // reaction_authors() on every request.
+    channelReactionAuthorsVisible(channel.id),
   ]);
 
   // Lokallag channels only: the main chat may offer "+ Ny privat kanal", a
@@ -231,6 +238,7 @@ export default async function ChannelPage({
       canModerate={canModerate}
       pinnedMessageId={pinnedMessageId}
       mentionPeople={mentionPeople}
+      reactionAuthorsVisible={reactionAuthorsVisible}
       channelAdmin={channelAdmin ? { sections: channelAdmin[0], counts: channelAdmin[1] } : undefined}
       lastActivityLabel={
         messages.length > 0

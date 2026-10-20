@@ -143,6 +143,7 @@ export const communityDefinitions: CommunityDefinition[] = communities.map((comm
       links: community.links,
       member_directory_visibility: policy.memberDirectoryVisibility,
       dm_policy: policy.dmPolicy,
+      reaction_author_visibility: policy.reactionAuthorVisibility,
     },
 
     localGroups: localGroups

@@ -79,7 +79,6 @@ import {
   setLocalGroupActive,
   setMyLocalGroup,
   setPostPinned,
-  toggleReaction as togglePostReaction,
   updateComment as editComment,
   updateMyCommunityProfile,
   updatePost as editPost,
@@ -631,9 +630,9 @@ export async function setMembershipRoleAction(formData: FormData): Promise<void>
   revalidatePath(`/community/${communityId}/members`);
 }
 
-// ── Comments and reactions ──────────────────────────────────────────────
+// ── Comments ────────────────────────────────────────────────────────────
 //
-// None of these take a community. A comment or a reaction is authorised by the
+// None of these take a community. A comment is authorised by the
 // post it belongs to, which the database resolves itself — so there is no
 // community id in the form for anyone to tamper with.
 
@@ -700,29 +699,6 @@ export async function deleteCommentAction(
   revalidatePosts(communityId);
   return { status: "ok" };
 }
-
-export async function toggleReactionAction(
-  _prev: CommentFormState,
-  formData: FormData,
-): Promise<CommentFormState> {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-
-  const result = await togglePostReaction(String(formData.get("postId") ?? ""), {
-    emoji: String(formData.get("emoji") ?? "") || undefined,
-    // A custom emoji id is checked against the post's own community by the
-    // database; nothing here needs to trust it.
-    emojiId: String(formData.get("emojiId") ?? "") || undefined,
-  });
-
-  const communityId = String(formData.get("communityId") ?? "");
-  if (!result.ok) {
-    return { status: "error", message: (await translatorFor(communityId))(result.error) };
-  }
-  revalidatePosts(communityId);
-  return { status: "ok" };
-}
-
 
 // ── Direct message settings ─────────────────────────────────────────────
 

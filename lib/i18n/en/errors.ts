@@ -55,6 +55,10 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.reactionDenied": "You don't have access to react here.",
   "err.reactionOtherCommunity": "This emoji belongs to another community.",
   "err.reactionSaveFailed": "The reaction couldn't be saved.",
+  "err.reactionNotFound": "The message no longer exists, or you don't have access to it.",
+  "err.reactionArchived": "This channel is archived. Its reactions can't be changed.",
+  "err.reactionClosed": "This conversation has ended. You can't react here any more.",
+  "err.reactionTooMany": "You can have at most 20 different reactions on one message.",
 
   // ── Emojis, images, profiles ──────────────────────────────────────────
   "err.emojiExists": ":{name}: already exists in this community.",

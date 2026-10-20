@@ -5,27 +5,10 @@ import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconLock, IconMapPin, IconMegaphone, IconPin } from "@/components/ui/icons";
 import { CommentThread } from "@/components/community/CommentThread";
 import { PostActions } from "@/components/community/PostActions";
-import { ReactionBar } from "@/components/community/ReactionBar";
+import { ReactionRow } from "@/components/community/reactions/ReactionRow";
 import { timeAgo } from "@/lib/format";
 import { communityLocale, tn, translator, type Locale } from "@/lib/i18n";
 import type { Comment, Community, CommunityEmoji, CommunityPersona, Post, RoleId } from "@/lib/types";
-
-function Reactions({ reactions }: { reactions: Post["reactions"] }) {
-  if (reactions.length === 0) return null;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {reactions.map((reaction) => (
-        <span
-          key={reaction.emoji}
-          className="inline-flex items-center gap-1 rounded-full border border-line bg-paper px-2 py-0.5 text-xs text-ink-2"
-        >
-          <span aria-hidden="true">{reaction.emoji}</span>
-          {reaction.userIds.length}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 /**
  * The badges beside a post's author and time, always in the same order:
@@ -125,6 +108,11 @@ export function PostCard({
   const isAnnouncement = post.kind === "announcement";
   const isAuthor = viewer !== undefined && viewer.id === post.authorId;
   const canModerate = viewerRole === "admin" || viewerRole === "moderator";
+  // Presentation only: reaction_authors() decides again. A lokallag or group
+  // post shows names to everyone who can read it; a community-wide post
+  // follows the community's setting, as its public channels do.
+  const reactionAuthorsVisible =
+    Boolean(post.localGroupId || post.subgroup) || community.reactionAuthorVisibility === "channel" || canModerate;
 
   return (
     <Panel
@@ -166,22 +154,19 @@ export function PostCard({
           <RichText body={post.body} className={post.title ? "mt-2" : "mt-2.5"} />
 
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-            {viewer ? (
-              <ReactionBar
-                postId={post.id}
-                communityId={post.communityId}
-                reactions={post.reactions}
-                customEmojis={customEmojis}
-                viewerId={viewer.id}
-                accent={community.branding.accent}
-              />
-            ) : (
-              <>
-                <Reactions reactions={post.reactions} />
-                <span className="text-xs text-ink-3">
-                  {tn(locale, "count.comments", post.commentCount)}
-                </span>
-              </>
+            <ReactionRow
+              target={{ kind: "post", id: post.id }}
+              scope={{ communityId: post.communityId }}
+              reactions={post.reactions}
+              customEmojis={customEmojis}
+              accent={community.branding.accent}
+              canReact={viewer !== undefined}
+              authorsVisible={viewer !== undefined && reactionAuthorsVisible}
+            />
+            {viewer ? null : (
+              <span className="text-xs text-ink-3">
+                {tn(locale, "count.comments", post.commentCount)}
+              </span>
             )}
           </div>
 

@@ -58,6 +58,10 @@ export const errors = {
   "err.reactionDenied": "Du har ikke tilgang til å reagere her.",
   "err.reactionOtherCommunity": "Denne emojien hører til et annet fellesskap.",
   "err.reactionSaveFailed": "Reaksjonen kunne ikke lagres.",
+  "err.reactionNotFound": "Meldingen finnes ikke lenger, eller du har ikke tilgang til den.",
+  "err.reactionArchived": "Kanalen er arkivert. Reaksjonene kan ikke endres.",
+  "err.reactionClosed": "Samtalen er avsluttet. Du kan ikke reagere her lenger.",
+  "err.reactionTooMany": "Du kan ha høyst 20 ulike reaksjoner på én melding.",
 
   // ── Emojis, images, profiles ──────────────────────────────────────────
   "err.emojiExists": ":{name}: finnes allerede i dette fellesskapet.",

@@ -12,7 +12,7 @@ import type { Channel, Community, Membership } from "@/lib/types";
  * They share a platform and nothing else: separate members, roles, channels,
  * events and branding.
  */
-export const communities: Community[] = [
+export const communities: Omit<Community, "reactionAuthorVisibility">[] = [
   {
     id: "tryggere-ruspolitikk",
     slug: "tryggere-ruspolitikk",

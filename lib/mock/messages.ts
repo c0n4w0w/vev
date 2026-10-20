@@ -1,7 +1,15 @@
 import type { Message } from "@/lib/types";
 
+/**
+ * A fixture message. Its reactions name who gave them, so the seed can write
+ * one reaction row per person; the app itself only ever sees counts.
+ */
+export type FixtureMessage = Omit<Message, "reactions"> & {
+  reactions?: { emoji: string; userIds: string[] }[];
+};
+
 /** Channel ids follow the `${communityId}--${channelName}` convention. */
-export const messages: Message[] = [
+export const messages: FixtureMessage[] = [
   // ── Tryggere Ruspolitikk / #generelt ─────────────────────────────────
   {
     id: "m-1",

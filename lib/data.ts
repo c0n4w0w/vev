@@ -48,6 +48,9 @@ import type {
   Message,
   MessageDeletion,
   Reaction,
+  ReactionAuthors,
+  ReactionAuthorVisibility,
+  ReactionKind,
   Notification,
   Post,
   RoleId,
@@ -158,6 +161,7 @@ function toCommunity(row: CommunityRow): Community {
     ...toCommunityPublic(row),
     about: row.about,
     avatarUrl: row.avatar_path ? communityAvatarUrl(row.id, row.avatar_path) : undefined,
+    reactionAuthorVisibility: row.reaction_author_visibility ?? "moderators",
   };
 }
 
@@ -213,6 +217,30 @@ function toChannel(row: ChannelRow): Channel {
   };
 }
 
+/**
+ * A parent's stored counts, [{emoji, emojiId, name, count}]. Which of them are
+ * the viewer's is filled in afterwards from their own rows (withMyReactions);
+ * the column itself never says who reacted.
+ */
+function toReactions(value: unknown): Reaction[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry): Reaction[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const { emoji, emojiId, name, count } = entry as Record<string, unknown>;
+    if (typeof count !== "number" || count < 1) return [];
+    if ((typeof emoji === "string") === (typeof emojiId === "string")) return [];
+    return [
+      {
+        emoji: typeof emoji === "string" ? emoji : null,
+        emojiId: typeof emojiId === "string" ? emojiId : null,
+        name: typeof name === "string" ? name : null,
+        count,
+        mine: false,
+      },
+    ];
+  });
+}
+
 function toMessage(row: MessageRow): Message {
   return {
     id: row.id,
@@ -220,7 +248,7 @@ function toMessage(row: MessageRow): Message {
     authorId: row.author_id,
     body: row.body,
     createdAt: row.created_at,
-    reactions: (row.reactions as unknown as Message["reactions"]) ?? [],
+    reactions: toReactions(row.reactions),
     attachment: (row.attachment as Message["attachment"]) ?? undefined,
     editedAt: row.edited_at ?? undefined,
     deleted: row.deleted_at ? (row.removed_by_moderator ? "moderator" : "author") : undefined,
@@ -241,6 +269,7 @@ function toDirectMessage(row: DirectMessageRow): DirectMessage {
     disappearSeconds: isDisappearSeconds(row.disappear_seconds) ? row.disappear_seconds : undefined,
     readAt: row.read_at ?? undefined,
     expiresAt: row.expires_at ?? undefined,
+    reactions: toReactions(row.reactions),
   };
 }
 
@@ -287,7 +316,7 @@ function toPost(row: PostWithGroupRow): Post {
     kind: row.kind,
     pinned: row.pinned || undefined,
     commentCount: row.comment_count,
-    reactions: (row.reactions as unknown as Reaction[]) ?? [],
+    reactions: toReactions(row.reactions),
   };
 }
 
@@ -2038,7 +2067,10 @@ export async function getMessages(channelId: string): Promise<Message[]> {
     // messages': can the caller read this channel right now.
     getChannelAttachments(channelId),
   ]);
-  return rows(data).map((row) => ({ ...toMessage(row), attachments: attachments.get(row.id) }));
+  const messages = rows(data).map((row) => ({ ...toMessage(row), attachments: attachments.get(row.id) }));
+  return messages.some((message) => message.reactions?.length)
+    ? markMine(messages, await myChannelReactions(channelId))
+    : messages;
 }
 
 // ── Mentions ────────────────────────────────────────────────────────────
@@ -2509,10 +2541,13 @@ export async function getDirectConversation(
       .order("seq", { ascending: true }),
   ]);
 
-  const messages = rows(messageRows).map((row) => ({
+  const loaded = rows(messageRows).map((row) => ({
     ...toDirectMessage(row),
     attachments: attachments.get(row.id),
   }));
+  const messages = loaded.some((message) => message.reactions?.length)
+    ? markMine(loaded, await myConversationReactions(conversation.id))
+    : loaded;
   const last = messages[messages.length - 1];
   const read = readMap.get(conversation.id);
 
@@ -2921,7 +2956,7 @@ export async function getFeed(communityId: string): Promise<Post[]> {
     .eq("community_id", communityId)
     .order("pinned", { ascending: false })
     .order("created_at", { ascending: false });
-  return rows(data).map(toPost);
+  return withMyPostReactions(rows(data).map(toPost));
 }
 
 export async function getAnnouncements(communityId: string): Promise<Post[]> {
@@ -2932,7 +2967,7 @@ export async function getAnnouncements(communityId: string): Promise<Post[]> {
     .eq("community_id", communityId)
     .eq("kind", "announcement")
     .order("created_at", { ascending: false });
-  return rows(data).map(toPost);
+  return withMyPostReactions(rows(data).map(toPost));
 }
 
 /** Recent posts for one selected local group. The ordinary post RLS still applies. */
@@ -2949,7 +2984,7 @@ export async function getRecentLocalGroupPosts(
     .eq("local_group_id", localGroupId)
     .order("created_at", { ascending: false })
     .limit(limit);
-  return rows(data).map(toPost);
+  return withMyPostReactions(rows(data).map(toPost));
 }
 
 /**
@@ -2967,7 +3002,7 @@ export async function getHomeFeed(_userId: string, limit = 8): Promise<Post[]> {
     .select(POST_SELECT)
     .order("created_at", { ascending: false })
     .limit(limit);
-  return rows(data).map(toPost);
+  return withMyPostReactions(rows(data).map(toPost));
 }
 
 // ── Post writes ─────────────────────────────────────────────────────────
@@ -3225,62 +3260,174 @@ function commentWriteError(message: string): MessageKey {
 
 // ── Reactions ───────────────────────────────────────────────────────────
 //
-// One row per person per emoji per post; the primary key is what makes a
-// double reaction impossible. The count on a post is recomputed by a trigger,
-// so nothing here ever writes an aggregate.
+// One row per person per emoji per post, channel message or direct message.
+// Three things are read separately, because they are not equally private:
+//
+//   counts       the parent's own `reactions` column, readable wherever the
+//                parent is. Never an account id.
+//   your own     the reaction tables admit the caller's own rows only, which
+//                is how a chip knows it is yours.
+//   who reacted  reaction_authors(), which decides per request whether the
+//                caller may see names at all and returns display names only.
+//
+// Every write goes through set_reaction(), which finds the parent by id and
+// asks its own conversation — nothing here decides who may react.
 
-export type ReactionResult = { ok: true; reacted: boolean } | { ok: false; error: MessageKey };
+type OwnReactionRow = { target: string; emoji: string | null; emoji_id: string | null };
+
+function reactionKey(reaction: { emoji: string | null; emojiId: string | null }): string {
+  return reaction.emojiId ? `custom:${reaction.emojiId}` : `unicode:${reaction.emoji}`;
+}
+
+/** Marks the caller's own reactions on already-loaded items. */
+function markMine<T extends { id: string; reactions?: Reaction[] }>(items: T[], own: OwnReactionRow[]): T[] {
+  if (own.length === 0) return items;
+  const mine = new Set(own.map((row) => `${row.target}|${reactionKey({ emoji: row.emoji, emojiId: row.emoji_id })}`));
+  return items.map((item) =>
+    item.reactions?.length
+      ? {
+          ...item,
+          reactions: item.reactions.map((reaction) =>
+            mine.has(`${item.id}|${reactionKey(reaction)}`) ? { ...reaction, mine: true } : reaction,
+          ),
+        }
+      : item,
+  );
+}
+
+async function myChannelReactions(channelId: string): Promise<OwnReactionRow[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("message_reactions")
+    .select("message_id, emoji, emoji_id, messages!inner(channel_id)")
+    .eq("messages.channel_id", channelId);
+  return rows(data).map((row) => ({ target: row.message_id, emoji: row.emoji, emoji_id: row.emoji_id }));
+}
+
+async function myConversationReactions(conversationId: string): Promise<OwnReactionRow[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("direct_message_reactions")
+    .select("direct_message_id, emoji, emoji_id, direct_messages!inner(conversation_id)")
+    .eq("direct_messages.conversation_id", conversationId);
+  return rows(data).map((row) => ({ target: row.direct_message_id, emoji: row.emoji, emoji_id: row.emoji_id }));
+}
+
+async function withMyPostReactions(posts: Post[]): Promise<Post[]> {
+  const ids = posts.filter((post) => post.reactions.length > 0).map((post) => post.id);
+  if (ids.length === 0) return posts;
+  const supabase = await createSupabaseServerClient();
+  const own: OwnReactionRow[] = [];
+  // In slices, so a long feed never makes an over-long request line.
+  for (let index = 0; index < ids.length; index += 100) {
+    const { data } = await supabase
+      .from("post_reactions")
+      .select("post_id, emoji, emoji_id")
+      .in("post_id", ids.slice(index, index + 100));
+    own.push(...rows(data).map((row) => ({ target: row.post_id, emoji: row.emoji, emoji_id: row.emoji_id })));
+  }
+  return markMine(posts, own);
+}
+
+export type ReactionResult = { ok: true; reactions: Reaction[] } | { ok: false; error: MessageKey };
+
+function reactionError(message: string): MessageKey {
+  if (message.includes("reaction_error:archived")) return "err.reactionArchived";
+  if (message.includes("reaction_error:closed")) return "err.reactionClosed";
+  if (message.includes("reaction_error:too_many")) return "err.reactionTooMany";
+  if (message.includes("reaction_error:other_community")) return "err.reactionOtherCommunity";
+  if (message.includes("reaction_error:invalid")) return "err.reactionInvalid";
+  if (message.includes("reaction_error:not_found")) return "err.reactionNotFound";
+  return "err.reactionSaveFailed";
+}
+
+function toViewReactions(value: unknown): Reaction[] {
+  const counts = toReactions(value);
+  const mine = new Set(
+    (Array.isArray(value) ? value : [])
+      .filter((entry) => entry && typeof entry === "object" && (entry as Record<string, unknown>).mine === true)
+      .map((entry) => reactionKey(entry as { emoji: string | null; emojiId: string | null })),
+  );
+  return counts.map((reaction) => (mine.has(reactionKey(reaction)) ? { ...reaction, mine: true } : reaction));
+}
 
 /**
- * Adds the caller's reaction, or withdraws it if it is already there.
- *
- * Tries the insert first and treats a unique-violation as "already reacted",
- * which is both one round trip in the common case and correct if two clicks
- * race each other.
+ * Sets the caller's reaction on one post, channel message or direct message:
+ * `on` is the state asked for, so repeating it changes nothing. Returns the
+ * parent's counts afterwards, with the caller's own marked.
  */
-export async function toggleReaction(
-  postId: string,
-  choice: { emoji?: string; emojiId?: string },
+export async function setReaction(
+  kind: ReactionKind,
+  targetId: string,
+  choice: { emoji: string } | { emojiId: string },
+  on: boolean,
 ): Promise<ReactionResult> {
-  const emoji = choice.emoji?.trim() || undefined;
-  const emojiId = choice.emojiId?.trim() || undefined;
-
-  // Exactly one kind, matching the database's own check constraint.
-  if ((emoji === undefined) === (emojiId === undefined)) {
-    return { ok: false, error: "err.reactionInvalid" };
-  }
-
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from("post_reactions").insert({
-    post_id: postId,
-    emoji: emoji ?? null,
-    emoji_id: emojiId ?? null,
+  const { data, error } = await supabase.rpc("set_reaction", {
+    p_kind: kind,
+    p_target_id: targetId,
+    // Exactly one of the two; the other is null, which the function requires.
+    p_emoji: ("emoji" in choice ? choice.emoji : null) as string,
+    p_emoji_id: ("emojiId" in choice ? choice.emojiId : null) as string,
+    p_on: on,
   });
+  if (error) return { ok: false, error: reactionError(error.message) };
+  return { ok: true, reactions: toViewReactions(data) };
+}
 
-  if (!error) return { ok: true, reacted: true };
+/**
+ * Who reacted with one emoji — names only, and only if the caller may know.
+ * Undefined for anything the caller cannot read, the same as an id that is
+ * no one's.
+ */
+export async function getReactionAuthors(
+  kind: ReactionKind,
+  targetId: string,
+  choice: { emoji: string } | { emojiId: string },
+): Promise<ReactionAuthors | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("reaction_authors", {
+    p_kind: kind,
+    p_target_id: targetId,
+    // Exactly one of the two; the other is null, which the function requires.
+    p_emoji: ("emoji" in choice ? choice.emoji : null) as string,
+    p_emoji_id: ("emojiId" in choice ? choice.emojiId : null) as string,
+  });
+  if (error || !data || typeof data !== "object" || Array.isArray(data)) return undefined;
+  const value = data as Record<string, unknown>;
+  const total = typeof value.total === "number" ? value.total : 0;
+  const mine = value.mine === true;
+  if (value.visible !== true) return { visible: false, total, mine };
+  const people = (Array.isArray(value.people) ? value.people : []).flatMap((person) =>
+    person && typeof person === "object" && typeof (person as Record<string, unknown>).name === "string"
+      ? [{ name: (person as { name: string }).name, me: (person as { me?: unknown }).me === true }]
+      : [],
+  );
+  return { visible: true, total, mine, people, unnamed: typeof value.unnamed === "number" ? value.unnamed : 0 };
+}
 
-  // 23505 = unique violation: the reaction exists, so this click removes it.
-  if (error.code === "23505") {
-    const query = supabase.from("post_reactions").delete().eq("post_id", postId);
-    const { data: removed, error: deleteError } = await (emojiId
-      ? query.eq("emoji_id", emojiId)
-      : query.eq("emoji", emoji!)
-    )
-      .select("id")
-      .maybeSingle();
+/** Whether names are offered on this channel's reactions. Presentation only. */
+export async function channelReactionAuthorsVisible(channelId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("channel_reaction_authors_visible", { p_channel_id: channelId });
+  return !error && data === true;
+}
 
-    if (deleteError) return { ok: false, error: "err.reactionRemoveFailed" };
-    return { ok: true, reacted: !removed };
-  }
-
-  if (error.message.includes("row-level security")) {
-    return { ok: false, error: "err.reactionDenied" };
-  }
-  // Raised by post_reactions_guard when the emoji belongs elsewhere.
-  if (error.message.includes("annet fellesskap")) {
-    return { ok: false, error: "err.reactionOtherCommunity" };
-  }
-  return { ok: false, error: "err.reactionSaveFailed" };
+/**
+ * Sets who may see who reacted in this community's own channels. Only an
+ * active admin succeeds; anyone else gets undefined. Returns what is stored.
+ */
+export async function setCommunityReactionVisibility(
+  communityId: string,
+  value: ReactionAuthorVisibility,
+): Promise<ReactionAuthorVisibility | undefined> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("set_community_reaction_visibility", {
+    p_community_id: communityId,
+    p_value: value,
+  });
+  if (error || (data !== "moderators" && data !== "channel")) return undefined;
+  return data;
 }
 
 // ── Custom emojis ───────────────────────────────────────────────────────

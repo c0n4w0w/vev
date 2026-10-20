@@ -91,6 +91,17 @@ export const admin = {
   "settings.lead.staff": "Dine egne valg i {name}. De gjelder bare deg, og bare her.",
   "settings.communityProfile": "Fellesskapsprofil",
   "settings.directMessages": "Direkte meldinger",
+  "settings.reactions": "Reaksjoner",
+  "settings.reactions.question": "Hvem kan se hvem som har reagert i offentlige kanaler?",
+  "settings.reactions.moderators": "Kun administratorer og moderatorer",
+  "settings.reactions.moderatorsHelp": "Medlemmene ser hvor mange som har reagert, men ikke hvem.",
+  "settings.reactions.channel": "Alle med tilgang til kanalen",
+  "settings.reactions.channelHelp": "Alle som kan lese kanalen, ser navnene på dem som har reagert.",
+  "settings.reactions.scope":
+    "Gjelder kanalene og innleggene i {name} som hele fellesskapet kan lese, også reaksjoner som allerede er gitt. I lokallag, private kanaler, grupper og direktemeldinger ser alle som er med i samtalen, hvem som har reagert.",
+  "settings.reactions.save": "Lagre",
+  "settings.reactions.saved": "Lagret.",
+  "settings.reactions.failed": "Innstillingen kunne ikke lagres.",
   "settings.dm.staffOnly":
     "{name} har slått av direkte meldinger mellom medlemmer. Som standard kan medlemmer heller ikke skrive til administratorer og moderatorer — hver enkelt av oss velger selv om vi vil være tilgjengelige.",
   "settings.dm.open":
