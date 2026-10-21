@@ -439,9 +439,56 @@ export interface Message {
    * who moderates the channel. It has no text, reactions or files.
    */
   deleted?: MessageDeletion;
+  /** Set when the message is a poll; its body is then the question. */
+  poll?: ChannelPoll;
 }
 
 export type MessageDeletion = "author" | "moderator";
+
+/** Whether a poll's voters are named to others. Chosen once, at creation. */
+export type PollVisibility = "anonymous" | "visible";
+
+/** Who chose one option of a visible poll, as far as the viewer may know. */
+export interface PollVoters {
+  total: number;
+  /**
+   * Community display names and photos; the viewer's own marked. `ref` is an
+   * opaque handle for the vote, never an account id.
+   */
+  people: { ref: string; name: string; me: boolean; avatarUrl?: string }[];
+  /** Counted but not named: voters who are no longer in the channel. */
+  unnamed: number;
+}
+
+export interface ChannelPollOption {
+  id: string;
+  label: string;
+  /** Votes for this option; absent until the viewer may see results. */
+  count?: number;
+}
+
+/**
+ * A poll on one channel message, as the viewer sees it. Never says who voted:
+ * only how many, and which option is the viewer's own.
+ */
+export interface ChannelPoll {
+  messageId: string;
+  question: string;
+  visibility: PollVisibility;
+  /** ISO timestamp; set once closed. A closed poll takes no votes. */
+  closedAt?: string;
+  /** Everyone's votes together. */
+  total: number;
+  /** The viewer's own choice, if they voted. */
+  myOptionId?: string;
+  /** Per-option counts (and voter lists) are given: the viewer voted, or it closed. */
+  resultsVisible: boolean;
+  /** Open, in a channel that is not archived. The vote is decided again. */
+  canVote: boolean;
+  /** The viewer created it or moderates the channel, and it is open. */
+  canClose: boolean;
+  options: ChannelPollOption[];
+}
 
 export interface Post {
   id: string;

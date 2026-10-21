@@ -363,6 +363,129 @@ export type Database = {
           },
         ]
       }
+      channel_poll_options: {
+        Row: {
+          id: string
+          label: string
+          poll_id: string
+          position: number
+        }
+        Insert: {
+          id?: string
+          label: string
+          poll_id: string
+          position: number
+        }
+        Update: {
+          id?: string
+          label?: string
+          poll_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_poll_options_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "channel_polls"
+            referencedColumns: ["message_id"]
+          },
+        ]
+      }
+      channel_poll_votes: {
+        Row: {
+          created_at: string
+          option_id: string
+          poll_id: string
+          updated_at: string
+          user_id: string
+          voter_ref: string
+        }
+        Insert: {
+          created_at?: string
+          option_id: string
+          poll_id: string
+          updated_at?: string
+          user_id: string
+          voter_ref?: string
+        }
+        Update: {
+          created_at?: string
+          option_id?: string
+          poll_id?: string
+          updated_at?: string
+          user_id?: string
+          voter_ref?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_poll_votes_option_id_poll_id_fkey"
+            columns: ["option_id", "poll_id"]
+            isOneToOne: false
+            referencedRelation: "channel_poll_options"
+            referencedColumns: ["id", "poll_id"]
+          },
+          {
+            foreignKeyName: "channel_poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "channel_polls"
+            referencedColumns: ["message_id"]
+          },
+          {
+            foreignKeyName: "channel_poll_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_polls: {
+        Row: {
+          channel_id: string
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          message_id: string
+          question: string
+          visibility: string
+        }
+        Insert: {
+          channel_id: string
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          message_id: string
+          question: string
+          visibility?: string
+        }
+        Update: {
+          channel_id?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          message_id?: string
+          question?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_polls_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_polls_message_id_channel_id_fkey"
+            columns: ["message_id", "channel_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id", "channel_id"]
+          },
+        ]
+      }
       channel_resource_folders: {
         Row: {
           channel_id: string
@@ -3492,6 +3615,10 @@ export type Database = {
       }
       can_access_post: { Args: { pid: string }; Returns: boolean }
       can_access_subgroup: { Args: { p_subgroup_id: string }; Returns: boolean }
+      can_create_channel_poll: {
+        Args: { p_channel_id: string }
+        Returns: boolean
+      }
       can_create_event: {
         Args: {
           p_community_id: string
@@ -3654,6 +3781,34 @@ export type Database = {
           user_id: string
         }[]
       }
+      channel_poll_close_admits: {
+        Args: { p_message_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      channel_poll_create_admits: {
+        Args: { p_channel_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      channel_poll_states: {
+        Args: { p_channel_id: string; p_message_ids: string[] }
+        Returns: Json
+      }
+      channel_poll_view: {
+        Args: { p_message_id: string; p_viewer: string }
+        Returns: Json
+      }
+      channel_poll_voter_avatar_path: {
+        Args: { p_message_id: string; p_viewer: string; p_voter_ref: string }
+        Returns: string
+      }
+      channel_poll_voters: {
+        Args: { p_message_id: string; p_option_id: string }
+        Returns: Json
+      }
+      channel_poll_voters_admit: {
+        Args: { p_message_id: string; p_viewer: string }
+        Returns: boolean
+      }
       channel_reaction_authors_visible: {
         Args: { p_channel_id: string }
         Returns: boolean
@@ -3748,6 +3903,7 @@ export type Database = {
         }
         Returns: string[]
       }
+      close_channel_poll: { Args: { p_message_id: string }; Returns: Json }
       collaboration_assignees_valid: {
         Args: {
           p_assignee_ids: string[]
@@ -3921,6 +4077,32 @@ export type Database = {
           p_user_id: string
         }
         Returns: boolean
+      }
+      create_channel_poll: {
+        Args: {
+          p_channel_id: string
+          p_options: string[]
+          p_question: string
+          p_visibility?: string
+        }
+        Returns: {
+          attachment: Json | null
+          author_id: string
+          body: string
+          channel_id: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          reactions: Json
+          removed_by_moderator: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       create_channel_resource_folder: {
         Args: { p_channel_id: string; p_name: string; p_parent_id: string }
@@ -4918,6 +5100,14 @@ export type Database = {
           p_display_name: string
         }
         Returns: boolean
+      }
+      vote_channel_poll: {
+        Args: { p_message_id: string; p_option_id: string }
+        Returns: Json
+      }
+      withdraw_channel_poll_vote: {
+        Args: { p_message_id: string }
+        Returns: Json
       }
     }
     Enums: {

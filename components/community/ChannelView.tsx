@@ -13,6 +13,8 @@ import { ComposerEmojiButton, useComposerInsert } from "@/components/community/E
 import { MessageText, useMentionAutocomplete, type MentionScope } from "@/components/community/messages/Mentions";
 import { PersonPopover } from "@/components/community/messages/PersonPopover";
 import { ReactionRow } from "@/components/community/reactions/ReactionRow";
+import { PollCard } from "@/components/community/polls/PollCard";
+import { ComposerActions } from "@/components/community/polls/PollComposer";
 import { AttachmentButton, PendingAttachmentList } from "@/components/community/attachments/ComposerAttachments";
 import { ChannelResourceLibrary, type ResourcePermissions } from "@/components/community/resources/ChannelResourceLibrary";
 import { MessageAttachments } from "@/components/community/attachments/MessageAttachments";
@@ -30,6 +32,7 @@ import {
 import { IconAttach, IconClose, IconHash, IconLock, IconPin, IconSend } from "@/components/ui/icons";
 import { dayHeading, formatTime, isSameDay } from "@/lib/format";
 import { createMessageAction } from "@/app/actions";
+import { pollStatesAction } from "@/app/poll-actions";
 import { useLocale, useT } from "@/lib/i18n/react";
 import { emptyMessageFormState } from "@/lib/message-form";
 import type { AttachmentPolicy } from "@/lib/attachment-types";
@@ -37,6 +40,7 @@ import type { ResourceSummary } from "@/lib/channel-resources";
 import type { MentionCandidate } from "@/lib/mentions";
 import type {
   Channel,
+  ChannelPoll,
   Community,
   CommunityEmoji,
   CommunityPersona,
@@ -104,7 +108,16 @@ export interface PrivateChannelControls {
  * delete it; whoever moderates the channel (`canModerate`, answered by the
  * database for this viewer) may remove anyone's message and pin one beneath
  * the header. A deleted message keeps its place as a placeholder.
+ *
+ * A poll is a message too, drawn as a card (PollCard). Whoever may create one
+ * here (`canCreatePoll`, answered by the database for this viewer) gets
+ * "Avstemning" in the composer's "+" menu. While the page is visible the
+ * open polls on it are read again every so often, so counts move as others
+ * vote — the same periodic refresh direct conversations use.
  */
+/** How often the open polls on the page are read again. */
+const POLL_REFRESH_MS = 15_000;
+
 export function ChannelView({
   channel,
   community,
@@ -125,6 +138,7 @@ export function ChannelView({
   pinnedMessageId,
   mentionPeople = {},
   reactionAuthorsVisible = false,
+  canCreatePoll = false,
 }: {
   channel: Channel;
   community: Community;
@@ -184,6 +198,11 @@ export function ChannelView({
    * them is decided again by reaction_authors().
    */
   reactionAuthorsVisible?: boolean;
+  /**
+   * Offers "Avstemning" in the composer (can_create_channel_poll).
+   * Presentation only: create_channel_poll() decides again.
+   */
+  canCreatePoll?: boolean;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -274,6 +293,40 @@ export function ChannelView({
     setPinnedId,
     onNotice: setMessageNotice,
   });
+
+  const setPoll = useCallback(
+    (poll: ChannelPoll) =>
+      setMessages((current) =>
+        current.map((message) => (message.id === poll.messageId && message.poll ? { ...message, poll } : message)),
+      ),
+    [],
+  );
+
+  // Open polls on this page, read again while it is visible so their counts
+  // and state follow other people's votes and a close.
+  const openPollIds = useMemo(
+    () => messages.filter((message) => message.poll && !message.poll.closedAt && !message.deleted).map((message) => message.id),
+    [messages],
+  );
+  const openPollKey = openPollIds.join(",");
+  useEffect(() => {
+    if (!openPollKey || channel.archived) return;
+    const ids = openPollKey.split(",");
+    let cancelled = false;
+    const refresh = async () => {
+      if (document.visibilityState !== "visible") return;
+      const polls = await pollStatesAction({ communityId: community.id, channelId: channel.id }, ids);
+      if (cancelled) return;
+      for (const poll of polls) setPoll(poll);
+    };
+    const timer = window.setInterval(refresh, POLL_REFRESH_MS);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [openPollKey, community.id, channel.id, channel.archived, setPoll]);
 
   // To the end when a message arrives — not when one is edited or deleted.
   useEffect(() => {
@@ -514,8 +567,10 @@ export function ChannelView({
               const previous = messages[index - 1];
               const author = people[message.authorId];
               const newDay = !previous || !isSameDay(previous.createdAt, message.createdAt);
+              // A poll always shows who asked it.
               const grouped =
                 !newDay &&
+                !message.poll &&
                 previous?.authorId === message.authorId &&
                 Date.parse(message.createdAt) - Date.parse(previous.createdAt) < 10 * 60_000;
               // What this viewer's menu offers for this message. Presentation
@@ -525,7 +580,8 @@ export function ChannelView({
               const editing = changes.editingId === message.id;
               const menu = live && !editing
                 ? {
-                    onEdit: mine && canPost ? () => changes.startEdit(message) : undefined,
+                    // A poll's question is not edited (messages_guard_poll_body).
+                    onEdit: mine && canPost && !message.poll ? () => changes.startEdit(message) : undefined,
                     onDelete: mine ? () => changes.askDelete(message) : undefined,
                     onRemove: !mine && canModerate ? () => changes.askDelete(message) : undefined,
                     onPin: canModerate && !channel.archived ? () => changes.togglePin(message) : undefined,
@@ -602,6 +658,14 @@ export function ChannelView({
 
                       {message.deleted ? (
                         <DeletedMessage deleted={message.deleted} />
+                      ) : message.poll ? (
+                        <PollCard
+                          poll={message.poll}
+                          scope={{ communityId: community.id, channelId: channel.id }}
+                          accent={community.branding.accent}
+                          archived={channel.archived}
+                          onChange={setPoll}
+                        />
                       ) : editing ? (
                         <MessageEditor
                           initialBody={message.body}
@@ -739,6 +803,17 @@ export function ChannelView({
                 className="max-h-44 min-h-[2.25rem] min-w-0 flex-1 resize-none bg-transparent py-2 text-[0.9375rem] leading-6 text-ink outline-none placeholder:text-ink-3"
               />
               <div className="flex shrink-0 items-end gap-0.5 sm:gap-1">
+                <ComposerActions
+                  scope={{ communityId: community.id, channelId: channel.id }}
+                  audienceName={audienceVars.name}
+                  accent={community.branding.accent}
+                  canCreatePoll={canCreatePoll}
+                  onPollCreated={(message) => {
+                    setError(undefined);
+                    setMessages((current) => [...current, message]);
+                  }}
+                  className="mb-0.5"
+                />
                 {attachmentPolicy.allowed ? (
                   <AttachmentButton onPick={uploads.add} disabled={uploads.full} className="mb-0.5" />
                 ) : null}

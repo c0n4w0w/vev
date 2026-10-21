@@ -179,6 +179,15 @@ export const IconPlus = (p: IconProps) => (
   </Svg>
 );
 
+export const IconPoll = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4.5 19.5h15" />
+    <rect x="5.5" y="11" width="3" height="6" rx="0.8" />
+    <rect x="10.5" y="5" width="3" height="12" rx="0.8" />
+    <rect x="15.5" y="8.5" width="3" height="8.5" rx="0.8" />
+  </Svg>
+);
+
 export const IconCheck = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4.8 12.6 9.6 17.4 19.2 6.6" />

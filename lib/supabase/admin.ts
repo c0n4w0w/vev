@@ -23,6 +23,10 @@ import type { Database } from "@/lib/supabase/database.types";
  * (lib/account-security.ts): the two functions that count tries per account
  * and per network address take those as arguments, so no client may call
  * them, and the server calls them and nothing else.
+ * The fifth is a visible poll voter's community photo
+ * (lib/poll-voter-avatar.ts): channel_poll_voter_avatar_path() decides, for
+ * the signed-in person the server verified, whether they may see that voter
+ * and which object it is; the server then reads only that object.
  */
 export function createSupabaseAdminClient() {
   return createClient<Database>(supabaseUrl(), supabaseServiceRoleKey(), {

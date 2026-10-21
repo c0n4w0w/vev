@@ -10,6 +10,7 @@ import { errors } from "./errors";
 import { portal } from "./portal";
 import { shell } from "./shell";
 import { workspace } from "./workspace";
+import { polls } from "./polls";
 
 /** English. Every key of the Norwegian source dictionary, and nothing else. */
 export const en: Record<MessageKey, string> = {
@@ -23,4 +24,5 @@ export const en: Record<MessageKey, string> = {
   ...collaboration,
   ...workspace,
   ...channels,
+  ...polls,
 };

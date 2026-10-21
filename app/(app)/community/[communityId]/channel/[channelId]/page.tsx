@@ -23,6 +23,7 @@ import {
   getVisibleCommunityPersonas,
 } from "@/lib/data";
 import { getAttachmentPolicy } from "@/lib/attachment-data";
+import { canCreateChannelPoll } from "@/lib/poll-data";
 import { getChannelResourcePermissions, getChannelResourceSummary } from "@/lib/channel-resource-data";
 import { channelTakesFiles, isUuid } from "@/lib/channel-resources";
 import { isCommunityChannel } from "@/lib/channel-management-form";
@@ -92,6 +93,7 @@ export default async function ChannelPage({
     canModerate,
     pinnedMessageId,
     reactionAuthorsVisible,
+    canCreatePoll,
   ] = await Promise.all([
     getMembership(user.id, community.id),
     getMessages(channel.id),
@@ -118,6 +120,11 @@ export default async function ChannelPage({
     // moderators — or everyone, if the community chose that. Asked again by
     // reaction_authors() on every request.
     channelReactionAuthorsVisible(channel.id),
+    // Whether "Avstemning" is offered: the community's admins and moderators
+    // where they can write, a group's gruppeansvarlig in that group's chat and
+    // a lokallagsleder in that lokallag's main chat only
+    // (can_create_channel_poll). Asked again when a poll is sent.
+    canCreateChannelPoll(channel.id),
   ]);
 
   // Lokallag channels only: the main chat may offer "+ Ny privat kanal", a
@@ -240,6 +247,7 @@ export default async function ChannelPage({
       pinnedMessageId={pinnedMessageId}
       mentionPeople={mentionPeople}
       reactionAuthorsVisible={reactionAuthorsVisible}
+      canCreatePoll={canCreatePoll}
       channelAdmin={channelAdmin ? { sections: channelAdmin[0], counts: channelAdmin[1] } : undefined}
       lastActivityLabel={
         messages.length > 0

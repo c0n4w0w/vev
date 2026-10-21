@@ -5,6 +5,7 @@ import { cache } from "react";
 import { isAuthRetryableFetchError, type AuthError } from "@supabase/supabase-js";
 import { createSupabaseScratchClient, createSupabaseServerClient } from "@/lib/supabase/server";
 import { countActiveMembers } from "@/lib/member-count";
+import { getChannelPolls } from "@/lib/poll-data";
 import type {
   ChannelRow,
   CommunityRow,
@@ -2058,7 +2059,7 @@ export async function setPrivateChannelArchived(channelId: string, archived: boo
 
 export async function getMessages(channelId: string): Promise<Message[]> {
   const supabase = await createSupabaseServerClient();
-  const [{ data }, attachments] = await Promise.all([
+  const [{ data }, attachments, polls] = await Promise.all([
     supabase
       .from("messages")
       .select("*")
@@ -2067,8 +2068,15 @@ export async function getMessages(channelId: string): Promise<Message[]> {
     // Read under its own policy, which asks the same question as the
     // messages': can the caller read this channel right now.
     getChannelAttachments(channelId),
+    // Polls are messages too: each keeps its place in the history, with the
+    // poll as this viewer may see it (channel_poll_states).
+    getChannelPolls(channelId),
   ]);
-  const messages = rows(data).map((row) => ({ ...toMessage(row), attachments: attachments.get(row.id) }));
+  const messages = rows(data).map((row) => ({
+    ...toMessage(row),
+    attachments: attachments.get(row.id),
+    poll: row.deleted_at ? undefined : polls.get(row.id),
+  }));
   return messages.some((message) => message.reactions?.length)
     ? markMine(messages, await myChannelReactions(channelId))
     : messages;
