@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { CreateDocumentForm } from "@/components/collaboration/workspace/DocumentEditor";
 import { IconFeed, IconPlus } from "@/components/ui/icons";
@@ -15,7 +16,7 @@ export async function generateMetadata({ params }: PageProps<"/collaboration/[sl
 export default async function DocumentsPage({ params }: PageProps<"/collaboration/[slug]/docs">) {
   const { slug } = await params;
   const { collaboration, t, base } = await loadWorkspace(slug);
-  const locale = collaboration.defaultLocale;
+  const locale = await getRequestLocale(collaboration);
   const [documents, people] = await Promise.all([
     getDocuments(collaboration.id),
     getWorkspacePeople(collaboration.id),

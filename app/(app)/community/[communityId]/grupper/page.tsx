@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { SubgroupAdmin } from "@/components/community/SubgroupAdmin";
@@ -15,13 +16,13 @@ import {
   getSubgroupRoster,
   searchSubgroupCandidates,
 } from "@/lib/data";
-import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/grupper">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return {
     title: t("subgroups.metaTitle", { name: community?.name ?? t("common.communityFallback") }),
   };
@@ -55,7 +56,7 @@ export default async function SubgroupsPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const t = translator(communityLocale(community));
+  const t = translator(await getRequestLocale(community));
 
   const [subgroups, channels, canCreate, membership] = await Promise.all([
     getManageableSubgroups(community.id),

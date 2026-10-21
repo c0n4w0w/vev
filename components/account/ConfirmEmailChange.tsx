@@ -6,6 +6,7 @@ import { confirmEmailChangeAction } from "@/app/account-actions";
 import { buttonClass } from "@/components/ui/primitives";
 import { emptyEmailConfirmFormState } from "@/lib/account-form";
 import { useLocale, useT } from "@/lib/i18n/react";
+import { accountPath } from "@/lib/account-locale";
 import { FormError, SubmitButton } from "./fields";
 
 /**
@@ -36,7 +37,7 @@ export function ConfirmEmailChange({
       <div role="status" className="rounded-[6px] border border-line bg-surface p-5">
         <h2 className="text-[0.9375rem] font-medium text-ink">{title}</h2>
         <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2 [overflow-wrap:anywhere]">{body}</p>
-        <Link href="/profile" className={`${buttonClass({ variant: "secondary" })} mt-4`}>
+        <Link href={accountPath("/profile", locale)} className={`${buttonClass({ variant: "secondary" })} mt-4`}>
           {t("confirmEmail.toAccount")}
         </Link>
       </div>

@@ -5,6 +5,23 @@
  * leads through take that community's.
  */
 export const account = {
+  "account.title": "Kontoen din",
+  "account.language": "Språk",
+  "account.language.saving": "Lagrer språkvalg …",
+  "account.language.saved": "Språkvalget er lagret.",
+  "account.language.error": "Språkvalget kunne ikke lagres. Prøv igjen.",
+  "account.language.signedOut": "Økten din har utløpt. Logg inn igjen for å lagre språkvalget.",
+  "account.profiles": "Mine profiler",
+  "account.profiles.intro": "Du kan ha ulikt navn, bilde og bio i hvert fellesskap.",
+  "account.profiles.edit": "Rediger profil",
+  "account.profiles.editIn": "Rediger profil i {name}",
+  "account.profiles.missing": "Profilen er ikke satt opp",
+  "account.profiles.empty.title": "Ingen profiler ennå",
+  "account.profiles.empty.body": "Når du blir med i et fellesskap, får du en egen profil der. Åpne fellesskapets invitasjon eller be om tilgang på nettsiden deres for å komme i gang.",
+  "account.privacy": "Personvern",
+  "account.privacy.body": "TING verken selger eller deler personopplysningene dine med uvedkommende. Vi bruker dem kun til å drive tjenesten og knytte deg til fellesskapene du er en del av.",
+  "account.privacy.link": "Les mer om hvordan vi behandler personopplysningene dine.",
+  "account.logout": "Logg ut",
   // ── Sign-in page: password ────────────────────────────────────────────
   "login.password.title": "Logg inn på TING",
   "login.passwordLabel": "Passord",
@@ -73,7 +90,7 @@ export const account = {
   "forgot.sent.pre": "Hvis adressen er registrert, har vi sendt en lenke til ",
   "forgot.sent.post": ". Den kan brukes én gang.",
   "forgot.noInbox":
-    "Har du ikke lenger tilgang til e-postadressen? Da kan lenken ikke nå deg. Logg inn med passordet ditt og endre adressen under Kontoen din → Sikkerhet, eller ta kontakt med en administrator i fellesskapet ditt.",
+    "Har du ikke lenger tilgang til e-postadressen? Da kan lenken ikke nå deg. Logg inn med passordet ditt og endre adressen under Kontoen din → Innlogging, eller ta kontakt med en administrator i fellesskapet ditt.",
   "forgot.back": "← Tilbake til innlogging",
   "forgot.err.email": "Skriv inn en gyldig e-postadresse.",
 
@@ -89,25 +106,27 @@ export const account = {
   "reset.invalid.action": "Be om en ny lenke",
   "reset.retry": "Lenken er brukt, men du er logget inn. Velg et annet passord for å fullføre.",
 
-  // ── Account security ("Kontoen din" → "Sikkerhet") ────────────────────
-  "security.heading": "Sikkerhet",
+  // ── Account security ("Kontoen din" → "Innlogging") ────────────────────
+  "security.heading": "Innlogging",
   "security.email": "E-postadresse",
+  "security.change": "Endre",
   "security.email.change": "Endre e-postadresse",
   "security.email.pending": "Venter på bekreftelse fra {email}.",
   "security.email.cancel": "Avbryt endringen",
   "security.password": "Passord",
+  "security.password.configured": "Opprettet",
+  "security.password.notConfigured": "Ikke opprettet",
   "security.password.none": "Du har ikke opprettet et passord ennå.",
   "security.password.create": "Opprett passord",
   "security.password.change": "Endre passord",
   "security.password.since": "Sist endret {date}.",
   "security.password.saved": "Passordet er lagret. Du kan nå logge inn med e-postadresse og passord.",
-  "security.link": "Du kan også logge inn med en lenke sendt til e-postadressen din.",
   "security.back": "← Tilbake til kontoen din",
 
   "security.createPassword.metaTitle": "Opprett passord",
   "security.createPassword.title": "Opprett passord",
   "security.createPassword.lead":
-    "Med et passord kan du logge inn på TING også hvis du mister tilgang til e-postkontoen din. Innlogging med e-postlenke fungerer som før.",
+    "Opprett et passord for enkel innlogging på TING.",
   "security.createPassword.submit": "Opprett passord",
   "security.changePassword.metaTitle": "Endre passord",
   "security.changePassword.title": "Endre passord",
@@ -164,7 +183,7 @@ export const account = {
     "Denne lenken er bekreftet. Åpne også lenken som ble sendt til den andre adressen for å fullføre.",
   "confirmEmail.invalid.title": "Lenken er ikke gyldig",
   "confirmEmail.invalid.body": "Lenken mangler noe eller er ufullstendig.",
-  "confirmEmail.err.expired": "Lenken er brukt eller utløpt. Be om en ny bekreftelse fra Kontoen din → Sikkerhet.",
+  "confirmEmail.err.expired": "Lenken er brukt eller utløpt. Be om en ny bekreftelse fra Kontoen din → Innlogging.",
   "confirmEmail.err.failed": "Adressen kunne ikke bekreftes. Hører lenken til en annen konto? Prøv igjen om litt, eller be om en ny bekreftelse.",
   "confirmEmail.toAccount": "Til kontoen din",
 } as const;

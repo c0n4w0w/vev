@@ -26,8 +26,12 @@ export const shell: Record<keyof typeof nb, string> = {
   "shell.openMenu": "Open menu",
   "shell.closeMenu": "Close menu",
 
+  "home.discovery.heading": "Why is there no “Explore” page?",
+  "home.discovery.body":
+    "You find communities on TING through invitations or the organizations’ own websites, rather than a public directory.",
+
   "shell.platform.home": "Home",
-  "shell.platform.communities": "My communities",
+  "shell.platform.communities": "MY COMMUNITIES",
   "shell.platform.collaborations": "Collaborations",
   "shell.platform.events": "Events",
   "shell.platform.notifications": "Notifications",

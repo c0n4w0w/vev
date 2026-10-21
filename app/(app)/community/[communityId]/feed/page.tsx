@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import { PostCard } from "@/components/community/PostCard";
 import { Composer } from "@/components/community/Composer";
@@ -12,13 +13,13 @@ import {
   getCommunityPersonas,
   getMembership,
 } from "@/lib/data";
-import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/feed">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return { title: `${t("feed.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
@@ -31,7 +32,7 @@ export default async function CommunityFeedPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const t = translator(communityLocale(community));
+  const t = translator(await getRequestLocale(community));
 
   const [membership, feed, groups, subgroups] = await Promise.all([
     getMembership(user.id, community.id),

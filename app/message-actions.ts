@@ -1,5 +1,7 @@
 "use server";
 
+import { getRequestTranslator } from "@/lib/i18n/server";
+
 import { revalidatePath } from "next/cache";
 import {
   deleteChannelMessage,
@@ -10,7 +12,7 @@ import {
   setChannelMessagePinned,
 } from "@/lib/data";
 import { isUuid } from "@/lib/channel-resources";
-import { communityTranslator, type MessageKey } from "@/lib/i18n";
+import { type MessageKey } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 import type { DirectMessage, Message, MessageDeletion } from "@/lib/types";
 
@@ -32,7 +34,7 @@ export type MessageDeleteActionResult = { ok: true; deleted: MessageDeletion } |
 export type MessagePinActionResult = { ok: true } | { ok: false; error: string };
 
 async function translatorFor(communityId: unknown) {
-  return communityTranslator(typeof communityId === "string" ? await getCommunityById(communityId) : undefined);
+  return (await getRequestTranslator(typeof communityId === "string" ? await getCommunityById(communityId) : undefined));
 }
 
 async function refuse(scope: Scope, key: MessageKey) {

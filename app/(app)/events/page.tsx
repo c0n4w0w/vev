@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { EventCard } from "@/components/community/EventCard";
@@ -15,18 +16,20 @@ import {
   personaKey,
 } from "@/lib/data";
 import { formatFullDate } from "@/lib/format";
-import { PLATFORM_LOCALE } from "@/lib/i18n";
+import { INTL_TAG, translator, type Locale } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 import type { CommunityEvent } from "@/lib/types";
 
-export const metadata: Metadata = { title: "Arrangementer" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getRequestTranslator())("shell.platform.events") };
+}
 
 /** Groups events by month so a long list stays readable. */
-function byMonth(events: CommunityEvent[]) {
+function byMonth(events: CommunityEvent[], locale: Locale) {
   const groups = new Map<string, CommunityEvent[]>();
   for (const event of events) {
     const date = new Date(event.startsAt);
-    const key = new Intl.DateTimeFormat("nb-NO", {
+    const key = new Intl.DateTimeFormat(INTL_TAG[locale], {
       month: "long",
       year: "numeric",
       timeZone: "Europe/Oslo",
@@ -40,6 +43,8 @@ export default async function EventsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
+  const locale = await getRequestLocale();
+  const t = translator(locale);
   const events = await getEventsForUser(user.id);
   const attending = events.filter((event) => event.attending);
 
@@ -58,23 +63,23 @@ export default async function EventsPage() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Arrangementer"
-        title="Programmet ditt"
+        eyebrow={t("shell.platform.events")}
+        title={t("platform.events.title")}
         lead={
           events.length === 0
-            ? "Her samles arrangementer fra alle fellesskapene du er med i."
-            : `${events.length} kommende arrangementer på tvers av fellesskapene dine, hvorav ${attending.length} du er påmeldt.`
+            ? t("platform.events.emptyLead")
+            : t("platform.events.lead", { count: events.length, attending: attending.length })
         }
       />
 
       {events.length === 0 ? (
         <EmptyState
-          title="Ingen arrangementer"
-          body="Når du blir med i et fellesskap, dukker møter, vakter og konserter opp her — samlet i én kalender uansett hvilken organisasjon de kommer fra."
+          title={t("platform.events.empty")}
+          body={t("platform.events.emptyBody")}
         />
       ) : (
         <div className="space-y-10">
-          {byMonth(events).map(([month, monthEvents]) => (
+          {byMonth(events, locale).map(([month, monthEvents]) => (
             <section key={month}>
               <SectionHeading>{month}</SectionHeading>
               <div className="space-y-4">
@@ -86,15 +91,14 @@ export default async function EventsPage() {
                     host={hosts.get(personaKey(event.communityId, event.hostId))}
                     attending={event.attending}
                     showCommunity
-                    locale={PLATFORM_LOCALE}
+                    locale={locale}
                   />
                 ))}
               </div>
             </section>
           ))}
           <p className="border-t border-line pt-5 text-xs text-ink-3">
-            Kalenderen viser arrangementer fra og med {formatFullDate(now().toISOString())}.
-            Tidligere arrangementer ligger under det enkelte fellesskapet.
+            {t("platform.events.since", { date: formatFullDate(now().toISOString(), locale) })}
           </p>
         </div>
       )}

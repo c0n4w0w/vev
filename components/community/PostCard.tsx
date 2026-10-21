@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { Avatar, Badge, Panel, RichText, cn } from "@/components/ui/primitives";
 import { subgroupBadgeTone } from "@/components/community/subgroupBadgeTone";
@@ -7,7 +8,7 @@ import { CommentThread } from "@/components/community/CommentThread";
 import { PostActions } from "@/components/community/PostActions";
 import { ReactionRow } from "@/components/community/reactions/ReactionRow";
 import { timeAgo } from "@/lib/format";
-import { communityLocale, tn, translator, type Locale } from "@/lib/i18n";
+import { tn, translator, type Locale } from "@/lib/i18n";
 import type { Comment, Community, CommunityEmoji, CommunityPersona, Post, RoleId } from "@/lib/types";
 
 /**
@@ -70,7 +71,7 @@ export function PostBadges({ post, locale }: { post: Post; locale: Locale }) {
   );
 }
 
-export function PostCard({
+export async function PostCard({
   post,
   author,
   community,
@@ -103,7 +104,7 @@ export function PostCard({
    */
   locale?: Locale;
 }) {
-  const locale = localeOverride ?? communityLocale(community);
+  const locale = await getRequestLocale(localeOverride ?? community);
   const t = translator(locale);
   const isAnnouncement = post.kind === "announcement";
   const isAuthor = viewer !== undefined && viewer.id === post.authorId;
@@ -125,7 +126,7 @@ export function PostCard({
     >
       {showCommunity ? (
         <Link
-          href={`/community/${community.id}/feed`}
+          href={`/community/${community.id}`}
           className="mb-4 -mt-1 flex items-center gap-2 text-xs text-ink-3 transition-colors hover:text-ink"
         >
           <CommunityAvatar community={community} size="xs" />

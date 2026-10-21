@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TaskForm, TaskStatusControls } from "@/components/collaboration/workspace/TaskForms";
@@ -32,7 +33,7 @@ export default async function TaskPage({ params }: PageProps<"/collaboration/[sl
   const { slug, taskId } = await params;
   const { collaboration, me, manager, t, base } = await loadWorkspace(slug);
   if (!UUID.test(taskId)) notFound();
-  const locale = collaboration.defaultLocale;
+  const locale = await getRequestLocale(collaboration);
 
   const [task, people, team, channels, documents, events] = await Promise.all([
     getTask(collaboration.id, taskId),

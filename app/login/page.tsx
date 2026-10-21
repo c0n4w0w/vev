@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
@@ -8,7 +9,7 @@ import { Button, Panel } from "@/components/ui/primitives";
 import { IconArrowRight } from "@/components/ui/icons";
 import { getSessionUser } from "@/lib/session";
 import { getLocaleForDestination } from "@/lib/data";
-import { resolveLocale, tn, translator, type Locale, type MessageKey } from "@/lib/i18n";
+import { tn, translator, type Locale, type MessageKey } from "@/lib/i18n";
 import { LocaleProvider } from "@/lib/i18n/react";
 import { emailSignInLinkLifetimeSeconds } from "@/lib/email-sign-in-link";
 import { safeInternalPath } from "@/lib/safe-path";
@@ -21,7 +22,7 @@ import { safeInternalPath } from "@/lib/safe-path";
  * sign in in Norwegian. `neste` has already been through `safeInternalPath`.
  */
 const localeForNext = cache(async (nextPath: string) =>
-  resolveLocale({ community: await getLocaleForDestination(nextPath) }),
+  getRequestLocale(await getLocaleForDestination(nextPath)),
 );
 
 function nextParam(value: string | string[] | undefined) {

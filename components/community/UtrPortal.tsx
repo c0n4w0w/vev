@@ -1,10 +1,11 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Cormorant_Garamond } from "next/font/google";
 import { UtrAccessForm } from "@/components/community/UtrAccessForm";
 import { Wordmark } from "@/components/shell/Wordmark";
-import { communityLocale, translator, type Locale } from "@/lib/i18n";
+import { translator, type Locale } from "@/lib/i18n";
 import type { CommunityPublic, Membership, User } from "@/lib/types";
 import {
   formatDate,
@@ -123,7 +124,7 @@ const glimpses = [
  * handling or what data is public. It only decides how that same data —
  * public events, links, a way in — is shown.
  */
-export function UtrPortal({
+export async function UtrPortal({
   community,
   publicEvents,
   user,
@@ -137,7 +138,7 @@ export function UtrPortal({
   /** The signed-in visitor already has a request waiting. */
   pending: boolean;
 }) {
-  const locale = communityLocale(community);
+  const locale = await getRequestLocale(community);
   const t = translator(locale);
   const isMember = membership?.status === "active";
   const communityHref = `/community/${community.id}`;

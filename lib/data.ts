@@ -71,7 +71,7 @@ import type {
 import { initialsFor } from "@/lib/format";
 import { isDisappearSeconds, type DisappearSeconds } from "@/lib/disappearing";
 import type { MentionCandidate } from "@/lib/mentions";
-import { parseLocale, type Locale, type MessageKey } from "@/lib/i18n";
+import { isLocale, parseLocale, type Locale, type MessageKey } from "@/lib/i18n";
 import { getRelatedCommunityConfig, isActiveMember, type RelatedCommunityConfig } from "@/lib/related-communities";
 import {
   getChannelAttachments,
@@ -109,6 +109,7 @@ function rows<T>(data: T[] | null): T[] {
 function toUser(row: ProfileRow): User {
   return {
     id: row.id,
+    preferredLocale: isLocale(row.preferred_locale) ? row.preferred_locale : undefined,
     name: row.name,
     handle: row.handle,
     initials: row.initials,
@@ -3005,6 +3006,30 @@ export async function getHomeFeed(_userId: string, limit = 8): Promise<Post[]> {
   return withMyPostReactions(rows(data).map(toPost));
 }
 
+/** A short Home digest, with the same newest-first ordering and post RLS as the feed. */
+export type HomeUpdate = Pick<Post, "id" | "communityId" | "title" | "body" | "createdAt">;
+
+export async function getHomeUpdates(communityIds: string[]): Promise<HomeUpdate[]> {
+  if (communityIds.length === 0) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("posts")
+    .select("id, community_id, title, body, created_at")
+    .in("community_id", communityIds)
+    .order("created_at", { ascending: false })
+    .limit(3);
+  return rows(data).map((row) => {
+    const preview = row.body.replace(/\s+/g, " ").trim();
+    return {
+      id: row.id,
+      communityId: row.community_id,
+      title: row.title ?? undefined,
+      body: preview.length > 300 ? `${preview.slice(0, 300)}…` : preview,
+      createdAt: row.created_at,
+    };
+  });
+}
+
 // ── Post writes ─────────────────────────────────────────────────────────
 //
 // These go through the ordinary table API rather than an RPC, because row
@@ -3883,6 +3908,11 @@ export async function getInvitationPreview(token: string): Promise<InvitationPre
 export async function getLocaleForDestination(path: string): Promise<Locale | undefined> {
   const pathname = path.split(/[?#]/)[0];
 
+  // Account links retain the language of the community they were opened from.
+  if (pathname === "/profile" || pathname.startsWith("/profile/") || pathname === "/bekreft-e-post") {
+    return parseLocale(new URL(path, "http://ting.local").searchParams.get("locale"));
+  }
+
   const invitation = /^\/invitasjon\/([^/]+)$/.exec(pathname);
   if (invitation) return (await getInvitationPreview(invitation[1]))?.communityLocale;
 
@@ -4166,6 +4196,30 @@ export async function getEventsForUser(_userId: string): Promise<CommunityEvent[
     .gte("ends_at", now().toISOString())
     .order("starts_at", { ascending: true });
   return withAttendees(rows(data));
+}
+
+/** Home needs only three event links, without descriptions, rosters or RSVP hydration. */
+export type HomeEvent = Pick<CommunityEvent, "id" | "communityId" | "title" | "startsAt" | "endsAt" | "location">;
+
+export async function getHomeEvents(communityIds: string[]): Promise<HomeEvent[]> {
+  if (communityIds.length === 0) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("events")
+    .select("id, community_id, title, starts_at, ends_at, location")
+    .in("community_id", communityIds)
+    .is("cancelled_at", null)
+    .gte("ends_at", now().toISOString())
+    .order("starts_at", { ascending: true })
+    .limit(3);
+  return rows(data).map((row) => ({
+    id: row.id,
+    communityId: row.community_id,
+    title: row.title,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    location: row.location,
+  }));
 }
 
 export type EventWriteResult = { ok: true } | { ok: false; error: "full" | "refused" };

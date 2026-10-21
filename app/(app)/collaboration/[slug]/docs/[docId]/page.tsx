@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { setDocumentStatusAction } from "@/app/collaboration-workspace-actions";
@@ -33,7 +34,7 @@ export default async function DocumentPage({
   const { version: versionParam } = await searchParams;
   const { collaboration, manager, t, base } = await loadWorkspace(slug);
   if (!UUID.test(docId)) notFound();
-  const locale = collaboration.defaultLocale;
+  const locale = await getRequestLocale(collaboration);
 
   const [document, versions, people] = await Promise.all([
     getDocument(collaboration.id, docId),

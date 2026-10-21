@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { ChannelSettings } from "@/components/collaboration/workspace/ChannelForms";
 import {
@@ -52,7 +53,7 @@ export default async function ChannelPage({
   for (const [id, summary] of Object.entries(threads)) {
     summaries[id] = {
       replyCount: summary.replyCount,
-      lastReplyLabel: summary.lastReplyAt ? timeAgo(summary.lastReplyAt, collaboration.defaultLocale) : undefined,
+      lastReplyLabel: summary.lastReplyAt ? timeAgo(summary.lastReplyAt, await getRequestLocale(collaboration)) : undefined,
     };
   }
 

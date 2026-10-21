@@ -1,6 +1,23 @@
 import type { account as source } from "../nb/account";
 
 export const account: Record<keyof typeof source, string> = {
+  "account.title": "Your account",
+  "account.language": "Language",
+  "account.language.saving": "Saving language …",
+  "account.language.saved": "Your language preference has been saved.",
+  "account.language.error": "Your language preference couldn't be saved. Try again.",
+  "account.language.signedOut": "Your session has expired. Log in again to save your language preference.",
+  "account.profiles": "My profiles",
+  "account.profiles.intro": "You can use a different name, photo and bio in each community.",
+  "account.profiles.edit": "Edit profile",
+  "account.profiles.editIn": "Edit profile in {name}",
+  "account.profiles.missing": "Profile not set up",
+  "account.profiles.empty.title": "No profiles yet",
+  "account.profiles.empty.body": "When you join a community, you get a profile there. Open the community's invitation or request access on their website to get started.",
+  "account.privacy": "Privacy",
+  "account.privacy.body": "TING neither sells nor shares your personal information with unauthorised parties. We use it only to operate the service and connect you with your communities.",
+  "account.privacy.link": "Learn more about how we handle your personal information.",
+  "account.logout": "Log out",
   // ── Sign-in page: password ────────────────────────────────────────────
   "login.password.title": "Log in to TING",
   "login.passwordLabel": "Password",
@@ -67,7 +84,7 @@ export const account: Record<keyof typeof source, string> = {
   "forgot.sent.pre": "If the address is registered, we've sent a link to ",
   "forgot.sent.post": ". It can be used once.",
   "forgot.noInbox":
-    "No longer have access to that email address? Then the link can't reach you. Log in with your password and change the address under Your account → Security, or contact an administrator in your community.",
+    "No longer have access to that email address? Then the link can't reach you. Log in with your password and change the address under Your account → Login & security, or contact an administrator in your community.",
   "forgot.back": "← Back to log in",
   "forgot.err.email": "Enter a valid email address.",
 
@@ -83,25 +100,27 @@ export const account: Record<keyof typeof source, string> = {
   "reset.invalid.action": "Ask for a new link",
   "reset.retry": "The link has been used, but you're logged in. Choose a different password to finish.",
 
-  // ── Account security ("Your account" → "Security") ────────────────────
-  "security.heading": "Security",
+  // ── Account security ("Your account" → "Login & security") ─────────────
+  "security.heading": "Login & security",
   "security.email": "Email address",
+  "security.change": "Change",
   "security.email.change": "Change email address",
   "security.email.pending": "Waiting for confirmation from {email}.",
   "security.email.cancel": "Cancel the change",
   "security.password": "Password",
+  "security.password.configured": "Configured",
+  "security.password.notConfigured": "Not configured",
   "security.password.none": "You haven't created a password yet.",
   "security.password.create": "Create password",
   "security.password.change": "Change password",
   "security.password.since": "Last changed {date}.",
   "security.password.saved": "Your password has been saved. You can now log in with your email address and password.",
-  "security.link": "You can also log in with a link sent to your email address.",
   "security.back": "← Back to your account",
 
   "security.createPassword.metaTitle": "Create a password",
   "security.createPassword.title": "Create a password",
   "security.createPassword.lead":
-    "With a password you can log in to TING even if you lose access to your email account. Logging in with an email link works as before.",
+    "Create a password to sign in easily to TING.",
   "security.createPassword.submit": "Create password",
   "security.changePassword.metaTitle": "Change password",
   "security.changePassword.title": "Change password",
@@ -158,7 +177,7 @@ export const account: Record<keyof typeof source, string> = {
     "This link is confirmed. Also open the link sent to the other address to finish.",
   "confirmEmail.invalid.title": "The link isn't valid",
   "confirmEmail.invalid.body": "The link is missing something or is incomplete.",
-  "confirmEmail.err.expired": "The link has been used or has expired. Ask for a new confirmation from Your account → Security.",
+  "confirmEmail.err.expired": "The link has been used or has expired. Ask for a new confirmation from Your account → Login & security.",
   "confirmEmail.err.failed": "The address couldn't be confirmed. Does the link belong to another account? Try again in a moment, or ask for a new confirmation.",
   "confirmEmail.toAccount": "To your account",
 };

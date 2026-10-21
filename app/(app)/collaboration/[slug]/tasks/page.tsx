@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import { TaskCard } from "@/components/collaboration/workspace/TaskCard";
 import { TaskForm } from "@/components/collaboration/workspace/TaskForms";
 import { IconPlus } from "@/components/ui/icons";
@@ -30,7 +31,7 @@ const COLUMNS: WorkspaceTaskStatus[] = ["todo", "in_progress", "done"];
 export default async function TasksPage({ params }: PageProps<"/collaboration/[slug]/tasks">) {
   const { slug } = await params;
   const { collaboration, me, manager, t, base } = await loadWorkspace(slug);
-  const locale = collaboration.defaultLocale;
+  const locale = await getRequestLocale(collaboration);
   const [tasks, people, team, channels, documents, events] = await Promise.all([
     getTasks(collaboration.id),
     getWorkspacePeople(collaboration.id),

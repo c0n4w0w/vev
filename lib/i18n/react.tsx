@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { translator, type Translator } from "@/lib/i18n";
 import { PLATFORM_LOCALE, type Locale } from "@/lib/i18n/locales";
 
@@ -15,6 +15,9 @@ const LocaleContext = createContext<Locale>(PLATFORM_LOCALE);
  * (or the community) directly.
  */
 export function LocaleProvider({ locale, children }: { locale: Locale; children: ReactNode }) {
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
   return <LocaleContext.Provider value={locale}>{children}</LocaleContext.Provider>;
 }
 

@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revokeSponsorshipAction, sponsorOrganizerAction } from "@/app/collaboration-actions";
@@ -22,7 +23,7 @@ export async function generateMetadata({
   const collaboration = await getCollaborationBySlug(slug);
   if (!collaboration) return {};
   return {
-    title: translator(collaboration.defaultLocale)("collab.organizers.metaTitle", { name: collaboration.name }),
+    title: translator(await getRequestLocale(collaboration))("collab.organizers.metaTitle", { name: collaboration.name }),
   };
 }
 
@@ -66,7 +67,7 @@ export default async function ChooseOrganizersPage({
 
   const collaboration = await getCollaborationBySlug(slug);
   if (!collaboration) notFound();
-  const t = translator(collaboration.defaultLocale);
+  const t = translator(await getRequestLocale(collaboration));
 
   const unit = (await getCollaborationUnits(collaboration.id)).filter(isRepresented).find(
     (candidate) =>

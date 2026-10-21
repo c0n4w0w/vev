@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
@@ -64,7 +65,7 @@ export default async function CollaborationPage({
 
   const collaboration = await getCollaborationBySlug(slug);
   if (!collaboration) notFound();
-  const t = translator(collaboration.defaultLocale);
+  const t = translator(await getRequestLocale(collaboration));
 
   const [access, manager, units, sponsorships, teamStatus] = await Promise.all([
     hasCollaborationAccess(collaboration.id),
@@ -233,7 +234,7 @@ export default async function CollaborationPage({
                 pending={pending}
                 myUnits={myUnits}
                 requests={requests}
-                locale={collaboration.defaultLocale}
+                locale={await getRequestLocale(collaboration)}
               />
             ) : null}
           </div>

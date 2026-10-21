@@ -3247,6 +3247,7 @@ export type Database = {
           joined_at: string
           location: string
           name: string
+          preferred_locale: string | null
           pronoun: string
         }
         Insert: {
@@ -3258,6 +3259,7 @@ export type Database = {
           joined_at?: string
           location?: string
           name: string
+          preferred_locale?: string | null
           pronoun?: string
         }
         Update: {
@@ -3269,6 +3271,7 @@ export type Database = {
           joined_at?: string
           location?: string
           name?: string
+          preferred_locale?: string | null
           pronoun?: string
         }
         Relationships: []
@@ -4759,6 +4762,7 @@ export type Database = {
         Args: { p_community_id: string; p_local_group_id: string }
         Returns: boolean
       }
+      set_my_locale: { Args: { p_locale: string }; Returns: string }
       set_post_pinned: {
         Args: { p_pinned: boolean; p_post_id: string }
         Returns: boolean

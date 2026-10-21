@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
@@ -5,13 +6,13 @@ import { AccountShell } from "@/components/account/AccountShell";
 import { ForgotPasswordForm } from "@/components/account/ForgotPasswordForm";
 import { Panel } from "@/components/ui/primitives";
 import { getLocaleForDestination } from "@/lib/data";
-import { resolveLocale, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
 import { LocaleProvider } from "@/lib/i18n/react";
 import { safeInternalPath } from "@/lib/safe-path";
 
 /** Like the sign-in page: in the language of wherever the person was heading. */
 const localeForNext = cache(async (nextPath: string) =>
-  resolveLocale({ community: await getLocaleForDestination(nextPath) }),
+  getRequestLocale(await getLocaleForDestination(nextPath)),
 );
 
 function nextParam(value: string | string[] | undefined) {

@@ -29,6 +29,8 @@ export interface Role {
  */
 export interface User {
   id: string;
+  /** Explicit UI language. Absent until the owner chooses; private to the account. */
+  preferredLocale?: Locale;
   /** The account name. The default a new community profile may start from. */
   name: string;
   /** Short handle, unique across the platform. Account identity, shown only to its owner. */

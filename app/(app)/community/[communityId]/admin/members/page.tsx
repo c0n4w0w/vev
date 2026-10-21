@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import { MemberAdministration } from "@/components/community/MemberAdministration";
 import { ButtonLink, EmptyState, PageContainer, PageHeader } from "@/components/ui/primitives";
@@ -7,7 +8,7 @@ import {
   getMemberDmActions,
   getMembership,
 } from "@/lib/data";
-import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -15,7 +16,7 @@ export async function generateMetadata({
 }: PageProps<"/community/[communityId]/admin/members">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return {
     title: t("admin.members.metaTitle", {
       name: community?.name ?? t("common.communityFallback"),
@@ -32,7 +33,7 @@ export default async function AdminMembersPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const locale = communityLocale(community);
+  const locale = await getRequestLocale(community);
   const t = translator(locale);
 
   const membership = await getMembership(user.id, community.id);

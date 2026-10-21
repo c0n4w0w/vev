@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { UnitName, unitLabel } from "@/components/collaboration/UnitName";
 import { IconArrowRight, IconGlobe } from "@/components/ui/icons";
@@ -35,7 +36,7 @@ export async function WorkspaceOverview({
   justJoinedUnit: boolean;
 }) {
   const { collaboration, me, manager, t, base } = await loadWorkspace(slug);
-  const locale = collaboration.defaultLocale;
+  const locale = await getRequestLocale(collaboration);
   const [units, team, people, events, publications, tasks, recent, documents, channels] = await Promise.all([
     getCollaborationUnits(collaboration.id),
     getWorkspaceTeam(collaboration.id),

@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CollaborationProfileForm } from "@/components/collaboration/CollaborationProfileForm";
@@ -17,7 +18,7 @@ export async function generateMetadata({ params }: PageProps<"/collaboration/[sl
   const collaboration = await getCollaborationBySlug(slug);
   if (!collaboration) return {};
   return {
-    title: translator(collaboration.defaultLocale)("collab.profile.metaTitle", { name: collaboration.name }),
+    title: translator(await getRequestLocale(collaboration))("collab.profile.metaTitle", { name: collaboration.name }),
   };
 }
 
@@ -46,7 +47,7 @@ export default async function CollaborationProfilePage({
   const collaboration = await getCollaborationBySlug(slug);
   if (!collaboration) notFound();
   if (!(await hasCollaborationAccess(collaboration.id))) redirect(`/collaboration/${slug}`);
-  const t = translator(collaboration.defaultLocale);
+  const t = translator(await getRequestLocale(collaboration));
 
   const persona = await getMyCollaborationPersona(collaboration.id, user.id);
   const onboarding = !persona;

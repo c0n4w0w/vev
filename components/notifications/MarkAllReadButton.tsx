@@ -1,11 +1,13 @@
 "use client";
 
+import { useT } from "@/lib/i18n/react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { markAllNotificationsReadAction } from "@/app/actions";
 import { emptyNotificationFormState } from "@/lib/notification-form";
 
 function Submit() {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <button
@@ -16,7 +18,7 @@ function Submit() {
       // negative margin takes back, so the header lays out exactly as before.
       className="-my-3 py-3 text-[13px] text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline disabled:opacity-40"
     >
-      {pending ? "Merker …" : "Merk alle som lest"}
+      {pending ? t("platform.notifications.marking") : t("platform.notifications.markAll")}
     </button>
   );
 }

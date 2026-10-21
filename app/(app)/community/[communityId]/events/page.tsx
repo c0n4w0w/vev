@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import { EventCard } from "@/components/community/EventCard";
 import { EventComposer } from "@/components/community/EventComposer";
@@ -17,14 +18,14 @@ import {
   getPastCommunityEvents,
   getUpcomingCommunityEvents,
 } from "@/lib/data";
-import { communityLocale, communityTranslator, tn, translator } from "@/lib/i18n";
+import { tn, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 import { PUBLIC_HOST } from "@/lib/brand";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/events">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return { title: `${t("events.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
@@ -37,7 +38,7 @@ export default async function CommunityEventsPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const locale = communityLocale(community);
+  const locale = await getRequestLocale(community);
   const t = translator(locale);
 
   const [upcoming, past, cancelled, membership, groups, subgroups] = await Promise.all([

@@ -4,12 +4,10 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ElevatedRoleBadge, cn } from "@/components/ui/primitives";
 import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
-import { IconCheck, IconChevronDown, IconPlus, IconSwitch } from "@/components/ui/icons";
+import { IconCheck, IconChevronDown, IconSwitch } from "@/components/ui/icons";
 import { Wordmark } from "@/components/shell/Wordmark";
 import type { ShellCommunity, ShellData } from "@/components/shell/shell-data";
-import { communityLocale } from "@/lib/i18n";
-import { PLATFORM_LOCALE } from "@/lib/i18n/locales";
-import { useT } from "@/lib/i18n/react";
+import { useLocale, useT } from "@/lib/i18n/react";
 
 /**
  * Context switcher at the top of the sidebar. It shows where you are — the
@@ -26,7 +24,7 @@ export function CommunitySwitcher({
   onNavigate?: () => void;
 }) {
   const t = useT();
-  const locale = current ? communityLocale(current.community) : PLATFORM_LOCALE;
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -137,14 +135,6 @@ export function CommunitySwitcher({
             </ul>
           )}
 
-          <Link
-            href="/communities"
-            onClick={close}
-            className="flex items-center gap-2.5 border-t border-line px-3 py-2.5 text-sm text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink"
-          >
-            <IconPlus size={16} className="text-ink-3" />
-            {t("shell.switcher.join")}
-          </Link>
         </div>
       ) : null}
     </div>

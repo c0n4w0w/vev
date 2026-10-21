@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Avatar, cn } from "@/components/ui/primitives";
 import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
@@ -12,7 +12,6 @@ import {
   IconClose,
   IconCollaboration,
   IconChevronRight,
-  IconCommunities,
   IconFeed,
   IconHash,
   IconHome,
@@ -33,8 +32,8 @@ import { ChannelCreateDialog } from "@/components/community/channels/ChannelCrea
 import { DirectConversationMenu } from "@/components/community/messages/DirectConversationMenu";
 import { ToastHost } from "@/components/ui/Toast";
 import type { ShellCommunity, ShellData } from "@/components/shell/shell-data";
-import { communityLocale, type Translator } from "@/lib/i18n";
-import { PLATFORM_LOCALE } from "@/lib/i18n/locales";
+import { resolveLocale, parseLocale, type Translator } from "@/lib/i18n";
+import { accountPath } from "@/lib/account-locale";
 import { LocaleProvider, useLocale, useT } from "@/lib/i18n/react";
 import { Wordmark } from "@/components/shell/Wordmark";
 
@@ -157,7 +156,6 @@ function DirectConversationNavLink({
 
 const platformNav = [
   { href: "/home", label: "shell.platform.home", icon: IconHome },
-  { href: "/communities", label: "shell.platform.communities", icon: IconCommunities },
   { href: "/collaborations", label: "shell.platform.collaborations", icon: IconCollaboration },
   { href: "/events", label: "shell.platform.events", icon: IconCalendar },
   { href: "/notifications", label: "shell.platform.notifications", icon: IconBell },
@@ -512,6 +510,7 @@ function SidebarContent({
   inDrawer?: boolean;
 }) {
   const t = useT();
+  const locale = useLocale();
   const accent = current?.community.branding.accent;
   const activeDirectConversation = current?.recentDirectConversations.find(
     (conversation) =>
@@ -644,7 +643,7 @@ function SidebarContent({
             </ul>
 
             <div className="mt-7">
-              <p className="label mb-2 px-2.5">{t("shell.platform.communities")}</p>
+              <h2 className="label mb-2 px-2.5">{t("shell.platform.communities")}</h2>
               {data.communities.length === 0 ? (
                 <p className="px-2.5 text-[13px] leading-relaxed text-ink-3">
                   {t("shell.platform.noneYet")}
@@ -688,7 +687,7 @@ function SidebarContent({
           </Link>
         ) : (
           <Link
-            href="/profile"
+            href={accountPath("/profile", locale)}
             onClick={onNavigate}
             className="flex items-center gap-2.5 rounded-[5px] px-2 py-2 transition-colors hover:bg-paper-2"
           >
@@ -708,7 +707,6 @@ function SidebarContent({
 
 const mobileTabs = [
   { href: "/home", label: "shell.tabs.home", icon: IconHome },
-  { href: "/communities", label: "shell.tabs.communities", icon: IconCommunities },
   { href: "/events", label: "shell.tabs.events", icon: IconCalendar },
   { href: "/notifications", label: "shell.tabs.notifications", icon: IconBell },
   { href: "/profile", label: "shell.tabs.profile", icon: IconUser },
@@ -716,6 +714,7 @@ const mobileTabs = [
 
 function MobileTabBar({ data, pathname }: { data: ShellData; pathname: string }) {
   const t = useT();
+  const locale = useLocale();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur-sm lg:hidden">
       <ul className="mx-auto flex max-w-lg items-stretch">
@@ -724,7 +723,7 @@ function MobileTabBar({ data, pathname }: { data: ShellData; pathname: string })
           return (
             <li key={tab.href} className="flex-1">
               <Link
-                href={tab.href}
+                href={tab.href === "/profile" ? accountPath(tab.href, locale) : tab.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex flex-col items-center gap-1 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2.5 text-[10px] font-medium transition-colors",
@@ -752,26 +751,27 @@ function MobileTabBar({ data, pathname }: { data: ShellData; pathname: string })
 /**
  * The signed-in frame.
  *
- * Inside a community the whole shell speaks that community's language, and it
- * follows the route — moving from one community to another changes it with no
- * reload — because the current community is read from the path. Everywhere else
- * it uses the platform's. This is the one place a future user preference would
- * be folded in: `resolveLocale({ user, community })`.
+ * The account's explicit preference overrides the route's community default.
+ * Without a preference, communities and account entry links keep their own
+ * language, and other platform pages use the platform default.
  */
 export function AppShell({ data, children }: { data: ShellData; children: ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const current = data.communities.find(({ community }) =>
     pathname.startsWith(`/community/${community.id}`),
   );
-  // A collaboration's own pages speak its language, fixed from the community
-  // that started it; the hub and everything else speak the platform's.
+  // Collaborations keep their source community's default unless overridden.
   const collaboration = data.collaborations.find(
     ({ slug }) =>
       pathname === `/collaboration/${slug}` || pathname.startsWith(`/collaboration/${slug}/`),
   );
-  const locale = current
-    ? communityLocale(current.community)
-    : (collaboration?.defaultLocale ?? PLATFORM_LOCALE);
+  const locale = resolveLocale({
+    user: data.user.preferredLocale,
+    community: pathname === "/profile" || pathname.startsWith("/profile/")
+      ? parseLocale(searchParams.get("locale"))
+      : current?.community.defaultLocale ?? collaboration?.defaultLocale,
+  });
 
   return (
     <LocaleProvider locale={locale}>

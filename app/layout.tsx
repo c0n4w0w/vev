@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
+import { getRequestLocale } from "@/lib/i18n/server";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -23,9 +24,9 @@ export const metadata: Metadata = {
     "TING er en plattform for private fellesskap. Én konto, flere organisasjoner — uten et offentlig register over hvem som finnes her.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="nb" className={`${inter.variable} ${serif.variable} h-full antialiased`}>
+    <html lang={await getRequestLocale()} className={`${inter.variable} ${serif.variable} h-full antialiased`}>
       <body className="min-h-full">{children}</body>
     </html>
   );

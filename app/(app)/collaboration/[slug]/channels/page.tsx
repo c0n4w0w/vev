@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { CreateChannelForm } from "@/components/collaboration/workspace/ChannelForms";
 import { IconHash, IconPlus } from "@/components/ui/icons";
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: PageProps<"/collaboration/[sl
 export default async function ChannelsPage({ params }: PageProps<"/collaboration/[slug]/channels">) {
   const { slug } = await params;
   const { collaboration, manager, t, base } = await loadWorkspace(slug);
-  const locale = collaboration.defaultLocale;
+  const locale = await getRequestLocale(collaboration);
   const [channels, recent] = await Promise.all([
     getChannels(collaboration.id),
     getRecentMessages(collaboration.id, 300),

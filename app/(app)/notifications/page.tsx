@@ -1,3 +1,5 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
+import { translator, type MessageKey } from "@/lib/i18n";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import {
@@ -24,21 +26,25 @@ import { timeAgo } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
 import type { NotificationKind } from "@/lib/types";
 
-export const metadata: Metadata = { title: "Varsler" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getRequestTranslator())("shell.platform.notifications") };
+}
 
-const kindMeta: Record<NotificationKind, { icon: typeof IconBell; label: string }> = {
-  mention: { icon: IconBell, label: "Nevnt" },
-  announcement: { icon: IconMegaphone, label: "Kunngjøring" },
-  event: { icon: IconCalendar, label: "Arrangement" },
-  invitation: { icon: IconMail, label: "Invitasjon" },
-  membership: { icon: IconUsers, label: "Medlemskap" },
-  direct_message: { icon: IconMail, label: "Melding" },
+const kindMeta: Record<NotificationKind, { icon: typeof IconBell; label: MessageKey }> = {
+  mention: { icon: IconBell, label: "platform.notifications.mention" },
+  announcement: { icon: IconMegaphone, label: "platform.notifications.announcement" },
+  event: { icon: IconCalendar, label: "platform.notifications.event" },
+  invitation: { icon: IconMail, label: "platform.notifications.invitation" },
+  membership: { icon: IconUsers, label: "platform.notifications.membership" },
+  direct_message: { icon: IconMail, label: "platform.notifications.direct_message" },
 };
 
 export default async function NotificationsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
+  const locale = await getRequestLocale();
+  const t = translator(locale);
   const [notifications, unread] = await Promise.all([
     getNotifications(user.id),
     getUnreadCount(user.id),
@@ -57,20 +63,20 @@ export default async function NotificationsPage() {
   return (
     <PageContainer width="narrow">
       <PageHeader
-        eyebrow="Varsler"
-        title="Varsler"
+        eyebrow={t("shell.platform.notifications")}
+        title={t("shell.platform.notifications")}
         lead={
           unread > 0
-            ? `${unread} uleste. Varsler samles på tvers av fellesskapene dine.`
-            : "Alt er lest. Varsler samles på tvers av fellesskapene dine."
+            ? t("platform.notifications.unreadLead", { count: unread })
+            : t("platform.notifications.readLead")
         }
         action={unread > 0 ? <MarkAllReadButton /> : undefined}
       />
 
       {notifications.length === 0 ? (
         <EmptyState
-          title="Ingen varsler"
-          body="Når du får et varsel, havner det her."
+          title={t("platform.notifications.empty")}
+          body={t("platform.notifications.emptyBody")}
         />
       ) : (
         <Panel className="divide-y divide-line">
@@ -103,7 +109,7 @@ export default async function NotificationsPage() {
                   {!notification.read ? (
                     <>
                       <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rust ring-2 ring-surface" />
-                      <span className="sr-only">Ulest.</span>
+                      <span className="sr-only">{t("shell.unread")}</span>
                     </>
                   ) : null}
                 </span>
@@ -125,9 +131,9 @@ export default async function NotificationsPage() {
                   <span className="mt-2 flex flex-wrap items-center gap-2">
                     <Badge tone="outline">
                       <Icon size={11} />
-                      {meta.label}
+                      {t(meta.label)}
                     </Badge>
-                    <span className="text-[11px] text-ink-3">{timeAgo(notification.createdAt)}</span>
+                    <span className="text-[11px] text-ink-3">{timeAgo(notification.createdAt, locale)}</span>
                   </span>
                 </span>
               </NotificationRow>

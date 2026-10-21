@@ -9,12 +9,12 @@ import { IconArrowLeft } from "@/components/ui/icons";
 import { EmptyState, PageContainer, PageHeader } from "@/components/ui/primitives";
 import { encodeUnit } from "@/lib/collaboration-form";
 import { getCommunitiesForUser, getLocalGroups } from "@/lib/data";
-import { PLATFORM_LOCALE, translator } from "@/lib/i18n";
+import { getRequestTranslator } from "@/lib/i18n/server";
 import { getSessionUser } from "@/lib/session";
 
-const t = translator(PLATFORM_LOCALE);
-
-export const metadata: Metadata = { title: t("collab.new.metaTitle") };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getRequestTranslator())("collab.new.metaTitle") };
+}
 
 /**
  * Starting a collaboration on behalf of a unit the person represents.
@@ -25,6 +25,7 @@ export const metadata: Metadata = { title: t("collab.new.metaTitle") };
  * else's — and `create_collaboration()` checks the choice again.
  */
 export default async function NewCollaborationPage() {
+  const t = await getRequestTranslator();
   const user = await getSessionUser();
   if (!user) redirect("/login");
 

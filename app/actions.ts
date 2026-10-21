@@ -1,5 +1,7 @@
 "use server";
 
+import { getRequestTranslator } from "@/lib/i18n/server";
+
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
@@ -135,15 +137,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { purgeAttachmentObjects } from "@/lib/attachment-storage";
 import type { InvitationLinkState } from "@/lib/invitation-link-form";
 import { osloInstant } from "@/lib/format";
-import {
-  communityLocale,
-  communityTranslator,
-  parseLocale,
-  PLATFORM_LOCALE,
-  translator,
-  type MessageKey,
-  type Translator,
-} from "@/lib/i18n";
+import { communityLocale, parseLocale, PLATFORM_LOCALE, translator, type MessageKey, type Translator } from "@/lib/i18n";
 import { isUuid } from "@/lib/channel-resources";
 import { getSessionUser } from "@/lib/session";
 import { safeInternalPath } from "@/lib/safe-path";
@@ -162,7 +156,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  */
 async function translatorFor(communityId: string): Promise<Translator> {
   const community = communityId ? await getCommunityById(communityId) : undefined;
-  return communityTranslator(community);
+  return (await getRequestTranslator(community));
 }
 
 // ── Authentication ──────────────────────────────────────────────────────
@@ -366,7 +360,7 @@ export async function markAllNotificationsReadAction(
   if (!ok) {
     return {
       status: "error",
-      message: translator(PLATFORM_LOCALE)("err.notificationsFailed"),
+      message: (await getRequestTranslator())("err.notificationsFailed"),
     };
   }
 
@@ -732,8 +726,6 @@ export async function setAcceptsMemberDmsAction(
   revalidatePath(`/community/${communityId}/settings`);
   return { status: "ok", acceptsMemberDms: stored };
 }
-
-
 
 // ── Events ──────────────────────────────────────────────────────────────
 //
@@ -1947,7 +1939,7 @@ export async function requestAccessAction(
   // slug is public, so this reveals nothing the page itself does not.
   const slug = String(formData.get("slug") ?? "");
   const portal = slug ? await getPortalCommunity(slug) : undefined;
-  const t = communityTranslator(portal);
+  const t = await getRequestTranslator(portal);
 
   const email = String(formData.get("email") ?? "").trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 254) {

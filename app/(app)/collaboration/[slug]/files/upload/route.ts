@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import { getCollaborationBySlug, hasCollaborationAccess } from "@/lib/collaboration-data";
 import {
   COLLABORATION_FILE_MAX_BYTES,
@@ -59,7 +60,7 @@ async function sameOrigin(request: Request): Promise<boolean> {
 
 export async function POST(request: Request, context: RouteContext<"/collaboration/[slug]/files/upload">) {
   const { slug } = await context.params;
-  const fallback = translator("nb");
+  const fallback = translator(await getRequestLocale());
 
   if (!(await sameOrigin(request))) return reply(403, { ok: false, message: fallback("ws.files.failed") });
 
@@ -68,7 +69,7 @@ export async function POST(request: Request, context: RouteContext<"/collaborati
 
   const collaboration = await getCollaborationBySlug(slug);
   if (!collaboration) return reply(404, { ok: false, message: fallback("ws.files.failed") });
-  const t = translator(collaboration.defaultLocale);
+  const t = translator(await getRequestLocale(collaboration));
   const max = COLLABORATION_FILE_MAX_BYTES / (1024 * 1024);
 
   if (!(await hasCollaborationAccess(collaboration.id))) {

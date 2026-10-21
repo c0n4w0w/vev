@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import { MemberCard } from "@/components/community/MemberCard";
 import { OrganizationPersonCard } from "@/components/community/OrganizationPersonCard";
@@ -26,7 +27,7 @@ import {
   getOwnOrganizationPersonIds,
   type LinkedCrewMemberDetails,
 } from "@/lib/data";
-import { communityLocale, communityTranslator, tn, translator, type Locale } from "@/lib/i18n";
+import { tn, translator, type Locale } from "@/lib/i18n";
 import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 import type { CommunityPerson, CommunityPersonSection } from "@/lib/types";
@@ -35,7 +36,7 @@ export async function generateMetadata({ params }: PageProps<"/community/[commun
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
   const people = community ? await getCommunityPeople(community.id) : [];
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   const title =
     people.length > 0 && community?.id !== "under-the-rug"
       ? t("members.organizationTitle")
@@ -188,7 +189,7 @@ export default async function MembersPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const locale = communityLocale(community);
+  const locale = await getRequestLocale(community);
   const t = translator(locale);
 
   const [membership, canViewDirectory, organizationPeople] = await Promise.all([

@@ -1,3 +1,4 @@
+import { getRequestTranslator } from "@/lib/i18n/server";
 import { after } from "next/server";
 import {
   beginAttachment,
@@ -17,7 +18,7 @@ import {
 import { makeAttachmentThumbnail, reencodeWithoutMetadata } from "@/lib/attachment-thumbnail";
 import type { AttachmentPolicyReason, MessageAttachment } from "@/lib/attachment-types";
 import { getCommunityById } from "@/lib/data";
-import { communityTranslator, translator, PLATFORM_LOCALE, type MessageKey, type Translator } from "@/lib/i18n";
+import { type MessageKey, type Translator } from "@/lib/i18n";
 import { readImageHeader } from "@/lib/image-header";
 import { stripImageMetadata } from "@/lib/image-metadata";
 import { isSameOrigin } from "@/lib/same-origin";
@@ -103,7 +104,7 @@ export async function POST(
   context: RouteContext<"/community/[communityId]/attachments/upload">,
 ) {
   const { communityId } = await context.params;
-  const fallback = translator(PLATFORM_LOCALE);
+  const fallback = await getRequestTranslator();
 
   if (!(await isSameOrigin(request))) {
     return reply(403, { ok: false, message: fallback("err.attachmentNotAllowed") });
@@ -128,7 +129,7 @@ export async function POST(
   if (!community || policy.reason === "not_found" || policy.communityId !== community.id) {
     return reply(404, { ok: false, message: fallback("err.attachmentNotAllowed") });
   }
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   if (!policy.allowed) return reply(403, { ok: false, message: t(closedMessage(policy.reason)) });
 
   const declared = Number(request.headers.get("content-length"));

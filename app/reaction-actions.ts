@@ -1,5 +1,7 @@
 "use server";
 
+import { getRequestTranslator } from "@/lib/i18n/server";
+
 import { revalidatePath } from "next/cache";
 import {
   getCommunityById,
@@ -9,7 +11,7 @@ import {
 } from "@/lib/data";
 import { isUuid } from "@/lib/channel-resources";
 import { knownEmoji } from "@/lib/emoji/catalog";
-import { communityTranslator, type MessageKey } from "@/lib/i18n";
+import { type MessageKey } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 import type { Reaction, ReactionAuthors, ReactionAuthorVisibility, ReactionKind } from "@/lib/types";
 
@@ -39,7 +41,7 @@ const KINDS: readonly ReactionKind[] = ["message", "direct", "post"];
 
 async function words(scope: Scope, key: MessageKey) {
   const community = typeof scope?.communityId === "string" ? await getCommunityById(scope.communityId) : undefined;
-  return communityTranslator(community)(key);
+  return (await getRequestTranslator(community))(key);
 }
 
 function shape(target: ReactionTarget, choice: ReactionChoice): { target: ReactionTarget; choice: ReactionChoice } | undefined {

@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import { setCommunityPersonAccountLinkAction } from "@/app/actions";
 import {
@@ -20,7 +21,7 @@ import {
   getCommunityPersonAccountLinks,
   getMembership,
 } from "@/lib/data";
-import { communityLocale, communityTranslator, translator, type Locale, type Translator } from "@/lib/i18n";
+import { translator, type Locale, type Translator } from "@/lib/i18n";
 import { roleLabel } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
 import type { CommunityPerson } from "@/lib/types";
@@ -32,7 +33,7 @@ export async function generateMetadata({
 }) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return { title: `${t("links.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
@@ -232,7 +233,7 @@ export default async function OrganizationLinksPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const locale = communityLocale(community);
+  const locale = await getRequestLocale(community);
   const t = translator(locale);
 
   const [membership, people] = await Promise.all([

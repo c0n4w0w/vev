@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import { leaveCollaborationAction } from "@/app/collaboration-actions";
 import { ActionButton } from "@/components/collaboration/ActionButton";
 import { CollaborationManagement } from "@/components/collaboration/CollaborationManagement";
@@ -98,7 +99,7 @@ export default async function ParticipantsPage({ params }: PageProps<"/collabora
               pending={pending}
               myUnits={myUnits}
               requests={requests}
-              locale={collaboration.defaultLocale}
+              locale={await getRequestLocale(collaboration)}
             />
           </div>
         ) : null}

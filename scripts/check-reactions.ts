@@ -45,6 +45,7 @@ import { canonicalEmoji } from "@/lib/emoji/canonical";
 import { emojiCatalog, knownEmoji } from "@/lib/emoji/catalog";
 import { searchEmojiEntries } from "@/lib/emoji/search";
 import { EMOJI_GROUPS, QUICK_REACTIONS } from "@/lib/emoji/types";
+import { isLocale, resolveLocale, t, type Locale } from "@/lib/i18n";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -459,10 +460,23 @@ async function main() {
     expect("F2 og da ser medlemmer navnene, også for gamle reaksjoner", names(await authors(dina.client, "message", ftrMessage, { emoji: "🎉" })), nameList("Kari Moen", ...reactors, "(Dina Reaksjon)"));
     expect("F2 kanalflagget følger med", (await dina.client.rpc("channel_reaction_authors_visible", { p_channel_id: ftrChannel })).data, true);
     expect("F3 men gir ikke tilgang til noe medlemmet ikke kan lese", names(await authors(cato.client, "message", lokallagMessage, { emoji: "👍" })), "null");
+    // The page speaks each viewer's own language: their account's choice,
+    // else the community's. Read, never changed.
+    const localeOrNull = (value: string): Locale | null => (isLocale(value) ? value : null);
+    const pageLocale = (handle: string): Locale =>
+      resolveLocale({
+        user: localeOrNull(sql(`select coalesce(preferred_locale, '') from profiles where handle = '${handle}'`)),
+        community: localeOrNull(sql(`select coalesce(default_locale, '') from communities where id = '${FTR}'`)),
+      });
+    const reactionsQuestion = (handle: string) => t(pageLocale(handle), "settings.reactions.question");
     const adminSettings = await page(mia, `/community/${FTR}/settings`);
-    expect("F4 administratoren ser «Reaksjoner» i innstillingene", adminSettings.html.includes("Hvem kan se hvem som har reagert i offentlige kanaler?"), true);
+    expect("F4 administratoren ser «Reaksjoner» i innstillingene", adminSettings.html.includes(reactionsQuestion("miaminge")), true);
     const modSettings = await page(kari, `/community/${FTR}/settings`);
-    expect("F4 moderatoren ser den ikke", modSettings.html.includes("Hvem kan se hvem som har reagert i offentlige kanaler?"), false);
+    expect(
+      "F4 moderatoren ser den ikke",
+      modSettings.html.includes(reactionsQuestion("karimoen")) || modSettings.html.includes(reactionsQuestion("miaminge")),
+      false,
+    );
     expect("F5 tilbake til bare ansvarlige", (await mia.rpc("set_community_reaction_visibility", { p_community_id: FTR, p_value: "moderators" })).data, "moderators");
     expect("F5 og navnene er skjult igjen", names(await authors(dina.client, "message", ftrMessage, { emoji: "🎉" })), "skjult:5");
 

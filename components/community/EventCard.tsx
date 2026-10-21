@@ -1,50 +1,19 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { Avatar, Badge, Panel, cn } from "@/components/ui/primitives";
 import { subgroupBadgeTone } from "@/components/community/subgroupBadgeTone";
+import { EventDateBlock as DateBlock } from "@/components/community/EventDateBlock";
 import { CommunityAvatar } from "@/components/ui/CommunityAvatar";
 import { IconClock, IconGlobe, IconLock, IconMapPin } from "@/components/ui/icons";
-import { formatDateParts, formatEventRange, formatTime, timeUntil } from "@/lib/format";
-import { communityLocale, tn, translator, type Locale } from "@/lib/i18n";
+import { formatEventRange, formatTime, timeUntil } from "@/lib/format";
+import { tn, translator, type Locale } from "@/lib/i18n";
 import type { Community, CommunityEvent, CommunityPersona } from "@/lib/types";
-
-/** The date block that anchors every event card. */
-function DateBlock({
-  iso,
-  accent,
-  locale,
-  compact = false,
-}: {
-  iso: string;
-  accent: string;
-  locale: Locale;
-  compact?: boolean;
-}) {
-  const { day, month } = formatDateParts(iso, locale);
-  return (
-    <div
-      className={cn(
-        "flex shrink-0 flex-col items-center justify-center rounded-[6px] border",
-        compact ? "h-11 w-11" : "h-14 w-14",
-      )}
-      style={{ borderColor: `${accent}33`, backgroundColor: `${accent}0f` }}
-    >
-      <span
-        className={cn("font-display leading-none text-ink", compact ? "text-base" : "text-xl")}
-      >
-        {day}
-      </span>
-      <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-ink-3">
-        {month}
-      </span>
-    </div>
-  );
-}
 
 /**
  * `compact` drops the description and host row. It is what the narrow sidebar
  * columns use, where the full card crowds itself into a wall of wrapped text.
  */
-export function EventCard({
+export async function EventCard({
   event,
   community,
   host,
@@ -64,7 +33,7 @@ export function EventCard({
   /** The language of the screen the card sits on; defaults to the community's own. */
   locale?: Locale;
 }) {
-  const locale = localeOverride ?? communityLocale(community);
+  const locale = await getRequestLocale(localeOverride ?? community);
   const t = translator(locale);
   const accent = community.branding.accent;
   // A cancelled event says so instead of counting down, and nobody is

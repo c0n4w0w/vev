@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { publishEventAction, unpublishEventAction } from "@/app/collaboration-workspace-actions";
@@ -59,7 +60,7 @@ export default async function EventPage({ params }: PageProps<"/collaboration/[s
   const { slug, eventId } = await params;
   const { collaboration, manager, t, base } = await loadWorkspace(slug);
   if (!UUID.test(eventId)) notFound();
-  const locale = collaboration.defaultLocale;
+  const locale = await getRequestLocale(collaboration);
 
   const [event, publications, units, files] = await Promise.all([
     getEvent(collaboration.id, eventId),

@@ -63,7 +63,8 @@
     "check:related-communities": "tsx scripts/check-related-communities.ts",
     "check:role-management": "tsx scripts/check-role-management.ts",
     "check:safe-space": "tsx scripts/check-safe-space.ts",
-    "check:storage": "tsx scripts/check-storage.ts"
+    "check:storage": "tsx scripts/check-storage.ts",
+    "check:language-preference": "tsx scripts/check-language-preference.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",

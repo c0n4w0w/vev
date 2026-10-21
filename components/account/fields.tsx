@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/primitives";
 
 export const inputClass =
-  "mt-2 h-11 w-full rounded-[5px] border border-line-2 bg-surface px-3 text-[0.9375rem] text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-ink-3";
+  "mt-2 h-11 w-full rounded-[5px] border border-line-2 bg-surface px-3 text-[0.9375rem] text-ink transition-colors placeholder:text-ink-3 focus:border-ink-3";
 
 /** A labelled input in the account forms. */
 export function Field({

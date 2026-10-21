@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import { CommunityAvatarSettings } from "@/components/community/CommunityAvatarSettings";
 import { DmAvailabilityToggle } from "@/components/community/DmAvailabilityToggle";
@@ -16,13 +17,13 @@ import {
   getMembership,
   myAcceptsMemberDms,
 } from "@/lib/data";
-import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/settings">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return { title: `${t("settings.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
@@ -47,7 +48,7 @@ export default async function CommunitySettingsPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const t = translator(communityLocale(community));
+  const t = translator(await getRequestLocale(community));
 
   // The setting is read through its own function, not off the membership row:
   // the column is not readable by clients, so there is no version of this page

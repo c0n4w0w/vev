@@ -1,3 +1,4 @@
+import { platform } from "./platform";
 import type { MessageKey } from "../nb";
 import { account } from "./account";
 import { channels } from "./channels";
@@ -12,7 +13,7 @@ import { workspace } from "./workspace";
 
 /** English. Every key of the Norwegian source dictionary, and nothing else. */
 export const en: Record<MessageKey, string> = {
-  ...common,
+  ...platform, ...common,
   ...shell,
   ...community,
   ...admin,

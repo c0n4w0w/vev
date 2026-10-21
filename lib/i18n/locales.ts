@@ -30,8 +30,8 @@ export function parseLocale(value: unknown): Locale {
  *
  *   explicit user preference → community default → platform fallback
  *
- * There is no user preference yet, so callers pass only `community`. When one
- * exists it is passed as `user` here and nothing at the call sites changes.
+ * An unset account preference is undefined: opening a community never writes
+ * a preference, and its default continues to apply until the owner chooses.
  */
 export function resolveLocale(sources: {
   user?: Locale | null;

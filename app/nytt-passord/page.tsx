@@ -4,14 +4,18 @@ import { resetPasswordAction, setPasswordAction } from "@/app/account-actions";
 import { AccountShell } from "@/components/account/AccountShell";
 import { PasswordForm } from "@/components/account/PasswordForm";
 import { Panel, buttonClass } from "@/components/ui/primitives";
-import { PLATFORM_LOCALE, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
+import { accountPath } from "@/lib/account-locale";
+import { authLocale } from "@/lib/account-locale-server";
 import { LocaleProvider } from "@/lib/i18n/react";
 
-export const metadata: Metadata = {
-  title: translator(PLATFORM_LOCALE)("reset.metaTitle"),
-  // The URL carries a single-use token. Never hand it to another site.
-  referrer: "no-referrer",
-};
+export async function generateMetadata({ searchParams }: PageProps<"/nytt-passord">): Promise<Metadata> {
+  return {
+    title: translator(await authLocale((await searchParams).locale))("reset.metaTitle"),
+    // The URL carries a single-use token. Never hand it to another site.
+    referrer: "no-referrer",
+  };
+}
 
 /**
  * Where a password-reset email leads.
@@ -22,18 +26,17 @@ export const metadata: Metadata = {
  * is signed in by looking at it. The token is the only thing read from the
  * address — there is no destination in it to tamper with.
  *
- * Account-level, so it is in the platform's language: the email it comes from
- * names no community.
+ * Uses the language of the reset request when it is available in this browser.
  */
 export default async function NewPasswordPage({ searchParams }: PageProps<"/nytt-passord">) {
-  const { token_hash: tokenHashParam } = await searchParams;
+  const { token_hash: tokenHashParam, locale: localeParam } = await searchParams;
   const tokenHash = typeof tokenHashParam === "string" && tokenHashParam ? tokenHashParam : undefined;
-  const locale = PLATFORM_LOCALE;
+  const locale = await authLocale(localeParam);
   const t = translator(locale);
   const expired = {
     title: t("reset.invalid.title"),
     body: t("reset.invalid.body"),
-    href: "/glemt-passord",
+    href: `/glemt-passord?neste=${encodeURIComponent(accountPath("/profile", locale))}`,
     action: t("reset.invalid.action"),
   };
 

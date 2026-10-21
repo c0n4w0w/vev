@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CommunityAboutSection } from "@/components/community/CommunityAboutSection";
@@ -41,7 +42,7 @@ import {
 import { PUBLIC_HOST } from "@/lib/brand";
 import { communityWebsite } from "@/lib/community-website";
 import { timeAgo } from "@/lib/format";
-import { communityLocale, communityTranslator, tn, translator } from "@/lib/i18n";
+import { tn, translator } from "@/lib/i18n";
 import { onboardingSteps } from "@/lib/onboarding";
 import { publicMemberTitle } from "@/lib/roles";
 import { getSessionUser } from "@/lib/session";
@@ -49,7 +50,7 @@ import { getSessionUser } from "@/lib/session";
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  return { title: community?.name ?? communityTranslator(community)("common.communityFallback") };
+  return { title: community?.name ?? (await getRequestTranslator(community))("common.communityFallback") };
 }
 
 export default async function CommunityOverviewPage({
@@ -61,7 +62,7 @@ export default async function CommunityOverviewPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const locale = communityLocale(community);
+  const locale = await getRequestLocale(community);
   const t = translator(locale);
 
   const [membership, memberCount, announcements, allPosts, upcoming, groups, customEmojis, related, welcome] = await Promise.all([

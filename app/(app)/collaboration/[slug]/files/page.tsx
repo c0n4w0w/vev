@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import { removeFileAction } from "@/app/collaboration-workspace-actions";
 import { ActionButton } from "@/components/collaboration/ActionButton";
 import { FileUploadForm } from "@/components/collaboration/workspace/FileUploadForm";
@@ -21,7 +22,7 @@ export async function generateMetadata({ params }: PageProps<"/collaboration/[sl
 export default async function FilesPage({ params }: PageProps<"/collaboration/[slug]/files">) {
   const { slug } = await params;
   const { collaboration, me, manager, t, base } = await loadWorkspace(slug);
-  const locale = collaboration.defaultLocale;
+  const locale = await getRequestLocale(collaboration);
   const [files, people] = await Promise.all([getFiles(collaboration.id), getWorkspacePeople(collaboration.id)]);
 
   return (

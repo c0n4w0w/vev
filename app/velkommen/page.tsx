@@ -5,7 +5,8 @@ import { EmailLinkSignIn } from "@/components/community/EmailLinkSignIn";
 import { Wordmark } from "@/components/shell/Wordmark";
 import { CommunityMark, buttonClass } from "@/components/ui/primitives";
 import { getMembership, getPortalCommunity } from "@/lib/data";
-import { communityLocale, PLATFORM_LOCALE, translator, type Locale } from "@/lib/i18n";
+import { translator, type Locale } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n/server";
 import { LocaleProvider } from "@/lib/i18n/react";
 import { getSessionUser } from "@/lib/session";
 
@@ -16,7 +17,7 @@ function param(value: string | string[] | undefined) {
 export async function generateMetadata({ searchParams }: PageProps<"/velkommen">): Promise<Metadata> {
   const portal = await portalFor(param((await searchParams).f));
   return {
-    title: translator(portal ? communityLocale(portal) : PLATFORM_LOCALE)("welcome.metaTitle"),
+    title: translator(await getRequestLocale(portal))("welcome.metaTitle"),
     // The URL carries a sign-in token. Never hand it to another site.
     referrer: "no-referrer",
   };
@@ -43,7 +44,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/velkomme
   const params = await searchParams;
   const signInToken = param(params.innlogging);
   const portal = await portalFor(param(params.f));
-  const locale = portal ? communityLocale(portal) : PLATFORM_LOCALE;
+  const locale = await getRequestLocale(portal);
   const t = translator(locale);
   const user = await getSessionUser();
 

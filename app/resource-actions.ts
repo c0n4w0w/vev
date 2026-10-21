@@ -1,5 +1,7 @@
 "use server";
 
+import { getRequestTranslator } from "@/lib/i18n/server";
+
 import { revalidatePath } from "next/cache";
 import {
   addChannelLink,
@@ -21,7 +23,7 @@ import {
   normalizeLinkUrl,
 } from "@/lib/channel-resources";
 import { getCommunityById } from "@/lib/data";
-import { communityTranslator, type MessageKey, type Translator } from "@/lib/i18n";
+import { type MessageKey, type Translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 /**
@@ -46,7 +48,7 @@ async function begin(scope: Scope): Promise<Translator | undefined> {
   const user = await getSessionUser();
   if (!user) return undefined;
   const community = typeof scope.communityId === "string" ? await getCommunityById(scope.communityId) : undefined;
-  return communityTranslator(community);
+  return (await getRequestTranslator(community));
 }
 
 function finish<T>(scope: Scope, t: Translator, result: ResourceWriteResult<T>, extra?: (value: T) => Partial<ResourceActionResult>) {

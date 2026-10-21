@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Avatar, Badge, EmptyState, PageContainer, PageHeader, Panel, cn } from "@/components/ui/primitives";
@@ -8,7 +9,7 @@ import {
   getDirectConversations,
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
-import { communityLocale, communityTranslator, translator, type Locale, type Translator } from "@/lib/i18n";
+import { translator, type Locale, type Translator } from "@/lib/i18n";
 import type { DirectConversationSummary } from "@/lib/types";
 import { getSessionUser } from "@/lib/session";
 
@@ -17,7 +18,7 @@ export async function generateMetadata({
 }: PageProps<"/community/[communityId]/messages">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return { title: `${t("dm.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
@@ -117,7 +118,7 @@ export default async function DirectMessagesPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const locale = communityLocale(community);
+  const locale = await getRequestLocale(community);
   const t = translator(locale);
 
   // A deleted conversation is in neither list until a later message.

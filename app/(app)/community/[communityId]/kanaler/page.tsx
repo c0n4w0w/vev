@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import { ChannelAdministration } from "@/components/community/channels/ChannelAdministration";
 import { EmptyState, PageContainer, PageHeader } from "@/components/ui/primitives";
@@ -9,13 +10,13 @@ import {
   getMembership,
 } from "@/lib/data";
 import { isCommunityChannel } from "@/lib/channel-management-form";
-import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/kanaler">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return { title: t("channels.admin.metaTitle", { name: community?.name ?? t("common.communityFallback") }) };
 }
 
@@ -41,7 +42,7 @@ export default async function ChannelAdministrationPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const t = translator(communityLocale(community));
+  const t = translator(await getRequestLocale(community));
 
   const membership = await getMembership(user.id, community.id);
   if (membership?.role !== "admin" || membership.status !== "active") {

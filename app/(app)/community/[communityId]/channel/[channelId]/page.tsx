@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import { ChannelView } from "@/components/community/ChannelView";
 import { ButtonLink, EmptyState, PageContainer } from "@/components/ui/primitives";
@@ -27,7 +28,7 @@ import { channelTakesFiles, isUuid } from "@/lib/channel-resources";
 import { isCommunityChannel } from "@/lib/channel-management-form";
 import { mentionIds } from "@/lib/mentions";
 import { timeAgo } from "@/lib/format";
-import { communityLocale, communityTranslator } from "@/lib/i18n";
+
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -38,7 +39,7 @@ export async function generateMetadata({
     getChannel(channelId),
     getCommunityById(communityId),
   ]);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return {
     title: `#${channel?.name ?? t("channel.fallbackName")} · ${community?.name ?? t("common.communityFallback")}`,
   };
@@ -65,7 +66,7 @@ export default async function ChannelPage({
   // said in place, with the way back, rather than leaving the community.
   if (!community) notFound();
   if (!channel || channel.communityId !== community.id) {
-    const t = communityTranslator(community);
+    const t = await getRequestTranslator(community);
     return (
       <PageContainer width="narrow">
         <EmptyState
@@ -242,7 +243,7 @@ export default async function ChannelPage({
       channelAdmin={channelAdmin ? { sections: channelAdmin[0], counts: channelAdmin[1] } : undefined}
       lastActivityLabel={
         messages.length > 0
-          ? timeAgo(messages[messages.length - 1].createdAt, communityLocale(community))
+          ? timeAgo(messages[messages.length - 1].createdAt, await getRequestLocale(community))
           : undefined
       }
     />

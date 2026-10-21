@@ -29,13 +29,13 @@ import {
 } from "@/lib/collaboration-data";
 import { isRepresented } from "@/lib/collaboration-form";
 import { getCommunitiesForUser, getLocalGroups } from "@/lib/data";
-import { PLATFORM_LOCALE, translator } from "@/lib/i18n";
+import { getRequestTranslator } from "@/lib/i18n/server";
 import { getSessionUser } from "@/lib/session";
 import type { Collaboration, CollaborationUnit } from "@/lib/types";
 
-const t = translator(PLATFORM_LOCALE);
-
-export const metadata: Metadata = { title: t("collab.hub.metaTitle") };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getRequestTranslator())("collab.hub.metaTitle") };
+}
 
 /**
  * The collaboration inbox.
@@ -51,6 +51,7 @@ export const metadata: Metadata = { title: t("collab.hub.metaTitle") };
  * relationship without being on the team, and is shown exactly that.
  */
 export default async function CollaborationsPage() {
+  const t = await getRequestTranslator();
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
@@ -288,7 +289,7 @@ export default async function CollaborationsPage() {
   );
 }
 
-function CollaborationCard({
+async function CollaborationCard({
   collaboration,
   units,
   roles,
@@ -300,6 +301,7 @@ function CollaborationCard({
   cta: string;
 }) {
   const active = units.filter((unit) => unit.status === "active");
+  const t = await getRequestTranslator();
   return (
     <Panel as="li" className="flex min-w-0 flex-col p-5">
       <div className="flex flex-wrap items-center gap-1.5">

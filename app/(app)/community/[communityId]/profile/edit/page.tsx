@@ -1,10 +1,11 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CommunityProfileEditor } from "@/components/community/CommunityProfileEditor";
 import { IconArrowLeft } from "@/components/ui/icons";
 import { PageContainer, PageHeader } from "@/components/ui/primitives";
 import { getCommunityById, getCommunityPersona } from "@/lib/data";
-import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -12,7 +13,7 @@ export async function generateMetadata({
 }: PageProps<"/community/[communityId]/profile/edit">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return {
     title: t("profile.metaTitle", { name: community?.name ?? t("common.communityFallback") }),
   };
@@ -35,7 +36,7 @@ export default async function EditCommunityProfilePage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const t = translator(communityLocale(community));
+  const t = translator(await getRequestLocale(community));
 
   const persona = await getCommunityPersona(community.id, user.id);
 

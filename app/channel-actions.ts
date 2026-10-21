@@ -1,5 +1,7 @@
 "use server";
 
+import { getRequestTranslator } from "@/lib/i18n/server";
+
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
@@ -23,7 +25,7 @@ import {
   normalizeSectionName,
   type ChannelManageFormState,
 } from "@/lib/channel-management-form";
-import { communityTranslator, type Translator } from "@/lib/i18n";
+import { type Translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 /**
@@ -45,7 +47,7 @@ async function session(formData: FormData): Promise<{ communityId: string; t: Tr
   if (!user) redirect("/login");
   const communityId = field(formData, "communityId");
   const community = communityId ? await getCommunityById(communityId) : undefined;
-  return { communityId: community?.id ?? "", t: communityTranslator(community) };
+  return { communityId: community?.id ?? "", t: (await getRequestTranslator(community)) };
 }
 
 function field(formData: FormData, name: string): string {

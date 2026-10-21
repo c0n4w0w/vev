@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { EventCard } from "@/components/community/EventCard";
@@ -29,14 +30,14 @@ import {
   getCommunityPersonas,
 } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
-import { communityLocale, communityTranslator, translator, type Locale } from "@/lib/i18n";
+import { translator, type Locale } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 import type { Community, CommunityPersona, Post } from "@/lib/types";
 
 export async function generateMetadata({ params }: PageProps<"/community/[communityId]/lokallag">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return {
     title: t("lokallag.metaTitle", { name: community?.name ?? t("common.communityFallback") }),
   };
@@ -106,7 +107,7 @@ export default async function LocalGroupsPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const locale = communityLocale(community);
+  const locale = await getRequestLocale(community);
   const t = translator(locale);
 
   const [membership, groups] = await Promise.all([

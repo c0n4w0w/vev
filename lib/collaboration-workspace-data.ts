@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import "server-only";
 
 import { cache } from "react";
@@ -90,7 +91,7 @@ export const loadWorkspace = cache(async (slug: string): Promise<Workspace> => {
     collaboration,
     me,
     manager,
-    t: translator(collaboration.defaultLocale),
+    t: translator(await getRequestLocale(collaboration)),
     base,
   };
 });

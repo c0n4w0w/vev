@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import { RequestQueue } from "@/components/community/RequestQueue";
 import { EmptyState, PageContainer, PageHeader } from "@/components/ui/primitives";
@@ -8,7 +9,7 @@ import {
   getInvitations,
   getMembership,
 } from "@/lib/data";
-import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -16,7 +17,7 @@ export async function generateMetadata({
 }: PageProps<"/community/[communityId]/requests">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return { title: `${t("requests.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
@@ -29,7 +30,7 @@ export default async function AccessRequestsPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const t = translator(communityLocale(community));
+  const t = translator(await getRequestLocale(community));
 
   const membership = await getMembership(user.id, community.id);
   const isAdmin = membership?.role === "admin";

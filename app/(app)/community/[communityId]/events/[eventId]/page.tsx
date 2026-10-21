@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { EventAdminMenu } from "@/components/community/EventAdminMenu";
@@ -16,7 +17,7 @@ import {
   now,
 } from "@/lib/data";
 import { formatEventRange, timeUntil } from "@/lib/format";
-import { communityLocale, communityTranslator, tn, translator } from "@/lib/i18n";
+import { tn, translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -24,7 +25,7 @@ export async function generateMetadata({
 }: PageProps<"/community/[communityId]/events/[eventId]">) {
   const { communityId, eventId } = await params;
   const [community, event] = await Promise.all([getCommunityById(communityId), getEvent(eventId)]);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return {
     title: event ? t("events.detailTitle", { title: event.title }) : t("events.detailFallback"),
   };
@@ -64,7 +65,7 @@ export default async function EventDetailPage({
 
   const [community, event] = await Promise.all([getCommunityById(communityId), getEvent(eventId)]);
   if (!community || !event || event.communityId !== community.id) notFound();
-  const locale = communityLocale(community);
+  const locale = await getRequestLocale(community);
   const t = translator(locale);
 
   const [host, roster, canManage, canDelete] = await Promise.all([

@@ -1,3 +1,4 @@
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import { EmojiManager } from "@/components/community/EmojiManager";
 import { PageContainer, PageHeader } from "@/components/ui/primitives";
@@ -7,7 +8,7 @@ import {
   getCommunityPersonas,
   getMembership,
 } from "@/lib/data";
-import { communityLocale, communityTranslator, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
 import { getSessionUser } from "@/lib/session";
 
 export async function generateMetadata({
@@ -15,7 +16,7 @@ export async function generateMetadata({
 }: PageProps<"/community/[communityId]/emojis">) {
   const { communityId } = await params;
   const community = await getCommunityById(communityId);
-  const t = communityTranslator(community);
+  const t = await getRequestTranslator(community);
   return { title: `${t("emoji.title")} · ${community?.name ?? t("common.communityFallback")}` };
 }
 
@@ -28,7 +29,7 @@ export default async function CommunityEmojisPage({
 
   const community = await getCommunityById(communityId);
   if (!community) notFound();
-  const t = translator(communityLocale(community));
+  const t = translator(await getRequestLocale(community));
 
   const [membership, emojis] = await Promise.all([
     getMembership(user.id, community.id),

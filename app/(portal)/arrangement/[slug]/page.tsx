@@ -7,11 +7,12 @@ import { RichText, buttonClass, cn } from "@/components/ui/primitives";
 import { getPublicEvent } from "@/lib/collaboration-workspace-data";
 import { formatDateParts, formatFullDate, formatTime, formatWeekday, isSameDay } from "@/lib/format";
 import { translator } from "@/lib/i18n";
+import { getRequestLocale, getRequestTranslator } from "@/lib/i18n/server";
 
 export async function generateMetadata({ params }: PageProps<"/arrangement/[slug]">) {
   const { slug } = await params;
   const event = await getPublicEvent(slug);
-  if (!event) return { title: translator("nb")("pubevent.notFoundTitle") };
+  if (!event) return { title: (await getRequestTranslator())("pubevent.notFoundTitle") };
   return {
     title: event.title,
     description: event.description?.slice(0, 155),
@@ -34,8 +35,8 @@ export default async function PublicEventPage({ params }: PageProps<"/arrangemen
   const { slug } = await params;
   const event = await getPublicEvent(slug);
   if (!event) notFound();
-  const t = translator(event.locale);
-  const locale = event.locale;
+  const locale = await getRequestLocale(event.locale);
+  const t = translator(locale);
   // "torsdag 22. oktober 2026, 18.00–21.00" — with the year, since a public
   // page may be read long before or after.
   const day = `${formatDateParts(event.startsAt, locale).weekday} ${formatFullDate(event.startsAt, locale)}`;

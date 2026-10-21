@@ -4,14 +4,18 @@ import { AccountShell } from "@/components/account/AccountShell";
 import { ConfirmEmailChange } from "@/components/account/ConfirmEmailChange";
 import { buttonClass } from "@/components/ui/primitives";
 import { getAccountSecurity } from "@/lib/account-security";
-import { PLATFORM_LOCALE, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
+import { accountPath } from "@/lib/account-locale";
+import { authLocale } from "@/lib/account-locale-server";
 import { LocaleProvider } from "@/lib/i18n/react";
 
-export const metadata: Metadata = {
-  title: translator(PLATFORM_LOCALE)("confirmEmail.metaTitle"),
-  // The URL carries a single-use token. Never hand it to another site.
-  referrer: "no-referrer",
-};
+export async function generateMetadata({ searchParams }: PageProps<"/bekreft-e-post">): Promise<Metadata> {
+  return {
+    title: translator(await authLocale((await searchParams).locale))("confirmEmail.metaTitle"),
+    // The URL carries a single-use token. Never hand it to another site.
+    referrer: "no-referrer",
+  };
+}
 
 /**
  * Where the confirmation sent to a new email address leads.
@@ -23,9 +27,9 @@ export const metadata: Metadata = {
  * not have. The old address is not needed for any of this.
  */
 export default async function ConfirmEmailPage({ searchParams }: PageProps<"/bekreft-e-post">) {
-  const { token_hash: tokenHashParam, endret } = await searchParams;
+  const { token_hash: tokenHashParam, endret, locale: localeParam } = await searchParams;
   const tokenHash = typeof tokenHashParam === "string" && tokenHashParam ? tokenHashParam : undefined;
-  const locale = PLATFORM_LOCALE;
+  const locale = await authLocale(localeParam);
   const t = translator(locale);
 
   // Where the button lands once the change has gone through. The page reports
@@ -43,7 +47,7 @@ export default async function ConfirmEmailPage({ searchParams }: PageProps<"/bek
           <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-2 [overflow-wrap:anywhere]">
             {t("confirmEmail.done.body", { email: account.email })}
           </p>
-          <Link href="/profile" className={`${buttonClass({ variant: "secondary" })} mt-8`}>
+          <Link href={accountPath("/profile", locale)} className={`${buttonClass({ variant: "secondary" })} mt-8`}>
             {t("confirmEmail.toAccount")}
           </Link>
         </AccountShell>
@@ -58,7 +62,7 @@ export default async function ConfirmEmailPage({ searchParams }: PageProps<"/bek
           {t("confirmEmail.invalid.title")}
         </h1>
         <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-2">{t("confirmEmail.invalid.body")}</p>
-        <Link href="/profile" className={`${buttonClass({ variant: "secondary" })} mt-8`}>
+        <Link href={accountPath("/profile", locale)} className={`${buttonClass({ variant: "secondary" })} mt-8`}>
           {t("confirmEmail.toAccount")}
         </Link>
       </AccountShell>
@@ -66,7 +70,7 @@ export default async function ConfirmEmailPage({ searchParams }: PageProps<"/bek
   }
 
   const security = await getAccountSecurity();
-  const here = `/bekreft-e-post?token_hash=${encodeURIComponent(tokenHash)}`;
+  const here = accountPath(`/bekreft-e-post?token_hash=${encodeURIComponent(tokenHash)}`, locale);
 
   return (
     <AccountShell locale={locale}>
@@ -86,7 +90,7 @@ export default async function ConfirmEmailPage({ searchParams }: PageProps<"/bek
           <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-2 [overflow-wrap:anywhere]">
             {t("confirmEmail.none.body", { email: security.email })}
           </p>
-          <Link href="/profile" className={`${buttonClass({ variant: "secondary" })} mt-8`}>
+          <Link href={accountPath("/profile", locale)} className={`${buttonClass({ variant: "secondary" })} mt-8`}>
             {t("confirmEmail.toAccount")}
           </Link>
         </>

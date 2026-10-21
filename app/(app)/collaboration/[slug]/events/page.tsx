@@ -1,3 +1,4 @@
+import { getRequestLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { EventForm } from "@/components/collaboration/workspace/EventForms";
 import { IconCalendar, IconGlobe, IconPlus } from "@/components/ui/icons";
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: PageProps<"/collaboration/[sl
 export default async function EventsPage({ params }: PageProps<"/collaboration/[slug]/events">) {
   const { slug } = await params;
   const { collaboration, manager, t, base } = await loadWorkspace(slug);
-  const locale = collaboration.defaultLocale;
+  const locale = await getRequestLocale(collaboration);
   const [events, publications] = await Promise.all([
     getEvents(collaboration.id),
     getPublications(collaboration.id),

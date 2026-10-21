@@ -25,8 +25,12 @@ export const shell = {
   "shell.openMenu": "Åpne meny",
   "shell.closeMenu": "Lukk meny",
 
+  "home.discovery.heading": "Hvorfor ingen «utforsk»-side?",
+  "home.discovery.body":
+    "Fellesskap på TING finner du gjennom invitasjoner eller organisasjonenes egne nettsider, ikke i en offentlig katalog.",
+
   "shell.platform.home": "Hjem",
-  "shell.platform.communities": "Mine fellesskap",
+  "shell.platform.communities": "MINE FELLESSKAP",
   "shell.platform.collaborations": "Samarbeid",
   "shell.platform.events": "Arrangementer",
   "shell.platform.notifications": "Varsler",

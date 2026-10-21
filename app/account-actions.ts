@@ -21,6 +21,8 @@ import type {
   SignInFormState,
 } from "@/lib/account-form";
 import { acceptInvitationToken } from "@/lib/data";
+import { accountPath } from "@/lib/account-locale";
+import { rememberAuthLocale } from "@/lib/account-locale-server";
 import { parseLocale, tn, translator, type Locale, type Translator } from "@/lib/i18n";
 import {
   checkNewPassword,
@@ -147,6 +149,7 @@ export async function requestPasswordResetAction(
   if (!looksLikeEmail(email)) return { status: "error", message: t("forgot.err.email"), email };
 
   const outcome = await requestPasswordReset(email);
+  await rememberAuthLocale(formLocale(formData));
   return outcome === "unavailable"
     ? { status: "error", message: t("password.err.unavailable"), email }
     : { status: "sent", email };
@@ -292,6 +295,7 @@ export async function requestEmailChangeAction(
   const outcome = await requestEmailChange({ currentPassword, newEmail: email });
   switch (outcome.status) {
     case "sent":
+      await rememberAuthLocale(formLocale(formData));
       revalidatePath("/profile");
       return { status: "sent", email };
     case "signed-out":
@@ -342,10 +346,10 @@ export async function confirmEmailChangeAction(
       revalidatePath("/", "layout");
       // To a page that says so. The one the button was on re-renders with
       // nothing pending any more, so it cannot be the one to report success.
-      redirect("/bekreft-e-post?endret=1");
+      redirect(accountPath("/bekreft-e-post?endret=1", formLocale(formData)));
     case "signed-out":
       redirect(
-        `/login?neste=${encodeURIComponent(`/bekreft-e-post?token_hash=${encodeURIComponent(tokenHash)}`)}`,
+        `/login?neste=${encodeURIComponent(accountPath(`/bekreft-e-post?token_hash=${encodeURIComponent(tokenHash)}`, formLocale(formData)))}`,
       );
     case "none":
       return { status: "none" };

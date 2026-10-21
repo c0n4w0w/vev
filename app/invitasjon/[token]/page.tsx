@@ -9,14 +9,15 @@ import { IconLock, IconMail } from "@/components/ui/icons";
 import { getInvitationPreview, getPortalCommunity } from "@/lib/data";
 import { formatFullDate } from "@/lib/format";
 import { getSessionUser } from "@/lib/session";
-import { PLATFORM_LOCALE, translator, type Locale } from "@/lib/i18n";
+import { translator, type Locale } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n/server";
 import { LocaleProvider } from "@/lib/i18n/react";
 
 export async function generateMetadata({ params }: PageProps<"/invitasjon/[token]">) {
   const { token } = await params;
   const preview = await getInvitationPreview(token);
   return {
-    title: translator(preview?.communityLocale ?? PLATFORM_LOCALE)("inv.metaTitle"),
+    title: translator(await getRequestLocale(preview?.communityLocale))("inv.metaTitle"),
     // The URL can carry a sign-in token. Never hand it to another site.
     referrer: "no-referrer" as const,
   };
@@ -48,7 +49,7 @@ export default async function InvitationPage({
   // The page speaks the language of the community the invitation is for. A
   // token that names nothing (spent, expired, invented) has no community to
   // borrow one from, and reads in the platform's.
-  const locale = preview?.communityLocale ?? PLATFORM_LOCALE;
+  const locale = await getRequestLocale(preview?.communityLocale);
   const t = translator(locale);
 
   if (!preview) {

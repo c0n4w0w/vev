@@ -48,7 +48,7 @@ export function EmailChangeForm({ currentEmail }: { currentEmail: string }) {
         placeholder={t("login.emailPlaceholder")}
       />
       <Field
-        id="current"
+        id="email-current"
         name="current"
         type="password"
         required
