@@ -1,0 +1,329 @@
+/*
+ * Front page illustration and motion system.
+ *
+ * Rules:
+ * - Every element's resting style is its final, fully visible state. Motion is
+ *   only layered on under `prefers-reduced-motion: no-preference`, so people who
+ *   ask for less motion, and browsers without JavaScript, always see the whole
+ *   page.
+ * - Below-the-fold motion waits for `RevealObserver`, which marks sections
+ *   `data-reveal="hidden"` (only if they start out of view) and then "shown".
+ * - Never put an animated class on an SVG element that also has a `transform`
+ *   attribute: the CSS transform would replace it. Nest a <g> instead.
+ */
+
+.landing {
+  --l-cream: #f7f1e3;
+  --l-spruce: #214e43;
+  --l-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.landing svg :is(
+    .l-assemble,
+    .l-pop-load,
+    .l-float,
+    .l-pulse,
+    .l-pop,
+    .l-appear,
+    .l-in-left,
+    .l-in-right,
+    .l-travel,
+    .l-drop,
+    .l-orbit
+  ) {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Cards that respond to the pointer. */
+.l-lift {
+  transition:
+    transform 260ms var(--l-ease),
+    box-shadow 260ms var(--l-ease);
+}
+.l-lift:hover {
+  box-shadow: 0 18px 40px -22px rgb(23 58 48 / 0.35);
+}
+
+/* Primary buttons on the front page get a little more presence. */
+.l-cta {
+  transition:
+    transform 200ms var(--l-ease),
+    box-shadow 200ms var(--l-ease),
+    background-color 150ms ease;
+}
+.l-cta:hover {
+  box-shadow: 0 10px 24px -14px rgb(23 58 48 / 0.55);
+}
+.l-cta:focus-visible {
+  outline: 2px solid var(--color-skog);
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+.l-cta-arrow {
+  transition: transform 200ms var(--l-ease);
+}
+.l-cta:hover .l-cta-arrow {
+  transform: translateX(3px);
+}
+
+@keyframes l-assemble {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes l-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes l-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes l-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes l-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes l-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-48px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes l-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(48px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes l-travel {
+  from {
+    transform: translate(var(--from-x, 0), var(--from-y, 0));
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes l-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .l-lift:hover {
+    transform: translateY(-4px);
+  }
+  .l-cta:hover {
+    transform: translateY(-1px);
+  }
+
+  /* ── Initial load (hero only) ─────────────────────────────────────── */
+  .l-assemble {
+    animation: l-assemble 700ms var(--l-ease) both;
+    animation-delay: var(--d, 0ms);
+  }
+  .l-fade-in {
+    animation: l-fade 900ms ease-out both;
+    animation-delay: var(--d, 0ms);
+  }
+  .l-draw-load {
+    stroke-dasharray: 1;
+    animation: l-draw 1100ms var(--l-ease) both;
+    animation-delay: var(--d, 0ms);
+  }
+  .l-pop-load {
+    animation: l-pop 520ms var(--l-ease) both;
+    animation-delay: var(--d, 0ms);
+  }
+
+  /* Gentle, small idle drift. Different timing per element via --dur/--d. */
+  .l-float {
+    animation: l-float var(--dur, 7s) ease-in-out infinite;
+    animation-delay: var(--fd, 0s);
+  }
+
+  .l-pulse {
+    animation: l-pulse 4s ease-in-out infinite;
+  }
+
+  /* ── Reveal on scroll ─────────────────────────────────────────────── */
+  [data-reveal] {
+    transition:
+      opacity 700ms var(--l-ease),
+      transform 700ms var(--l-ease);
+  }
+  [data-reveal="hidden"] {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  /* Staggered children: the section itself stays put. */
+  [data-reveal-stagger] {
+    transition: none;
+  }
+  [data-reveal-stagger="hidden"] {
+    opacity: 1;
+    transform: none;
+  }
+  [data-reveal-stagger] > * {
+    transition:
+      opacity 650ms var(--l-ease),
+      transform 650ms var(--l-ease);
+    transition-delay: calc(var(--i, 0) * 110ms);
+  }
+  [data-reveal-stagger="hidden"] > * {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  /* Pieces that play once their section is revealed. */
+  [data-reveal="hidden"] .l-draw,
+  [data-reveal-stagger="hidden"] .l-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  [data-reveal="shown"] .l-draw,
+  [data-reveal-stagger="shown"] .l-draw {
+    stroke-dasharray: 1;
+    animation: l-draw 1200ms var(--l-ease) both;
+    animation-delay: var(--d, 200ms);
+  }
+
+  [data-reveal="hidden"] .l-pop,
+  [data-reveal="hidden"] .l-in-left,
+  [data-reveal="hidden"] .l-in-right,
+  [data-reveal="hidden"] .l-appear {
+    opacity: 0;
+  }
+  [data-reveal="shown"] .l-pop {
+    animation: l-pop 560ms var(--l-ease) both;
+    animation-delay: var(--d, 0ms);
+  }
+  [data-reveal="shown"] .l-appear {
+    animation: l-assemble 700ms var(--l-ease) both;
+    animation-delay: var(--d, 0ms);
+  }
+  [data-reveal="shown"] .l-in-left {
+    animation: l-from-left 900ms var(--l-ease) both;
+    animation-delay: var(--d, 0ms);
+  }
+  [data-reveal="shown"] .l-in-right {
+    animation: l-from-right 900ms var(--l-ease) both;
+    animation-delay: var(--d, 0ms);
+  }
+  /* People walking from their own organisation into a shared room. */
+  [data-reveal="hidden"] .l-travel {
+    transform: translate(var(--from-x, 0), var(--from-y, 0));
+    opacity: 0;
+  }
+  [data-reveal="shown"] .l-travel {
+    animation:
+      l-travel 1100ms var(--l-ease) both,
+      l-fade 300ms ease-out both;
+    animation-delay: var(--d, 0ms);
+  }
+}
+
+/* Privacy scenes react to their card being hovered or focused. These
+   groups rotate around their own local origin (the pin, the banner centre,
+   the key's bow), which is SVG's default transform origin. */
+.l-ad,
+.l-tag,
+.l-key {
+  transition: transform 500ms var(--l-ease);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .group:hover .l-ad,
+  .group:focus-within .l-ad {
+    transform: translate(10px, 16px) rotate(12deg);
+  }
+  .group:hover .l-tag,
+  .group:focus-within .l-tag {
+    transform: rotate(-9deg);
+  }
+  .group:hover .l-key,
+  .group:focus-within .l-key {
+    transform: translateX(10px) rotate(-6deg);
+  }
+}
+
+/* Philosophy section: people drifting into the attention funnel, and money
+   circling back around the loop. Both are small, slow and stop entirely for
+   reduced motion, where the resting drawing already tells the story. */
+@keyframes l-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  20%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(70px) scale(0.7);
+  }
+}
+@keyframes l-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .l-drop {
+    animation: l-drop 3.4s ease-in infinite;
+    animation-delay: var(--fd, 0s);
+  }
+  .l-orbit {
+    animation: l-orbit 16s linear infinite;
+  }
+  .l-orbit-slow {
+    animation-duration: 22s;
+  }
+}

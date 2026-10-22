@@ -30,6 +30,19 @@
 
   --color-sand: #d9cfc0;
 
+  /* Brand cream from the logo system, and the front page illustration accents.
+     Used sparingly, as soft surfaces behind spruce and ink. */
+  --color-cream: #f7f1e3;
+  --color-skog-deep: #173a30;
+  --color-sage: #dbe8dc;
+  --color-sage-2: #9fc0a8;
+  --color-sky: #d8e6ee;
+  --color-sky-2: #8fb3c7;
+  --color-lavender: #e4def0;
+  --color-lavender-2: #a99bc8;
+  --color-peach: #f7dcc8;
+  --color-peach-2: #e3a682;
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-serif-display), ui-serif, Georgia, serif;
 }
