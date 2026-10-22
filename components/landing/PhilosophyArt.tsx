@@ -273,7 +273,8 @@ export function ReinvestArt() {
 
 // ── Shaped by the people using it ────────────────────────────────────────
 
-/** Five stations around a loop with the platform in the middle. */
+/** Five stations around a loop with the platform in the middle. The page
+ * names the steps in a caption beneath. */
 export function FeedbackLoopArt() {
   const pts = [
     { x: 174, y: 96 },
@@ -358,12 +359,6 @@ export function FeedbackLoopArt() {
                 <path d="M0 2 C-7 -3 -9 -6 -9 -9 C-9 -11.5 -7 -13.5 -4.6 -13.5 C-2.4 -13.5 -1 -12.2 0 -10.8 C1 -12.2 2.4 -13.5 4.6 -13.5 C7 -13.5 9 -11.5 9 -9 C9 -6 7 -3 0 2Z" fill={ink.peach3} />
               </g>
             ) : null}
-            <g transform="translate(34 -36)">
-              <circle r={13} fill={ink.spruce} />
-              <text dy="0.35em" textAnchor="middle" fontSize={12} fontWeight={700} fill={ink.cream}>
-                {i + 1}
-              </text>
-            </g>
           </g>
         </g>
       ))}
