@@ -344,7 +344,7 @@ export const community = {
   "dm.disappearing.menu": "Forsvinnende meldinger",
   "dm.disappearing.title": "Forsvinnende meldinger",
   "dm.disappearing.lead":
-    "Velg når nye meldinger skal forsvinne etter at de er lest. Uleste meldinger forsvinner etter 30 dager.",
+    "Nye meldinger forsvinner for dere begge. Uleste meldinger forsvinner etter 30 dager. Når mottakeren har lest en melding, gjelder varigheten du velger fra første gang den ble lest.",
   "dm.disappearing.scope": "Gjelder begge deltakerne. Eksisterende meldinger påvirkes ikke.",
   "dm.disappearing.retention":
     "Når en melding forsvinner, slettes den og vedleggene fra TING i løpet av noen minutter. Kopier kan ligge igjen i krypterte sikkerhetskopier hos driftsleverandøren vår i opptil {days} dager. Den andre personen kan fortsatt lagre, kopiere eller ta skjermbilde av det du sender.",

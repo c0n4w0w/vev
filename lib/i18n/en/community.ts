@@ -346,7 +346,7 @@ export const community: Record<keyof typeof nb, string> = {
   "dm.disappearing.menu": "Disappearing messages",
   "dm.disappearing.title": "Disappearing messages",
   "dm.disappearing.lead":
-    "Choose when new messages disappear after being read. Unread messages disappear after 30 days.",
+    "New messages disappear for both of you. Unread messages disappear after 30 days. Once the recipient has read a message, the duration you choose applies from that first read.",
   "dm.disappearing.scope": "Applies to both participants. Existing messages are unaffected.",
   "dm.disappearing.retention":
     "When a message disappears, it is deleted from TING with its attachments within minutes. Copies can remain in our hosting provider's encrypted backups for up to {days} days. The other person can still save, copy or take a screenshot of anything you send.",
