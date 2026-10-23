@@ -80,8 +80,11 @@ export default async function InvitationPage({
   // decided when they asked, and an administrator decided when they approved.
   // Logging in here is proof of identity, not a second decision, so the copy
   // and the accept step below both avoid asking "do you want this".
-  const label = preview.autoActivate ? t("inv.label.approved") : t("inv.label.invitation");
-  const lede = preview.autoActivate ? t("inv.lede.approved") : t("inv.lede.invited");
+  // An administrator invitation comes from TING itself, not from an answered
+  // request, and says so.
+  const admin = preview.invitedRole === "admin";
+  const label = admin ? t("inv.label.admin") : preview.autoActivate ? t("inv.label.approved") : t("inv.label.invitation");
+  const lede = admin ? t("inv.lede.admin") : preview.autoActivate ? t("inv.lede.approved") : t("inv.lede.invited");
   const loginForInvitation = `/login?e=${encodeURIComponent(preview.email)}&neste=${encodeURIComponent(`/invitasjon/${token}`)}`;
   const recovery = {
     title: t("inv.link.expired.title"),
@@ -108,7 +111,7 @@ export default async function InvitationPage({
         ) : null}
         <h1 className="font-display text-[2rem] leading-tight text-ink">
           {preview.communityName}
-          {preview.autoActivate ? t("inv.approvedSuffix") : ""}
+          {preview.autoActivate && !admin ? t("inv.approvedSuffix") : ""}
         </h1>
       </div>
       <p className="mt-2 text-[0.9375rem] text-ink-2">

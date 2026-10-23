@@ -2267,6 +2267,8 @@ function invitationFailure(reason: string): MessageKey {
       return "err.invitation.expired";
     case "revoked":
       return "err.invitation.revoked";
+    case "admin-taken":
+      return "err.invitation.adminTaken";
     default:
       return "err.invitation.invalid";
   }

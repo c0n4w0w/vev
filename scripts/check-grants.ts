@@ -135,10 +135,24 @@ const SERVER_ONLY = [
   "auth_throttle",
   "channel_retired_ids",
   "collaboration_audit_log",
+  "community_platform_state",
   "message_attachment_purges",
   "message_mentions",
   "message_moderation_log",
+  "platform_audit_log",
+  "platform_onboarding_attempts",
+  "platform_onboarding_requests",
+  "platform_operators",
 ];
+
+/**
+ * The server's key holds read and write on every table, with these
+ * exceptions. The platform audit log only grows: the key may read it, and
+ * entries are written by the platform functions (20261113100000).
+ */
+const SERVICE_ROLE_TABLE_EXCEPTIONS: Record<string, string> = {
+  platform_audit_log: "SELECT",
+};
 
 const ANON_FUNCTIONS = [
   "invitation_preview(text)",
@@ -163,8 +177,10 @@ const SERVICE_ROLE_FUNCTIONS = [
   "normalize_display_name(text)",
   "normalize_email(text)",
   "password_throttle_key(text)",
+  "platform_bootstrap_owner(text,boolean)",
   "purge_expired_direct_messages(integer,uuid[])",
   "purge_restored_disappearing_direct_messages(timestamp with time zone,uuid[])",
+  "submit_onboarding_request(text,text,text,text,integer,text,text)",
   "sweep_abandoned_message_attachments(interval)",
 ];
 
@@ -178,6 +194,17 @@ const NEVER_AUTHENTICATED = [
   "purge_restored_disappearing_direct_messages(timestamp with time zone,uuid[])",
   "sweep_abandoned_message_attachments(interval)",
   "local_group_slug(text)",
+  // Platform administration: the server's command line and public form,
+  // and the internals every platform function goes through.
+  "platform_bootstrap_owner(text,boolean)",
+  "submit_onboarding_request(text,text,text,text,integer,text,text)",
+  "platform_audit(text,text,text,text,jsonb)",
+  "platform_require(boolean,boolean)",
+  "platform_caller_role()",
+  "platform_designate_admin(text,text,boolean)",
+  "platform_write_bypass()",
+  "is_community_suspended(text)",
+  "suspension_community_of(text,text)",
 ];
 
 // ── 1. The catalog ────────────────────────────────────────────────────────
@@ -214,7 +241,9 @@ function checkCatalog() {
 
   // Table-level privileges, exactly.
   const expected = new Map<string, string>();
-  for (const [name] of tables) expected.set(`service_role|${name}`, "DELETE,INSERT,SELECT,UPDATE");
+  for (const [name] of tables) {
+    expected.set(`service_role|${name}`, SERVICE_ROLE_TABLE_EXCEPTIONS[name] ?? "DELETE,INSERT,SELECT,UPDATE");
+  }
   for (const name of AUTHENTICATED_READ) {
     expected.set(`authenticated|${name}`, ["SELECT", ...(AUTHENTICATED_WRITE[name] ?? [])].sort().join(","));
   }

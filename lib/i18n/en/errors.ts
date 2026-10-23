@@ -219,6 +219,7 @@ export const errors: Record<keyof typeof nb, string> = {
   "err.invitation.revoked":
     "This invitation has been replaced by a newer one. Use the most recent link you received.",
   "err.invitation.invalid": "This invitation isn't valid.",
+  "err.invitation.adminTaken": "The community has been given another administrator in the meantime. Please contact TING.",
   "err.authUnavailable": "We can't reach sign-in right now. The link hasn't been used up – try again in a moment.",
   "err.notificationsFailed": "Notifications couldn't be marked as read. Try again.",
 };

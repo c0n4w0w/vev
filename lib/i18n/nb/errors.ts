@@ -222,6 +222,7 @@ export const errors = {
   "err.invitation.revoked":
     "Invitasjonen er erstattet av en nyere. Bruk den siste lenken du fikk.",
   "err.invitation.invalid": "Invitasjonen er ikke gyldig.",
+  "err.invitation.adminTaken": "Fellesskapet har fått en annen administrator i mellomtiden. Ta kontakt med TING.",
   "err.authUnavailable": "Vi får ikke kontakt med innloggingen akkurat nå. Lenken er ikke brukt opp – prøv igjen om litt.",
   "err.notificationsFailed": "Varslene kunne ikke merkes som lest. Prøv igjen.",
 } as const;

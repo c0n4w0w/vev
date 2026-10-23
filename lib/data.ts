@@ -3880,6 +3880,8 @@ export interface InvitationPreview {
   autoActivate: boolean;
   /** The language the community works in — decides which words the page uses. */
   communityLocale: Locale;
+  /** `admin` when TING appointed the recipient as the community's administrator. */
+  invitedRole: "member" | "admin";
 }
 
 /**
@@ -3900,6 +3902,7 @@ export async function getInvitationPreview(token: string): Promise<InvitationPre
     expiresAt: row.expires_at,
     autoActivate: row.auto_activate,
     communityLocale: parseLocale(row.community_default_locale),
+    invitedRole: row.invited_role === "admin" ? "admin" : "member",
   };
 }
 

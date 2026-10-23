@@ -589,6 +589,29 @@ Rekkefølgen for en ny installasjon: migrasjonene → `npm run bootstrap` →
 administratorene oppretter kontoene sine → `npm run bootstrap:admin` for hvert
 fellesskap. Alle andre kommer inn gjennom «Be om tilgang» og godkjenning.
 
+### 9. Plattformadministrasjon – `/platform-admin`
+
+TINGs eget driftsverktøy for å opprette og følge opp organisasjoner,
+behandle forespørsler fra `/samarbeid`, suspendere og reaktivere fellesskap og
+styre hvem som driver plattformen. Plattformroller (eier, operatør) ligger i
+`platform_operators`, helt adskilt fra rollene i fellesskapene, og krever
+tofaktorinnlogging (TOTP, AAL2) for alt. En operatør får metadata og
+aggregater – aldri samtaler, direktemeldinger, innlegg eller medlemslister –
+og blir ikke medlem av noe. Alt registreres i en revisjonslogg som bare kan
+vokse.
+
+Første eier utnevnes fra serverens kommandolinje, etter at kontoen er
+opprettet og har passord:
+
+```bash
+npm run platform:owner -- --email deg@eksempel.no --confirm
+```
+
+Nye fellesskap kan fortsatt opprettes med `npm run bootstrap` for de tre
+opprinnelige; alle andre opprettes i dashbordet. Rollemodell, suspensjon,
+personvern, gjenoppretting, tester (`npm run check:platform-admin`) og hva som
+må gjøres før produksjon: `docs/platform-admin.md`.
+
 ## Fellesskapene
 
 Tre organisasjoner brukes som utstillingsvindu. De deler plattform og
@@ -646,6 +669,8 @@ databasen — ikke bare i applikasjonskoden.
 - **Det finnes ingen katalog.** `communities` kan bare leses av noen som allerede
   har en rad i `memberships` for akkurat det fellesskapet. Det finnes ingen
   spørring som returnerer «alle fellesskap», heller ikke for en innlogget bruker.
+  Eneste unntak er TINGs egne plattformadministratorer, som får en liste med
+  navn, status og antall – bak MFA, uten innhold (`docs/platform-admin.md`).
 - **Portalene går utenom tabellen.** `/under-the-rug` og de andre hentes med
   databasefunksjonen `portal_by_slug(slug)`, som tar én nøyaktig slug og
   returnerer én rad. En lenke virker; API-et kan ikke vandres.
@@ -695,6 +720,8 @@ app/
       channel/[channelId]/  Kanal og samtale
       kanaler/              Administratorenes kanaler og seksjoner
   (portal)/[portalSlug]/    Offentlig portal per organisasjon
+  platform-admin/           TINGs driftsverktøy (bare plattformadministratorer, med MFA)
+  samarbeid/                Offentlig skjema: organisasjoner ber om å bli med
 proxy.ts                    Fornyer Supabase-sesjonen (het middleware før v16)
 components/
   ui/                       Ikoner og primitiver
@@ -713,12 +740,14 @@ lib/
   supabase/                 Klienter, miljøvariabler, databasetyper
   email/                    TINGs egen e-post: velkomsten, og hvordan den sendes (fil eller SMTP)
   bootstrap/                Hva en ekte installasjon starter med, og første administrator
+  platform/                 Plattformadministrasjon: tilgang, data, skjemaer, e-post
   mock/                     Innhold til seed-skriptet. Ikke i bruk i appen
 supabase/
   migrations/               Skjema, radsikkerhet, funksjoner
 scripts/seed.ts             Fyller en showcase-database med testdata
 scripts/bootstrap.ts        Oppretter fellesskapene i en ekte installasjon
 scripts/bootstrap-admin.ts  Utnevner første administrator
+scripts/platform-owner.ts   Utnevner første plattformeier (og gjenoppretter)
 scripts/check-*.ts          Sjekker mot den lokale stakken (`npm run check:<navn>`)
 ```
 

@@ -26,6 +26,11 @@ export interface InvitationEmailInput {
   /** Absolute URL. Carries the invitation token and, when minted, the sign-in token. */
   acceptUrl: string;
   kind: "new" | "existing";
+  /**
+   * `admin` when TING appointed the recipient as the community's
+   * administrator (the platform dashboard). Only the words differ.
+   */
+  role?: "member" | "admin";
   /** When the sign-in part of the link stops working; absent if none was minted. */
   signInExpiresAt?: string;
   /** When the invitation itself expires (`new` only). */
@@ -88,9 +93,12 @@ export function buildInvitationEmail(input: InvitationEmailInput) {
   const t = translator(locale);
   const community = input.communityName;
 
-  const subject = t("email.welcome.subject", { community });
-  const heading = t("email.welcome.heading", { community });
-  const body = t(input.kind === "new" ? "email.welcome.body" : "email.welcome.bodyExisting", { community });
+  const admin = input.role === "admin";
+  const subject = t(admin ? "email.admin.subject" : "email.welcome.subject", { community });
+  const heading = t(admin ? "email.admin.heading" : "email.welcome.heading", { community });
+  const body = admin
+    ? t(input.kind === "new" ? "email.admin.body" : "email.admin.bodyExisting", { community })
+    : t(input.kind === "new" ? "email.welcome.body" : "email.welcome.bodyExisting", { community });
   const logoSrc = escapeHtml(new URL(EMAIL_LOGO.path, input.origin).href);
   const button = t("email.welcome.button");
 
@@ -109,7 +117,7 @@ export function buildInvitationEmail(input: InvitationEmailInput) {
     signIn ? t("email.welcome.signIn", signIn) : t("email.welcome.personal"),
     ...(invitationUntil ? [t("email.welcome.invitationUntil", { date: invitationUntil })] : []),
   ].join(" ");
-  const ignore = t("email.welcome.ignore");
+  const ignore = t(admin ? "email.admin.ignore" : "email.welcome.ignore");
 
   const text = ["TING", "", heading, "", body, "", `${button}`, input.acceptUrl, "", fine, "", ignore].join("\n");
 

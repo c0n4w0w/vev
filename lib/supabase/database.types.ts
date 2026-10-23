@@ -2095,6 +2095,74 @@ export type Database = {
           },
         ]
       }
+      community_platform_state: {
+        Row: {
+          community_id: string
+          creation_key: string | null
+          onboarding_request_id: string | null
+          provisioned_at: string | null
+          provisioned_by: string | null
+          status: string
+          suspended_at: string | null
+          suspended_by: string | null
+          suspension_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          community_id: string
+          creation_key?: string | null
+          onboarding_request_id?: string | null
+          provisioned_at?: string | null
+          provisioned_by?: string | null
+          status?: string
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          community_id?: string
+          creation_key?: string | null
+          onboarding_request_id?: string | null
+          provisioned_at?: string | null
+          provisioned_by?: string | null
+          status?: string
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_platform_state_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: true
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_platform_state_onboarding_request_id_fkey"
+            columns: ["onboarding_request_id"]
+            isOneToOne: true
+            referencedRelation: "platform_onboarding_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_platform_state_provisioned_by_fkey"
+            columns: ["provisioned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_platform_state_suspended_by_fkey"
+            columns: ["suspended_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_profiles: {
         Row: {
           avatar_path: string | null
@@ -2708,6 +2776,7 @@ export type Database = {
           invited_by: string | null
           request_id: string | null
           revoked_at: string | null
+          role: Database["public"]["Enums"]["community_role"]
           token_hash: string
         }
         Insert: {
@@ -2721,6 +2790,7 @@ export type Database = {
           invited_by?: string | null
           request_id?: string | null
           revoked_at?: string | null
+          role?: Database["public"]["Enums"]["community_role"]
           token_hash: string
         }
         Update: {
@@ -2734,6 +2804,7 @@ export type Database = {
           invited_by?: string | null
           request_id?: string | null
           revoked_at?: string | null
+          role?: Database["public"]["Enums"]["community_role"]
           token_hash?: string
         }
         Relationships: [
@@ -3229,6 +3300,175 @@ export type Database = {
             foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          actor_role: string
+          id: number
+          metadata: Json
+          occurred_at: string
+          result: string
+          target_id: string | null
+          target_type: string
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role: string
+          id?: never
+          metadata?: Json
+          occurred_at?: string
+          result: string
+          target_id?: string | null
+          target_type: string
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string
+          id?: never
+          metadata?: Json
+          occurred_at?: string
+          result?: string
+          target_id?: string | null
+          target_type?: string
+        }
+        Relationships: []
+      }
+      platform_onboarding_attempts: {
+        Row: {
+          attempted_at: string
+          key_hash: string
+        }
+        Insert: {
+          attempted_at?: string
+          key_hash: string
+        }
+        Update: {
+          attempted_at?: string
+          key_hash?: string
+        }
+        Relationships: []
+      }
+      platform_onboarding_requests: {
+        Row: {
+          community_id: string | null
+          contact_email: string
+          contact_name: string
+          created_at: string
+          id: string
+          member_estimate: number | null
+          message: string
+          organization_name: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          community_id?: string | null
+          contact_email: string
+          contact_name: string
+          created_at?: string
+          id?: string
+          member_estimate?: number | null
+          message: string
+          organization_name: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          community_id?: string | null
+          contact_email?: string
+          contact_name?: string
+          created_at?: string
+          id?: string
+          member_estimate?: number | null
+          message?: string
+          organization_name?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_onboarding_requests_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_onboarding_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_operators: {
+        Row: {
+          appointed_at: string
+          appointed_by: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          role: Database["public"]["Enums"]["platform_role"]
+          user_id: string
+        }
+        Insert: {
+          appointed_at?: string
+          appointed_by?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          role: Database["public"]["Enums"]["platform_role"]
+          user_id: string
+        }
+        Update: {
+          appointed_at?: string
+          appointed_by?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          role?: Database["public"]["Enums"]["platform_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_operators_appointed_by_fkey"
+            columns: ["appointed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_operators_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_operators_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -4395,6 +4635,7 @@ export type Database = {
           community_slug: string
           email: string
           expires_at: string
+          invited_role: string
         }[]
       }
       invite_collaboration_member: {
@@ -4416,6 +4657,10 @@ export type Database = {
       is_admin: { Args: { cid: string }; Returns: boolean }
       is_collaboration_manager: {
         Args: { p_collaboration_id: string }
+        Returns: boolean
+      }
+      is_community_suspended: {
+        Args: { p_community_id: string }
         Returns: boolean
       }
       is_direct_conversation_participant: {
@@ -4521,6 +4766,18 @@ export type Database = {
         Args: { p_community_id: string }
         Returns: boolean
       }
+      my_platform_access: {
+        Args: never
+        Returns: {
+          has_mfa_factor: boolean
+          mfa_recent: boolean
+          mfa_verified: boolean
+          role: string
+        }[]
+      }
+      my_suspended_channel_ids: { Args: never; Returns: string[] }
+      my_suspended_community_ids: { Args: never; Returns: string[] }
+      my_suspended_conversation_ids: { Args: never; Returns: string[] }
       normalize_channel_name: { Args: { p_name: string }; Returns: string }
       normalize_display_name: { Args: { p_value: string }; Returns: string }
       normalize_email: { Args: { p_email: string }; Returns: string }
@@ -4548,6 +4805,314 @@ export type Database = {
       }
       password_proven_recently: { Args: never; Returns: boolean }
       password_throttle_key: { Args: { p_email: string }; Returns: string }
+      platform_appoint_operator: {
+        Args: {
+          p_email: string
+          p_role: Database["public"]["Enums"]["platform_role"]
+        }
+        Returns: string
+      }
+      platform_assign_community_admin: {
+        Args: { p_community_id: string; p_email: string; p_replace?: boolean }
+        Returns: {
+          email: string
+          expires_at: string
+          outcome: string
+          token: string
+        }[]
+      }
+      platform_audit: {
+        Args: {
+          p_action: string
+          p_metadata?: Json
+          p_result: string
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: undefined
+      }
+      platform_audit_entries: {
+        Args: {
+          p_before_id?: number
+          p_limit?: number
+          p_target_id?: string
+          p_target_type?: string
+        }
+        Returns: {
+          action: string
+          actor_email: string
+          actor_role: string
+          id: number
+          metadata: Json
+          occurred_at: string
+          result: string
+          target_id: string
+          target_type: string
+        }[]
+      }
+      platform_bootstrap_owner: {
+        Args: { p_email: string; p_recovery?: boolean }
+        Returns: string
+      }
+      platform_caller_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["platform_role"]
+      }
+      platform_color_is_valid: { Args: { p_value: string }; Returns: boolean }
+      platform_community_admin_invitations: {
+        Args: { p_community_id: string }
+        Returns: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by_email: string
+        }[]
+      }
+      platform_create_community: {
+        Args: {
+          p_accent: string
+          p_accent_soft: string
+          p_access_policy: Database["public"]["Enums"]["access_policy"]
+          p_admin_email: string
+          p_creation_key: string
+          p_default_locale: string
+          p_dm_policy: Database["public"]["Enums"]["dm_policy"]
+          p_founded_year: number
+          p_id: string
+          p_location: string
+          p_mark_style: string
+          p_member_directory_visibility: Database["public"]["Enums"]["member_directory_visibility"]
+          p_monogram: string
+          p_name: string
+          p_onboarding_request_id: string
+          p_public_description: string
+          p_slug: string
+          p_tagline: string
+        }
+        Returns: {
+          admin_email: string
+          admin_expires_at: string
+          admin_outcome: string
+          admin_token: string
+          community_id: string
+          created: boolean
+          slug: string
+        }[]
+      }
+      platform_designate_admin: {
+        Args: { p_community_id: string; p_email: string; p_replace: boolean }
+        Returns: {
+          email: string
+          expires_at: string
+          outcome: string
+          token: string
+        }[]
+      }
+      platform_get_community: {
+        Args: { p_community_id: string }
+        Returns: {
+          accent: string
+          accent_soft: string
+          access_policy: Database["public"]["Enums"]["access_policy"]
+          admin_email: string
+          admin_name: string
+          admin_since: string
+          admin_user_id: string
+          default_locale: string
+          dm_policy: Database["public"]["Enums"]["dm_policy"]
+          founded_year: number
+          has_avatar: boolean
+          id: string
+          location: string
+          mark_style: string
+          member_count: number
+          member_directory_visibility: Database["public"]["Enums"]["member_directory_visibility"]
+          moderator_count: number
+          monogram: string
+          name: string
+          onboarding_request_id: string
+          provisioned_at: string
+          provisioned_by_email: string
+          public_description: string
+          slug: string
+          status: string
+          suspended_at: string
+          suspended_by_email: string
+          suspension_reason: string
+          tagline: string
+        }[]
+      }
+      platform_get_onboarding_request: {
+        Args: { p_request_id: string }
+        Returns: {
+          community_id: string
+          community_name: string
+          contact_email: string
+          contact_name: string
+          created_at: string
+          id: string
+          member_estimate: number
+          message: string
+          organization_name: string
+          review_note: string
+          reviewed_at: string
+          reviewed_by_email: string
+          status: string
+          website: string
+        }[]
+      }
+      platform_identifier_is_valid: {
+        Args: { p_value: string }
+        Returns: boolean
+      }
+      platform_list_communities: {
+        Args: { p_search?: string; p_status?: string }
+        Returns: {
+          accent: string
+          admin_email: string
+          admin_name: string
+          id: string
+          mark_style: string
+          member_count: number
+          monogram: string
+          name: string
+          pending_admin_email: string
+          provisioned_at: string
+          slug: string
+          status: string
+        }[]
+      }
+      platform_list_onboarding_requests: {
+        Args: { p_status?: string }
+        Returns: {
+          community_id: string
+          contact_email: string
+          contact_name: string
+          created_at: string
+          id: string
+          member_estimate: number
+          organization_name: string
+          reviewed_at: string
+          status: string
+        }[]
+      }
+      platform_list_operators: {
+        Args: never
+        Returns: {
+          appointed_at: string
+          appointed_by_email: string
+          email: string
+          has_mfa: boolean
+          is_self: boolean
+          name: string
+          revoked_at: string
+          revoked_by_email: string
+          role: string
+          user_id: string
+        }[]
+      }
+      platform_overview: {
+        Args: never
+        Returns: {
+          communities_active: number
+          communities_suspended: number
+          communities_total: number
+          operators_active: number
+          requests_pending: number
+        }[]
+      }
+      platform_reactivate_community: {
+        Args: { p_community_id: string; p_note: string }
+        Returns: boolean
+      }
+      platform_record_failure: {
+        Args: {
+          p_action: string
+          p_reason: string
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: undefined
+      }
+      platform_remove_community_admin: {
+        Args: { p_community_id: string }
+        Returns: boolean
+      }
+      platform_require: {
+        Args: { p_fresh?: boolean; p_owner?: boolean }
+        Returns: Database["public"]["Enums"]["platform_role"]
+      }
+      platform_resend_admin_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: {
+          community_id: string
+          email: string
+          expires_at: string
+          token: string
+        }[]
+      }
+      platform_review_onboarding_request: {
+        Args: { p_decision: string; p_note: string; p_request_id: string }
+        Returns: boolean
+      }
+      platform_revoke_admin_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: boolean
+      }
+      platform_revoke_operator: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
+      platform_session_alive: { Args: never; Returns: boolean }
+      platform_session_is_aal2: { Args: never; Returns: boolean }
+      platform_session_mfa_within: {
+        Args: { p_window: string }
+        Returns: boolean
+      }
+      platform_set_community_avatar: {
+        Args: { p_community_id: string; p_path: string }
+        Returns: {
+          applied: boolean
+          previous_path: string
+        }[]
+      }
+      platform_set_onboarding_note: {
+        Args: { p_note: string; p_request_id: string }
+        Returns: boolean
+      }
+      platform_set_operator_role: {
+        Args: {
+          p_role: Database["public"]["Enums"]["platform_role"]
+          p_user_id: string
+        }
+        Returns: boolean
+      }
+      platform_suspend_community: {
+        Args: { p_community_id: string; p_reason: string }
+        Returns: boolean
+      }
+      platform_update_community: {
+        Args: {
+          p_accent: string
+          p_accent_soft: string
+          p_access_policy: Database["public"]["Enums"]["access_policy"]
+          p_community_id: string
+          p_default_locale: string
+          p_dm_policy: Database["public"]["Enums"]["dm_policy"]
+          p_founded_year: number
+          p_location: string
+          p_mark_style: string
+          p_member_directory_visibility: Database["public"]["Enums"]["member_directory_visibility"]
+          p_monogram: string
+          p_name: string
+          p_public_description: string
+          p_slug: string
+          p_tagline: string
+        }
+        Returns: boolean
+      }
+      platform_write_bypass: { Args: never; Returns: boolean }
       portal_by_slug: {
         Args: { p_slug: string }
         Returns: {
@@ -5031,6 +5596,22 @@ export type Database = {
           user_id: string
         }[]
       }
+      submit_onboarding_request: {
+        Args: {
+          p_client_key: string
+          p_contact_email: string
+          p_contact_name: string
+          p_member_estimate: number
+          p_message: string
+          p_organization_name: string
+          p_website: string
+        }
+        Returns: boolean
+      }
+      suspension_community_of: {
+        Args: { p_key: string; p_kind: string }
+        Returns: string
+      }
       sweep_abandoned_message_attachments: {
         Args: { p_older_than?: string }
         Returns: number
@@ -5150,6 +5731,7 @@ export type Database = {
         | "invitation"
         | "membership"
         | "direct_message"
+      platform_role: "owner" | "operator"
       post_kind: "post" | "announcement"
       reaction_author_visibility: "moderators" | "channel"
     }
@@ -5326,6 +5908,7 @@ export const Constants = {
         "membership",
         "direct_message",
       ],
+      platform_role: ["owner", "operator"],
       post_kind: ["post", "announcement"],
       reaction_author_visibility: ["moderators", "channel"],
     },

@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { CommunitySuspended } from "@/components/community/CommunitySuspended";
 import { getCommunityById, getPortalSlugForCommunity, hasAccess } from "@/lib/data";
+import { getMySuspendedCommunityIds } from "@/lib/platform/suspension";
 import { getSessionUser } from "@/lib/session";
 
 /**
@@ -31,6 +33,12 @@ export default async function CommunityLayout({
     const slug = await getPortalSlugForCommunity(communityId);
     if (!slug) notFound();
     redirect(`/${slug}`);
+  }
+
+  // Suspended by TING: the member is told so, and sees nothing else. The
+  // database would return nothing and refuse every write anyway.
+  if ((await getMySuspendedCommunityIds()).has(community.id)) {
+    return <CommunitySuspended name={community.name} />;
   }
 
   if (!(await hasAccess(user.id, community.id))) redirect(`/${community.slug}`);

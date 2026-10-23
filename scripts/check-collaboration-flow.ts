@@ -731,6 +731,15 @@ async function main() {
     // client may call them. Server-only, and nowhere near a collaboration.
     // Pinned by check:account-security.
     join("lib", "account-security.ts"),
+    // Platform administration (20261113100000): the public onboarding form
+    // (the server passes the caller's address hash to a service-role-only
+    // function), the administrator appointment email (generateLink, after the
+    // platform function authorised it) and a community logo stored after the
+    // operator check. Server-only, nowhere near a collaboration. Pinned by
+    // check:platform-admin.
+    join("app", "platform-admin", "actions.ts"),
+    join("app", "samarbeid", "actions.ts"),
+    join("lib", "platform", "invitation-email.ts"),
   ];
   const offenders = allSources
     .filter((path) => !serverOnlyExceptions.includes(path))
@@ -804,7 +813,10 @@ async function main() {
   expect(
     "68/70: ingen nye mengdereturnerende funksjoner utenom collaboration_units",
     sql("select string_agg(p.proname, ',' order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proretset"),
-    "accept_invitation_token,accept_invitation_token_for_account,access_request_history,approve_access_request,collaboration_units,community_channel_content_counts,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,event_attendance,event_attendee_roster,invitation_preview,local_group_member_counts,organization_person_dm_actions,organization_person_profile_links,own_organization_person_ids,portal_by_slug,portal_events,private_channel_roster,resend_invitation,search_new_subgroup_candidates,search_private_channel_candidates,search_subgroup_candidates,set_channel_details,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person,subgroup_content_counts,subgroup_roster",
+    // Plus the platform administration functions (20261113100000): each lists
+    // communities or requests only behind platform_require() — an active TING
+    // operator with verified MFA — and returns metadata, never content or members.
+    "accept_invitation_token,accept_invitation_token_for_account,access_request_history,approve_access_request,collaboration_units,community_channel_content_counts,community_member_accounts,community_people_linked_member_details,community_people_linked_member_ids,community_person_account_links,direct_member_dm_actions,event_attendance,event_attendee_roster,invitation_preview,local_group_member_counts,my_platform_access,organization_person_dm_actions,organization_person_profile_links,own_organization_person_ids,platform_assign_community_admin,platform_audit_entries,platform_community_admin_invitations,platform_create_community,platform_designate_admin,platform_get_community,platform_get_onboarding_request,platform_list_communities,platform_list_onboarding_requests,platform_list_operators,platform_overview,platform_resend_admin_invitation,platform_set_community_avatar,portal_by_slug,portal_events,private_channel_roster,resend_invitation,search_new_subgroup_candidates,search_private_channel_candidates,search_subgroup_candidates,set_channel_details,set_community_avatar,set_my_community_avatar,start_direct_conversation_with_organization_person,subgroup_content_counts,subgroup_roster",
   );
   const unitsResult = sql("select pg_get_function_result('public.collaboration_units(uuid)'::regprocedure)");
   expect("68: collaboration_units returnerer ingen personfelt", /user|email|handle|member|profile|count/.test(unitsResult), false);

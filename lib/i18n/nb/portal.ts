@@ -146,6 +146,8 @@ export const portal = {
   "inv.toFront": "Til forsiden",
   "inv.label.approved": "Tilgang godkjent",
   "inv.label.invitation": "Invitasjon",
+  "inv.label.admin": "Administrator",
+  "inv.lede.admin": "TING har utnevnt deg til administrator for",
   "inv.lede.approved": "Tilgangen din til",
   "inv.lede.invited": "Du er invitert til",
   "inv.approvedSuffix": " er godkjent",
@@ -202,4 +204,13 @@ export const portal = {
   "email.welcome.personal": "Lenken er personlig.",
   "email.welcome.invitationUntil": "Invitasjonen er gyldig til {date}.",
   "email.welcome.ignore": "Har du ikke bedt om tilgang? Se bort fra denne e-posten.",
+
+  // ── Administrator appointed by TING ──────────────────────────────────────
+  "email.admin.subject": "Du er administrator for {community} på TING",
+  "email.admin.heading": "Velkommen som administrator for {community}",
+  "email.admin.body":
+    "TING har satt opp {community} og utnevnt deg til administrator. Ta imot invitasjonen for å komme i gang.",
+  "email.admin.bodyExisting":
+    "TING har gjort deg til administrator for {community}. Rollen er allerede aktiv på TING-kontoen din.",
+  "email.admin.ignore": "Venter du ikke denne e-posten? Se bort fra den, og gi gjerne beskjed til hei@join-ting.no.",
 } as const;

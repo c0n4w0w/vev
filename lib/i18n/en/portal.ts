@@ -145,6 +145,8 @@ export const portal: Record<keyof typeof nb, string> = {
   "inv.toFront": "Go to the front page",
   "inv.label.approved": "Access approved",
   "inv.label.invitation": "Invitation",
+  "inv.label.admin": "Administrator",
+  "inv.lede.admin": "TING has appointed you as the administrator of",
   "inv.lede.approved": "Your access to",
   "inv.lede.invited": "You're invited to",
   "inv.approvedSuffix": " is approved",
@@ -201,4 +203,13 @@ export const portal: Record<keyof typeof nb, string> = {
   "email.welcome.personal": "This link is personal.",
   "email.welcome.invitationUntil": "The invitation is valid until {date}.",
   "email.welcome.ignore": "Didn't ask for access? Just ignore this email.",
+
+  // ── Administrator appointed by TING ──────────────────────────────────────
+  "email.admin.subject": "You are the administrator of {community} on TING",
+  "email.admin.heading": "Welcome as administrator of {community}",
+  "email.admin.body":
+    "TING has set up {community} and appointed you as its administrator. Accept the invitation to get started.",
+  "email.admin.bodyExisting":
+    "TING has made you the administrator of {community}. The role is already active on your TING account.",
+  "email.admin.ignore": "Not expecting this email? Ignore it, and feel free to let hei@join-ting.no know.",
 };
