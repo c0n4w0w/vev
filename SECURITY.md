@@ -14,10 +14,8 @@ reporting**: on this repository open **Security → Advisories → Report a
 vulnerability** and fill in the form. Only the maintainers can see the report.
 There is no security email address, and none should be used.
 
-> **Activation pending.** The repository is private, so private vulnerability
-> reporting is **not enabled yet** and the form does not exist. Enabling it is
-> part of publication (see below). Until the repository is public and the form
-> is confirmed to work, this policy describes the intended route, not a live one.
+If the reporting form is unavailable, do not disclose vulnerability details in
+a public issue, pull request or discussion.
 
 Please include:
 
@@ -74,26 +72,24 @@ than described are:
 - Hosted-only protections (Supabase per-IP Auth rate limits, IP forwarding,
   leaked-password protection) cannot be exercised locally.
 
-## Maintainer: publication sequence
+## Maintainer: reporting availability
 
-The reporting channel is decided (GitHub private vulnerability reporting).
-Activation is a publication-day task, done in this order:
+Keep GitHub private vulnerability reporting enabled for this public repository:
 
-1. Make the repository public **only with Omar's explicit authorisation** on the
-   day.
-2. **Immediately** enable private vulnerability reporting: **Settings → Code
-   security → Private vulnerability reporting**.
-3. **Verify the form is accessible**: from an account that is not a collaborator,
+1. Verify private vulnerability reporting is enabled in the repository's
+   security settings.
+2. **Verify the form is accessible**: from an account that is not a collaborator,
    Security → Advisories shows **Report a vulnerability** and opens the form.
    Do not submit a test report that reaches third parties.
-4. **Confirm the maintainer's security notifications are configured** (GitHub
+3. **Confirm the maintainer's security notifications are configured** (GitHub
    notification settings for security advisories reach a mailbox that is read).
-5. Only then announce the release.
+4. Only announce a release after the reporting form and notifications have been
+   verified.
 
-Before step 1 the maintainer also keeps the written permissions of the
+The maintainer also keeps the written permissions of the
 organisations and people whose names, logos, photographs and details appear in
 the fixtures and assets. Those permissions are resolved, and the written records
 are kept **outside Git**: never commit them to this repository.
 
-Still outstanding before publication: Omar's confirmation of the copyright
-holder named in [NOTICE.md](NOTICE.md).
+Omar confirmed the copyright holder named in [NOTICE.md](NOTICE.md) on
+28 October 2026.
