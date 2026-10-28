@@ -458,7 +458,7 @@ export default async function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 text-sm sm:flex-row sm:items-start sm:justify-between sm:px-6 lg:px-8">
           <div>
             <Wordmark tone="cream" size="landing" />
-            <p className="mt-3">En møteplass for fellesskap, ikke for annonsører.</p>
+            <p className="mt-3">En møteplass for fellesskap.</p>
           </div>
           <div className="flex flex-col gap-1 sm:items-end">
             <a href={CONTACT_HREF} className="inline-flex min-h-8 items-center text-cream underline underline-offset-4">

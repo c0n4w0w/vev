@@ -49,3 +49,35 @@ next-env.d.ts
 
 # Development mail capture — never commit captured invitations.
 .vev-dev-mail/
+
+# Secrets and key material that are not covered by the .env rules above.
+.env.keys
+*.key
+*.p12
+*.pfx
+
+# Database dumps, backups and logs. These can hold real member data.
+*.dump
+*.backup
+*.bak
+*.sql.gz
+*.log
+/supabase/.temp/
+/supabase/.branches/
+
+# Local Claude Code state (launch.json stays tracked).
+/.claude/settings.local.json
+/.claude/worktrees/
+
+# Loose design files and exports at the repository root. Brand assets that
+# ship with the app live in public/ and app/.
+/*.png
+/*.jpg
+/*.jpeg
+/*.zip
+/ting-logo-system/
+/TING-logo-system*/
+
+# Unpublished drafts (bounty terms, readiness reports). Kept out of Git until
+# they are approved.
+/drafts/
