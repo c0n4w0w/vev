@@ -9,18 +9,15 @@ isolation between communities, accounts or roles are very welcome.
 **Do not open a public issue, pull request or discussion for a security
 problem.**
 
-> **DRAFT – reporting channel not live yet.** This box must be replaced before
-> the repository is made public.
->
-> - **GitHub private vulnerability reporting** is the intended route (repository
->   **Security → Advisories → Report a vulnerability**). It is **not enabled**:
->   the repository is private and GitHub's settings API reports it as unavailable.
->   After publication, the maintainer enables it under **Settings → Code security
->   → Private vulnerability reporting** and then confirms that the button appears
->   for a non-collaborator account and that notifications reach the maintainer.
-> - **No security email address exists**, and none is documented here.
->
-> Until a route is confirmed working, do not publish this repository.
+Report vulnerabilities privately through **GitHub private vulnerability
+reporting**: on this repository open **Security → Advisories → Report a
+vulnerability** and fill in the form. Only the maintainers can see the report.
+There is no security email address, and none should be used.
+
+> **Activation pending.** The repository is private, so private vulnerability
+> reporting is **not enabled yet** and the form does not exist. Enabling it is
+> part of publication (see below). Until the repository is public and the form
+> is confirmed to work, this policy describes the intended route, not a live one.
 
 Please include:
 
@@ -76,3 +73,27 @@ than described are:
   only when the clean-up runs, and may persist in backups until those expire.
 - Hosted-only protections (Supabase per-IP Auth rate limits, IP forwarding,
   leaked-password protection) cannot be exercised locally.
+
+## Maintainer: publication sequence
+
+The reporting channel is decided (GitHub private vulnerability reporting).
+Activation is a publication-day task, done in this order:
+
+1. Make the repository public **only with Omar's explicit authorisation** on the
+   day.
+2. **Immediately** enable private vulnerability reporting: **Settings → Code
+   security → Private vulnerability reporting**.
+3. **Verify the form is accessible**: from an account that is not a collaborator,
+   Security → Advisories shows **Report a vulnerability** and opens the form.
+   Do not submit a test report that reaches third parties.
+4. **Confirm the maintainer's security notifications are configured** (GitHub
+   notification settings for security advisories reach a mailbox that is read).
+5. Only then announce the release.
+
+Before step 1 the maintainer also keeps the written permissions of the
+organisations and people whose names, logos, photographs and details appear in
+the fixtures and assets. Those permissions are resolved, and the written records
+are kept **outside Git**: never commit them to this repository.
+
+Still outstanding before publication: Omar's confirmation of the copyright
+holder named in [NOTICE.md](NOTICE.md).
