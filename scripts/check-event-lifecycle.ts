@@ -227,9 +227,12 @@ async function main() {
   const { data: portalNow } = await anon.rpc("portal_events", { p_slug: FTR });
   expect("S. portalen viser fortsatt ikke Safe-Space- eller lokallagsarrangementet", (portalNow ?? []).some((e) => e.id === adminSs || e.id === adminTrondelag), false);
   expect("S. FTR-medlem utenfor Safe-Space ser det fortsatt ikke", Boolean((await c.elise.from("events").select("id").eq("id", adminSs).maybeSingle()).data), false);
-  // Ordinary edits still work, also when the unchanged scope is sent along.
+  // Ordinary edits still work. The scope columns are not writable at all
+  // since 20261114100000, so sending them along — even unchanged — is refused
+  // on privilege; the app's edit form never sends them.
   expect("S. admin endrer fortsatt tittel på Safe-Space-arrangement", await edit(c.miaminge, adminSs, { title: `${MARK} Safe-Space` }), "endret");
-  expect("S. uendret omfang sendt med en endring godtas", await edit(c.miaminge, adminTrondelag, { local_group_id: trondelag, location: "Trondheim" }), "endret");
+  expect("S. admin endrer fortsatt sted på lokallagsarrangement", await edit(c.miaminge, adminTrondelag, { location: "Trondheim" }), "endret");
+  expect("S. uendret omfang sendt med en endring avvises", await edit(c.miaminge, adminTrondelag, { local_group_id: trondelag, location: "Trondheim" }), "avvist");
   // Creation keeps every authorized scope.
   const createdSs = await create(c.miaminge, { subgroup_id: ss!.id });
   expect("S. admin kan fortsatt opprette Safe-Space-arrangement", Boolean(createdSs), true);

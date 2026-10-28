@@ -388,9 +388,10 @@ async function main() {
     const directDelete = await loose(linn).from("messages").delete().eq("id", first);
     expect("D1 direkte sletting nektes", directDelete.error?.code, "42501");
     const forged = await loose(linn).from("messages").insert({ channel_id: general, body: `${BODY}: falsk`, deleted_at: new Date().toISOString(), removed_by_moderator: true });
-    expect("D2 en melding kan ikke settes inn som slettet", code(forged), "not_allowed");
+    // Refused on privilege since 20261114100000: members insert only channel_id and body.
+    expect("D2 en melding kan ikke settes inn som slettet", code(forged), "42501");
     const forgedEdit = await loose(linn).from("messages").insert({ channel_id: general, body: `${BODY}: falsk`, edited_at: new Date().toISOString() });
-    expect("D2 en melding kan ikke settes inn som redigert", code(forgedEdit), "not_allowed");
+    expect("D2 en melding kan ikke settes inn som redigert", code(forgedEdit), "42501");
     const moved = await admin.from("messages").update({ author_id: id("elise") }).eq("id", first);
     expect("D3 forfatteren kan ikke byttes, heller ikke av serveren", code(moved), "immutable");
     const redated = await admin.from("messages").update({ created_at: "2020-01-01T00:00:00Z" }).eq("id", first);

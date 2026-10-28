@@ -54,6 +54,7 @@
     "check:lokallag-channels": "tsx scripts/check-lokallag-channels.ts",
     "check:member-count": "tsx scripts/check-member-count.ts",
     "check:mentions": "tsx scripts/check-mentions.ts",
+    "check:message-integrity": "tsx scripts/check-message-integrity.ts",
     "check:message-moderation": "tsx scripts/check-message-moderation.ts",
     "check:notifications": "tsx scripts/check-notifications.ts",
     "check:onboarding": "tsx scripts/check-onboarding.ts",

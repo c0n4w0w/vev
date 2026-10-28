@@ -1,4 +1,4 @@
-import { MESSAGE_BODY_MAX, messageBodyError } from "@/lib/message-form";
+import { MESSAGE_BODY_MAX, legacyMessageAttachment, messageBodyError } from "@/lib/message-form";
 import "server-only";
 
 import { cache } from "react";
@@ -251,7 +251,7 @@ function toMessage(row: MessageRow): Message {
     body: row.body,
     createdAt: row.created_at,
     reactions: toReactions(row.reactions),
-    attachment: (row.attachment as Message["attachment"]) ?? undefined,
+    attachment: legacyMessageAttachment(row.attachment),
     editedAt: row.edited_at ?? undefined,
     deleted: row.deleted_at ? (row.removed_by_moderator ? "moderator" : "author") : undefined,
   };

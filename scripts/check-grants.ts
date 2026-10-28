@@ -110,13 +110,12 @@ const AUTHENTICATED_READ = [
 
 /** Beyond SELECT. Every table not named here is read-only to a member. */
 const AUTHENTICATED_WRITE: Record<string, string[]> = {
-  comments: ["INSERT", "UPDATE", "DELETE"],
-  events: ["INSERT", "UPDATE", "DELETE"],
-  posts: ["INSERT", "UPDATE", "DELETE"],
+  comments: ["DELETE"],
+  events: ["DELETE"],
+  posts: ["DELETE"],
   community_emojis: ["INSERT", "DELETE"],
   event_attendees: ["INSERT", "DELETE"],
   post_reactions: ["INSERT", "DELETE"],
-  messages: ["INSERT"],
 };
 
 const AUTHENTICATED_COLUMNS: Record<string, Record<string, string[]>> = {
@@ -128,6 +127,18 @@ const AUTHENTICATED_COLUMNS: Record<string, Record<string, string[]>> = {
   },
   direct_messages: { INSERT: ["conversation_id", "body"] },
   notifications: { UPDATE: ["read"] },
+  // Exactly what the app writes (20261114100000); defaults and triggers set
+  // the rest, so a member cannot choose a date, a count or an attachment.
+  messages: { INSERT: ["channel_id", "body"] },
+  comments: { INSERT: ["post_id", "parent_id", "body"], UPDATE: ["body"] },
+  posts: {
+    INSERT: ["community_id", "local_group_id", "subgroup_id", "title", "body", "kind"],
+    UPDATE: ["title", "body"],
+  },
+  events: {
+    INSERT: ["community_id", "local_group_id", "subgroup_id", "title", "description", "starts_at", "ends_at", "location", "is_public", "capacity"],
+    UPDATE: ["title", "description", "starts_at", "ends_at", "location", "capacity"],
+  },
 };
 
 /** Tables only the server and SECURITY DEFINER functions touch. */

@@ -29,3 +29,20 @@ export function messageBodyError(body: string): MessageKey | undefined {
   if (body.length > MESSAGE_BODY_MAX) return "err.messageTooLong";
   return undefined;
 }
+
+/**
+ * The legacy attachment card on a channel message (`messages.attachment`), or
+ * undefined when the stored value is not exactly that shape.
+ *
+ * Only the seed writes this column, and the database now checks its shape
+ * (20261114100000). This is the second lock: the channel page renders `label`
+ * and `meta` as text, and anything other than a string there would stop the
+ * page rendering for everyone in the channel.
+ */
+export function legacyMessageAttachment(value: unknown): Message["attachment"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const { kind, label, meta } = value as Record<string, unknown>;
+  if (kind !== "file" && kind !== "link") return undefined;
+  if (typeof label !== "string" || !label || typeof meta !== "string") return undefined;
+  return { kind, label, meta };
+}

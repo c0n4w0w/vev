@@ -225,4 +225,9 @@ export const errors = {
   "err.invitation.adminTaken": "Fellesskapet har fått en annen administrator i mellomtiden. Ta kontakt med TING.",
   "err.authUnavailable": "Vi får ikke kontakt med innloggingen akkurat nå. Lenken er ikke brukt opp – prøv igjen om litt.",
   "err.notificationsFailed": "Varslene kunne ikke merkes som lest. Prøv igjen.",
+
+  // ── A community page that failed to render ────────────────────────────
+  "err.communityPage.title": "Siden kunne ikke vises",
+  "err.communityPage.body": "Noe gikk galt da denne siden skulle vises. Ingenting er endret. Prøv igjen, eller gå tilbake til oversikten.",
+  "err.communityPage.retry": "Prøv igjen",
 } as const;
