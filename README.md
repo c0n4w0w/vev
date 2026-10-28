@@ -211,10 +211,27 @@ set `SUPABASE_DB_CONTAINER` if yours differs.
 
 ## Licence
 
-**No licence has been chosen yet.** Until one is added, the code is not
-licensed for reuse. The names, logos, photographs and people of the
-organisations in the fixtures (Tryggere Ruspolitikk, Tryggere Ungdom, Under
-The Rug) are included with their permission. They belong to those
-organisations and people, and are not covered by any future code licence: do
-not reuse them outside a local review of TING, and do not send email to the
-fixture addresses (the local demo delivers everything to Mailpit).
+TING's source code is licensed under the **GNU Affero General Public License,
+version 3 or (at your option) any later version** (AGPL-3.0-or-later). The full
+text is in [LICENSE](LICENSE); the notice and exclusions are in
+[NOTICE.md](NOTICE.md).
+
+In practice: you may run, study, change and share the code. If you distribute a
+copy or a modified version, you must do so under the same licence and provide
+the corresponding source. The AGPL's extra condition (section 13) applies to a
+**modified version** that users interact with remotely over a network, such as a
+hosted fork: you must prominently offer those users the corresponding source of
+your modified version, at no charge, from a network server. It does not require
+publishing anything if you only run the unmodified code, and it covers source
+code, not your data. This summary is not legal advice; the licence text governs.
+
+**Not covered by the code licence:** organisation names, logos, photographs and
+the people and personal data in the fixtures (Tryggere Ruspolitikk, Tryggere
+Ungdom, Under The Rug). They are included with their owners' permission for
+local review of TING. That permission does not grant downstream reuse: do not
+redistribute them or use them in a derived service, and replace them in a fork.
+Do not send email to the fixture addresses (the local demo delivers everything
+to Mailpit).
+
+Third-party dependencies keep their own licences; see
+[NOTICE.md](NOTICE.md#third-party-software).

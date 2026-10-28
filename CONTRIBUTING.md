@@ -66,8 +66,10 @@ Open a GitHub issue with:
 5. Interface text goes in both `lib/i18n/nb/` and `lib/i18n/en/`; `en` is
    typed against `nb`, so a missing translation is a type error.
 
-Note that no licence has been chosen yet (see the README). Until one is, please
-ask before submitting substantial code.
+The code is licensed under AGPL-3.0-or-later (see the README and
+[LICENSE](LICENSE)); by submitting a contribution you agree that it is licensed
+under those terms. Do not contribute logos, photographs or personal data you do
+not have the right to license this way.
 
 ## Checks
 

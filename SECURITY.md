@@ -9,15 +9,18 @@ isolation between communities, accounts or roles are very welcome.
 **Do not open a public issue, pull request or discussion for a security
 problem.**
 
-> **DRAFT – reporting channel not decided yet.** The maintainer must choose
-> and set up a private channel before this repository is made public, and
-> replace this box with it. Options under consideration: GitHub private
-> vulnerability reporting (Security → Advisories → «Report a vulnerability»;
-> it is **not** enabled today) and/or a dedicated security email address
-> (none exists today).
+> **DRAFT – reporting channel not live yet.** This box must be replaced before
+> the repository is made public.
 >
-> Until then, report privately and directly to the maintainer through a
-> channel you already use with them.
+> - **GitHub private vulnerability reporting** is the intended route (repository
+>   **Security → Advisories → Report a vulnerability**). It is **not enabled**:
+>   the repository is private and GitHub's settings API reports it as unavailable.
+>   After publication, the maintainer enables it under **Settings → Code security
+>   → Private vulnerability reporting** and then confirms that the button appears
+>   for a non-collaborator account and that notifications reach the maintainer.
+> - **No security email address exists**, and none is documented here.
+>
+> Until a route is confirmed working, do not publish this repository.
 
 Please include:
 
