@@ -4,10 +4,8 @@
  * a direct message is removed: the disappearing-messages dialog and the
  * delete confirmations.
  *
- * PLACEHOLDER — NOT CONFIRMED. "N" is shown as-is until the Supabase plan's
- * retention is confirmed: the longest of the daily backups (Pro: 7 days) and
- * point-in-time recovery, if that add-on is on (7, 14 or 28 days). Replace it
- * with that number before disappearing messages are deployed, and keep
- * docs/ops/post-restore.md in step.
+ * Omar confirmed the Pro upgrade and seven-day retention on 2026-10-28.
+ * Review this value if the plan, point-in-time recovery or other retained
+ * backup copies change, and keep docs/ops/post-restore.md in step.
  */
-export const BACKUP_RETENTION_DAYS: number | "N" = "N";
+export const BACKUP_RETENTION_DAYS = 7;

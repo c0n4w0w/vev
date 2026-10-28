@@ -120,10 +120,10 @@ systemctl start vev.service
 
 - **Sikkerhetskopiene selv.** Dette rydder den gjenopprettede databasen, ikke
   sikkerhetskopiene. Slettede meldinger kan ligge i Supabases krypterte
-  sikkerhetskopier og PITR-logger til de utløper etter planens
-  oppbevaringstid: **[N] dager — ikke bekreftet, må fylles inn**
-  (Pro: 7 daglige sikkerhetskopier; PITR 7, 14 eller 28 dager, avhengig av
-  tillegget). Samme tall står i grensesnittet (`lib/backup-retention.ts`).
+  sikkerhetskopier til de utløper etter planens oppbevaringstid: **7 dager**
+  (Pro, bekreftet av Omar 28. oktober 2026). Samme tall står i grensesnittet
+  (`lib/backup-retention.ts`). Vurder tallet på nytt hvis planen, PITR eller
+  andre lagrede sikkerhetskopier endres, og oppdater begge steder.
 - **Vedlegg.** Ifølge Supabases dokumentasjon omfatter sikkerhetskopiene av
   databasen ikke selve filene i Storage, bare radene som beskriver dem. En fil
   som var slettet før gjenopprettingen, kommer derfor ikke tilbake — men raden
